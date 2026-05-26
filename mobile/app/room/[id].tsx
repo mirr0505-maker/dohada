@@ -150,8 +150,8 @@ export default function ChallengeRoom() {
     if (fromCreate !== '1' || !challenge || createPromptShown) return;
     setCreatePromptShown(true);
     Alert.alert(
-      '더 나은 나, 더 나은 세상',
-      '함께하면 완주성공 3배',
+      'Do : 하다',
+      '더 나은 나 더 나은 세상\n함께하면 완주 성공 3배',
       [
         { text: '나중에', style: 'cancel' },
         { text: '카톡으로 초대', onPress: onShareInvite },
