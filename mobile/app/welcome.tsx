@@ -1,6 +1,4 @@
-// 🚀 환영 화면 — 가입 직후. 약관 동의 + 휴대폰 인증 안내.
-// 프로토타입 screen-welcome 그대로. 단, 휴대폰 인증/내기/명사챌린지는 Phase 2 라서
-// UI 만 보여주고 실제 기능은 동작하지 않는다.
+// 🚀 환영 화면 — 가입 직후 약관 동의. (MVP: 휴대폰 인증 없음)
 import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
@@ -46,15 +44,6 @@ export default function WelcomeScreen() {
           <Text style={styles.sloganDesc}>나의 도전이 나와 세상을 바꾼다</Text>
         </View>
 
-        {/* 핵심 기능 안내 (Phase 2 기능들 — UI 만) */}
-        <View style={styles.featureCard}>
-          <Text style={styles.featureCardTitle}>📱 휴대폰 인증이 필요한 기능</Text>
-          <Feature emoji="🤝" title="도전 동료 찾기" desc="연락처 매칭으로 지인 만나기" />
-          <Feature emoji="💰" title="내기 챌린지" desc="진짜 동기부여를 더한 도전" />
-          <Feature emoji="🎁" title="선물 응원 / 결제" desc="동료에게 응원 선물 보내기" />
-          <Feature emoji="⭐" title="명사 챌린지 참여" desc="유명인과 함께 도전" />
-        </View>
-
         {/* 약관 동의 */}
         <View style={styles.termsBlock}>
           <TermRow checked={allOn} label="전체 동의" bold onPress={toggleAll} />
@@ -88,34 +77,15 @@ export default function WelcomeScreen() {
         </View>
 
         {/* 액션 */}
-        <View style={{ gap: 8 }}>
-          <Button
-            label="휴대폰 인증하기"
-            size="lg"
-            block
-            disabled={!requiredOk}
-            onPress={goMain}
-          />
-          <Pressable style={styles.skipBtn} onPress={goMain} disabled={!requiredOk}>
-            <Text style={[styles.skipText, !requiredOk && { opacity: 0.5 }]}>
-              나중에 인증할게요
-            </Text>
-          </Pressable>
-        </View>
+        <Button
+          label="시작하기"
+          size="xl"
+          block
+          disabled={!requiredOk}
+          onPress={goMain}
+        />
       </ScrollView>
     </Screen>
-  );
-}
-
-function Feature({ emoji, title, desc }: { emoji: string; title: string; desc: string }) {
-  return (
-    <View style={styles.featureItem}>
-      <Text style={styles.featureEmoji}>{emoji}</Text>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.featureTitle}>{title}</Text>
-        <Text style={styles.featureDesc}>{desc}</Text>
-      </View>
-    </View>
   );
 }
 
@@ -194,38 +164,6 @@ const styles = StyleSheet.create({
     color: colors.primary500,
     fontFamily: fontFamily.regular,
   },
-  featureCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: 16,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: colors.primary100,
-  },
-  featureCardTitle: {
-    fontSize: fontSize.base,
-    color: colors.primary,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-    marginBottom: 4,
-  },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  featureEmoji: { fontSize: 22 },
-  featureTitle: {
-    fontSize: fontSize.base,
-    color: colors.primary,
-    fontFamily: fontFamily.medium,
-    fontWeight: fontWeight.semibold,
-  },
-  featureDesc: {
-    fontSize: fontSize.sm,
-    color: colors.primary500,
-    fontFamily: fontFamily.regular,
-  },
   termsBlock: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
@@ -273,13 +211,4 @@ const styles = StyleSheet.create({
   optional: { color: colors.primary500 },
   link: { color: colors.primary500, textDecorationLine: 'underline' },
   divider: { height: 1, backgroundColor: colors.primary100 },
-  skipBtn: {
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  skipText: {
-    fontSize: fontSize.base,
-    color: colors.primary500,
-    fontFamily: fontFamily.medium,
-  },
 });
