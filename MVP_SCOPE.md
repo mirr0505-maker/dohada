@@ -87,7 +87,8 @@
 | **G. 매일 로컬 알림** | 매일 저녁 20시 "오늘 인증했어?" 로컬 푸시. Apple Push 인증서 불필요. |
 | **H. Skeleton 로딩** | ActivityIndicator 대신 카드 모양 placeholder. |
 | **I. Pull-to-refresh** | home + room 모두 적용. |
-| **J. 둘러보기** *(2026-05-26 마지막 추가)* | 공개(open) 챌린지 목록. home 우상단 🌍 → [app/discover.tsx](mobile/app/discover.tsx). RLS 가 비멤버에게 open 챌린지만 노출. |
+| **J. 둘러보기** | 공개(open) 챌린지 목록. home 우상단 🌍 → [app/discover.tsx](mobile/app/discover.tsx). RLS 가 비멤버에게 open 챌린지만 노출. |
+| **K. AI 콘텐츠 검수** *(2026-05-26 마지막 추가)* | 챌린지 생성 시 제목/설명을 Claude Haiku 4.5 가 비윤리/반국가/폭력/불법 4 카테고리로 검수 → block 이면 생성 차단. 공개 챌린지 도입 부작용 방지. [supabase/functions/moderate-challenge](supabase/functions/moderate-challenge/index.ts) |
 
 추가 인프라:
 - **Pretendard 폰트** (Regular/Medium/Bold OTF 3종, 동적 로딩)
@@ -113,7 +114,7 @@
 | 응원 이모지 5종 | 4.7.2 | ❤️ 하나로 충분 |
 | 박제 자산화 — 인증서/포토북 | 4.10 | Phase 2. **단, MVP 는 단순 완주 화면(A) 까지만.** |
 | 내기 시스템 (에스크로) | 4.14 | 결제/정산/환불 복잡. Phase 2. |
-| AI 콘텐츠 검수 | 4.6.3 | 100명 베타는 직접 본다 |
+| AI 콘텐츠 검수 (인증 사진) | 4.6.3 | **챌린지 텍스트 검수(K)는 적용.** 사진 vision 검수는 Phase 1.5. |
 | 유배지/보석금 | 8장 | Phase 2. **MVP 는 단순 잠시 멈춤(C) 만.** |
 | 명사 챌린지 | 4.11 | Phase 2 |
 | 둘러보기 큐레이션 (스태프픽/인기/검색) | 6장 | **단순 목록만 적용(J).** 큐레이션/검색은 Phase 1.5. |
@@ -148,6 +149,7 @@
 - ErrorState 컴포넌트 + Sentry 골격 + i18n 골격
 - **A~I 일괄** (완주/단독/잠시멈춤/진행률/Haptic/Streak/로컬알림/Skeleton/Pull-to-refresh)
 - **J. 둘러보기 + 공개 챌린지** (마이그레이션 0003)
+- **K. AI 콘텐츠 검수** — Edge Function `moderate-challenge` (Claude Haiku 4.5)
 - 마이그레이션 0002 (`challenges.kind`, `challenge_members.paused_until`),
   0003 (`open` kind + RLS, 비멤버 조회/참여)
 
@@ -213,7 +215,7 @@ v4.0.1은 디자인 톤·정책 (친구 단어 금지, 비교 압박 금지, 미
 
 ## 🎯 핵심
 
-> **"6개 + A~J 완성도. 베타 30명에게 보여준다."**
+> **"6개 + A~K 완성도. 베타 30명에게 보여준다."**
 
 코드 측은 완료. 남은 건:
 1. Apple Developer 활성화 → EAS Build → iPhone 설치

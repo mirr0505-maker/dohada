@@ -11,6 +11,7 @@ import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import { createChallenge } from '@/lib/db';
 import { haptic } from '@/lib/haptics';
+import { supabase } from '@/lib/supabase';
 import type { ChallengeKind } from '@/lib/types';
 
 const DURATIONS = [
@@ -38,6 +39,24 @@ export default function CreateChallenge() {
     }
     setSubmitting(true);
     try {
+      // 1) AI 콘텐츠 검수 — 비윤리/반국가/폭력/불법 차단 (기획서 4.6.3)
+      //    검수 우회 분기 만들지 말 것 (CLAUDE.md 절대 규칙 5).
+      const { data: mod, error: modErr } = await supabase.functions.invoke<{
+        verdict: 'allow' | 'block';
+        reason: string | null;
+        category: string | null;
+      }>('moderate-challenge', { body: { title, description } });
+      if (modErr) throw modErr;
+      if (!mod || mod.verdict === 'block') {
+        haptic.warning();
+        Alert.alert(
+          '챌린지 생성이 차단됐어요',
+          mod?.reason ?? '부적절한 내용이 포함되어 있어요.',
+        );
+        return;
+      }
+
+      // 2) DB insert
       const challenge = await createChallenge({
         userId: session.user.id,
         title,
@@ -46,7 +65,7 @@ export default function CreateChallenge() {
         kind,
       });
       haptic.success();
-      // solo 챌린지는 초대 안내 X.  closed 만 fromCreate=1.
+      // solo/open 챌린지는 카톡 초대 안내 X.  closed 만 fromCreate=1.
       const path = kind === 'closed'
         ? `/room/${challenge.id}?fromCreate=1`
         : `/room/${challenge.id}`;
@@ -178,7 +197,7 @@ export default function CreateChallenge() {
       {/* 하단 액션 */}
       <View style={styles.bottom}>
         <Button
-          label={submitting ? '만드는 중…' : '만들기'}
+          label={submitting ? '검수 중…' : '만들기'}
           size="xl"
           block
           disabled={!canSubmit}
