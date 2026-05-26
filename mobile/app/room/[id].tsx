@@ -277,9 +277,13 @@ export default function ChallengeRoom() {
           <Text style={styles.title} numberOfLines={1}>{challenge.title}</Text>
           <Text style={styles.subtitle}>{members.length}명 함께 도전 중</Text>
         </View>
-        <Pressable onPress={onShareInvite} hitSlop={12}>
-          <Text style={styles.share}>초대</Text>
-        </Pressable>
+        {challenge.kind === 'closed' ? (
+          <Pressable onPress={onShareInvite} hitSlop={12}>
+            <Text style={styles.share}>초대</Text>
+          </Pressable>
+        ) : (
+          <View style={{ width: 32 }} />
+        )}
       </View>
 
       {/* 진행률 + Streak + 잠시멈춤 토글 */}
@@ -310,23 +314,26 @@ export default function ChallengeRoom() {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 24, gap: 12 }}
-          renderItem={({ item }) => (
-            <View style={styles.member}>
-              <View style={[
-                styles.memberAvatar,
-                item.today_checked && styles.memberAvatarChecked,
-              ]}>
-                {item.avatar_url ? (
-                  <Image source={{ uri: item.avatar_url }} style={styles.avatarImg} />
-                ) : (
-                  <Text style={{ fontSize: 20 }}>🐰</Text>
-                )}
+          renderItem={({ item }) => {
+            const paused = isMemberPaused(item.paused_until);
+            return (
+              <View style={[styles.member, paused && { opacity: 0.45 }]}>
+                <View style={[
+                  styles.memberAvatar,
+                  item.today_checked && styles.memberAvatarChecked,
+                ]}>
+                  {item.avatar_url ? (
+                    <Image source={{ uri: item.avatar_url }} style={styles.avatarImg} />
+                  ) : (
+                    <Text style={{ fontSize: 20 }}>🐰</Text>
+                  )}
+                </View>
+                <Text style={styles.memberName} numberOfLines={1}>
+                  {paused ? '⏸ ' : ''}{item.nickname}
+                </Text>
               </View>
-              <Text style={styles.memberName} numberOfLines={1}>
-                {item.nickname}
-              </Text>
-            </View>
-          )}
+            );
+          }}
           ListEmptyComponent={
             <Text style={styles.memberEmpty}>아직 동료가 없어요. 카톡으로 초대하세요.</Text>
           }
@@ -421,6 +428,11 @@ function ProofCard({ proof, onCheer }: { proof: ProofWithRelations; onCheer: () 
       </View>
     </View>
   );
+}
+
+function isMemberPaused(pausedUntil: string | null): boolean {
+  if (!pausedUntil) return false;
+  return new Date().toISOString().slice(0, 10) <= pausedUntil;
 }
 
 function formatTime(iso: string): string {
