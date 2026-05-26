@@ -9,7 +9,7 @@ export type DbUser = {
   created_at: string;
 };
 
-export type ChallengeKind = 'closed' | 'solo';
+export type ChallengeKind = 'closed' | 'solo' | 'open';
 
 export type DbChallenge = {
   id: string;

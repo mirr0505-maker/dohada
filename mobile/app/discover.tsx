@@ -1,48 +1,46 @@
-// 🚀 홈 화면 — 내 챌린지 리스트 (Supabase 실데이터)
+// 🚀 둘러보기 — 공개(open) 챌린지 목록
+// home 의 "둘러보기" 진입점 → 공개 챌린지 카드 리스트 → 탭하면 room 으로 (비멤버 상태)
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, Pressable, FlatList, StyleSheet,
-  ActivityIndicator, RefreshControl,
+  RefreshControl,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Screen } from '@/components/Screen';
+import { ChallengeCardSkeleton } from '@/components/Skeleton';
+import { ErrorState } from '@/components/ErrorState';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
-import { fetchMyChallenges } from '@/lib/db';
-import { ErrorState } from '@/components/ErrorState';
-import { ChallengeCardSkeleton } from '@/components/Skeleton';
+import { fetchOpenChallenges } from '@/lib/db';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import type { ChallengeWithCount } from '@/lib/types';
 
-export default function HomeScreen() {
+export default function DiscoverScreen() {
   const session = useSession();
-  const [challenges, setChallenges] = useState<ChallengeWithCount[]>([]);
+  const [items, setItems] = useState<ChallengeWithCount[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 미인증 시 login 으로
   useEffect(() => {
     if (session === null) router.replace('/login');
   }, [session]);
 
   const load = useCallback(async () => {
-    if (!session) return;
     try {
       setError(null);
-      const data = await fetchMyChallenges();
-      setChallenges(data);
+      const data = await fetchOpenChallenges();
+      setItems(data);
     } catch (e: any) {
-      reportError(e, { where: 'home/fetchMyChallenges' });
-      setError(e?.message ?? '챌린지 목록을 가져오지 못했어요.');
+      reportError(e, { where: 'discover/fetchOpenChallenges' });
+      setError(e?.message ?? '둘러보기를 불러오지 못했어요.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [session]);
+  }, []);
 
-  // 화면 포커스 들어올 때마다 새로고침 (챌린지 만든 후 돌아오면 즉시 반영)
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const onRefresh = useCallback(() => {
@@ -50,28 +48,14 @@ export default function HomeScreen() {
     load();
   }, [load]);
 
-  const nickname = (session?.user?.user_metadata as any)?.full_name
-    ?? session?.user?.email?.split('@')[0]
-    ?? '도전자';
-
   return (
     <Screen backgroundColor={colors.background}>
       <View style={styles.header}>
-        <View>
-          <Text style={styles.hello}>안녕하세요</Text>
-          <Text style={styles.nickname}>{nickname} 🐰</Text>
-        </View>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          <Pressable
-            style={styles.iconBtn}
-            onPress={() => { haptic.tap(); router.push('/discover' as any); }}
-          >
-            <Text style={{ fontSize: 18 }}>🌍</Text>
-          </Pressable>
-          <Pressable style={styles.avatar}>
-            <Text style={{ fontSize: 22 }}>🐰</Text>
-          </Pressable>
-        </View>
+        <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Text style={styles.back}>←</Text>
+        </Pressable>
+        <Text style={styles.title}>둘러보기</Text>
+        <View style={{ width: 32 }} />
       </View>
 
       {loading ? (
@@ -84,7 +68,7 @@ export default function HomeScreen() {
         <ErrorState message={error} onRetry={() => { setLoading(true); load(); }} />
       ) : (
         <FlatList
-          data={challenges}
+          data={items}
           keyExtractor={c => c.id}
           contentContainerStyle={styles.list}
           refreshControl={
@@ -94,45 +78,34 @@ export default function HomeScreen() {
               tintColor={colors.accent}
             />
           }
-          ListHeaderComponent={
-            challenges.length > 0
-              ? <Text style={styles.sectionTitle}>참여 중인 챌린지 {challenges.length}</Text>
-              : null
-          }
-          renderItem={({ item }) => <ChallengeCard challenge={item} />}
+          renderItem={({ item }) => <OpenCard challenge={item} />}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>🌱</Text>
+              <Text style={styles.emptyEmoji}>🌍</Text>
               <Text style={styles.emptyText}>
-                아직 챌린지가 없어요.{'\n'}첫 챌린지를 만들어볼까요?
+                아직 공개 챌린지가 없어요.{'\n'}첫 공개 챌린지를 만들어볼까요?
               </Text>
             </View>
           }
         />
       )}
-
-      <Pressable
-        style={styles.fab}
-        onPress={() => { haptic.tap(); router.push('/create'); }}
-      >
-        <Text style={styles.fabPlus}>＋</Text>
-        <Text style={styles.fabLabel}>챌린지 만들기</Text>
-      </Pressable>
     </Screen>
   );
 }
 
-function ChallengeCard({ challenge }: { challenge: ChallengeWithCount }) {
-  const daysLeft = computeDaysLeft(challenge.end_date);
+function OpenCard({ challenge }: { challenge: ChallengeWithCount }) {
   return (
     <Pressable
       style={styles.card}
-      onPress={() => router.push(`/room/${challenge.id}`)}
+      onPress={() => {
+        haptic.tap();
+        router.push(`/room/${challenge.id}`);
+      }}
     >
       <View style={styles.cardHeader}>
         <Text style={styles.cardTitle} numberOfLines={1}>{challenge.title}</Text>
-        <View style={styles.daysBadge}>
-          <Text style={styles.daysBadgeText}>D-{daysLeft}</Text>
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>🌍 공개</Text>
         </View>
       </View>
       {challenge.description ? (
@@ -148,65 +121,35 @@ function ChallengeCard({ challenge }: { challenge: ChallengeWithCount }) {
   );
 }
 
-function computeDaysLeft(endDate: string): number {
-  const end = new Date(endDate + 'T23:59:59');
-  const now = new Date();
-  return Math.max(0, Math.ceil((end.getTime() - now.getTime()) / 86_400_000));
-}
-
 const styles = StyleSheet.create({
   header: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
+    height: 56,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.primary100,
+    backgroundColor: colors.surface,
   },
-  hello: {
-    fontSize: fontSize.sm,
-    color: colors.primary500,
-    fontFamily: fontFamily.regular,
+  back: {
+    fontSize: 24,
+    color: colors.primary,
+    paddingHorizontal: 8,
+    fontWeight: fontWeight.medium,
   },
-  nickname: {
-    fontSize: fontSize['2xl'],
+  title: {
+    fontSize: fontSize.lg,
     color: colors.primary,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
-    letterSpacing: -0.4,
   },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.primary100,
-  },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.primary100,
-  },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: {
     paddingHorizontal: 24,
-    paddingBottom: 120,
+    paddingVertical: 16,
+    paddingBottom: 80,
     gap: 12,
     flexGrow: 1,
-  },
-  sectionTitle: {
-    fontSize: fontSize.base,
-    color: colors.primary500,
-    fontFamily: fontFamily.medium,
-    fontWeight: fontWeight.semibold,
-    marginBottom: 8,
   },
   card: {
     backgroundColor: colors.surface,
@@ -228,13 +171,13 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },
-  daysBadge: {
+  badge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     backgroundColor: colors.accent50,
     borderRadius: radius.pill,
   },
-  daysBadgeText: {
+  badgeText: {
     fontSize: fontSize.xs,
     color: colors.accent700,
     fontFamily: fontFamily.bold,
@@ -258,7 +201,7 @@ const styles = StyleSheet.create({
   },
   empty: {
     flex: 1,
-    paddingVertical: 64,
+    paddingVertical: 80,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 16,
@@ -270,29 +213,5 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.regular,
     textAlign: 'center',
     lineHeight: 22,
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: colors.accent,
-    borderRadius: radius.pill,
-    ...shadow.lg,
-  },
-  fabPlus: {
-    color: colors.surface,
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
-  },
-  fabLabel: {
-    color: colors.surface,
-    fontSize: fontSize.base,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
   },
 });

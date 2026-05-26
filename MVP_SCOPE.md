@@ -36,8 +36,10 @@
 
 ### 2. 챌린지 만들기 (단순)
 - 입력: 제목 / 기간 / 설명 (선택) / **방 종류**
-- **방 종류 2가지**: 폐쇄형(`closed`, 동료들과) + 단독(`solo`, 혼자)  *(2026-05-26 추가)*
-  - 개방형은 보류 (둘러보기 자체가 Phase 1.5)
+- **방 종류 3가지** *(2026-05-26 최종)*:
+  - 🤝 폐쇄형(`closed`, 동료들과) — 초대받은 사람만, 카톡 공유로 모음
+  - 🌍 공개형(`open`, 누구나) — 둘러보기에 노출, 비멤버도 조회/참여 가능
+  - 🧘 단독(`solo`, 혼자) — creator 본인만, 다른 사람 가입 불가 (RLS)
 - 카테고리 없음. 그냥 자유 텍스트.
 - 7단계 마법사 ❌ → 1화면 폼.
 
@@ -60,6 +62,7 @@
 - 사이즈 적응형 ❌ → 모든 방 같은 UI
 - 채팅 ❌
 - 멤버 리스트는 화면 상단에 작게
+- **공개 챌린지의 비멤버**: 챌린지/멤버/인증/응원 모두 조회 가능, FAB 만 "참여하기" 로 분기
 
 ### 6. 응원하기 (❤️ 하나)
 - 응원 이모지 5종 ❌ → ❤️ 하나만
@@ -84,6 +87,7 @@
 | **G. 매일 로컬 알림** | 매일 저녁 20시 "오늘 인증했어?" 로컬 푸시. Apple Push 인증서 불필요. |
 | **H. Skeleton 로딩** | ActivityIndicator 대신 카드 모양 placeholder. |
 | **I. Pull-to-refresh** | home + room 모두 적용. |
+| **J. 둘러보기** *(2026-05-26 마지막 추가)* | 공개(open) 챌린지 목록. home 우상단 🌍 → [app/discover.tsx](mobile/app/discover.tsx). RLS 가 비멤버에게 open 챌린지만 노출. |
 
 추가 인프라:
 - **Pretendard 폰트** (Regular/Medium/Bold OTF 3종, 동적 로딩)
@@ -103,7 +107,6 @@
 | 휴대폰 인증 | 4.4 | **완전 제외** (구글이 약관 처리, welcome 은 약관 동의만) |
 | 챌린지 방 5탭 | v3.2 | 인증 피드 하나로 검증 |
 | 사이즈 적응형 UI | v3.3 | 5명 가정. 사용자 모이면 그때. |
-| 개방형 챌린지 | v3.1 | 둘러보기 자체가 Phase 1.5 라 의미 없음 |
 | 도전 인연 ×횟수 시스템 | v3.4 | Phase 2. 챌린지 끝나면 그냥 끝. |
 | QR 명함 + 연락처 매칭 | v3.4 | Phase 2 |
 | 4가지 평가 (✨😱🥹💫) | v3.1 | ❤️ 하나로 검증 |
@@ -113,7 +116,7 @@
 | AI 콘텐츠 검수 | 4.6.3 | 100명 베타는 직접 본다 |
 | 유배지/보석금 | 8장 | Phase 2. **MVP 는 단순 잠시 멈춤(C) 만.** |
 | 명사 챌린지 | 4.11 | Phase 2 |
-| 둘러보기 큐레이션 10개 | 6장 | 둘러보기 자체를 Phase 1.5로 |
+| 둘러보기 큐레이션 (스태프픽/인기/검색) | 6장 | **단순 목록만 적용(J).** 큐레이션/검색은 Phase 1.5. |
 | 카테고리 2-Tier | v3.1 | 자유 텍스트로 |
 | 다국어/글로벌 (한국어 외) | 14장 | 한국어만. **i18n 골격은 잡아둠.** |
 | 뱃지/칭호 5등급 | 4.12 | Phase 2 |
@@ -144,7 +147,9 @@
 - 카톡 초대 안내 모달
 - ErrorState 컴포넌트 + Sentry 골격 + i18n 골격
 - **A~I 일괄** (완주/단독/잠시멈춤/진행률/Haptic/Streak/로컬알림/Skeleton/Pull-to-refresh)
-- 마이그레이션 0002 (`challenges.kind`, `challenge_members.paused_until`)
+- **J. 둘러보기 + 공개 챌린지** (마이그레이션 0003)
+- 마이그레이션 0002 (`challenges.kind`, `challenge_members.paused_until`),
+  0003 (`open` kind + RLS, 비멤버 조회/참여)
 
 ### Week 4 — 베타 출시 ⏳
 - ⏳ Apple Developer Program 활성화 대기
@@ -160,8 +165,9 @@
 **5개 테이블이면 충분.** 통합기획서 13장의 20개 테이블 → **5개**로 줄임.
 (connections, ratings, logs, badges, bets, archives 등은 Phase 2에서 추가)
 
-실제 마이그레이션: [supabase/migrations/0001_init.sql](supabase/migrations/0001_init.sql),
-[supabase/migrations/0002_kind_pause.sql](supabase/migrations/0002_kind_pause.sql)
+실제 마이그레이션: [0001_init.sql](supabase/migrations/0001_init.sql) +
+[0002_kind_pause.sql](supabase/migrations/0002_kind_pause.sql) +
+[0003_open_challenge.sql](supabase/migrations/0003_open_challenge.sql)
 
 ```sql
 -- users (auth.users 와 1:1)
@@ -169,7 +175,7 @@ id, google_sub, email, nickname, avatar_url, created_at
 
 -- challenges
 id, creator_id, title, description,
-kind ('closed' | 'solo'),       -- 0002: 단독 추가
+kind ('closed' | 'solo' | 'open'),  -- 0002: solo, 0003: open
 start_date, end_date, created_at
 
 -- challenge_members
@@ -207,7 +213,7 @@ v4.0.1은 디자인 톤·정책 (친구 단어 금지, 비교 압박 금지, 미
 
 ## 🎯 핵심
 
-> **"6개 + A~I 완성도. 베타 30명에게 보여준다."**
+> **"6개 + A~J 완성도. 베타 30명에게 보여준다."**
 
 코드 측은 완료. 남은 건:
 1. Apple Developer 활성화 → EAS Build → iPhone 설치

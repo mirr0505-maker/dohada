@@ -15,6 +15,7 @@ import { ProofCardSkeleton } from '@/components/Skeleton';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import { computeProgress, computeStreak, isCompleted } from '@/lib/stats';
+import { joinChallenge } from '@/lib/invite';
 import type {
   DbChallenge, MemberWithToday, ProofWithRelations,
 } from '@/lib/types';
@@ -176,7 +177,24 @@ export default function ChallengeRoom() {
     () => members.find(m => m.id === myUserId),
     [members, myUserId],
   );
+  const isMember = Boolean(me);
   const todayChecked = me?.today_checked ?? false;
+  const [joining, setJoining] = useState(false);
+
+  // 비멤버가 공개 챌린지에서 "참여하기" 누름 → DB insert → 다시 load
+  const onJoin = useCallback(async () => {
+    if (!challenge || !myUserId || joining) return;
+    setJoining(true);
+    try {
+      await joinChallenge(challenge.id, myUserId);
+      haptic.success();
+      await load();
+    } catch (e: any) {
+      Alert.alert('참여 실패', e?.message ?? String(e));
+    } finally {
+      setJoining(false);
+    }
+  }, [challenge, myUserId, joining, load]);
 
   // 내가 한 인증만 필터해서 streak 계산
   const myProofs = useMemo(
@@ -300,11 +318,13 @@ export default function ChallengeRoom() {
           </Text>
           <Text style={styles.statLabel}>연속 인증</Text>
         </View>
-        <Pressable style={styles.pauseBtn} onPress={onTogglePause}>
-          <Text style={styles.pauseLabel}>
-            {isPaused ? '▶ 재개' : '⏸ 멈춤'}
-          </Text>
-        </Pressable>
+        {isMember && (
+          <Pressable style={styles.pauseBtn} onPress={onTogglePause}>
+            <Text style={styles.pauseLabel}>
+              {isPaused ? '▶ 재개' : '⏸ 멈춤'}
+            </Text>
+          </Pressable>
+        )}
       </View>
 
       <View style={styles.memberStrip}>
@@ -367,10 +387,12 @@ export default function ChallengeRoom() {
       <Pressable
         style={[
           styles.fab,
-          todayChecked && styles.fabDone,
-          isPaused && styles.fabPaused,
+          !isMember && styles.fabJoin,
+          isMember && todayChecked && styles.fabDone,
+          isMember && isPaused && styles.fabPaused,
         ]}
         onPress={() => {
+          if (!isMember) { onJoin(); return; }
           if (isPaused) {
             Alert.alert('잠시 멈춤 중', `${me?.paused_until} 까지 인증 의무가 면제예요.`);
             return;
@@ -384,11 +406,13 @@ export default function ChallengeRoom() {
         }}
       >
         <Text style={styles.fabLabel}>
-          {isPaused
-            ? '⏸ 잠시 멈춤 중'
-            : todayChecked
-              ? '✓ 오늘 인증 완료'
-              : '📸 오늘 인증하기'}
+          {!isMember
+            ? (joining ? '참여 중…' : '🌍 이 챌린지에 참여하기')
+            : isPaused
+              ? '⏸ 잠시 멈춤 중'
+              : todayChecked
+                ? '✓ 오늘 인증 완료'
+                : '📸 오늘 인증하기'}
         </Text>
       </Pressable>
     </Screen>
@@ -626,6 +650,7 @@ const styles = StyleSheet.create({
   },
   fabDone: { backgroundColor: colors.success },
   fabPaused: { backgroundColor: colors.primary500 },
+  fabJoin: { backgroundColor: colors.info },
   fabLabel: {
     color: colors.surface,
     fontSize: fontSize.lg,

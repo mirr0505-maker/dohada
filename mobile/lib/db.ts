@@ -28,6 +28,31 @@ export async function fetchMyChallenges(): Promise<ChallengeWithCount[]> {
   }));
 }
 
+// ─── 둘러보기 — 공개(open) 챌린지 목록 ──────────────────
+// RLS 가 kind='open' 만 보여줌. 멤버 여부 무관.
+export async function fetchOpenChallenges(): Promise<ChallengeWithCount[]> {
+  const { data, error } = await supabase
+    .from('challenges')
+    .select('*, challenge_members(count)')
+    .eq('kind', 'open')
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) throw error;
+
+  return (data ?? []).map((c: any) => ({
+    id: c.id,
+    creator_id: c.creator_id,
+    title: c.title,
+    description: c.description,
+    kind: 'open' as ChallengeKind,
+    start_date: c.start_date,
+    end_date: c.end_date,
+    created_at: c.created_at,
+    member_count: c.challenge_members?.[0]?.count ?? 0,
+  }));
+}
+
 // ─── 챌린지 방 1개 + 멤버 + 인증 피드 (room/[id]) ──────
 export async function fetchRoomData(challengeId: string, myUserId: string) {
   const [resChallenge, resMembers, resProofs] = await Promise.all([

@@ -126,7 +126,17 @@ export default function CreateChallenge() {
                 <Text style={[styles.kindTitle, kind === 'closed' && styles.kindTitleActive]}>
                   동료들과
                 </Text>
-                <Text style={styles.kindDesc}>초대한 사람만 함께</Text>
+                <Text style={styles.kindDesc}>초대한 사람만</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.kindOpt, kind === 'open' && styles.kindOptActive]}
+                onPress={() => setKind('open')}
+              >
+                <Text style={styles.kindEmoji}>🌍</Text>
+                <Text style={[styles.kindTitle, kind === 'open' && styles.kindTitleActive]}>
+                  누구나
+                </Text>
+                <Text style={styles.kindDesc}>둘러보기에 공개</Text>
               </Pressable>
               <Pressable
                 style={[styles.kindOpt, kind === 'solo' && styles.kindOptActive]}
