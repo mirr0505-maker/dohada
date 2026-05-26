@@ -46,10 +46,11 @@ export default function RootLayout() {
           {/* 메인 */}
           <Stack.Screen name="home" />
 
-          {/* 모달 */}
+          {/* 모달 / 동적 라우트 */}
           <Stack.Screen name="create" options={{ presentation: 'modal' }} />
           <Stack.Screen name="checkin/[id]" options={{ presentation: 'modal' }} />
           <Stack.Screen name="room/[id]" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="invite/[id]" />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>

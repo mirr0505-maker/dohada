@@ -129,9 +129,10 @@ export default function ChallengeRoom() {
   const onShareInvite = useCallback(async () => {
     if (!challenge) return;
     try {
-      const link = `https://dohada.app/invite/${challenge.id}`;
+      // Do : 하다 앱 설치된 사람만 동작. 베타 안내문에 TestFlight 링크 같이 보내야 함.
+      const link = `dohada://invite/${challenge.id}`;
       await Share.share({
-        message: `"${challenge.title}" 챌린지에 함께해요!\n${link}`,
+        message: `"${challenge.title}" 챌린지에 함께해요!\n\n📱 Do : 하다 앱에서 아래 링크를 누르세요:\n${link}`,
       });
     } catch (e) {
       Alert.alert('공유 실패', String(e));

@@ -7,6 +7,7 @@ import { Screen } from '@/components/Screen';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { useGoogleAuth, signInWithGoogleIdToken } from '@/lib/auth';
 import { isSupabaseConfigured } from '@/lib/supabase';
+import { getPendingInvite, clearPendingInvite } from '@/lib/invite';
 
 // 구글 공식 4색 G 로고
 function GoogleLogo({ size = 20 }: { size?: number }) {
@@ -48,7 +49,16 @@ export default function LoginScreen() {
       try {
         setSigningIn(true);
         await signInWithGoogleIdToken(idToken);
-        router.replace('/welcome');
+
+        // 카톡 초대 링크로 진입한 경우 → 초대 화면으로 다시
+        // (`as any` 는 typed-routes 캐시가 아직 invite/[id] 를 모르기 때문 — 다음 expo start 후 자동 갱신)
+        const pending = await getPendingInvite();
+        if (pending) {
+          await clearPendingInvite();
+          router.replace(`/invite/${pending}` as any);
+        } else {
+          router.replace('/welcome');
+        }
       } catch (e: any) {
         Alert.alert('로그인 실패', e?.message ?? String(e));
       } finally {
