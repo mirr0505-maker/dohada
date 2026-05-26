@@ -10,18 +10,22 @@ import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/
 import { useSession } from '@/lib/session';
 import { fetchRoomData, toggleCheer } from '@/lib/db';
 import { supabase } from '@/lib/supabase';
+import { ErrorState } from '@/components/ErrorState';
+import { reportError } from '@/lib/sentry';
 import type {
   DbChallenge, MemberWithToday, ProofWithRelations,
 } from '@/lib/types';
 
 export default function ChallengeRoom() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, fromCreate } = useLocalSearchParams<{ id: string; fromCreate?: string }>();
   const session = useSession();
 
   const [challenge, setChallenge] = useState<DbChallenge | null>(null);
   const [members, setMembers] = useState<MemberWithToday[]>([]);
   const [proofs, setProofs] = useState<ProofWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [createPromptShown, setCreatePromptShown] = useState(false);
 
   const myUserId = session?.user?.id;
 
@@ -32,12 +36,14 @@ export default function ChallengeRoom() {
   const load = useCallback(async () => {
     if (!id || !myUserId) return;
     try {
+      setError(null);
       const data = await fetchRoomData(id, myUserId);
       setChallenge(data.challenge);
       setMembers(data.members);
       setProofs(data.proofs);
-    } catch (e) {
-      console.warn('[room] fetchRoomData failed', e);
+    } catch (e: any) {
+      reportError(e, { where: 'room/fetchRoomData', challengeId: id });
+      setError(e?.message ?? '챌린지를 불러오지 못했어요.');
     } finally {
       setLoading(false);
     }
@@ -139,6 +145,20 @@ export default function ChallengeRoom() {
     }
   }, [challenge]);
 
+  // 챌린지 만든 직후(create.tsx 가 ?fromCreate=1 로 보냄) → 카톡 초대 안내 1회 모달
+  useEffect(() => {
+    if (fromCreate !== '1' || !challenge || createPromptShown) return;
+    setCreatePromptShown(true);
+    Alert.alert(
+      `🎉 "${challenge.title}" 챌린지 생성 완료`,
+      '동료를 초대하면 완주율이 3배 올라가요.\n지금 카톡으로 공유해볼까요?',
+      [
+        { text: '나중에', style: 'cancel' },
+        { text: '카톡으로 초대', onPress: onShareInvite },
+      ],
+    );
+  }, [fromCreate, challenge, createPromptShown, onShareInvite]);
+
   const todayChecked = useMemo(
     () => members.find(m => m.id === myUserId)?.today_checked ?? false,
     [members, myUserId],
@@ -155,15 +175,13 @@ export default function ChallengeRoom() {
     );
   }
 
-  if (!challenge) {
+  if (error || !challenge) {
     return (
       <Screen backgroundColor={colors.background}>
-        <View style={styles.center}>
-          <Text style={styles.notFoundText}>챌린지를 찾을 수 없어요.</Text>
-          <Pressable onPress={() => router.back()} style={{ marginTop: 16 }}>
-            <Text style={{ color: colors.accent, fontFamily: fontFamily.bold }}>돌아가기</Text>
-          </Pressable>
-        </View>
+        <ErrorState
+          message={error ?? '챌린지를 찾을 수 없어요.'}
+          onRetry={() => { setLoading(true); load(); }}
+        />
       </Screen>
     );
   }

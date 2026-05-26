@@ -39,7 +39,14 @@ export default function LoginScreen() {
 
   // Google 응답이 success 면 ID token 으로 Supabase 세션 생성
   useEffect(() => {
-    if (response?.type !== 'success') return;
+    if (!response) return;
+    if (response.type === 'cancel' || response.type === 'dismiss') return;
+    if (response.type === 'error') {
+      Alert.alert('로그인 오류', response.error?.message ?? '알 수 없는 오류가 발생했어요.');
+      return;
+    }
+    if (response.type !== 'success') return;
+
     const idToken = response.authentication?.idToken;
     if (!idToken) {
       Alert.alert('로그인 실패', 'Google ID 토큰을 받지 못했어요.');

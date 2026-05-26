@@ -41,8 +41,8 @@ export default function CreateChallenge() {
         description,
         durationDays: duration,
       });
-      // 생성된 챌린지 방으로 바로 이동 (그 안에서 초대 공유 가능)
-      router.replace(`/room/${challenge.id}`);
+      // 생성된 챌린지 방으로 바로 이동. fromCreate=1 → room 에서 초대 안내 모달 자동 노출.
+      router.replace(`/room/${challenge.id}?fromCreate=1` as any);
     } catch (e: any) {
       Alert.alert('만들기 실패', e?.message ?? String(e));
     } finally {

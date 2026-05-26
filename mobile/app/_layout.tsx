@@ -6,6 +6,10 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { initSentry } from '@/lib/sentry';
+
+// Sentry — module load 시점에 한 번
+initSentry();
 
 // 폰트 로딩이 끝날 때까지 네이티브 스플래시 유지
 SplashScreen.preventAutoHideAsync();

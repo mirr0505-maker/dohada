@@ -9,6 +9,8 @@ import { Screen } from '@/components/Screen';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import { fetchMyChallenges } from '@/lib/db';
+import { ErrorState } from '@/components/ErrorState';
+import { reportError } from '@/lib/sentry';
 import type { ChallengeWithCount } from '@/lib/types';
 
 export default function HomeScreen() {
@@ -16,6 +18,7 @@ export default function HomeScreen() {
   const [challenges, setChallenges] = useState<ChallengeWithCount[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // 미인증 시 login 으로
   useEffect(() => {
@@ -25,10 +28,12 @@ export default function HomeScreen() {
   const load = useCallback(async () => {
     if (!session) return;
     try {
+      setError(null);
       const data = await fetchMyChallenges();
       setChallenges(data);
-    } catch (e) {
-      console.warn('[home] fetchMyChallenges failed', e);
+    } catch (e: any) {
+      reportError(e, { where: 'home/fetchMyChallenges' });
+      setError(e?.message ?? '챌린지 목록을 가져오지 못했어요.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -63,6 +68,8 @@ export default function HomeScreen() {
         <View style={styles.center}>
           <ActivityIndicator color={colors.accent} />
         </View>
+      ) : error ? (
+        <ErrorState message={error} onRetry={() => { setLoading(true); load(); }} />
       ) : (
         <FlatList
           data={challenges}
