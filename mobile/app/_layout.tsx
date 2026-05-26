@@ -1,10 +1,29 @@
 // 🚀 Root Stack — 전체 라우트의 진입점
+import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+// 폰트 로딩이 끝날 때까지 네이티브 스플래시 유지
+SplashScreen.preventAutoHideAsync();
+
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    'Pretendard-Regular': require('../assets/fonts/Pretendard-Regular.otf'),
+    'Pretendard-Medium': require('../assets/fonts/Pretendard-Medium.otf'),
+    'Pretendard-Bold': require('../assets/fonts/Pretendard-Bold.otf'),
+  });
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) SplashScreen.hideAsync();
+  }, [fontsLoaded, fontError]);
+
+  // 폰트 로딩 전엔 네이티브 splash 화면 그대로 둠
+  if (!fontsLoaded && !fontError) return null;
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>

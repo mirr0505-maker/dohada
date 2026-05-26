@@ -37,6 +37,23 @@
           "resizeMode": "contain",
           "backgroundColor": "#1A1A1A"
         }
+      ],
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/Pretendard-Regular.otf",
+            "./assets/fonts/Pretendard-Medium.otf",
+            "./assets/fonts/Pretendard-Bold.otf"
+          ]
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Do : 하다 는 챌린지 인증 사진 촬영을 위해 카메라가 필요해요."
+        }
       ]
     ],
     "experiments": {

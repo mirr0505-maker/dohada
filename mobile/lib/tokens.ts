@@ -1,7 +1,6 @@
 // 🚀 Do : 하다 — 디자인 토큰
 // prototype/do-hada-app-v4.html 의 :root 변수 그대로 추출.
 // 직접 컬러/폰트/여백을 정의하지 말고 항상 이 파일에서 import.
-import { Platform } from 'react-native';
 
 // ─── 컬러 ─────────────────────────────────────
 export const colors = {
@@ -33,24 +32,11 @@ export const colors = {
 } as const;
 
 // ─── 폰트 ─────────────────────────────────────
-// Pretendard 폰트 파일이 들어오기 전까지는 시스템 폰트로 fallback.
-// 폰트 파일 추가 시 fontFamily.regular 등을 'Pretendard' 로 교체.
+// Pretendard OTF 3개를 _layout.tsx 의 useFonts 에서 로드. iOS/Android 동일 이름.
 export const fontFamily = {
-  regular: Platform.select({
-    ios: 'System',
-    android: 'sans-serif',
-    default: 'system-ui',
-  }) as string,
-  medium: Platform.select({
-    ios: 'System',
-    android: 'sans-serif-medium',
-    default: 'system-ui',
-  }) as string,
-  bold: Platform.select({
-    ios: 'System',
-    android: 'sans-serif-medium',
-    default: 'system-ui',
-  }) as string,
+  regular: 'Pretendard-Regular',
+  medium: 'Pretendard-Medium',
+  bold: 'Pretendard-Bold',
 };
 
 export const fontSize = {

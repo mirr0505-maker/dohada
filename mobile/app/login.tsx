@@ -1,14 +1,44 @@
-// 🚀 로그인 화면 — 구글만 사용 (2026-05-26 변경: 카카오 → 구글)
-// 실제 OAuth 는 Week 2 에서 expo-auth-session + Supabase 연동. 지금은 더미.
-import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+// 🚀 로그인 화면 — Google OAuth + Supabase signInWithIdToken
+import React, { useEffect, useState } from 'react';
+import { View, Text, Pressable, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
+import { useGoogleAuth, signInWithGoogleIdToken } from '@/lib/auth';
+import { isSupabaseConfigured } from '@/lib/supabase';
 
 export default function LoginScreen() {
-  const onGoogleSignIn = () => {
-    router.replace('/welcome');
+  const [, response, promptAsync] = useGoogleAuth();
+  const [signingIn, setSigningIn] = useState(false);
+
+  // Google 응답이 success 면 ID token 으로 Supabase 세션 생성
+  useEffect(() => {
+    if (response?.type !== 'success') return;
+    const idToken = response.authentication?.idToken;
+    if (!idToken) {
+      Alert.alert('로그인 실패', 'Google ID 토큰을 받지 못했어요.');
+      return;
+    }
+    (async () => {
+      try {
+        setSigningIn(true);
+        await signInWithGoogleIdToken(idToken);
+        router.replace('/welcome');
+      } catch (e: any) {
+        Alert.alert('로그인 실패', e?.message ?? String(e));
+      } finally {
+        setSigningIn(false);
+      }
+    })();
+  }, [response]);
+
+  const onGoogleSignIn = async () => {
+    // .env 미설정 시 더미 흐름 (UI 검증용)
+    if (!isSupabaseConfigured) {
+      router.replace('/welcome');
+      return;
+    }
+    await promptAsync();
   };
 
   return (
@@ -25,13 +55,22 @@ export default function LoginScreen() {
           <Text style={styles.greetingSub}>3초만에 가입하고 첫 챌린지 시작</Text>
         </View>
 
-        {/* Google 로그인 버튼 — 실제 SVG 로고는 Week 2 의 Google Sign-In SDK 와 함께 옴 */}
         <View style={styles.providers}>
-          <Pressable style={styles.googleBtn} onPress={onGoogleSignIn}>
-            <View style={styles.googleBadge}>
-              <Text style={styles.googleBadgeText}>G</Text>
-            </View>
-            <Text style={styles.googleLabel}>Google로 시작하기</Text>
+          <Pressable
+            style={[styles.googleBtn, signingIn && { opacity: 0.6 }]}
+            onPress={onGoogleSignIn}
+            disabled={signingIn}
+          >
+            {signingIn ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : (
+              <>
+                <View style={styles.googleBadge}>
+                  <Text style={styles.googleBadgeText}>G</Text>
+                </View>
+                <Text style={styles.googleLabel}>Google로 시작하기</Text>
+              </>
+            )}
           </Pressable>
         </View>
 
