@@ -35,14 +35,16 @@
 - 구글이 약관 처리는 안 하므로 별도 약관 동의 화면(`welcome`)이 필요함.
 
 ### 2. 챌린지 만들기 (단순)
-- 입력: 제목 / 기간 / 설명 (선택)
-- 폐쇄형 한 종류만. 개방형/비공개 없음.
+- 입력: 제목 / 기간 / 설명 (선택) / **방 종류**
+- **방 종류 2가지**: 폐쇄형(`closed`, 동료들과) + 단독(`solo`, 혼자)  *(2026-05-26 추가)*
+  - 개방형은 보류 (둘러보기 자체가 Phase 1.5)
 - 카테고리 없음. 그냥 자유 텍스트.
 - 7단계 마법사 ❌ → 1화면 폼.
 
 ### 3. 카톡 링크로 초대
-- 챌린지 만들면 초대 링크 자동 생성
-- "카톡으로 공유" 버튼 → 카카오 공유 API
+- 챌린지 만들면 초대 링크 자동 생성 (`dohada://invite/<id>`)
+- "카톡으로 공유" 버튼 → RN `Share` API. 카카오 SDK 는 Phase 1.5.
+- **딥링크 처리**: 받은 사람이 링크 탭하면 자동 챌린지 가입 → 방으로 이동 (미로그인이면 로그인 후 자동).
 - QR 명함 ❌ / 연락처 매칭 ❌
 
 ### 4. 사진 인증
@@ -63,6 +65,32 @@
 - 응원 이모지 5종 ❌ → ❤️ 하나만
 - 4가지 평가 ❌
 - 누가 응원했는지 보이기
+- **Realtime 구독**: 새 인증/응원이 동료 폰에 즉시 반영 (Supabase Realtime).
+
+---
+
+## 🎁 베타 완성도 항목 *(2026-05-26 추가 — A~I)*
+
+위 6개 핵심 외에, 베타 30명 검증 품질을 위해 추가한 것들. **신기능이 아니라 마감 완성도** 차원.
+
+| 항목 | 내용 |
+|---|---|
+| **A. 완주 화면** | 종료일이 지났고 매일 인증했으면 자동으로 🏆 완주 화면 (인증서/포토북 없음). [app/complete/[id].tsx](mobile/app/complete/[id].tsx) |
+| **B. 단독(solo) 방** | 챌린지 만들기 폼에서 "동료들과 / 혼자" 라디오. `challenges.kind` 컬럼. |
+| **C. 잠시 멈춤** | 단순 3일/7일 멈춤. `challenge_members.paused_until` 컬럼. 유배지/보석금 같은 페널티 없음. |
+| **D. 챌린지 진행률** | room 헤더에 `12/30일 진행 (40%)`. |
+| **E. Haptic feedback** | 응원/인증 셔터/챌린지 생성/멈춤 등 주요 액션에 진동. |
+| **F. Streak 카운터** | `🔥 N 연속 인증` — 오늘 미인증 시 어제부터 카운트. |
+| **G. 매일 로컬 알림** | 매일 저녁 20시 "오늘 인증했어?" 로컬 푸시. Apple Push 인증서 불필요. |
+| **H. Skeleton 로딩** | ActivityIndicator 대신 카드 모양 placeholder. |
+| **I. Pull-to-refresh** | home + room 모두 적용. |
+
+추가 인프라:
+- **Pretendard 폰트** (Regular/Medium/Bold OTF 3종, 동적 로딩)
+- **Sentry 에러 모니터링** — `EXPO_PUBLIC_SENTRY_DSN` 채우면 활성, 비어있으면 noop
+- **i18n 골격** — ko/en 두 locale. 화면 텍스트 점진적 교체 (Phase 1.5 ~ Phase 2 글로벌 진입 시 본격)
+
+> **이게 마지막 추가다.** 더 늘리지 않고 베타 30명 검증 → 인터뷰 → 다음 결정.
 
 ---
 
@@ -72,83 +100,93 @@
 
 | 기능 | 통합기획서 위치 | 보류 이유 |
 |---|---|---|
-| 휴대폰 인증 | 4.4 | 카카오 로그인이면 충분 |
-| 환영 화면 (약관 동의 단계) | v3.1 | 카카오가 약관 처리 |
+| 휴대폰 인증 | 4.4 | **완전 제외** (구글이 약관 처리, welcome 은 약관 동의만) |
 | 챌린지 방 5탭 | v3.2 | 인증 피드 하나로 검증 |
 | 사이즈 적응형 UI | v3.3 | 5명 가정. 사용자 모이면 그때. |
+| 개방형 챌린지 | v3.1 | 둘러보기 자체가 Phase 1.5 라 의미 없음 |
 | 도전 인연 ×횟수 시스템 | v3.4 | Phase 2. 챌린지 끝나면 그냥 끝. |
 | QR 명함 + 연락처 매칭 | v3.4 | Phase 2 |
 | 4가지 평가 (✨😱🥹💫) | v3.1 | ❤️ 하나로 검증 |
 | 응원 이모지 5종 | 4.7.2 | ❤️ 하나로 충분 |
-| 박제 자산화 (인증서/포토북) | 4.10 | Phase 2. 완주 시 "완주!" 화면만. |
+| 박제 자산화 — 인증서/포토북 | 4.10 | Phase 2. **단, MVP 는 단순 완주 화면(A) 까지만.** |
 | 내기 시스템 (에스크로) | 4.14 | 결제/정산/환불 복잡. Phase 2. |
 | AI 콘텐츠 검수 | 4.6.3 | 100명 베타는 직접 본다 |
-| 유배지/보석금 | 8장 | Phase 2 |
+| 유배지/보석금 | 8장 | Phase 2. **MVP 는 단순 잠시 멈춤(C) 만.** |
 | 명사 챌린지 | 4.11 | Phase 2 |
 | 둘러보기 큐레이션 10개 | 6장 | 둘러보기 자체를 Phase 1.5로 |
 | 카테고리 2-Tier | v3.1 | 자유 텍스트로 |
-| 잠시 멈춤 시스템 | 4.9 | 그냥 멈춤/계속만 |
-| 다국어/글로벌 | 14장 | 한국어만 |
+| 다국어/글로벌 (한국어 외) | 14장 | 한국어만. **i18n 골격은 잡아둠.** |
 | 뱃지/칭호 5등급 | 4.12 | Phase 2 |
 | 선물 응원 | 4.7.3 | Phase 2 |
 | 음성 메시지 | Phase 2 | Phase 2 |
+| 카카오톡 공유 SDK | 4.7 | Phase 1.5. **MVP 는 RN Share API 만.** |
+| 카카오/Apple 로그인 | 4.3 | Phase 1.5. MVP 는 구글 단일. |
 
 ---
 
-## 📅 일정 (참고용 — Day는 강제 아님)
+## 📅 진행 상황 (2026-05-26)
 
-### Week 1 — UI + 더미 데이터
-- 카카오 로그인 화면
-- 챌린지 만들기 폼
-- 챌린지 방 (인증 피드만)
-- 카메라 인증 화면
-- 더미 데이터로 흐름 확인
+### Week 1 — UI + 더미 데이터 ✅
+- 구글 로그인 화면 + 온보딩 7화면
+- 챌린지 만들기 폼 + 챌린지 방 + 카메라 인증
+- 디자인 토큰 + Pretendard 폰트 + StyleSheet 기반
 
-### Week 2 — Supabase 연결
-- 프로젝트 생성 + DB 스키마 (5개 테이블)
-- 카카오 OAuth 연동
-- 챌린지 CRUD
-- 인증 사진 Storage
+### Week 2 — Supabase + R2 + 실시간 ✅
+- Supabase DB 5테이블 + RLS + 트리거 (마이그레이션 0001)
+- Cloudflare R2 + Edge Function (SigV4 presign) + 업로드
+- Google OAuth → Supabase signInWithIdToken
+- expo-camera 실제 연동
+- Realtime 구독 (proofs / cheers)
+- home/create/room 전 화면 Supabase 연동
 
-### Week 3 — 실시간 + 마무리
-- 응원 ❤️ 실시간 (Supabase Realtime)
-- 카톡 공유 링크
-- 빈 상태 처리
-- 폰에서 외부 테스트 3명
+### Week 3 — 베타 완성도 ✅
+- 초대 딥링크 (`dohada://invite/<id>`)
+- 카톡 초대 안내 모달
+- ErrorState 컴포넌트 + Sentry 골격 + i18n 골격
+- **A~I 일괄** (완주/단독/잠시멈춤/진행률/Haptic/Streak/로컬알림/Skeleton/Pull-to-refresh)
+- 마이그레이션 0002 (`challenges.kind`, `challenge_members.paused_until`)
 
-### Week 4 — 베타 출시
-- EAS Build → TestFlight
-- 클로즈드 베타 30명 모집
-- Sentry 에러 모니터링
-
-**총 4주.** 풀타임 기준. 파트타임이면 6~8주.
+### Week 4 — 베타 출시 ⏳
+- ⏳ Apple Developer Program 활성화 대기
+- [ ] EAS Build (`development` profile)
+- [ ] iPhone 설치 + 전체 흐름 실기기 검증
+- [ ] 클로즈드 베타 30명 모집 (TestFlight)
+- [ ] Sentry DSN 발급 + .env 채우기 (선택)
 
 ---
 
 ## 🗄️ DB 스키마 (Phase 1)
 
-**5개 테이블이면 충분.**
+**5개 테이블이면 충분.** 통합기획서 13장의 20개 테이블 → **5개**로 줄임.
+(connections, ratings, logs, badges, bets, archives 등은 Phase 2에서 추가)
+
+실제 마이그레이션: [supabase/migrations/0001_init.sql](supabase/migrations/0001_init.sql),
+[supabase/migrations/0002_kind_pause.sql](supabase/migrations/0002_kind_pause.sql)
 
 ```sql
--- users
-id, kakao_id, nickname, avatar_url, created_at
+-- users (auth.users 와 1:1)
+id, google_sub, email, nickname, avatar_url, created_at
 
 -- challenges
-id, creator_id, title, description, start_date, end_date,
-created_at
+id, creator_id, title, description,
+kind ('closed' | 'solo'),       -- 0002: 단독 추가
+start_date, end_date, created_at
 
 -- challenge_members
-id, challenge_id, user_id, joined_at
+id, challenge_id, user_id, joined_at,
+paused_until                    -- 0002: 잠시 멈춤 종료일 (nullable)
 
--- proofs (인증)
-id, challenge_id, user_id, photo_url, created_at
+-- proofs (인증, 하루 1회 unique 인덱스)
+id, challenge_id, user_id, photo_url, caption, created_at
 
--- cheers (응원 ❤️)
+-- cheers (응원 ❤️, 1인 1회 unique)
 id, proof_id, user_id, created_at
 ```
 
-통합기획서 13장의 20개 테이블 → **5개**로 줄임.
-(connections, ratings, logs, badges, bets, archives 등은 Phase 2에서 추가)
+추가 인프라:
+- **RLS 정책**: 멤버 only, 본인만 작성/삭제
+- **트리거**: 챌린지 생성 시 creator 자동 가입
+- **Edge Function** `r2-presign`: SigV4 presigned PUT URL 발급 (R2 키 클라이언트 노출 X)
 
 ---
 
@@ -169,6 +207,9 @@ v4.0.1은 디자인 톤·정책 (친구 단어 금지, 비교 압박 금지, 미
 
 ## 🎯 핵심
 
-> **"6개만. 4주. 30명에게 보여준다."**
+> **"6개 + A~I 완성도. 베타 30명에게 보여준다."**
 
-이게 전부다.
+코드 측은 완료. 남은 건:
+1. Apple Developer 활성화 → EAS Build → iPhone 설치
+2. 베타 30명 모집 + 1주일 인증 지속 관찰
+3. 결과로 Phase 2 기능 결정 (도전 인연, 내기, 박제, AI 검수 등)

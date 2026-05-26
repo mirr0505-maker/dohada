@@ -5,32 +5,42 @@ VS Code + Claude Code로 Day 1을 시작하기 전 점검표.
 
 ---
 
-## 📂 1. VS Code 폴더 구조
+## 📂 1. VS Code 폴더 구조 *(2026-05-26 실제 상태)*
 
 ```
-do-hada/                                # ⭐ 프로젝트 루트
-├─ 📘 Do_하다_통합기획서_v4.0.1.docx     # 메인 문서 (Claude Code가 읽음)
-├─ 📋 CLAUDE.md                         # Claude Code 작업 규칙
-├─ 📋 README.md                         # 프로젝트 소개
-├─ 📋 setup-checklist.md                # 이 파일
-├─ 🔐 .env                              # 실제 키 (gitignore)
-├─ 🔐 .env.example                      # 키 템플릿 (커밋)
+dohada/                                  # ⭐ 프로젝트 루트
+├─ 📘 Do_하다_통합기획서_v4_0_1.pdf       # 메인 문서
+├─ 📋 CLAUDE.md                          # Claude Code 작업 규칙
+├─ 📋 MVP_SCOPE.md                       # Phase 1 단일 진실원천
+├─ 📋 setup-checklist.md                 # 이 파일
+├─ 🔐 .env.example                       # 키 템플릿 (커밋)
 ├─ 📋 .gitignore
 │
 ├─ 📱 prototype/
-│  └─ do-hada-app-v3.html               # 시각 가이드
+│  └─ do-hada-app-v4.html                # 시각 가이드 (v4 = 28화면)
 │
-├─ 🎨 design/
-│  ├─ tokens.ts                         # 디자인 토큰
-│  ├─ tailwind.config.js                # NativeWind 매핑
-│  └─ do-hada-tokens-preview.html       # 토큰 미리보기
+├─ 📦 mobile/                            # ⭐ Expo SDK 54 프로젝트
+│  ├─ app/                               # Expo Router 라우트
+│  │  ├─ _layout.tsx
+│  │  ├─ index.tsx (splash)
+│  │  ├─ onb1~4.tsx, login.tsx, welcome.tsx
+│  │  ├─ home.tsx, create.tsx
+│  │  ├─ room/[id].tsx, checkin/[id].tsx
+│  │  ├─ invite/[id].tsx, complete/[id].tsx
+│  ├─ components/                        # Button, Screen, OnbView, ErrorState, Skeleton
+│  ├─ lib/                               # tokens, supabase, auth, db, types, session,
+│  │                                     # upload, invite, haptics, stats, notifications,
+│  │                                     # sentry, i18n + locales/
+│  ├─ assets/                            # fonts/Pretendard-*, images/icon·splash·...
+│  ├─ 🔐 .env                            # 실제 키 (gitignore)
+│  ├─ app.json, eas.json, metro.config.js
+│  └─ package.json
 │
-├─ 📚 docs/
-│  ├─ HTML-to-React-Native-가이드.md
-│  └─ HTML-to-RN-치트시트.html
-│
-└─ 📦 src/                              # ← Day 1에서 Expo 프로젝트 생성
-   └─ (Expo init 으로 자동 생성)
+└─ 🗄️ supabase/
+   ├─ migrations/
+   │  ├─ 0001_init.sql                   # 5 테이블 + RLS + 트리거
+   │  └─ 0002_kind_pause.sql             # 단독 챌린지 + 잠시 멈춤
+   └─ functions/r2-presign/index.ts      # Edge Function (SigV4 presign)
 ```
 
 ---
@@ -53,40 +63,55 @@ do-hada/                                # ⭐ 프로젝트 루트
 ### VS Code 확장
 - [ ] ESLint
 - [ ] Prettier
-- [ ] Tailwind CSS IntelliSense (NativeWind 자동 완성)
 - [ ] React Native Tools
-- [ ] TypeScript Vue Plugin (또는 기본 TS)
+- [ ] (기본 TypeScript 확장)
+- ※ NativeWind 안 씀 (StyleSheet + tokens.ts 로 결정)
 
 ---
 
-## 🔑 3. 외부 서비스 계정 + 키 발급
+## 🔑 3. 외부 서비스 계정 + 키 발급 *(2026-05-26 갱신)*
 
-다음 서비스에 계정을 만들고 키를 `.env`에 채워 넣습니다.
-**Phase 1 MVP는 Supabase + 카카오 + Anthropic 3개만 있으면 시작 가능.**
+`.env` 위치: **`mobile/.env`** (gitignore 됨). 템플릿: [.env.example](.env.example)
 
-### 필수 (Phase 1 MVP 시작 시 필요)
-- [ ] **Supabase 프로젝트 생성** — https://supabase.com
+### Phase 1 MVP 필수 (3개)
+- [ ] **Supabase 프로젝트** — https://supabase.com
   - `EXPO_PUBLIC_SUPABASE_URL`
   - `EXPO_PUBLIC_SUPABASE_ANON_KEY`
-  - `SUPABASE_SERVICE_ROLE_KEY` (Edge Function 용)
-- [ ] **카카오 디벨로퍼스 앱 등록** — https://developers.kakao.com
-  - 네이티브 앱 키
-  - REST API 키
-  - 플랫폼: iOS 번들 ID + Android 패키지명 등록
-- [ ] **Anthropic API 키** — https://console.anthropic.com
-  - `ANTHROPIC_API_KEY` (Claude API 콘텐츠 검수용)
+  - `SUPABASE_SERVICE_ROLE_KEY` (Edge Function 환경변수 — 클라이언트 노출 X)
+  - SQL Editor 에서 `supabase/migrations/0001_init.sql`, `0002_kind_pause.sql` 실행
+  - Authentication → Providers → Google ON + Web ID/Secret + iOS ID 같이 (콤마) + Skip nonce checks ON
 
-### Phase 1 후반 (베타 출시 직전)
-- [ ] **토스페이먼츠** — https://docs.tosspayments.com (테스트 키부터)
-- [ ] **Apple Developer Program** — $99/year (iOS 출시 필수)
-- [ ] **Google Play Console** — $25 단발 (Android 출시 필수)
-- [ ] **EAS Build** — Expo 계정 + 프로젝트 ID
-- [ ] **Sentry** — 에러 모니터링
-- [ ] **Mixpanel** 또는 **PostHog** — 행동 분석
+- [ ] **Google Cloud OAuth** — https://console.cloud.google.com
+  - iOS Client (번들 ID: `app.dohada.beta`) → `EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS`
+  - Web Client → `EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB` + Client Secret 은 Supabase 콘솔에
+  - Authorized redirect URI 에 `https://<project>.supabase.co/auth/v1/callback` 추가
+  - Android Client 는 EAS Build 후 SHA-1 확보되면 발급 (지금은 비워두면 web 으로 fallback)
+
+- [ ] **Cloudflare R2** — https://dash.cloudflare.com → R2
+  - 버킷 생성 (예: `dohada-proofs`) + Public Access ON + CORS (GET/PUT)
+  - `EXPO_PUBLIC_R2_ACCOUNT_ID`, `EXPO_PUBLIC_R2_BUCKET`, `EXPO_PUBLIC_R2_PUBLIC_URL`
+  - API Token (Object Read & Write, 특정 버킷만) → `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`
+  - Supabase CLI 로 secrets 설정 + `r2-presign` 함수 배포:
+    ```bash
+    supabase login && supabase link --project-ref <ref>
+    supabase secrets set R2_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... \
+                          R2_BUCKET=dohada-proofs R2_PUBLIC_BASE_URL=https://pub-....r2.dev
+    supabase functions deploy r2-presign --no-verify-jwt
+    ```
+
+### 베타 출시 직전 필수
+- [ ] **Apple Developer Program** — $99/year. EAS iOS ad-hoc 빌드 위해 필수.
+- [ ] **EAS** — Expo 계정 (`eas login`) + `eas init` 으로 projectId 발급
+
+### 선택 (있으면 좋음)
+- [ ] **Sentry** — https://sentry.io 무료 계정 → DSN → `EXPO_PUBLIC_SENTRY_DSN`. 비워두면 noop.
+- [ ] **Google Play Console** — $25 단발 (Android 출시 시)
+- [ ] **카카오 디벨로퍼스** — Phase 1.5 (카카오 공유 SDK 정식 도입 시. MVP 는 RN Share API)
 
 ### Phase 2+ (확장 시점)
-- [ ] Stripe (글로벌 결제)
-- [ ] Google OAuth (글로벌 로그인)
+- [ ] 토스페이먼츠 / Stripe (내기/결제)
+- [ ] Anthropic (AI 콘텐츠 검수)
+- [ ] Mixpanel / PostHog (행동 분석)
 
 ---
 
@@ -136,39 +161,27 @@ supabase/.temp/
 
 ---
 
-## 🎬 5. Day 1 첫 명령어 (Claude Code)
+## 🎬 5. 현재 작업 시작 명령
 
-VS Code에서 위 폴더 구조 셋업 + `.env` 채워 넣은 후:
+코드는 이미 완성 상태. 새 세션에서 작업 이어갈 때:
 
 ```bash
-cd do-hada/
+cd e:\dohada
 claude code .
 ```
 
-### 첫 프롬프트 (복사해서 사용)
+새 세션 첫 메시지 권장 형태:
 
 ```
 이 프로젝트는 Do : 하다 챌린지 SNS 앱입니다.
 
-📘 메인 문서: Do_하다_통합기획서_v4.0.1.docx 를 먼저 읽어주세요.
-📋 작업 규칙: CLAUDE.md 를 반드시 준수합니다.
-📱 시각 가이드: prototype/do-hada-app-v3.html (v3.4 기준 24화면)
-🎨 디자인 토큰: design/tokens.ts, design/tailwind.config.js 를 src/ 에 그대로 적용
+먼저 다음 파일을 순서대로 읽어주세요:
+1. CLAUDE.md (작업 규칙 — 반드시 준수)
+2. MVP_SCOPE.md (Phase 1 단일 진실원천. 6개 기능 + A~I 완성도 항목)
+3. setup-checklist.md (현재 폴더 구조 + 외부 서비스 셋업 상태)
+4. prototype/do-hada-app-v4.html (시각 가이드)
 
-Phase 1 MVP를 시작합니다. 부록 E.8 의 Week 1 — Day 1 에 해당하는
-"환경 셋업" 작업부터 진행해주세요.
-
-다음을 순서대로 해주세요:
-1. src/ 폴더에 Expo 프로젝트 생성 (TypeScript 템플릿)
-2. NativeWind 셋업
-3. design/tokens.ts → src/lib/tokens.ts 복사
-4. design/tailwind.config.js → src/tailwind.config.js 복사
-5. Pretendard 폰트 적용
-6. 컬러 토큰이 잘 적용되는지 확인할 테스트 화면 1개
-
-CLAUDE.md 의 "선보고 후실행" 규칙에 따라, 큰 결정(라이브러리 추가 등)은
-먼저 AS-IS → TO-BE 로 설명해주세요. 작은 건 바로 진행 후 한 줄 보고면
-충분합니다.
+작업 디렉토리: mobile/ (Expo SDK 54), supabase/ (DB + Edge Function)
 ```
 
 ---
@@ -183,22 +196,23 @@ CLAUDE.md 의 "선보고 후실행" 규칙에 따라, 큰 결정(라이브러리
 
 ---
 
-## 🎯 7. Day 1 완료 기준
+## 🎯 7. 베타 출시 완료 기준 *(2026-05-26 갱신)*
 
-다음 3개가 모두 되면 Day 1 완료:
-
-- [ ] `npx expo start` → QR 코드로 폰에서 앱이 열림
-- [ ] 테스트 화면에서 디자인 토큰 컬러(오렌지 #FF6B35)가 정상 표시됨
-- [ ] Pretendard 폰트가 적용됨 (시스템 폰트 아님)
+- [x] 코드 완료 (6개 기능 + A~I)
+- [x] Supabase / R2 / Google OAuth / Edge Function 셋업
+- [ ] Apple Developer 활성화
+- [ ] `eas build --profile development --platform ios` → iPhone 설치
+- [ ] 전체 흐름 실기기 검증: splash → 로그인 → 챌린지 만들기 → 카메라 인증 → R2 업로드 → 응원 ❤ → 완주
+- [ ] 클로즈드 베타 30명 모집 (TestFlight 또는 ad-hoc)
 
 ---
 
 ## 📞 8. 막힐 때
 
 1. Claude Code에 에러 메시지 통째로 붙여넣기
-2. "Expo + NativeWind + TypeScript 환경" 명시
-3. 그래도 안 되면 통합기획서 부록 **E.9 막힐 때 비상 대응** 참고
-4. Expo Discord / Supabase Discord 커뮤니티
+2. "Expo SDK 54 + Expo Router + TypeScript 환경" 명시
+3. 통합기획서 부록 **E.9 막힐 때 비상 대응** 참고
+4. Expo / Supabase / Cloudflare Discord 커뮤니티
 
 ---
 

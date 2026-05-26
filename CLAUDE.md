@@ -3,9 +3,11 @@
 이 파일은 Claude Code가 이 저장소에서 작업할 때 **반드시 따라야 하는 지침**이다.
 서브에이전트 위임 없이 메인 세션이 코드 작성·검증·정책 검토까지 직접 수행한다.
 
-**프로젝트 명세·기능·DB·일정은 [`Do_하다_통합기획서_v4.0.1.docx`](Do_하다_통합기획서_v4.0.1.docx) 를 참조한다.**
+**Phase 1 MVP 의 단일 진실원천은 [`MVP_SCOPE.md`](MVP_SCOPE.md) 이다.**
+장기 비전·정책·DB 설계는 [`Do_하다_통합기획서_v4_0_1.pdf`](Do_하다_통합기획서_v4_0_1.pdf) 를 참조.
 작업 단위는 부록 E.8의 **Week** 단위(Day는 작업 덩어리 예시).
-HTML 시각 가이드는 [`prototype/do-hada-app-v3.html`](prototype/do-hada-app-v3.html) 참고.
+HTML 시각 가이드는 [`prototype/do-hada-app-v4.html`](prototype/do-hada-app-v4.html) 참고 (v4 = 28화면).
+실제 앱 코드는 [`mobile/`](mobile/), 백엔드(DB + Edge Function)는 [`supabase/`](supabase/).
 
 ---
 
