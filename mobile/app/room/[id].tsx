@@ -150,8 +150,8 @@ export default function ChallengeRoom() {
     if (fromCreate !== '1' || !challenge || createPromptShown) return;
     setCreatePromptShown(true);
     Alert.alert(
-      `🎉 "${challenge.title}" 챌린지 생성 완료`,
-      '동료를 초대하면 완주율이 3배 올라가요.\n지금 카톡으로 공유해볼까요?',
+      '더 나은 나, 더 나은 세상',
+      '함께하면 완주성공 3배',
       [
         { text: '나중에', style: 'cancel' },
         { text: '카톡으로 초대', onPress: onShareInvite },
