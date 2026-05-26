@@ -12,6 +12,7 @@ import { Button } from '@/components/Button';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { uploadProofImage } from '@/lib/upload';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { haptic } from '@/lib/haptics';
 
 export default function CheckinScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -25,6 +26,7 @@ export default function CheckinScreen() {
   const onCapture = async () => {
     if (!cameraRef.current) return;
     try {
+      haptic.medium();
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.8 });
       if (photo?.uri) setPhotoUri(photo.uri);
     } catch (e) {
@@ -57,6 +59,7 @@ export default function CheckinScreen() {
         if (error) throw error;
       }
 
+      haptic.success();
       Alert.alert('인증 완료!', '동료들이 응원하러 올 거예요. 💛', [
         { text: '확인', onPress: () => router.back() },
       ]);

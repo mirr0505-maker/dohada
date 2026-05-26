@@ -10,7 +10,9 @@ import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/
 import { useSession } from '@/lib/session';
 import { fetchMyChallenges } from '@/lib/db';
 import { ErrorState } from '@/components/ErrorState';
+import { ChallengeCardSkeleton } from '@/components/Skeleton';
 import { reportError } from '@/lib/sentry';
+import { haptic } from '@/lib/haptics';
 import type { ChallengeWithCount } from '@/lib/types';
 
 export default function HomeScreen() {
@@ -65,8 +67,10 @@ export default function HomeScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.accent} />
+        <View style={styles.list}>
+          <ChallengeCardSkeleton />
+          <ChallengeCardSkeleton />
+          <ChallengeCardSkeleton />
         </View>
       ) : error ? (
         <ErrorState message={error} onRetry={() => { setLoading(true); load(); }} />
@@ -99,7 +103,10 @@ export default function HomeScreen() {
         />
       )}
 
-      <Pressable style={styles.fab} onPress={() => router.push('/create')}>
+      <Pressable
+        style={styles.fab}
+        onPress={() => { haptic.tap(); router.push('/create'); }}
+      >
         <Text style={styles.fabPlus}>＋</Text>
         <Text style={styles.fabLabel}>챌린지 만들기</Text>
       </Pressable>

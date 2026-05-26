@@ -2,16 +2,19 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, Pressable, FlatList, StyleSheet, Share, Alert,
-  ActivityIndicator, Image,
+  Image, RefreshControl,
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
-import { fetchRoomData, toggleCheer } from '@/lib/db';
+import { fetchRoomData, toggleCheer, pauseMembership, resumeMembership } from '@/lib/db';
 import { supabase } from '@/lib/supabase';
 import { ErrorState } from '@/components/ErrorState';
+import { ProofCardSkeleton } from '@/components/Skeleton';
 import { reportError } from '@/lib/sentry';
+import { haptic } from '@/lib/haptics';
+import { computeProgress, computeStreak, isCompleted } from '@/lib/stats';
 import type {
   DbChallenge, MemberWithToday, ProofWithRelations,
 } from '@/lib/types';
@@ -24,8 +27,10 @@ export default function ChallengeRoom() {
   const [members, setMembers] = useState<MemberWithToday[]>([]);
   const [proofs, setProofs] = useState<ProofWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createPromptShown, setCreatePromptShown] = useState(false);
+  const [completeRedirected, setCompleteRedirected] = useState(false);
 
   const myUserId = session?.user?.id;
 
@@ -46,8 +51,14 @@ export default function ChallengeRoom() {
       setError(e?.message ?? '챌린지를 불러오지 못했어요.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [id, myUserId]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    load();
+  }, [load]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -104,6 +115,8 @@ export default function ChallengeRoom() {
     const target = proofs.find(p => p.id === proofId);
     if (!target) return;
 
+    haptic.tap();
+
     // 낙관적 업데이트
     setProofs(prev => prev.map(p =>
       p.id === proofId
@@ -159,17 +172,85 @@ export default function ChallengeRoom() {
     );
   }, [fromCreate, challenge, createPromptShown, onShareInvite]);
 
-  const todayChecked = useMemo(
-    () => members.find(m => m.id === myUserId)?.today_checked ?? false,
+  const me = useMemo(
+    () => members.find(m => m.id === myUserId),
     [members, myUserId],
   );
+  const todayChecked = me?.today_checked ?? false;
+
+  // 내가 한 인증만 필터해서 streak 계산
+  const myProofs = useMemo(
+    () => proofs.filter(p => p.user_id === myUserId),
+    [proofs, myUserId],
+  );
+  const streak = useMemo(() => computeStreak(myProofs), [myProofs]);
+  const progress = useMemo(
+    () => (challenge ? computeProgress(challenge) : null),
+    [challenge],
+  );
+
+  // 잠시 멈춤 상태 (오늘이 paused_until 이전)
+  const isPaused = useMemo(() => {
+    if (!me?.paused_until) return false;
+    const today = new Date().toISOString().slice(0, 10);
+    return today <= me.paused_until;
+  }, [me]);
+
+  // 완주 자동 감지 → complete 화면으로 1회 redirect
+  useEffect(() => {
+    if (!challenge || completeRedirected) return;
+    if (isCompleted(challenge, myProofs)) {
+      setCompleteRedirected(true);
+      router.replace(`/complete/${challenge.id}` as any);
+    }
+  }, [challenge, myProofs, completeRedirected]);
+
+  // ─── 잠시 멈춤 / 재개 ─────────────────────────────────
+  const onTogglePause = useCallback(() => {
+    if (!challenge || !myUserId) return;
+    if (isPaused) {
+      // 즉시 재개
+      resumeMembership({ challengeId: challenge.id, userId: myUserId })
+        .then(() => { haptic.success(); load(); })
+        .catch(e => Alert.alert('재개 실패', e?.message ?? String(e)));
+      return;
+    }
+    Alert.alert(
+      '잠시 멈춤',
+      '며칠 쉴까요? 그 동안 인증 의무가 면제돼요.',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '3일',
+          onPress: () => doPause(3),
+        },
+        {
+          text: '7일',
+          onPress: () => doPause(7),
+        },
+      ],
+    );
+
+    function doPause(days: number) {
+      const until = new Date();
+      until.setDate(until.getDate() + days);
+      pauseMembership({
+        challengeId: challenge!.id,
+        userId: myUserId!,
+        untilDate: until.toISOString().slice(0, 10),
+      })
+        .then(() => { haptic.success(); load(); })
+        .catch(e => Alert.alert('멈춤 실패', e?.message ?? String(e)));
+    }
+  }, [challenge, myUserId, isPaused, load]);
 
   // ─── 렌더 ────────────────────────────────────────────
   if (loading) {
     return (
       <Screen backgroundColor={colors.background}>
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.accent} />
+        <View style={styles.feed}>
+          <ProofCardSkeleton />
+          <ProofCardSkeleton />
         </View>
       </Screen>
     );
@@ -198,6 +279,27 @@ export default function ChallengeRoom() {
         </View>
         <Pressable onPress={onShareInvite} hitSlop={12}>
           <Text style={styles.share}>초대</Text>
+        </Pressable>
+      </View>
+
+      {/* 진행률 + Streak + 잠시멈춤 토글 */}
+      <View style={styles.statsRow}>
+        {progress && (
+          <View style={styles.stat}>
+            <Text style={styles.statValue}>{progress.passedDays}/{progress.totalDays}</Text>
+            <Text style={styles.statLabel}>일 진행 ({progress.percent}%)</Text>
+          </View>
+        )}
+        <View style={styles.stat}>
+          <Text style={[styles.statValue, streak > 0 && { color: colors.accent }]}>
+            🔥 {streak}
+          </Text>
+          <Text style={styles.statLabel}>연속 인증</Text>
+        </View>
+        <Pressable style={styles.pauseBtn} onPress={onTogglePause}>
+          <Text style={styles.pauseLabel}>
+            {isPaused ? '▶ 재개' : '⏸ 멈춤'}
+          </Text>
         </Pressable>
       </View>
 
@@ -235,6 +337,13 @@ export default function ChallengeRoom() {
         data={proofs}
         keyExtractor={p => p.id}
         contentContainerStyle={styles.feed}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.accent}
+          />
+        }
         renderItem={({ item }) => (
           <ProofCard proof={item} onCheer={() => onCheer(item.id)} />
         )}
@@ -249,15 +358,30 @@ export default function ChallengeRoom() {
       />
 
       <Pressable
-        style={[styles.fab, todayChecked && styles.fabDone]}
-        onPress={() =>
-          todayChecked
-            ? Alert.alert('오늘 인증 완료', '내일 다시 만나요.')
-            : router.push(`/checkin/${challenge.id}`)
-        }
+        style={[
+          styles.fab,
+          todayChecked && styles.fabDone,
+          isPaused && styles.fabPaused,
+        ]}
+        onPress={() => {
+          if (isPaused) {
+            Alert.alert('잠시 멈춤 중', `${me?.paused_until} 까지 인증 의무가 면제예요.`);
+            return;
+          }
+          if (todayChecked) {
+            Alert.alert('오늘 인증 완료', '내일 다시 만나요.');
+            return;
+          }
+          haptic.tap();
+          router.push(`/checkin/${challenge.id}`);
+        }}
       >
         <Text style={styles.fabLabel}>
-          {todayChecked ? '✓ 오늘 인증 완료' : '📸 오늘 인증하기'}
+          {isPaused
+            ? '⏸ 잠시 멈춤 중'
+            : todayChecked
+              ? '✓ 오늘 인증 완료'
+              : '📸 오늘 인증하기'}
         </Text>
       </Pressable>
     </Screen>
@@ -349,6 +473,41 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
 
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.primary100,
+  },
+  stat: { flex: 1 },
+  statValue: {
+    fontSize: fontSize.xl,
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  statLabel: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+    marginTop: 2,
+  },
+  pauseBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: colors.primary50,
+    borderRadius: radius.pill,
+  },
+  pauseLabel: {
+    fontSize: fontSize.sm,
+    color: colors.primary500,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
+  },
   memberStrip: {
     paddingVertical: 16,
     backgroundColor: colors.surface,
@@ -454,6 +613,7 @@ const styles = StyleSheet.create({
     ...shadow.lg,
   },
   fabDone: { backgroundColor: colors.success },
+  fabPaused: { backgroundColor: colors.primary500 },
   fabLabel: {
     color: colors.surface,
     fontSize: fontSize.lg,

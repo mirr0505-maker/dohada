@@ -10,6 +10,8 @@ import { Button } from '@/components/Button';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import { createChallenge } from '@/lib/db';
+import { haptic } from '@/lib/haptics';
+import type { ChallengeKind } from '@/lib/types';
 
 const DURATIONS = [
   { label: '7일', value: 7 },
@@ -24,6 +26,7 @@ export default function CreateChallenge() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [duration, setDuration] = useState<number>(30);
+  const [kind, setKind] = useState<ChallengeKind>('closed');
   const [submitting, setSubmitting] = useState(false);
 
   const canSubmit = title.trim().length >= 2 && !submitting;
@@ -40,9 +43,14 @@ export default function CreateChallenge() {
         title,
         description,
         durationDays: duration,
+        kind,
       });
-      // 생성된 챌린지 방으로 바로 이동. fromCreate=1 → room 에서 초대 안내 모달 자동 노출.
-      router.replace(`/room/${challenge.id}?fromCreate=1` as any);
+      haptic.success();
+      // solo 챌린지는 초대 안내 X.  closed 만 fromCreate=1.
+      const path = kind === 'closed'
+        ? `/room/${challenge.id}?fromCreate=1`
+        : `/room/${challenge.id}`;
+      router.replace(path as any);
     } catch (e: any) {
       Alert.alert('만들기 실패', e?.message ?? String(e));
     } finally {
@@ -104,6 +112,32 @@ export default function CreateChallenge() {
                   </Text>
                 </Pressable>
               ))}
+            </View>
+          </Field>
+
+          {/* 방 종류 */}
+          <Field label="방 종류">
+            <View style={styles.kindRow}>
+              <Pressable
+                style={[styles.kindOpt, kind === 'closed' && styles.kindOptActive]}
+                onPress={() => setKind('closed')}
+              >
+                <Text style={styles.kindEmoji}>🤝</Text>
+                <Text style={[styles.kindTitle, kind === 'closed' && styles.kindTitleActive]}>
+                  동료들과
+                </Text>
+                <Text style={styles.kindDesc}>초대한 사람만 함께</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.kindOpt, kind === 'solo' && styles.kindOptActive]}
+                onPress={() => setKind('solo')}
+              >
+                <Text style={styles.kindEmoji}>🧘</Text>
+                <Text style={[styles.kindTitle, kind === 'solo' && styles.kindTitleActive]}>
+                  혼자
+                </Text>
+                <Text style={styles.kindDesc}>나만의 다짐</Text>
+              </Pressable>
             </View>
           </Field>
 
@@ -250,5 +284,33 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.primary100,
     backgroundColor: colors.background,
+  },
+  kindRow: { flexDirection: 'row', gap: 12 },
+  kindOpt: {
+    flex: 1,
+    padding: 16,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.primary100,
+    alignItems: 'center',
+    gap: 4,
+  },
+  kindOptActive: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accent50,
+  },
+  kindEmoji: { fontSize: 28, marginBottom: 4 },
+  kindTitle: {
+    fontSize: fontSize.base,
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  kindTitleActive: { color: colors.accent700 },
+  kindDesc: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
   },
 });

@@ -9,11 +9,14 @@ export type DbUser = {
   created_at: string;
 };
 
+export type ChallengeKind = 'closed' | 'solo';
+
 export type DbChallenge = {
   id: string;
   creator_id: string;
   title: string;
   description: string | null;
+  kind: ChallengeKind;
   start_date: string;   // YYYY-MM-DD
   end_date: string;
   created_at: string;
@@ -42,6 +45,7 @@ export type ChallengeWithCount = DbChallenge & {
 
 export type MemberWithToday = DbUser & {
   today_checked: boolean;
+  paused_until: string | null;
 };
 
 export type ProofWithRelations = DbProof & {

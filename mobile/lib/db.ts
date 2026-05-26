@@ -2,7 +2,7 @@
 // RLS 가 알아서 가드해주니까 여기선 단순 fetch/insert/delete.
 import { supabase } from './supabase';
 import type {
-  ChallengeWithCount, MemberWithToday, ProofWithRelations, DbChallenge,
+  ChallengeWithCount, ChallengeKind, MemberWithToday, ProofWithRelations, DbChallenge,
 } from './types';
 
 // ─── 내 챌린지 목록 (홈) ───────────────────────────────
@@ -20,6 +20,7 @@ export async function fetchMyChallenges(): Promise<ChallengeWithCount[]> {
     creator_id: c.creator_id,
     title: c.title,
     description: c.description,
+    kind: (c.kind ?? 'closed') as ChallengeKind,
     start_date: c.start_date,
     end_date: c.end_date,
     created_at: c.created_at,
@@ -33,7 +34,7 @@ export async function fetchRoomData(challengeId: string, myUserId: string) {
     supabase.from('challenges').select('*').eq('id', challengeId).single(),
     supabase
       .from('challenge_members')
-      .select('users(*)')
+      .select('paused_until, users(*)')
       .eq('challenge_id', challengeId),
     supabase
       .from('proofs')
@@ -50,12 +51,12 @@ export async function fetchRoomData(challengeId: string, myUserId: string) {
   const proofsRaw = resProofs.data ?? [];
 
   const members: MemberWithToday[] = (resMembers.data ?? [])
-    .map((m: any) => m.users)
-    .filter(Boolean)
-    .map((u: any) => ({
-      ...u,
+    .filter((m: any) => m.users)
+    .map((m: any) => ({
+      ...m.users,
+      paused_until: m.paused_until ?? null,
       today_checked: proofsRaw.some(
-        (p: any) => p.user_id === u.id && (p.created_at as string).startsWith(today),
+        (p: any) => p.user_id === m.users.id && (p.created_at as string).startsWith(today),
       ),
     }));
 
@@ -81,6 +82,7 @@ export async function createChallenge(args: {
   title: string;
   description?: string;
   durationDays: number;
+  kind: ChallengeKind;
 }): Promise<DbChallenge> {
   const today = new Date();
   const end = new Date();
@@ -92,6 +94,7 @@ export async function createChallenge(args: {
       creator_id: args.userId,
       title: args.title.trim(),
       description: args.description?.trim() || null,
+      kind: args.kind,
       start_date: today.toISOString().slice(0, 10),
       end_date: end.toISOString().slice(0, 10),
     })
@@ -100,6 +103,30 @@ export async function createChallenge(args: {
 
   if (error) throw error;
   return data as DbChallenge;
+}
+
+// ─── 잠시 멈춤 / 재개 (room) ────────────────────────────
+export async function pauseMembership(args: {
+  challengeId: string;
+  userId: string;
+  untilDate: string;   // YYYY-MM-DD
+}): Promise<void> {
+  const { error } = await supabase
+    .from('challenge_members')
+    .update({ paused_until: args.untilDate })
+    .match({ challenge_id: args.challengeId, user_id: args.userId });
+  if (error) throw error;
+}
+
+export async function resumeMembership(args: {
+  challengeId: string;
+  userId: string;
+}): Promise<void> {
+  const { error } = await supabase
+    .from('challenge_members')
+    .update({ paused_until: null })
+    .match({ challenge_id: args.challengeId, user_id: args.userId });
+  if (error) throw error;
 }
 
 // ─── 응원 토글 (room 의 ❤) ─────────────────────────────

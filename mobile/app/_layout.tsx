@@ -7,6 +7,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { initSentry } from '@/lib/sentry';
+import { scheduleDailyReminder } from '@/lib/notifications';
 
 // Sentry — module load 시점에 한 번
 initSentry();
@@ -24,6 +25,11 @@ export default function RootLayout() {
   useEffect(() => {
     if (fontsLoaded || fontError) SplashScreen.hideAsync();
   }, [fontsLoaded, fontError]);
+
+  // 매일 저녁 8시 로컬 알림 (권한 거부 시 noop)
+  useEffect(() => {
+    scheduleDailyReminder(20, 0).catch(() => {});
+  }, []);
 
   // 폰트 로딩 전엔 네이티브 splash 화면 그대로 둠
   if (!fontsLoaded && !fontError) return null;
@@ -55,6 +61,7 @@ export default function RootLayout() {
           <Stack.Screen name="checkin/[id]" options={{ presentation: 'modal' }} />
           <Stack.Screen name="room/[id]" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="invite/[id]" />
+          <Stack.Screen name="complete/[id]" options={{ animation: 'fade', gestureEnabled: false }} />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>
