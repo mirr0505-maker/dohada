@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm view *)",
+      "Bash(npx expo *)",
+      "Bash(npx --yes create-expo-app@latest mobile --template default@sdk-54 --no-install)",
+      "Bash(cp -r e:/dohada/_backup/src/app e:/dohada/mobile/app)",
+      "Bash(cp -r e:/dohada/_backup/src/components e:/dohada/mobile/components)",
+      "Bash(cp -r e:/dohada/_backup/src/lib e:/dohada/mobile/lib)",
+      "Bash(git -C e:/dohada status --short)",
+      "Bash(git -C e:/dohada config user.name)",
+      "Bash(git -C e:/dohada config user.email)"
+    ]
+  }
+}

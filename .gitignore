@@ -1,0 +1,42 @@
+# 환경변수
+.env
+.env.*
+!.env.example
+
+# Expo
+.expo/
+.expo-shared/
+dist/
+web-build/
+
+# Node
+node_modules/
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Claude Code 개인 설정 (settings.json 은 공유)
+**/.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 빌드 / 서명 키
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# 로그
+*.log
+
+# Supabase 로컬
+supabase/.temp/
