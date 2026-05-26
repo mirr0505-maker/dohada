@@ -7,7 +7,7 @@ import { colors, fontFamily, fontSize, fontWeight } from '@/lib/tokens';
 
 export default function SplashScreen() {
   return (
-    <Screen fullScreen backgroundColor={colors.primary} statusBarStyle="light">
+    <Screen fullScreen backgroundColor={colors.accent} statusBarStyle="light">
       <Pressable style={styles.tapArea} onPress={() => router.push('/onb1')}>
         <View style={styles.center}>
           <Text style={styles.logo}>(  ◯  )</Text>
@@ -36,7 +36,7 @@ const styles = StyleSheet.create({
   },
   logo: {
     fontSize: fontSize['5xl'],
-    color: colors.accent,
+    color: colors.surface,
     fontFamily: fontFamily.bold,
   },
   title: {
@@ -54,12 +54,12 @@ const styles = StyleSheet.create({
   },
   subTagline: {
     fontSize: fontSize.sm,
-    color: colors.primary300,
+    color: 'rgba(255,255,255,0.85)',
     fontFamily: fontFamily.regular,
   },
   tap: {
     fontSize: fontSize.sm,
-    color: colors.primary300,
+    color: 'rgba(255,255,255,0.7)',
     fontFamily: fontFamily.medium,
   },
 });

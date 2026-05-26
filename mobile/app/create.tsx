@@ -8,6 +8,8 @@ import { router, Stack } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
+import { useSession } from '@/lib/session';
+import { createChallenge } from '@/lib/db';
 
 const DURATIONS = [
   { label: '7일', value: 7 },
@@ -18,20 +20,34 @@ const DURATIONS = [
 ] as const;
 
 export default function CreateChallenge() {
+  const session = useSession();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [duration, setDuration] = useState<number>(30);
+  const [submitting, setSubmitting] = useState(false);
 
-  const canSubmit = title.trim().length >= 2;
+  const canSubmit = title.trim().length >= 2 && !submitting;
 
-  const onSubmit = () => {
-    // Week 2 에서 Supabase insert 로 교체.
-    // 지금은 더미 — 만든 후 카톡 공유 안내 alert 띄우고 홈으로.
-    Alert.alert(
-      '챌린지가 만들어졌어요',
-      `"${title.trim()}" 챌린지를 ${duration}일간 진행합니다.\n\n다음 화면에서 카톡으로 동료를 초대하세요. (베타는 더미)`,
-      [{ text: '확인', onPress: () => router.back() }],
-    );
+  const onSubmit = async () => {
+    if (!session?.user) {
+      Alert.alert('로그인 필요', '먼저 로그인해주세요.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const challenge = await createChallenge({
+        userId: session.user.id,
+        title,
+        description,
+        durationDays: duration,
+      });
+      // 생성된 챌린지 방으로 바로 이동 (그 안에서 초대 공유 가능)
+      router.replace(`/room/${challenge.id}`);
+    } catch (e: any) {
+      Alert.alert('만들기 실패', e?.message ?? String(e));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -118,7 +134,7 @@ export default function CreateChallenge() {
       {/* 하단 액션 */}
       <View style={styles.bottom}>
         <Button
-          label="만들기"
+          label={submitting ? '만드는 중…' : '만들기'}
           size="xl"
           block
           disabled={!canSubmit}
