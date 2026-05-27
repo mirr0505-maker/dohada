@@ -3,6 +3,7 @@
 import { supabase } from './supabase';
 import type {
   ChallengeWithCount, ChallengeKind, MemberWithToday, ProofWithRelations, DbChallenge,
+  CommentWithAuthor,
 } from './types';
 
 // ─── 내 챌린지 목록 (홈) ───────────────────────────────
@@ -63,7 +64,7 @@ export async function fetchRoomData(challengeId: string, myUserId: string) {
       .eq('challenge_id', challengeId),
     supabase
       .from('proofs')
-      .select('*, users:user_id(*), cheers(user_id)')
+      .select('*, users:user_id(*), cheers(user_id), comments(count)')
       .eq('challenge_id', challengeId)
       .order('created_at', { ascending: false }),
   ]);
@@ -95,6 +96,7 @@ export async function fetchRoomData(challengeId: string, myUserId: string) {
     author: p.users,
     cheer_count: p.cheers?.length ?? 0,
     cheered_by_me: p.cheers?.some((c: any) => c.user_id === myUserId) ?? false,
+    comment_count: p.comments?.[0]?.count ?? 0,
   }));
 
   return { challenge: resChallenge.data as DbChallenge, members, proofs };
@@ -151,6 +153,48 @@ export async function resumeMembership(args: {
     .from('challenge_members')
     .update({ paused_until: null })
     .match({ challenge_id: args.challengeId, user_id: args.userId });
+  if (error) throw error;
+}
+
+// ─── 인증 댓글 (proof 별) ──────────────────────────────
+export async function fetchComments(proofId: string): Promise<CommentWithAuthor[]> {
+  const { data, error } = await supabase
+    .from('comments')
+    .select('*, users:user_id(*)')
+    .eq('proof_id', proofId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+
+  return (data ?? []).map((c: any) => ({
+    id: c.id,
+    proof_id: c.proof_id,
+    user_id: c.user_id,
+    content: c.content,
+    created_at: c.created_at,
+    author: c.users,
+  }));
+}
+
+export async function addComment(args: {
+  proofId: string;
+  userId: string;
+  content: string;
+}): Promise<void> {
+  const trimmed = args.content.trim();
+  if (!trimmed) throw new Error('내용을 입력해주세요.');
+  if (trimmed.length > 280) throw new Error('280자 이내로 적어주세요.');
+
+  const { error } = await supabase.from('comments').insert({
+    proof_id: args.proofId,
+    user_id: args.userId,
+    content: trimmed,
+  });
+  if (error) throw error;
+}
+
+export async function deleteComment(commentId: string): Promise<void> {
+  const { error } = await supabase.from('comments').delete().eq('id', commentId);
   if (error) throw error;
 }
 

@@ -12,6 +12,7 @@ import { fetchRoomData, toggleCheer, pauseMembership, resumeMembership } from '@
 import { supabase } from '@/lib/supabase';
 import { ErrorState } from '@/components/ErrorState';
 import { ProofCardSkeleton } from '@/components/Skeleton';
+import { CommentsSheet } from '@/components/CommentsSheet';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import { computeProgress, computeStreak, isCompleted } from '@/lib/stats';
@@ -32,6 +33,7 @@ export default function ChallengeRoom() {
   const [error, setError] = useState<string | null>(null);
   const [createPromptShown, setCreatePromptShown] = useState(false);
   const [completeRedirected, setCompleteRedirected] = useState(false);
+  const [activeProofId, setActiveProofId] = useState<string | null>(null);    // 댓글 sheet 대상
 
   const myUserId = session?.user?.id;
 
@@ -102,6 +104,32 @@ export default function ChallengeRoom() {
                   cheer_count: Math.max(0, p.cheer_count - 1),
                   cheered_by_me: c.user_id === myUserId ? false : p.cheered_by_me,
                 }
+              : p,
+          ));
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'comments' },
+        (payload) => {
+          const c = payload.new as { proof_id: string; user_id: string };
+          // 내 댓글은 CommentsSheet 의 onCountChange 가 이미 반영했으니 중복 카운트 방지
+          if (c.user_id === myUserId) return;
+          setProofs(prev => prev.map(p =>
+            p.id === c.proof_id
+              ? { ...p, comment_count: p.comment_count + 1 }
+              : p,
+          ));
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'comments' },
+        (payload) => {
+          const c = payload.old as { proof_id: string };
+          setProofs(prev => prev.map(p =>
+            p.id === c.proof_id
+              ? { ...p, comment_count: Math.max(0, p.comment_count - 1) }
               : p,
           ));
         },
@@ -372,7 +400,11 @@ export default function ChallengeRoom() {
           />
         }
         renderItem={({ item }) => (
-          <ProofCard proof={item} onCheer={() => onCheer(item.id)} />
+          <ProofCard
+            proof={item}
+            onCheer={() => onCheer(item.id)}
+            onComments={() => { haptic.tap(); setActiveProofId(item.id); }}
+          />
         )}
         ListEmptyComponent={
           <View style={styles.empty}>
@@ -415,11 +447,30 @@ export default function ChallengeRoom() {
                 : '📸 오늘 인증하기'}
         </Text>
       </Pressable>
+
+      <CommentsSheet
+        proofId={activeProofId}
+        myUserId={myUserId}
+        onClose={() => setActiveProofId(null)}
+        onCountChange={(pid, delta) => {
+          setProofs(prev => prev.map(p =>
+            p.id === pid
+              ? { ...p, comment_count: Math.max(0, p.comment_count + delta) }
+              : p,
+          ));
+        }}
+      />
     </Screen>
   );
 }
 
-function ProofCard({ proof, onCheer }: { proof: ProofWithRelations; onCheer: () => void }) {
+function ProofCard({
+  proof, onCheer, onComments,
+}: {
+  proof: ProofWithRelations;
+  onCheer: () => void;
+  onComments: () => void;
+}) {
   return (
     <View style={styles.proofCard}>
       <View style={styles.proofHeader}>
@@ -448,6 +499,10 @@ function ProofCard({ proof, onCheer }: { proof: ProofWithRelations; onCheer: () 
           <Text style={[styles.cheerCount, proof.cheered_by_me && styles.cheerCountOn]}>
             {proof.cheer_count}
           </Text>
+        </Pressable>
+        <Pressable style={styles.cheerBtn} onPress={onComments} hitSlop={6}>
+          <Text style={styles.cheerIcon}>💬</Text>
+          <Text style={styles.cheerCount}>{proof.comment_count}</Text>
         </Pressable>
       </View>
     </View>
@@ -615,7 +670,7 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.regular,
     lineHeight: 22,
   },
-  proofFooter: { flexDirection: 'row', alignItems: 'center', paddingTop: 4 },
+  proofFooter: { flexDirection: 'row', alignItems: 'center', gap: 20, paddingTop: 4 },
   cheerBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 },
   cheerIcon: { fontSize: 22, color: colors.primary300 },
   cheerIconOn: { color: colors.danger },

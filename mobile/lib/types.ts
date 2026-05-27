@@ -38,6 +38,18 @@ export type DbCheer = {
   created_at: string;
 };
 
+export type DbComment = {
+  id: string;
+  proof_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+};
+
+export type CommentWithAuthor = DbComment & {
+  author: DbUser;
+};
+
 // ─── UI 용 파생 ────────────────────────────────────────
 export type ChallengeWithCount = DbChallenge & {
   member_count: number;
@@ -52,4 +64,5 @@ export type ProofWithRelations = DbProof & {
   author: DbUser;
   cheer_count: number;
   cheered_by_me: boolean;
+  comment_count: number;
 };

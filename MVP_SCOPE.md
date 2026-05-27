@@ -57,12 +57,13 @@
 - **이미지 저장소: Cloudflare R2** *(2026-05-26 결정: Supabase Storage 대신)*
   이유: egress 무료, S3 호환, 비용 저렴. DB(`proofs.photo_url`)는 R2 public URL 또는 presigned URL을 보관.
 
-### 5. 챌린지 방 (인증 피드만)
+### 5. 챌린지 방 (인증 피드 + 댓글)
 - 5탭 ❌ → 인증 피드 1개 화면만
 - 사이즈 적응형 ❌ → 모든 방 같은 UI
-- 채팅 ❌
 - 멤버 리스트는 화면 상단에 작게
-- **공개 챌린지의 비멤버**: 챌린지/멤버/인증/응원 모두 조회 가능, FAB 만 "참여하기" 로 분기
+- **인증 사진별 댓글** (L) — 동료 간 대화의 핵심
+- **단톡방 형태 채팅** — MVP 베타 보고 결정 (댓글로 충분한지 사용자 인터뷰)
+- **공개 챌린지의 비멤버**: 챌린지/멤버/인증/응원/댓글 모두 조회 가능, FAB 만 "참여하기" 로 분기
 
 ### 6. 응원하기 (❤️ 하나)
 - 응원 이모지 5종 ❌ → ❤️ 하나만
@@ -88,7 +89,8 @@
 | **H. Skeleton 로딩** | ActivityIndicator 대신 카드 모양 placeholder. |
 | **I. Pull-to-refresh** | home + room 모두 적용. |
 | **J. 둘러보기** | 공개(open) 챌린지 목록. home 우상단 🌍 → [app/discover.tsx](mobile/app/discover.tsx). RLS 가 비멤버에게 open 챌린지만 노출. |
-| **K. AI 콘텐츠 검수** *(2026-05-26 마지막 추가)* | 챌린지 생성 시 제목/설명을 Claude Haiku 4.5 가 비윤리/반국가/폭력/불법 4 카테고리로 검수 → block 이면 생성 차단. 공개 챌린지 도입 부작용 방지. [supabase/functions/moderate-challenge](supabase/functions/moderate-challenge/index.ts) |
+| **K. AI 콘텐츠 검수** | 챌린지 생성 시 제목/설명을 Claude Haiku 4.5 가 비윤리/반국가/폭력/불법 4 카테고리로 검수 → block 이면 생성 차단. 공개 챌린지 도입 부작용 방지. [supabase/functions/moderate-challenge](supabase/functions/moderate-challenge/index.ts) |
+| **L. 인증 댓글** *(2026-05-26 마지막 추가)* | 각 인증 사진 아래 댓글 (instagram 식). Realtime 으로 즉시 반영. 멤버만 작성, open 챌린지는 비멤버도 조회. 본인 댓글 길게 눌러 삭제. SNS 가 되려면 응원 ❤ 만으론 부족 → 대화 가능해야 함. [components/CommentsSheet.tsx](mobile/components/CommentsSheet.tsx) |
 
 추가 인프라:
 - **Pretendard 폰트** (Regular/Medium/Bold OTF 3종, 동적 로딩)
@@ -150,8 +152,10 @@
 - **A~I 일괄** (완주/단독/잠시멈춤/진행률/Haptic/Streak/로컬알림/Skeleton/Pull-to-refresh)
 - **J. 둘러보기 + 공개 챌린지** (마이그레이션 0003)
 - **K. AI 콘텐츠 검수** — Edge Function `moderate-challenge` (Claude Haiku 4.5)
+- **L. 인증 댓글** — comments 테이블 + Realtime + 길게 눌러 삭제
 - 마이그레이션 0002 (`challenges.kind`, `challenge_members.paused_until`),
-  0003 (`open` kind + RLS, 비멤버 조회/참여)
+  0003 (`open` kind + RLS, 비멤버 조회/참여),
+  0004 (`comments` 테이블 + RLS)
 
 ### Week 4 — 베타 출시 ⏳
 - ⏳ Apple Developer Program 활성화 대기
@@ -215,7 +219,7 @@ v4.0.1은 디자인 톤·정책 (친구 단어 금지, 비교 압박 금지, 미
 
 ## 🎯 핵심
 
-> **"6개 + A~K 완성도. 베타 30명에게 보여준다."**
+> **"6개 + A~L 완성도. 베타 30명에게 보여준다."**
 
 코드 측은 완료. 남은 건:
 1. Apple Developer 활성화 → EAS Build → iPhone 설치
