@@ -17,6 +17,8 @@
 
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import { Platform } from 'react-native';
 import { supabase, isSupabaseConfigured } from './supabase';
 
 // Expo Go / 브라우저 OAuth 마무리 처리
@@ -70,4 +72,66 @@ export async function signInWithGoogleIdToken(idToken: string) {
 
 export async function signOut() {
   await supabase.auth.signOut();
+}
+
+// ─── Apple Sign In (iOS 만) ───────────────────────────
+// iOS App Store 정책상 SNS 로그인 있는 앱은 Apple 로그인 필수.
+// Android 에선 안 보이게 login.tsx 가 Platform.OS 분기.
+//
+// 사전 작업 (Apple Developer 활성화 후):
+//   1) Apple Developer Console → Identifiers → App ID (`app.dohada.beta`) → "Sign in with Apple" capability ON
+//   2) Keys → "+ Create a Key" → "Sign in with Apple" ON → 키 다운로드 (.p8 파일, 한 번만)
+//   3) Supabase → Authentication → Providers → Apple ON + Services ID + Team ID + Key ID + Private Key 입력
+//   4) eas build --profile development --platform ios 새로 빌드 (entitlement 반영)
+
+export async function isAppleSignInAvailable(): Promise<boolean> {
+  if (Platform.OS !== 'ios') return false;
+  try {
+    return await AppleAuthentication.isAvailableAsync();
+  } catch {
+    return false;
+  }
+}
+
+export async function signInWithApple() {
+  if (!isSupabaseConfigured) {
+    throw new Error('Supabase 가 구성되지 않았습니다.');
+  }
+
+  const credential = await AppleAuthentication.signInAsync({
+    requestedScopes: [
+      AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+      AppleAuthentication.AppleAuthenticationScope.EMAIL,
+    ],
+  });
+
+  if (!credential.identityToken) {
+    throw new Error('Apple ID 토큰을 받지 못했어요.');
+  }
+
+  const { data, error } = await supabase.auth.signInWithIdToken({
+    provider: 'apple',
+    token: credential.identityToken,
+  });
+  if (error) throw error;
+
+  // public.users upsert
+  // 주의: Apple 은 첫 로그인 때만 fullName/email 을 줌. 두 번째부터는 null.
+  const user = data.user;
+  if (user) {
+    const nick = credential.fullName?.givenName
+      ?? user.email?.split('@')[0]
+      ?? '도전자';
+    await supabase.from('users').upsert(
+      {
+        id: user.id,
+        email: user.email,
+        nickname: nick,
+        avatar_url: null,
+      },
+      { onConflict: 'id', ignoreDuplicates: false },
+    );
+  }
+
+  return data;
 }

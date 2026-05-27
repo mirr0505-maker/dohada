@@ -1,11 +1,15 @@
 // 🚀 로그인 화면 — Google OAuth + Supabase signInWithIdToken
 import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Alert, ActivityIndicator, Platform } from 'react-native';
 import { router } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { Screen } from '@/components/Screen';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
-import { useGoogleAuth, signInWithGoogleIdToken } from '@/lib/auth';
+import {
+  useGoogleAuth, signInWithGoogleIdToken,
+  isAppleSignInAvailable, signInWithApple,
+} from '@/lib/auth';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { getPendingInvite, clearPendingInvite } from '@/lib/invite';
 
@@ -36,6 +40,11 @@ function GoogleLogo({ size = 20 }: { size?: number }) {
 export default function LoginScreen() {
   const [, response, promptAsync] = useGoogleAuth();
   const [signingIn, setSigningIn] = useState(false);
+  const [appleAvailable, setAppleAvailable] = useState(false);
+
+  useEffect(() => {
+    isAppleSignInAvailable().then(setAppleAvailable);
+  }, []);
 
   // Google 응답이 success 면 ID token 으로 Supabase 세션 생성
   useEffect(() => {
@@ -83,6 +92,24 @@ export default function LoginScreen() {
     await promptAsync();
   };
 
+  const onAppleSignIn = async () => {
+    if (!isSupabaseConfigured) {
+      router.replace('/welcome');
+      return;
+    }
+    try {
+      setSigningIn(true);
+      await signInWithApple();
+      router.replace('/welcome');
+    } catch (e: any) {
+      // 사용자 취소는 알림 안 띄움
+      if (e?.code === 'ERR_REQUEST_CANCELED') return;
+      Alert.alert('로그인 실패', e?.message ?? String(e));
+    } finally {
+      setSigningIn(false);
+    }
+  };
+
   return (
     <Screen backgroundColor={colors.background}>
       <View style={styles.container}>
@@ -112,6 +139,17 @@ export default function LoginScreen() {
               </>
             )}
           </Pressable>
+
+          {/* Apple Sign In — iOS 만 표시. App Store 정책상 SNS 로그인 있으면 필수. */}
+          {appleAvailable && (
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+              cornerRadius={radius.lg}
+              style={styles.appleBtn}
+              onPress={onAppleSignIn}
+            />
+          )}
         </View>
 
         <Text style={styles.footer}>
@@ -202,6 +240,10 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontFamily: fontFamily.medium,
     fontWeight: fontWeight.semibold,
+  },
+  appleBtn: {
+    height: 54,
+    width: '100%',
   },
   footer: {
     fontSize: fontSize.xs,

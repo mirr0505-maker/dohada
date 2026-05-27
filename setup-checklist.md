@@ -100,8 +100,13 @@ dohada/                                  # ⭐ 프로젝트 루트
     ```
 
 ### 베타 출시 직전 필수
-- [ ] **Apple Developer Program** — $99/year. EAS iOS ad-hoc 빌드 위해 필수.
+- [ ] **Apple Developer Program** — $99/year. EAS iOS 빌드 + Apple Sign In 위해 필수.
+  - 활성화 후: App ID 에 "Sign in with Apple" capability ON
+  - Keys → "+K" → Sign in with Apple → .p8 파일 다운로드 (한 번만)
+  - Services ID 발급 (Apple Sign In 서비스용)
+  - Supabase → Authentication → Providers → Apple ON + Services ID + Team ID + Key ID + .p8 키 등록
 - [ ] **EAS** — Expo 계정 (`eas login`) + `eas init` 으로 projectId 발급
+- [ ] **Google Play Console** — $25 단발. Android 베타 테스트 트랙용.
 
 ### 선택 (있으면 좋음)
 - [ ] **Sentry** — https://sentry.io 무료 계정 → DSN → `EXPO_PUBLIC_SENTRY_DSN`. 비워두면 noop.
