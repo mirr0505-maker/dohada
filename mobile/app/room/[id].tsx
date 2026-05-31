@@ -19,8 +19,25 @@ import { haptic } from '@/lib/haptics';
 import { computeProgress, computeStreak, isCompleted } from '@/lib/stats';
 import { joinChallenge } from '@/lib/invite';
 import type {
-  DbChallenge, MemberWithToday, ProofWithRelations,
+  DbChallenge, MemberWithToday, ProofWithRelations, ChallengeKind,
 } from '@/lib/types';
+
+// v4 챌린지 방 5탭
+type RoomTab = 'chat' | 'proof' | 'log' | 'status' | 'archive';
+const ROOM_TABS: { key: RoomTab; emoji: string; label: string }[] = [
+  { key: 'chat',    emoji: '💬', label: '대화' },
+  { key: 'proof',   emoji: '📸', label: '인증' },
+  { key: 'log',     emoji: '🎥', label: '기록' },
+  { key: 'status',  emoji: '📊', label: '현황' },
+  { key: 'archive', emoji: '🏆', label: '박제' },
+];
+
+// 방 종류 메타 라벨
+function roomKindLabel(kind: ChallengeKind, memberCount: number): string {
+  if (kind === 'solo') return '혼자 도전';
+  if (kind === 'open') return `개방형 · 동료 ${memberCount}명`;
+  return `폐쇄형 · 동료 ${memberCount}명`;
+}
 
 export default function ChallengeRoom() {
   const { id, fromCreate } = useLocalSearchParams<{ id: string; fromCreate?: string }>();
@@ -35,6 +52,7 @@ export default function ChallengeRoom() {
   const [createPromptShown, setCreatePromptShown] = useState(false);
   const [completeRedirected, setCompleteRedirected] = useState(false);
   const [activeProofId, setActiveProofId] = useState<string | null>(null);    // 댓글 sheet 대상
+  const [activeTab, setActiveTab] = useState<RoomTab>('proof');               // v4 5탭 활성 탭
 
   const myUserId = session?.user?.id;
 
@@ -343,15 +361,26 @@ export default function ChallengeRoom() {
     );
   }
 
+  // ─── 헤더 통계 (v4 함께 만든 변화) ───────────────────
+  const totalProofs = proofs.length;
+  const totalCheers = useMemo(
+    () => proofs.reduce((sum, p) => sum + p.cheer_count, 0),
+    [proofs],
+  );
+  const totalLogs = 0;                       // Step 4 의 logs 도입 후 fetch 로 채움
+  const daysLeft = progress ? Math.max(0, progress.totalDays - progress.passedDays) : 0;
+  const todayCheckedCount = members.filter(m => m.today_checked).length;
+
   return (
     <Screen backgroundColor={colors.background}>
+      {/* ─── 헤더 ─── */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Text style={styles.back}>←</Text>
         </Pressable>
         <View style={{ flex: 1, marginHorizontal: 12 }}>
           <Text style={styles.title} numberOfLines={1}>{challenge.title}</Text>
-          <Text style={styles.subtitle}>{members.length}명 함께 도전 중</Text>
+          <Text style={styles.subtitle}>{roomKindLabel(challenge.kind, members.length)}</Text>
         </View>
         {challenge.kind === 'closed' ? (
           <Pressable onPress={onShareInvite} hitSlop={12}>
@@ -362,29 +391,30 @@ export default function ChallengeRoom() {
         )}
       </View>
 
-      {/* 진행률 + Streak + 잠시멈춤 토글 */}
-      <View style={styles.statsRow}>
-        {progress && (
-          <View style={styles.stat}>
-            <Text style={styles.statValue}>{progress.passedDays}/{progress.totalDays}</Text>
-            <Text style={styles.statLabel}>일 진행 ({progress.percent}%)</Text>
-          </View>
-        )}
-        <View style={styles.stat}>
-          <Text style={[styles.statValue, streak > 0 && { color: colors.accent }]}>
-            🔥 {streak}
-          </Text>
-          <Text style={styles.statLabel}>연속 인증</Text>
+      {/* ─── 진행 info bar (D-N + 연속 + 멈춤) ─── */}
+      <View style={styles.infoBar}>
+        <View style={styles.infoStats}>
+          <Text style={styles.infoStatItem}>🔥 {progress?.passedDays ?? 0}/{progress?.totalDays ?? 0}일</Text>
+          <Text style={styles.infoStatItem}>📸 {todayCheckedCount}/{Math.max(1, members.length)} 인증</Text>
         </View>
-        {isMember && (
-          <Pressable style={styles.pauseBtn} onPress={onTogglePause}>
-            <Text style={styles.pauseLabel}>
-              {isPaused ? '▶ 재개' : '⏸ 멈춤'}
-            </Text>
-          </Pressable>
-        )}
+        <View style={styles.infoRight}>
+          <Text style={styles.ddayBig}>D-{daysLeft}</Text>
+          {isMember && (
+            <Pressable onPress={onTogglePause} hitSlop={6}>
+              <Text style={styles.pauseInline}>{isPaused ? '▶ 재개' : '⏸ 멈춤'}</Text>
+            </Pressable>
+          )}
+        </View>
       </View>
 
+      {/* ─── 진행률 바 ─── */}
+      {progress && (
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, { width: `${progress.percent}%` }]} />
+        </View>
+      )}
+
+      {/* ─── 멤버 가로 strip + 오늘 ─── */}
       <View style={styles.memberStrip}>
         <FlatList
           data={members}
@@ -418,33 +448,106 @@ export default function ChallengeRoom() {
         />
       </View>
 
-      <FlatList
-        data={proofs}
-        keyExtractor={p => p.id}
-        contentContainerStyle={styles.feed}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.accent}
-          />
-        }
-        renderItem={({ item }) => (
-          <ProofCard
-            proof={item}
-            onCheer={(type) => onCheer(item.id, type)}
-            onComments={() => { haptic.tap(); setActiveProofId(item.id); }}
-          />
-        )}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyEmoji}>📸</Text>
-            <Text style={styles.emptyText}>
-              아직 인증이 없어요.{'\n'}오늘 첫 인증의 주인공이 되어볼까요?
-            </Text>
+      {/* ─── 💚 함께 만든 변화 (4 stats) ─── */}
+      <View style={styles.impact}>
+        <Text style={styles.impactLabel}>💚 함께 만든 변화</Text>
+        <View style={styles.impactStats}>
+          <View style={styles.impactStat}>
+            <Text style={styles.impactNum}>{progress?.passedDays ?? 0}일</Text>
+            <Text style={styles.impactName}>함께</Text>
           </View>
-        }
-      />
+          <View style={styles.impactStat}>
+            <Text style={styles.impactNum}>{totalProofs}</Text>
+            <Text style={styles.impactName}>번 인증</Text>
+          </View>
+          <View style={styles.impactStat}>
+            <Text style={styles.impactNum}>{totalCheers}</Text>
+            <Text style={styles.impactName}>번 응원</Text>
+          </View>
+          <View style={styles.impactStat}>
+            <Text style={styles.impactNum}>{totalLogs}</Text>
+            <Text style={styles.impactName}>개 기록</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* ─── 5탭 bar ─── */}
+      <View style={styles.tabsBar}>
+        {ROOM_TABS.map(t => {
+          const active = activeTab === t.key;
+          return (
+            <Pressable
+              key={t.key}
+              style={[styles.tabItem, active && styles.tabItemActive]}
+              onPress={() => { haptic.tap(); setActiveTab(t.key); }}
+            >
+              <Text style={[styles.tabText, active && styles.tabTextActive]} numberOfLines={1}>
+                {t.emoji} {t.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* ─── 탭별 컨텐츠 ─── */}
+      {activeTab === 'proof' && (
+        <FlatList
+          data={proofs}
+          keyExtractor={p => p.id}
+          contentContainerStyle={styles.feed}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.accent}
+            />
+          }
+          renderItem={({ item }) => (
+            <ProofCard
+              proof={item}
+              onCheer={(type) => onCheer(item.id, type)}
+              onComments={() => { haptic.tap(); setActiveProofId(item.id); }}
+            />
+          )}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Text style={styles.emptyEmoji}>📸</Text>
+              <Text style={styles.emptyText}>
+                아직 인증이 없어요.{'\n'}오늘 첫 인증의 주인공이 되어볼까요?
+              </Text>
+            </View>
+          }
+        />
+      )}
+
+      {activeTab === 'chat' && (
+        <TabPlaceholder
+          emoji="💬"
+          title="대화는 곧 열려요"
+          desc={'챌린지 동료끼리 실시간 채팅이\n다음 업데이트에서 도착해요.'}
+        />
+      )}
+      {activeTab === 'log' && (
+        <TabPlaceholder
+          emoji="🎥"
+          title="기록(Vlog) 곧 도착"
+          desc={'인증과 별개로 인상깊은 순간을\n글·사진으로 남길 수 있게 돼요.'}
+        />
+      )}
+      {activeTab === 'status' && (
+        <TabPlaceholder
+          emoji="📊"
+          title="현황은 곧 열려요"
+          desc={'멤버별 연속 인증·인증률을\n한눈에 보여주는 페이지가 곧 추가돼요.'}
+        />
+      )}
+      {activeTab === 'archive' && (
+        <TabPlaceholder
+          emoji="🏆"
+          title="박제는 챌린지 종료 후"
+          desc={`${challenge.title} 이(가) 끝나면\n여기에 모든 추억이 박제됩니다.`}
+        />
+      )}
 
       <Pressable
         style={[
@@ -491,6 +594,19 @@ export default function ChallengeRoom() {
         }}
       />
     </Screen>
+  );
+}
+
+// v4 탭 공용 placeholder (대화/기록/현황/박제)
+function TabPlaceholder({
+  emoji, title, desc,
+}: { emoji: string; title: string; desc: string }) {
+  return (
+    <View style={styles.tabPlaceholder}>
+      <Text style={styles.tabPlaceholderEmoji}>{emoji}</Text>
+      <Text style={styles.tabPlaceholderTitle}>{title}</Text>
+      <Text style={styles.tabPlaceholderDesc}>{desc}</Text>
+    </View>
   );
 }
 
@@ -799,6 +915,144 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingTop: 12,
     paddingHorizontal: 2,
+  },
+
+  // v4 헤더 강화 — info bar / progress / impact / 5탭 bar
+  infoBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
+    backgroundColor: colors.surface,
+  },
+  infoStats: {
+    flexDirection: 'row',
+    gap: 14,
+  },
+  infoStatItem: {
+    fontSize: fontSize.sm,
+    color: colors.primary500,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
+  },
+  infoRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  ddayBig: {
+    fontSize: fontSize['2xl'],
+    color: colors.accent,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    letterSpacing: -0.4,
+  },
+  pauseInline: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: colors.primary50,
+    borderRadius: radius.pill,
+  },
+  progressTrack: {
+    height: 6,
+    marginHorizontal: 20,
+    marginBottom: 12,
+    backgroundColor: colors.primary100,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: 6,
+    backgroundColor: colors.accent,
+    borderRadius: 3,
+  },
+  impact: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: colors.accent50,
+    borderRadius: radius.lg,
+  },
+  impactLabel: {
+    fontSize: fontSize.sm,
+    color: colors.accent700,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.semibold,
+    marginBottom: 8,
+  },
+  impactStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  impactStat: { alignItems: 'center', flex: 1 },
+  impactNum: {
+    fontSize: fontSize.xl,
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  impactName: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+    marginTop: 2,
+  },
+  tabsBar: {
+    flexDirection: 'row',
+    paddingHorizontal: 8,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.primary100,
+  },
+  tabItem: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabItemActive: {
+    borderBottomColor: colors.accent,
+  },
+  tabText: {
+    fontSize: fontSize.sm,
+    color: colors.primary500,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
+  },
+  tabTextActive: {
+    color: colors.accent,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  tabPlaceholder: {
+    flex: 1,
+    paddingHorizontal: 32,
+    paddingTop: 64,
+    alignItems: 'center',
+    gap: 12,
+  },
+  tabPlaceholderEmoji: { fontSize: 56 },
+  tabPlaceholderTitle: {
+    fontSize: fontSize.lg,
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    textAlign: 'center',
+  },
+  tabPlaceholderDesc: {
+    fontSize: fontSize.sm,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 
   empty: { paddingVertical: 80, alignItems: 'center', gap: 16 },
