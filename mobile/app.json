@@ -68,7 +68,13 @@
           "cameraPermission": "Do : 하다 는 챌린지 인증 사진 촬영을 위해 카메라가 필요해요."
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-notifications",
+        {
+          "color": "#FF6B35"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
