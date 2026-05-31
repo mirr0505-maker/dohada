@@ -14,6 +14,7 @@ import { supabase } from '@/lib/supabase';
 import { ErrorState } from '@/components/ErrorState';
 import { ProofCardSkeleton } from '@/components/Skeleton';
 import { CommentsSheet } from '@/components/CommentsSheet';
+import { ChatTab } from '@/components/challenge/ChatTab';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import { computeProgress, computeStreak, isCompleted } from '@/lib/stats';
@@ -521,10 +522,10 @@ export default function ChallengeRoom() {
       )}
 
       {activeTab === 'chat' && (
-        <TabPlaceholder
-          emoji="💬"
-          title="대화는 곧 열려요"
-          desc={'챌린지 동료끼리 실시간 채팅이\n다음 업데이트에서 도착해요.'}
+        <ChatTab
+          challengeId={challenge.id}
+          myUserId={myUserId}
+          isMember={isMember}
         />
       )}
       {activeTab === 'log' && (

@@ -95,6 +95,54 @@ export async function fetchOpenChallenges(): Promise<ChallengeWithCount[]> {
   }));
 }
 
+// ─── 챌린지 방 대화 (chat_messages) ──────────────────
+export type ChatMessageWithAuthor = {
+  id: string;
+  challenge_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  author: { id: string; nickname: string; avatar_url: string | null };
+};
+
+export async function fetchChatMessages(challengeId: string, limit = 100): Promise<ChatMessageWithAuthor[]> {
+  const { data, error } = await supabase
+    .from('chat_messages')
+    .select('id, challenge_id, user_id, content, created_at, users:user_id(id, nickname, avatar_url)')
+    .eq('challenge_id', challengeId)
+    .order('created_at', { ascending: true })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []).map((m: any) => ({
+    id: m.id,
+    challenge_id: m.challenge_id,
+    user_id: m.user_id,
+    content: m.content,
+    created_at: m.created_at,
+    author: {
+      id: m.users?.id ?? m.user_id,
+      nickname: m.users?.nickname ?? '',
+      avatar_url: m.users?.avatar_url ?? null,
+    },
+  }));
+}
+
+export async function sendChatMessage(args: {
+  challengeId: string;
+  userId: string;
+  content: string;
+}): Promise<void> {
+  const trimmed = args.content.trim();
+  if (!trimmed) throw new Error('메시지를 입력해주세요.');
+  if (trimmed.length > 1000) throw new Error('1000자 이내로 적어주세요.');
+  const { error } = await supabase.from('chat_messages').insert({
+    challenge_id: args.challengeId,
+    user_id: args.userId,
+    content: trimmed,
+  });
+  if (error) throw error;
+}
+
 // ─── 챌린지 방 1개 + 멤버 + 인증 피드 (room/[id]) ──────
 export async function fetchRoomData(challengeId: string, myUserId: string) {
   const [resChallenge, resMembers, resProofs] = await Promise.all([
