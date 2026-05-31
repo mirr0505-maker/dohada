@@ -44,7 +44,7 @@ const ExpoSecureStoreAdapter = {
     await SecureStore.deleteItemAsync(key);
 
     if (value.length <= CHUNK) {
-      await SecureStore.setItemAsync(key, value);
+      await SecureStore.setItemAsync(key, value, { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK });
       return;
     }
     const chunks = Math.ceil(value.length / CHUNK);
@@ -52,9 +52,10 @@ const ExpoSecureStoreAdapter = {
       await SecureStore.setItemAsync(
         `${key}-${i}`,
         value.slice(i * CHUNK, (i + 1) * CHUNK),
+        { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK },
       );
     }
-    await SecureStore.setItemAsync(key + META, String(chunks));
+    await SecureStore.setItemAsync(key + META, String(chunks), { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK });
   },
   async removeItem(key: string) {
     const meta = await SecureStore.getItemAsync(key + META);

@@ -103,9 +103,11 @@ export async function fetchRoomData(challengeId: string, myUserId: string) {
 }
 
 // ─── 챌린지 만들기 (create) ────────────────────────────
-// trigger 가 자동으로 creator 를 challenge_members 에 넣음.
+// create_challenge RPC (0006) 가 challenges + challenge_members 두 INSERT 를
+// 원자적으로 처리 + RLS 우회 (SECURITY DEFINER + owner postgres).
+// userId 는 서버에서 auth.uid() 로 결정 — 클라이언트가 임의 id 주입 불가.
 export async function createChallenge(args: {
-  userId: string;
+  userId: string;            // 호환용 (실제로는 서버 auth.uid() 사용)
   title: string;
   description?: string;
   durationDays: number;
@@ -115,20 +117,16 @@ export async function createChallenge(args: {
   const end = new Date();
   end.setDate(end.getDate() + args.durationDays - 1);
 
-  const { data, error } = await supabase
-    .from('challenges')
-    .insert({
-      creator_id: args.userId,
-      title: args.title.trim(),
-      description: args.description?.trim() || null,
-      kind: args.kind,
-      start_date: today.toISOString().slice(0, 10),
-      end_date: end.toISOString().slice(0, 10),
-    })
-    .select()
-    .single();
+  const { data, error } = await supabase.rpc('create_challenge', {
+    p_title: args.title.trim(),
+    p_description: args.description?.trim() || null,
+    p_kind: args.kind,
+    p_start_date: today.toISOString().slice(0, 10),
+    p_end_date: end.toISOString().slice(0, 10),
+  });
 
   if (error) throw error;
+  if (!data) throw new Error('챌린지 생성 응답이 비어있어요.');
   return data as DbChallenge;
 }
 
