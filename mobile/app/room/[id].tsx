@@ -15,6 +15,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { ProofCardSkeleton } from '@/components/Skeleton';
 import { CommentsSheet } from '@/components/CommentsSheet';
 import { ChatTab } from '@/components/challenge/ChatTab';
+import { LogTab } from '@/components/challenge/LogTab';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import { computeProgress, computeStreak, isCompleted } from '@/lib/stats';
@@ -529,10 +530,11 @@ export default function ChallengeRoom() {
         />
       )}
       {activeTab === 'log' && (
-        <TabPlaceholder
-          emoji="🎥"
-          title="기록(Vlog) 곧 도착"
-          desc={'인증과 별개로 인상깊은 순간을\n글·사진으로 남길 수 있게 돼요.'}
+        <LogTab
+          challengeId={challenge.id}
+          challengeStartDate={challenge.start_date}
+          myUserId={myUserId}
+          isMember={isMember}
         />
       )}
       {activeTab === 'status' && (

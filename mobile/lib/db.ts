@@ -95,6 +95,96 @@ export async function fetchOpenChallenges(): Promise<ChallengeWithCount[]> {
   }));
 }
 
+// ─── 챌린지 방 기록 탭 (logs / log_likes) — Vlog 형태 ─
+export type LogWithAuthor = {
+  id: string;
+  challenge_id: string;
+  user_id: string;
+  title: string;
+  content: string;
+  photo_url: string | null;
+  created_at: string;
+  author: { id: string; nickname: string; avatar_url: string | null };
+  like_count: number;
+  liked_by_me: boolean;
+};
+
+export async function fetchLogs(challengeId: string, myUserId: string, limit = 30): Promise<LogWithAuthor[]> {
+  const { data, error } = await supabase
+    .from('logs')
+    .select(`
+      id, challenge_id, user_id, title, content, photo_url, created_at,
+      users:user_id(id, nickname, avatar_url),
+      log_likes(user_id)
+    `)
+    .eq('challenge_id', challengeId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []).map((l: any) => {
+    const likes: { user_id: string }[] = l.log_likes ?? [];
+    return {
+      id: l.id,
+      challenge_id: l.challenge_id,
+      user_id: l.user_id,
+      title: l.title,
+      content: l.content,
+      photo_url: l.photo_url,
+      created_at: l.created_at,
+      author: {
+        id: l.users?.id ?? l.user_id,
+        nickname: l.users?.nickname ?? '',
+        avatar_url: l.users?.avatar_url ?? null,
+      },
+      like_count: likes.length,
+      liked_by_me: likes.some(x => x.user_id === myUserId),
+    };
+  });
+}
+
+export async function createLog(args: {
+  challengeId: string;
+  userId: string;
+  title: string;
+  content: string;
+  photoUrl?: string | null;
+}): Promise<void> {
+  const title = args.title.trim();
+  const content = args.content.trim();
+  if (!title) throw new Error('제목을 입력해주세요.');
+  if (title.length > 80) throw new Error('제목은 80자 이내로 적어주세요.');
+  if (!content) throw new Error('내용을 입력해주세요.');
+  if (content.length > 4000) throw new Error('내용은 4000자 이내로 적어주세요.');
+
+  const { error } = await supabase.from('logs').insert({
+    challenge_id: args.challengeId,
+    user_id: args.userId,
+    title,
+    content,
+    photo_url: args.photoUrl ?? null,
+  });
+  if (error) throw error;
+}
+
+export async function toggleLogLike(args: {
+  logId: string;
+  userId: string;
+  currentlyLiked: boolean;
+}): Promise<void> {
+  if (args.currentlyLiked) {
+    const { error } = await supabase
+      .from('log_likes')
+      .delete()
+      .match({ log_id: args.logId, user_id: args.userId });
+    if (error) throw error;
+  } else {
+    const { error } = await supabase
+      .from('log_likes')
+      .insert({ log_id: args.logId, user_id: args.userId });
+    if (error) throw error;
+  }
+}
+
 // ─── 챌린지 방 대화 (chat_messages) ──────────────────
 export type ChatMessageWithAuthor = {
   id: string;
