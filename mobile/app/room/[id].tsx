@@ -180,7 +180,11 @@ export default function ChallengeRoom() {
       // Do : 하다 앱 설치된 사람만 동작. 베타 안내문에 TestFlight 링크 같이 보내야 함.
       const link = `dohada://invite/${challenge.id}`;
       await Share.share({
-        message: `"${challenge.title}" 챌린지에 함께해요!\n\n📱 Do : 하다 앱에서 아래 링크를 누르세요:\n${link}`,
+        message:
+          `"${challenge.title}" 챌린지에 함께해요!\n\n` +
+          `📱 Do : 하다 앱에서 아래 링크를 누르세요:\n${link}\n\n` +
+          `※ 카카오톡에서 링크가 안 열리면 메시지를 길게 눌러 복사 후\n` +
+          `   Safari 주소창에 붙여넣어 주세요.`,
       });
     } catch (e) {
       Alert.alert('공유 실패', String(e));
