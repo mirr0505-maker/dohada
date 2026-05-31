@@ -22,6 +22,7 @@ import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import { computeProgress, computeStreak, isCompleted } from '@/lib/stats';
 import { joinChallenge } from '@/lib/invite';
+import { formatCheerCount } from '@/lib/format';
 import type {
   DbChallenge, MemberWithToday, ProofWithRelations, ChallengeKind,
 } from '@/lib/types';
@@ -668,7 +669,7 @@ function ProofCard({
               <Text style={styles.cheerChipEmoji}>{emoji}</Text>
               {count > 0 ? (
                 <Text style={[styles.cheerChipCount, active && styles.cheerChipCountActive]}>
-                  {count}
+                  {formatCheerCount(count)}
                 </Text>
               ) : null}
             </Pressable>

@@ -12,6 +12,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import { fetchOpenChallenges, toggleChallengeVote } from '@/lib/db';
+import { formatCheerCount } from '@/lib/format';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import type { OpenChallengeCard, ChallengeVoteType } from '@/lib/types';
@@ -213,7 +214,7 @@ function DiscCard({
             >
               <Text style={styles.voteEmoji}>{emoji}</Text>
               <Text style={[styles.voteCount, active && styles.voteCountActive]}>
-                {count}
+                {formatCheerCount(count)}
               </Text>
             </Pressable>
           );
