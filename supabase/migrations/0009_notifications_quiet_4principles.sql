@@ -131,13 +131,15 @@ returns trigger language plpgsql security definer set search_path = public
 as $$
 declare
   v_proof_user uuid;
+  v_challenge  uuid;
   v_nick text;
 begin
-  select user_id into v_proof_user from public.proofs where id = new.proof_id;
+  select user_id, challenge_id into v_proof_user, v_challenge
+    from public.proofs where id = new.proof_id;
   if v_proof_user is null or v_proof_user = new.user_id then return new; end if;
   select nickname into v_nick from public.users where id = new.user_id;
-  insert into public.notification_queue (user_id, kind, proof_id, actor_id, preview, scheduled_for)
-  values (v_proof_user, 'comment', new.proof_id, new.user_id,
+  insert into public.notification_queue (user_id, kind, challenge_id, proof_id, actor_id, preview, scheduled_for)
+  values (v_proof_user, 'comment', v_challenge, new.proof_id, new.user_id,
           coalesce(v_nick,'동료') || ': ' || left(new.content, 60),
           now());
   return new;
@@ -154,11 +156,13 @@ returns trigger language plpgsql security definer set search_path = public
 as $$
 declare
   v_proof_user uuid;
+  v_challenge  uuid;
 begin
-  select user_id into v_proof_user from public.proofs where id = new.proof_id;
+  select user_id, challenge_id into v_proof_user, v_challenge
+    from public.proofs where id = new.proof_id;
   if v_proof_user is null or v_proof_user = new.user_id then return new; end if;
-  insert into public.notification_queue (user_id, kind, proof_id, actor_id, preview, scheduled_for)
-  values (v_proof_user, 'cheer_batch', new.proof_id, new.user_id,
+  insert into public.notification_queue (user_id, kind, challenge_id, proof_id, actor_id, preview, scheduled_for)
+  values (v_proof_user, 'cheer_batch', v_challenge, new.proof_id, new.user_id,
           null,    -- flush 시 동료 N명 응원해줬어요 형태로 조립
           now() + interval '1 hour');
   return new;
@@ -175,13 +179,15 @@ returns trigger language plpgsql security definer set search_path = public
 as $$
 declare
   v_log_user uuid;
+  v_challenge uuid;
   v_nick text;
 begin
-  select user_id into v_log_user from public.logs where id = new.log_id;
+  select user_id, challenge_id into v_log_user, v_challenge
+    from public.logs where id = new.log_id;
   if v_log_user is null or v_log_user = new.user_id then return new; end if;
   select nickname into v_nick from public.users where id = new.user_id;
-  insert into public.notification_queue (user_id, kind, log_id, actor_id, preview, scheduled_for)
-  values (v_log_user, 'log_comment', new.log_id, new.user_id,
+  insert into public.notification_queue (user_id, kind, challenge_id, log_id, actor_id, preview, scheduled_for)
+  values (v_log_user, 'log_comment', v_challenge, new.log_id, new.user_id,
           coalesce(v_nick,'동료') || ': ' || left(new.content, 60),
           now());
   return new;
@@ -198,11 +204,13 @@ returns trigger language plpgsql security definer set search_path = public
 as $$
 declare
   v_log_user uuid;
+  v_challenge uuid;
 begin
-  select user_id into v_log_user from public.logs where id = new.log_id;
+  select user_id, challenge_id into v_log_user, v_challenge
+    from public.logs where id = new.log_id;
   if v_log_user is null or v_log_user = new.user_id then return new; end if;
-  insert into public.notification_queue (user_id, kind, log_id, actor_id, preview, scheduled_for)
-  values (v_log_user, 'log_like_batch', new.log_id, new.user_id,
+  insert into public.notification_queue (user_id, kind, challenge_id, log_id, actor_id, preview, scheduled_for)
+  values (v_log_user, 'log_like_batch', v_challenge, new.log_id, new.user_id,
           null, now() + interval '1 hour');
   return new;
 end $$;

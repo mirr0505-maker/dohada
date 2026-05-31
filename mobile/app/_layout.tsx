@@ -1,9 +1,10 @@
 // 🚀 Root Stack — 전체 라우트의 진입점
 import { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
+import * as Notifications from 'expo-notifications';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { initSentry } from '@/lib/sentry';
@@ -41,6 +42,21 @@ export default function RootLayout() {
     registerExpoPushToken(uid).catch(() => {});
     ensureNotificationPrefs(uid).catch(() => {});
   }, [session?.user?.id]);
+
+  // 푸시 알림 탭 시 해당 챌린지/인증/기록 화면으로 이동
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((resp) => {
+      const data = resp.notification.request.content.data as
+        { kind?: string; challenge_id?: string; proof_id?: string; log_id?: string };
+      if (!data) return;
+      const cid = data.challenge_id;
+      if (cid) {
+        // 인증/응원/댓글/대화/기록 모두 챌린지 방으로 이동 (구체 탭은 사용자가 선택)
+        router.push(`/room/${cid}` as any);
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   // 폰트 로딩 전엔 네이티브 splash 화면 그대로 둠
   if (!fontsLoaded && !fontError) return null;
