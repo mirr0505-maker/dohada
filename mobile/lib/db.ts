@@ -95,6 +95,45 @@ export async function fetchOpenChallenges(): Promise<ChallengeWithCount[]> {
   }));
 }
 
+// ─── 카테고리 시스템 (0007 categories + subcategories) ─
+// 10 대분류 + 소분류. 거의 변경 안 되므로 클라이언트 캐시 1회.
+export type DbCategory = {
+  id: number;
+  slug: string;
+  emoji: string;
+  name: string;
+  copy: string;
+  is_impact: boolean;
+  sort_order: number;
+};
+
+export type DbSubcategory = {
+  id: number;
+  category_id: number;
+  name: string;
+  sort_order: number;
+};
+
+let _catCache: { categories: DbCategory[]; subcategories: DbSubcategory[] } | null = null;
+
+export async function fetchCategoryTree(force = false): Promise<{
+  categories: DbCategory[];
+  subcategories: DbSubcategory[];
+}> {
+  if (_catCache && !force) return _catCache;
+  const [resCat, resSub] = await Promise.all([
+    supabase.from('categories').select('*').order('sort_order', { ascending: true }),
+    supabase.from('subcategories').select('*').order('sort_order', { ascending: true }),
+  ]);
+  if (resCat.error) throw resCat.error;
+  if (resSub.error) throw resSub.error;
+  _catCache = {
+    categories: (resCat.data ?? []) as DbCategory[],
+    subcategories: (resSub.data ?? []) as DbSubcategory[],
+  };
+  return _catCache;
+}
+
 // ─── 챌린지 방 기록 탭 (logs / log_likes) — Vlog 형태 ─
 export type LogWithAuthor = {
   id: string;
