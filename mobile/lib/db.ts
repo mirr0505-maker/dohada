@@ -144,26 +144,35 @@ export async function fetchRoomData(challengeId: string, myUserId: string) {
 }
 
 // ─── 챌린지 만들기 (create) ────────────────────────────
-// create_challenge RPC (0006) 가 challenges + challenge_members 두 INSERT 를
-// 원자적으로 처리 + RLS 우회 (SECURITY DEFINER + owner postgres).
-// userId 는 서버에서 auth.uid() 로 결정 — 클라이언트가 임의 id 주입 불가.
+// create_challenge RPC (0007) — challenges + challenge_members 두 INSERT 를
+// 원자적으로 처리 + RLS 우회. v2 컬럼 (카테고리/빈도) 추가됨.
+// 신규 파라미터는 default 가 있으므로 안 보내도 동작.
+export type CreateChallengeFrequency = 'daily' | 'weekly3' | 'weekly1';
+
 export async function createChallenge(args: {
-  userId: string;            // 호환용 (실제로는 서버 auth.uid() 사용)
+  userId: string;                   // 호환용 (실제로는 서버 auth.uid() 사용)
   title: string;
   description?: string;
   durationDays: number;
   kind: ChallengeKind;
+  categoryId?: number | null;       // v2: 10 대분류 (없으면 null)
+  subcategoryId?: number | null;    // v2: 소분류 (없으면 null)
+  frequency?: CreateChallengeFrequency; // v2: 인증 빈도 (기본 daily)
 }): Promise<DbChallenge> {
   const today = new Date();
   const end = new Date();
   end.setDate(end.getDate() + args.durationDays - 1);
 
   const { data, error } = await supabase.rpc('create_challenge', {
-    p_title: args.title.trim(),
-    p_description: args.description?.trim() || null,
-    p_kind: args.kind,
-    p_start_date: today.toISOString().slice(0, 10),
-    p_end_date: end.toISOString().slice(0, 10),
+    p_title:          args.title.trim(),
+    p_description:    args.description?.trim() || null,
+    p_kind:           args.kind,
+    p_start_date:     today.toISOString().slice(0, 10),
+    p_end_date:       end.toISOString().slice(0, 10),
+    p_category_id:    args.categoryId    ?? null,
+    p_subcategory_id: args.subcategoryId ?? null,
+    p_frequency:      args.frequency     ?? 'daily',
+    p_proof_type:     'photo',           // GPS/스크린샷은 Phase 2
   });
 
   if (error) throw error;
