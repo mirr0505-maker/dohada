@@ -430,7 +430,7 @@ export default function ChallengeRoom() {
             return;
           }
           if (todayChecked) {
-            Alert.alert('오늘 인증 완료', '내일 다시 만나요.');
+            haptic.tap();   // 약한 진동으로 "눌렸음 + 이미 완료" 피드백
             return;
           }
           haptic.tap();
@@ -443,7 +443,7 @@ export default function ChallengeRoom() {
             : isPaused
               ? '⏸ 잠시 멈춤 중'
               : todayChecked
-                ? '✓ 오늘 인증 완료'
+                ? '✓ 오늘 인증 완료 · 내일 또 만나요'
                 : '📸 오늘 인증하기'}
         </Text>
       </Pressable>
