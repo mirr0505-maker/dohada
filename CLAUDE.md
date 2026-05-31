@@ -3,11 +3,17 @@
 이 파일은 Claude Code가 이 저장소에서 작업할 때 **반드시 따라야 하는 지침**이다.
 서브에이전트 위임 없이 메인 세션이 코드 작성·검증·정책 검토까지 직접 수행한다.
 
-**Phase 1 MVP 의 단일 진실원천은 [`MVP_SCOPE.md`](MVP_SCOPE.md) 이다.**
+**Phase 1 MVP 의 단일 진실원천은 [`MVP_SCOPE.md`](MVP_SCOPE.md) (v2.1) 이다.**
+**베타 모집 HTML 의 청사진은 [`BLUEPRINT.md`](BLUEPRINT.md) — 정체성·기존 SNS 극복 메시지 정리.**
 장기 비전·정책·DB 설계는 [`Do_하다_통합기획서_v4_0_1.pdf`](Do_하다_통합기획서_v4_0_1.pdf) 를 참조.
+**UI/UX 의 절대 기준은 [`prototype/do-hada-app-v4.html`](prototype/do-hada-app-v4.html)** — 화면 디자인 결정 시 반드시 해당 화면의 HTML/CSS 를 먼저 본다 (v4 = 28화면).
 작업 단위는 부록 E.8의 **Week** 단위(Day는 작업 덩어리 예시).
-HTML 시각 가이드는 [`prototype/do-hada-app-v4.html`](prototype/do-hada-app-v4.html) 참고 (v4 = 28화면).
 실제 앱 코드는 [`mobile/`](mobile/), 백엔드(DB + Edge Function)는 [`supabase/`](supabase/).
+
+### 신규 코드 위치 (v2.1)
+- 챌린지방 5탭 컴포넌트: [`mobile/components/challenge/`](mobile/components/challenge/) — ChatTab / LogTab / StatusTab / ArchiveTab
+- 큰 숫자 노출 정책: [`mobile/lib/format.ts`](mobile/lib/format.ts)
+- 알림: [`mobile/lib/push.ts`](mobile/lib/push.ts) + [`supabase/functions/flush-notifications/`](supabase/functions/flush-notifications/)
 
 ---
 
@@ -103,6 +109,8 @@ UI/UX, 네비게이션, 디자인 토큰 적용, 빈 상태 화면 등은 Expo G
 - "OO님보다 N일 앞섭니다" 같은 비교 카피 금지.
 - 거대한 숫자(누적 인증 12,847건) 단독 노출 금지. 항상 **"내 동료 N명 중 N명 ✓"**
   형태로 작은 동료 단위 우선.
+- **숫자 100+ 는 자동 "99+"** 로 약화 (`lib/format.ts` `formatCheerCount`). 인증 응원·챌린지 평가 모두 적용.
+- 멤버 정렬은 **인증률 desc 금지** — 가입 순(`joined_at asc`) + 본인 위. 시간의 흐름 톤.
 
 ### 3. 박제 = 영구 (v1)
 - 완주 후 생성된 박제 / 인증서 / 포토북은 **사용자가 직접 삭제 요청하지 않는 한
