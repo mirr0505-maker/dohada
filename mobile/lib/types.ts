@@ -87,3 +87,12 @@ export type ProofWithRelations = DbProof & {
 
 // 챌린지 평가 4가지 — 둘러보기 카드용 카운트
 export type ChallengeVoteCounts = Record<ChallengeVoteType, number>;
+
+// 둘러보기 카드 (v4 disc-card) 용 풀 데이터
+export type OpenChallengeCard = ChallengeWithCount & {
+  creator: { nickname: string };
+  category: { emoji: string; name: string; is_impact: boolean } | null;
+  subcategory: { name: string } | null;
+  votes_by_type: ChallengeVoteCounts;
+  my_votes: ChallengeVoteType[];
+};

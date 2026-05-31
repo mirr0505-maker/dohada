@@ -4,6 +4,7 @@ import { supabase } from './supabase';
 import type {
   ChallengeWithCount, ChallengeKind, MemberWithToday, ProofWithRelations, DbChallenge,
   CommentWithAuthor, CheerType,
+  OpenChallengeCard, ChallengeVoteType, ChallengeVoteCounts,
 } from './types';
 
 // ─── 동료들의 최근 인증 (홈 cross-section) ───────────────────────────────
@@ -70,29 +71,74 @@ export async function fetchMyChallenges(): Promise<ChallengeWithCount[]> {
   }));
 }
 
-// ─── 둘러보기 — 공개(open) 챌린지 목록 ──────────────────
-// RLS 가 kind='open' 만 보여줌. 멤버 여부 무관.
-export async function fetchOpenChallenges(): Promise<ChallengeWithCount[]> {
+// ─── 둘러보기 — 공개(open) 챌린지 카드 ──────────────────
+// v2 풀: creator/category/subcategory + 4가지 평가 카운트 + 본인 vote.
+export async function fetchOpenChallenges(myUserId: string | undefined): Promise<OpenChallengeCard[]> {
   const { data, error } = await supabase
     .from('challenges')
-    .select('*, challenge_members(count)')
+    .select(`
+      *,
+      challenge_members(count),
+      creator:creator_id(nickname),
+      category:category_id(emoji, name, is_impact),
+      subcategory:subcategory_id(name),
+      challenge_votes(user_id, vote_type)
+    `)
     .eq('kind', 'open')
     .order('created_at', { ascending: false })
     .limit(50);
 
   if (error) throw error;
 
-  return (data ?? []).map((c: any) => ({
-    id: c.id,
-    creator_id: c.creator_id,
-    title: c.title,
-    description: c.description,
-    kind: 'open' as ChallengeKind,
-    start_date: c.start_date,
-    end_date: c.end_date,
-    created_at: c.created_at,
-    member_count: c.challenge_members?.[0]?.count ?? 0,
-  }));
+  return (data ?? []).map((c: any) => {
+    const votes: { user_id: string; vote_type: ChallengeVoteType }[] = c.challenge_votes ?? [];
+    const votesByType: ChallengeVoteCounts = { creative: 0, hard: 0, touching: 0, fresh: 0 };
+    const myVotes: ChallengeVoteType[] = [];
+    for (const v of votes) {
+      const t = v.vote_type as ChallengeVoteType;
+      votesByType[t] = (votesByType[t] ?? 0) + 1;
+      if (v.user_id === myUserId) myVotes.push(t);
+    }
+    return {
+      id: c.id,
+      creator_id: c.creator_id,
+      title: c.title,
+      description: c.description,
+      kind: 'open' as ChallengeKind,
+      start_date: c.start_date,
+      end_date: c.end_date,
+      created_at: c.created_at,
+      member_count: c.challenge_members?.[0]?.count ?? 0,
+      creator: { nickname: c.creator?.nickname ?? '도전자' },
+      category: c.category
+        ? { emoji: c.category.emoji, name: c.category.name, is_impact: !!c.category.is_impact }
+        : null,
+      subcategory: c.subcategory ? { name: c.subcategory.name } : null,
+      votes_by_type: votesByType,
+      my_votes: myVotes,
+    };
+  });
+}
+
+// 둘러보기 카드의 4가지 평가 토글
+export async function toggleChallengeVote(args: {
+  challengeId: string;
+  userId: string;
+  voteType: ChallengeVoteType;
+  currentlyVoted: boolean;
+}): Promise<void> {
+  if (args.currentlyVoted) {
+    const { error } = await supabase
+      .from('challenge_votes')
+      .delete()
+      .match({ challenge_id: args.challengeId, user_id: args.userId, vote_type: args.voteType });
+    if (error) throw error;
+  } else {
+    const { error } = await supabase
+      .from('challenge_votes')
+      .insert({ challenge_id: args.challengeId, user_id: args.userId, vote_type: args.voteType });
+    if (error) throw error;
+  }
 }
 
 // ─── 카테고리 시스템 (0007 categories + subcategories) ─
