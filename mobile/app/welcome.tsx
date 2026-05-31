@@ -36,7 +36,7 @@ export default function WelcomeScreen() {
           환영합니다,{'\n'}
           <Text style={styles.accent}>도전자</Text>님!
         </Text>
-        <Text style={styles.sub}>시작하기 전 잠시 안내드릴게요</Text>
+        <Text style={styles.sub}>비교에 지친 SNS 와 작별,{'\n'}오늘도 한 걸음 나아가는 곳</Text>
 
         {/* 슬로건 카드 */}
         <View style={styles.sloganCard}>
