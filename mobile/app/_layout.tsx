@@ -8,6 +8,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { initSentry } from '@/lib/sentry';
 import { scheduleDailyReminder } from '@/lib/notifications';
+import { registerExpoPushToken, ensureNotificationPrefs } from '@/lib/push';
+import { useSession } from '@/lib/session';
 
 // Sentry — module load 시점에 한 번
 initSentry();
@@ -30,6 +32,15 @@ export default function RootLayout() {
   useEffect(() => {
     scheduleDailyReminder(20, 0).catch(() => {});
   }, []);
+
+  // 로그인 후 Expo Push Token 등록 + notification_prefs row ensure
+  const session = useSession();
+  useEffect(() => {
+    const uid = session?.user?.id;
+    if (!uid || uid === 'dev') return;     // UI-only 더미 세션은 skip
+    registerExpoPushToken(uid).catch(() => {});
+    ensureNotificationPrefs(uid).catch(() => {});
+  }, [session?.user?.id]);
 
   // 폰트 로딩 전엔 네이티브 splash 화면 그대로 둠
   if (!fontsLoaded && !fontError) return null;
