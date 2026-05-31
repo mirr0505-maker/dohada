@@ -28,7 +28,7 @@ export default function ProfileScreen() {
   const appVersion = Constants.expoConfig?.version ?? '0.1.0';
 
   const onLogout = () => {
-    Alert.alert('로그아웃', '정말 로그아웃하시겠어요?', [
+    Alert.alert('로그아웃', '다음에 또 만나요. 로그아웃할까요?', [
       { text: '취소', style: 'cancel' },
       {
         text: '로그아웃',

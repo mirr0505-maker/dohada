@@ -37,11 +37,11 @@ const ROOM_TABS: { key: RoomTab; emoji: string; label: string }[] = [
   { key: 'archive', emoji: '🏆', label: '박제' },
 ];
 
-// 방 종류 메타 라벨
+// 방 종류 메타 라벨 — 분류 용어 X, 사람 단위 톤
 function roomKindLabel(kind: ChallengeKind, memberCount: number): string {
-  if (kind === 'solo') return '혼자 도전';
-  if (kind === 'open') return `개방형 · 동료 ${memberCount}명`;
-  return `폐쇄형 · 동료 ${memberCount}명`;
+  if (kind === 'solo') return '혼자만의 다짐';
+  if (kind === 'open') return `누구나 합류 가능 · 함께 ${memberCount}명`;
+  return `함께 도전하는 ${memberCount}명`;
 }
 
 export default function ChallengeRoom() {
@@ -518,7 +518,7 @@ export default function ChallengeRoom() {
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>📸</Text>
               <Text style={styles.emptyText}>
-                아직 인증이 없어요.{'\n'}오늘 첫 인증의 주인공이 되어볼까요?
+                아직 인증이 없어요.{'\n'}오늘 어떤 한 걸음을 남기셨어요?
               </Text>
             </View>
           }

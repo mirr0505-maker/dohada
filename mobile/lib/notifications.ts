@@ -46,8 +46,8 @@ export async function scheduleDailyReminder(hour = 20, minute = 0): Promise<void
   await Notifications.scheduleNotificationAsync({
     identifier: REMINDER_ID,
     content: {
-      title: '오늘 인증했어요?',
-      body: '동료들이 응원하러 모이고 있어요. 📸',
+      title: '오늘도 한 걸음, 어땠어요? 💛',
+      body: '동료들도 각자의 하루를 살아가고 있어요',
       sound: false,
     },
     trigger: {
