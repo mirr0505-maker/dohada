@@ -1,229 +1,381 @@
-# 🎯 Do : 하다 — MVP_SCOPE
+# 🎯 Do : 하다 — MVP_SCOPE (v2)
 
-**이 문서가 Phase 1의 단일 진실원천이다.**
-통합기획서 v4.0.1은 장기 비전 자산이며, MVP 단계에서는 **이 문서만** 따른다.
+**이 문서가 Phase 1 의 단일 진실원천이다.**
+통합기획서 v4.0.1 은 정체성/철학/장기 비전 자산이며, MVP 단계에서는 **이 문서만** 따른다.
+프로토타입 [`prototype/do-hada-app-v4.html`](prototype/do-hada-app-v4.html) 이 UI/UX 의 절대 기준이다.
+
+> **2026-05-31 v2 재설계 메모**
+> v1 은 "같이 응원" 한 가지에만 좁혀서 "챌린지 인증 도구" 처럼 보였다.
+> Do:하다는 **차세대 SNS** 이며 매슬로우 5단계 자아실현에 답한다.
+> v2 는 통합기획서 + v4 프로토타입의 정체성·UI 를 베타 단계로 끌어올린다.
 
 ---
 
-## 만드는 이유 (한 줄)
+## 1. 왜 만드는가 — 차세대 SNS 의 자리잡기
 
-> **"같이 도전하는 사람의 인증을 보고 응원하는 경험"** 이 진짜로 사람을 움직이는지 검증한다.
+> "비교 없이 응원받고, 친구 신청 없이 동료를 만나고, 내가 나아지면서 세상도 나아지는 SNS"
 
-이것만 검증되면 나머지(박제 자산화, 도전 인연 ×횟수, 사이즈 적응형 UI, 명사 챌린지, 글로벌)는 다 그 위에 얹는다. 검증 안 되면 다른 거 만들어도 의미 없다.
+### 1.1 SNS 시대의 한계 (통합기획서 서문)
 
-## 성공 기준
+인스타그램은 광고판이 되었고, 페이스북은 노년의 공간이 되었고, 카카오톡은 업무 도구가 되었다.
+MZ세대는 이미 이 흐름을 거부하고 있다 — 인스타 스토리 닫기, 카톡 프로필 안 바꾸기, 친구 추가 망설이기. 이건 단순 트렌드가 아니라 **디지털 시대의 자기보호**다.
+
+그러나 사람들은 여전히 연결을 원한다. 다만 **다른 방식의 연결**이다.
+
+### 1.2 Do:하다가 답하는 세 질문
+
+1. "비교 없이 응원받을 수 있을까?"
+2. "친구 신청 없이 동료를 만날 수 있을까?"
+3. "내가 더 나아지면서, 세상도 함께 나아질 수 있을까?"
+
+### 1.3 매슬로우 5단계와 Do:하다 (통합기획서 2.4)
+
+대부분 SNS 는 매슬로우 3단계 (소속/애정) 에서 멈춘다.
+
+- 인스타: "내가 얼마나 예쁜지 보세요" (3단계 — 피상적 인정)
+- 카톡: "친구야 잘 지내?" (3단계 — 피상적 소속)
+- **Do:하다: "오늘도 한 걸음 나아갔어요"** (5단계 — 자아실현)
+
+5단계 자아실현을 핵심으로 삼되, 1~4단계는 **자연 발생하는 부산물** 로 처리한다.
+
+| 단계 | 욕구 | Do:하다 |
+|---|---|---|
+| 1 | 생리적 | 건강 챌린지 (수면/식사/운동) |
+| 2 | 안전 | 금연/금주, 재테크 |
+| 3 | 소속/애정 | 도전 동료 (목적 기반, 친구 신청 X) |
+| 4 | 존중/인정 | 4가지 평가, 박제, ×횟수 |
+| 5 | 자아실현 | 100일 완주, 임팩트, "더 나은 나, 더 나은 세상" |
+
+매슬로우는 **UI 에 명시적으로 표시하지 않는다**. 온보딩 카피, 챌린지방 헤더의 "함께 만든 변화", 내정보 태그라인에 자연스럽게 녹인다.
+
+### 1.4 슬로건
+
+> **도전, 그냥 하다. 더 나은 나, 더 나은 세상.**
+
+---
+
+## 2. 성공 기준
 
 - 베타 사용자 **30명**이 챌린지 만들어서 **1주일 이상 인증 지속**
-- 그 30명 중 **10명 이상이 "친구에게 추천하고 싶다"** 라고 답함
-- 한 챌린지당 **평균 3명 이상**이 모임
+- 30명 중 **10명 이상**이 "친구에게 추천하고 싶다" 응답
+- 챌린지당 **평균 3명 이상** 모임
+- 인증 사진뿐 아니라 **기록 (Vlog) 1개 이상** 작성한 사용자 10명 이상 (SNS 정체성 검증)
 
 이게 안 되면 기능 더 만들지 말고 **왜 안 쓰는지** 인터뷰부터 한다.
 
 ---
 
-## ✅ 진짜 만들 것 (6개 기능 + 온보딩 7화면)
+## 3. ✅ Phase 1 만드는 것 — 7대 영역
 
-> **2026-05-26 추가:** 프로토타입 v4의 온보딩 흐름(splash → onb1~4 → login → welcome)을 **그대로** UI로 제공한다.
-> 단, 온보딩에 광고된 일부 기능(내기/박제/명사 챌린지/연락처 매칭)은 Phase 2이므로
-> 카피만 보여주고 실제 진입은 불가. **휴대폰 인증은 MVP에서 완전히 제외** (welcome 화면도 약관 동의만).
-
-
-
-### 1. SNS 로그인 (Google + Apple)  *(2026-05-26 변경: 카카오 → 구글 + Apple)*
-- **Google**: Android + iOS 공통, 모든 사용자 사용 가능
-- **Apple Sign In**: iOS 만 표시. **App Store 정책상 SNS 로그인 있는 앱은 필수**
+### 3.1 SNS 로그인 (Google + Apple)
+- Google: Android + iOS 공통
+- Apple Sign In: iOS 만 (App Store 정책 필수)
 - 카카오: Phase 1.5
-- 회원가입 별도 없음. SNS 로그인 = 가입.
-- 약관 동의 화면(`welcome`)에서 통합 처리.
+- SNS 로그인 = 가입. 약관 동의 화면(`welcome`)에서 통합.
 
-### 2. 챌린지 만들기 (단순)
-- 입력: 제목 / 기간 / 설명 (선택) / **방 종류**
-- **방 종류 3가지** *(2026-05-26 최종)*:
-  - 🤝 폐쇄형(`closed`, 동료들과) — 초대받은 사람만, 카톡 공유로 모음
-  - 🌍 공개형(`open`, 누구나) — 둘러보기에 노출, 비멤버도 조회/참여 가능
-  - 🧘 단독(`solo`, 혼자) — creator 본인만, 다른 사람 가입 불가 (RLS)
-- 카테고리 없음. 그냥 자유 텍스트.
-- 7단계 마법사 ❌ → 1화면 폼.
+### 3.2 챌린지 만들기 — v4 7단계 마법사
 
-### 3. 카톡 링크로 초대
-- 챌린지 만들면 초대 링크 자동 생성 (`dohada://invite/<id>`)
-- "카톡으로 공유" 버튼 → RN `Share` API. 카카오 SDK 는 Phase 1.5.
-- **딥링크 처리**: 받은 사람이 링크 탭하면 자동 챌린지 가입 → 방으로 이동 (미로그인이면 로그인 후 자동).
-- QR 명함 ❌ / 연락처 매칭 ❌
+v4 프로토타입 그대로. 각 단계는 한 화면에 큰 질문 + 옵션 카드.
 
-### 4. 사진 인증
-- 앱 내 카메라로 직접 촬영
+| 단계 | 항목 | 옵션 |
+|---|---|---|
+| 1 | 제목 | 직접 입력 (최대 40자) + 인기 추천 칩 6개 (📚 100일 책 읽기, 🏃 매일 5km 러닝 등) |
+| 2 | 카테고리 | **10 대분류** + 소분류 (3.3 참조) |
+| 3 | 기간 | 🌱 7일 / 🌿 30일 / 🌳 100일 ⭐추천 / 🌟 1년 |
+| 4 | 인증 빈도 | 🔥 매일 / 📅 주 3회 이상 / 📆 주 1회 |
+| 5 | 인증 방식 | 📸 사진만 (GPS/스크린샷은 Phase 2 — UI에 표시하되 비활성) |
+| 6 | 방 타입 | 🔒 동료들과 (closed) / 🌍 누구나 (open) / 🤫 혼자 (solo) |
+| 7 | 내기 | **없이 만 선택 가능** — 1만원/5만원/10만원 옵션은 "Phase 2 출시 예정" 회색 표시 |
+
+각 단계는 `prototype/do-hada-app-v4.html` 의 `stepContents[1~7]` 와 동일한 톤·레이아웃·이모지를 따른다.
+
+### 3.3 카테고리 시스템 — 10 대분류 + 소분류
+
+| 이모지 | 대분류 | 정체성 카피 | 소분류 예시 |
+|---|---|---|---|
+| 💪 | 건강 | 건강을 가꾸는 사람들 | 금연/금주/다이어트/영양/수면/정신건강/명상 |
+| 🏃 | 운동 | 몸을 단련하는 사람들 | 러닝/헬스/등산/자전거/수영/요가/필라테스/구기종목 |
+| 📚 | 학습 | 배움을 쌓는 사람들 | 독서/외국어/자격증/코딩/온라인강의/시험준비 |
+| 🎨 | 창작 | 새로움을 만드는 사람들 | 글쓰기/그림/사진/음악/영상/디자인/공예 |
+| 💼 | 자기계발 | 꾸준함을 쌓는 사람들 | 루틴/습관/시간관리/생산성/마인드/리더십 |
+| 💰 | 재테크 | 미래를 준비하는 사람들 | 저축/투자/가계부/부채상환/창업 |
+| 🌍 | 라이프 | 일상을 가꾸는 사람들 | 여행/맛집/취미/봉사/환경/패션 |
+| 🤝 | 관계 | 마음을 나누는 사람들 | 가족/연인/친구/육아/반려동물 |
+| 🌍 | **임팩트** | 세상에 변화를 만드는 사람들 | 환경/기부/봉사/공익 (자동 "임팩트 챌린지" 뱃지) |
+| ✨ | 기타 | 새로운 길을 여는 사람들 | 자유 입력 (진화 모델 진입) |
+
+진화 모델 (기타 → 정식 분류) 은 Phase 1.5. MVP 는 자유 입력만 받아 카운트 누적.
+
+### 3.4 카톡 초대 (임시 안내)
+
+- 챌린지 생성 시 `dohada://invite/<id>` 딥링크 자동 생성
+- RN `Share` API 로 공유
+- 카톡 인앱 브라우저 제한 회피용 안내 문구: "카톡에서 안 열리면 메시지를 길게 눌러 복사 → Safari 주소창에 붙여넣어 주세요"
+- Universal Links 정석 셋업은 Phase 1.5
+- 카카오 SDK 는 Phase 1.5
+
+### 3.5 사진 인증
+
+- 앱 내 카메라 직접 촬영
 - 갤러리 업로드 ❌ (어뷰징 방지)
-- EXIF 검증 ❌ (Phase 1.5)
-- 하루 1번만 인증 가능
-- **이미지 저장소: Cloudflare R2** *(2026-05-26 결정: Supabase Storage 대신)*
-  이유: egress 무료, S3 호환, 비용 저렴. DB(`proofs.photo_url`)는 R2 public URL 또는 presigned URL을 보관.
+- 이미지 저장소: **Cloudflare R2** (Edge Function 의 SigV4 presigned PUT)
+- 인증 빈도에 따른 가드:
+  - 매일: 하루 1회
+  - 주 3회: 7일 내 3회까지
+  - 주 1회: 7일 내 1회까지
+- EXIF/GPS 검증 ❌ (Phase 1.5)
+- 인증 사진 AI 검수 ❌ (Phase 1.5 — 챌린지 텍스트 검수만 적용, 3.8 K 참고)
 
-### 5. 챌린지 방 (인증 피드 + 댓글)
-- 5탭 ❌ → 인증 피드 1개 화면만
-- 사이즈 적응형 ❌ → 모든 방 같은 UI
-- 멤버 리스트는 화면 상단에 작게
-- **인증 사진별 댓글** (L) — 동료 간 대화의 핵심
-- **단톡방 형태 채팅** — MVP 베타 보고 결정 (댓글로 충분한지 사용자 인터뷰)
-- **공개 챌린지의 비멤버**: 챌린지/멤버/인증/응원/댓글 모두 조회 가능, FAB 만 "참여하기" 로 분기
+### 3.6 챌린지 방 — v4 5탭 구조
 
-### 6. 응원하기 (❤️ 하나)
-- 응원 이모지 5종 ❌ → ❤️ 하나만
-- 4가지 평가 ❌
-- 누가 응원했는지 보이기
-- **Realtime 구독**: 새 인증/응원이 동료 폰에 즉시 반영 (Supabase Realtime).
+방 헤더 (모든 탭 공통):
+- 챌린지명 + 메타 ("개방형 · 동료 5명" 또는 "혼자 도전")
+- **room-info-bar**: 🔥 N/M일 + 📸 N명 인증 + **D-N 큰 숫자**
+- 진행률 바 (full-width)
+- 멤버 아바타 가로 배치 (5명 이상이면 +N)
+- **room-today** (오늘 카드): "📅 오늘 [아바타들] X/Y ›" — 사이즈 적응형 (small/medium/large 자동)
+- **💚 함께 만든 변화** 4 stats: `N일 함께 / N번 인증 / N번 응원 / N개 기록`
+
+5탭:
+
+| 탭 | 내용 |
+|---|---|
+| 💬 **대화** | Realtime 채팅 (말풍선). 본인 메시지는 오른쪽 오렌지. 멤버 전용. |
+| 📸 **인증** (기본 활성) | 일별 인증 사진 카드 피드. 인증 응원 4가지 (🔥👏💪❤️) + 🎁 선물 (Phase 2 placeholder). 댓글 (instagram 식). |
+| 🎥 **기록** | Vlog 카드. "📝 인상깊은 순간을 기록해요" 버튼. 카드: 닉네임 + N일째 + 시간 + 제목 + 본문 + 선택 이미지 + 좋아요/댓글/응원. 인증과 별개 영구 보존. |
+| 📊 **현황** | 멤버별 카드 — 아바타 + 닉네임 + 연속 일수 + 인증률 % + 진행률 바. 본인 강조 + 오늘 미인증 시 경고. |
+| 🏆 **박제** | 챌린지 종료 후 활성화. 진행 중엔 안내 카드 ("100일 챌린지가 끝나면 여기에 모든 추억이 박제됩니다"). 박제 풀 자산화(인증서/포토북/책)는 Phase 2. |
+
+### 3.7 응원/평가 — 이중 시스템
+
+#### A. 인증 응원 (챌린지방 인증 탭)
+- 🔥 (불꽃) / 👏 (박수) / 💪 (근육) / ❤️ (하트) — 각 독립 카운트
+- 🎁 선물 = Phase 2 placeholder (탭 시 "출시 예정" 안내)
+- Realtime 반영 (Supabase Realtime)
+
+#### B. 챌린지 평가 (둘러보기 카드)
+- ✨ 기발 (creative) / 😱 대단 (hard) / 🥹 뭉클 (touching) / 💫 새로움 (fresh)
+- 통합기획서 v3.1 4가지 평가. 각 독립 카운트, 본인 vote 표시.
+- 한 사용자가 한 챌린지에 각 평가 최대 1표.
+
+> ⚠️ 8가지가 한 화면에 같이 보이지 않는다. 인증 응원 = 방 안, 챌린지 평가 = 둘러보기 카드. 둘은 다른 단어 / 다른 의미.
+
+### 3.8 둘러보기
+
+- 필터 행: 🔥 큐레이션 드롭다운 + 카테고리 드롭다운
+- MVP 큐레이션: **지금 핫한 / 신규 / 인기** 3가지 (가입자 폭증/생성 최근/멤버 수)
+- 카테고리 드롭다운: 전체 분야 + 10 대분류
+- 챌린지 카드:
+  - 헤더: 뱃지 + D-N
+  - 제목 + 설명
+  - stats: 👥 N명 + 📸 완주율 X% (또는 임팩트의 경우 🌳 누적 수치)
+  - 진행률 바 (색상은 카드 종류별)
+  - **disc-votes-row**: 4가지 평가 chips (✨ N / 😱 N / 🥹 N / 💫 N)
+  - 푸터: `@크리에이터 · 카테고리/소분류` + `+ 도전` 또는 `+ 동참` (임팩트)
+- **임팩트 카드 전용**: 💚 "함께 만든 변화" 배너 (`예: "축구장 2.3개 분량 정화"`), 진행률 바 초록.
+
+### 3.9 챌린지 종류 뱃지 시스템
+
+| 뱃지 | 라벨 | 색 | 자동/수동 |
+|---|---|---|---|
+| (없음) | 일반 | — | MVP 모든 사용자 챌린지 default |
+| 🌍 임팩트 | 임팩트 | 짙은 초록 | 카테고리 "임팩트" 선택 시 자동 |
+| ⭐ 명사 | 명사 | 금색 | Phase 2 (운영 큐레이션) |
+| 🏢 브랜드 | 브랜드 | 파랑 | Phase 2 |
+| 🌱 공익 | 공익 | 초록 | Phase 2 |
+| ✨ 기발한 | 기발한 | 노랑 | 자동 (✨ 기발 평가가 다른 평가의 5배 이상일 때 — Phase 1.5 부터) |
+| 🔥 인기 | 인기 | 빨강 | 자동 (가입자 폭증 — Phase 1.5 부터) |
+
+MVP 단계:
+- 일반 (라벨 X) + 임팩트 (자동) 활성
+- 명사/브랜드/공익 = 카드 헤더에 회색 placeholder ("Phase 2 도입 예정") 안 보임 (디자인은 v4 톤 유지)
 
 ---
 
-## 🎁 베타 완성도 항목 *(2026-05-26 추가 — A~I)*
+## 4. 🎁 베타 완성도 항목
 
-위 6개 핵심 외에, 베타 30명 검증 품질을 위해 추가한 것들. **신기능이 아니라 마감 완성도** 차원.
+기존 v1 의 A~L 모두 유지 + v2 추가:
 
 | 항목 | 내용 |
 |---|---|
-| **A. 완주 화면** | 종료일이 지났고 매일 인증했으면 자동으로 🏆 완주 화면 (인증서/포토북 없음). [app/complete/[id].tsx](mobile/app/complete/[id].tsx) |
-| **B. 단독(solo) 방** | 챌린지 만들기 폼에서 "동료들과 / 혼자" 라디오. `challenges.kind` 컬럼. |
-| **C. 잠시 멈춤** | 단순 3일/7일 멈춤. `challenge_members.paused_until` 컬럼. 유배지/보석금 같은 페널티 없음. |
-| **D. 챌린지 진행률** | room 헤더에 `12/30일 진행 (40%)`. |
-| **E. Haptic feedback** | 응원/인증 셔터/챌린지 생성/멈춤 등 주요 액션에 진동. |
-| **F. Streak 카운터** | `🔥 N 연속 인증` — 오늘 미인증 시 어제부터 카운트. |
-| **G. 매일 로컬 알림** | 매일 저녁 20시 "오늘 인증했어?" 로컬 푸시. Apple Push 인증서 불필요. |
-| **H. Skeleton 로딩** | ActivityIndicator 대신 카드 모양 placeholder. |
-| **I. Pull-to-refresh** | home + room 모두 적용. |
-| **J. 둘러보기** | 공개(open) 챌린지 목록. home 우상단 🌍 → [app/discover.tsx](mobile/app/discover.tsx). RLS 가 비멤버에게 open 챌린지만 노출. |
-| **K. AI 콘텐츠 검수** | 챌린지 생성 시 제목/설명을 Claude Haiku 4.5 가 비윤리/반국가/폭력/불법 4 카테고리로 검수 → block 이면 생성 차단. 공개 챌린지 도입 부작용 방지. [supabase/functions/moderate-challenge](supabase/functions/moderate-challenge/index.ts) |
-| **L. 인증 댓글** *(2026-05-26 마지막 추가)* | 각 인증 사진 아래 댓글 (instagram 식). Realtime 으로 즉시 반영. 멤버만 작성, open 챌린지는 비멤버도 조회. 본인 댓글 길게 눌러 삭제. SNS 가 되려면 응원 ❤ 만으론 부족 → 대화 가능해야 함. [components/CommentsSheet.tsx](mobile/components/CommentsSheet.tsx) |
+| A. 완주 화면 | 🏆 종료일 통과 + 모든 인증 완수 시 |
+| B. 단독(solo) 방 | challenges.kind |
+| C. 잠시 멈춤 | 3일/7일 멈춤, paused_until |
+| D. 챌린지 진행률 | 방 헤더 + 카드 |
+| E. Haptic | 주요 액션 진동 |
+| F. Streak 카운터 | 🔥 N 연속 인증 |
+| G. 매일 로컬 알림 | 저녁 8시 "오늘 인증했어?" |
+| H. Skeleton 로딩 | |
+| I. Pull-to-refresh | |
+| J. 둘러보기 | 큐레이션 3가지 + 카테고리 |
+| K. AI 콘텐츠 검수 | Claude Haiku 4.5, 챌린지 텍스트 |
+| L. 인증 댓글 | Realtime |
+| **M. 방 5탭 풀 구성** | 대화 / 인증 / 기록 / 현황 / 박제 안내 |
+| **N. 이중 평가 시스템** | 인증 응원 4가지 + 챌린지 평가 4가지 |
+| **O. 카테고리 10 + 소분류** | 임팩트 자동 뱃지 |
+| **P. 만들기 7단계 마법사** | 스텝 dot bar + 인기 추천 칩 |
+| **Q. 내기 placeholder** | "Phase 2 출시 예정" 회색 안내 |
+| **R. 동료 인증 cross-section** | 홈에 표시 (이미 적용) |
 
 추가 인프라:
-- **Pretendard 폰트** (Regular/Medium/Bold OTF 3종, 동적 로딩)
-- **Sentry 에러 모니터링** — `EXPO_PUBLIC_SENTRY_DSN` 채우면 활성, 비어있으면 noop
-- **i18n 골격** — ko/en 두 locale. 화면 텍스트 점진적 교체 (Phase 1.5 ~ Phase 2 글로벌 진입 시 본격)
-
-> **이게 마지막 추가다.** 더 늘리지 않고 베타 30명 검증 → 인터뷰 → 다음 결정.
+- Pretendard 폰트 (3 weights)
+- Sentry (DSN 채우면 활성)
+- i18n 골격 (ko/en, Phase 2 본격)
 
 ---
 
-## ❌ Phase 1에 절대 만들지 않을 것
+## 5. ❌ Phase 1 에 절대 만들지 않을 것
 
-명시적으로 적어둔다. **Claude Code가 친절하게 추가 제안해도 거절한다.**
+명시적으로 적어둔다. **Claude Code 가 친절하게 제안해도 거절한다.**
 
 | 기능 | 통합기획서 위치 | 보류 이유 |
 |---|---|---|
-| 휴대폰 인증 | 4.4 | **완전 제외** (구글이 약관 처리, welcome 은 약관 동의만) |
-| 챌린지 방 5탭 | v3.2 | 인증 피드 하나로 검증 |
-| 사이즈 적응형 UI | v3.3 | 5명 가정. 사용자 모이면 그때. |
+| 휴대폰 인증 | 4.4 | 완전 제외. SNS 로그인이 약관 처리 |
+| 사이즈 적응형 UI (5명/23명/8.9k명) | v3.3 | MVP 는 small 고정. 사용자 모이면 그때. |
 | 도전 인연 ×횟수 시스템 | v3.4 | Phase 2. 챌린지 끝나면 그냥 끝. |
 | QR 명함 + 연락처 매칭 | v3.4 | Phase 2 |
-| 4가지 평가 (✨😱🥹💫) | v3.1 | ❤️ 하나로 검증 |
-| 응원 이모지 5종 | 4.7.2 | ❤️ 하나로 충분 |
-| 박제 자산화 — 인증서/포토북 | 4.10 | Phase 2. **단, MVP 는 단순 완주 화면(A) 까지만.** |
-| 내기 시스템 (에스크로) | 4.14 | 결제/정산/환불 복잡. Phase 2. |
-| AI 콘텐츠 검수 (인증 사진) | 4.6.3 | **챌린지 텍스트 검수(K)는 적용.** 사진 vision 검수는 Phase 1.5. |
-| 유배지/보석금 | 8장 | Phase 2. **MVP 는 단순 잠시 멈춤(C) 만.** |
+| 박제 자산화 5단계 (인증서 PDF/종이/포토북/책/굿즈) | 4.10 | Phase 2. **MVP 는 단순 완주 화면 + 박제 탭 안내까지만** |
+| 내기 시스템 (에스크로) | 4.14 | 결제/정산/환불 복잡. Phase 2. **만들기 7단계의 내기 옵션은 placeholder.** |
+| GPS / 스크린샷 인증 | 4.6.3 | Phase 2. **만들기 5단계에 표시하되 비활성 (사진만).** |
+| AI 콘텐츠 검수 (인증 사진 vision) | 4.6.3 | Phase 1.5. 챌린지 텍스트 검수(K)는 적용. |
+| 유배지 / 보석금 | 8장 | Phase 2. MVP 는 단순 잠시 멈춤(C). |
 | 명사 챌린지 | 4.11 | Phase 2 |
-| 둘러보기 큐레이션 (스태프픽/인기/검색) | 6장 | **단순 목록만 적용(J).** 큐레이션/검색은 Phase 1.5. |
-| 카테고리 2-Tier | v3.1 | 자유 텍스트로 |
-| 다국어/글로벌 (한국어 외) | 14장 | 한국어만. **i18n 골격은 잡아둠.** |
+| 브랜드 챌린지 | 4.2 | Phase 2 |
+| 공익 챌린지 | 4.2 | Phase 2 |
+| 카테고리 진화 모델 자동 승급 | 4.3.2 | Phase 1.5. MVP 는 자유 입력만 받음. |
 | 뱃지/칭호 5등급 | 4.12 | Phase 2 |
-| 선물 응원 | 4.7.3 | Phase 2 |
-| 음성 메시지 | Phase 2 | Phase 2 |
-| 카카오톡 공유 SDK | 4.7 | Phase 1.5. **MVP 는 RN Share API 만.** |
-| 카카오 로그인 | 4.3 | Phase 1.5. (**Apple 로그인은 App Store 정책상 MVP 에 포함**) |
+| 선물 응원 (🎁) | 4.7.3 | Phase 2. **방 인증 탭에 placeholder 만.** |
+| 음성 메시지 | Phase 2 | |
+| 카카오톡 공유 SDK | 4.7 | Phase 1.5. MVP 는 RN Share + 안내 문구. |
+| 카카오 로그인 | 4.3 | Phase 1.5. Apple 은 App Store 정책상 MVP. |
+| 다국어/글로벌 (한국어 외) | 14장 | 한국어만. i18n 골격은 유지. |
 
 ---
 
-## 📅 진행 상황 (2026-05-26)
+## 6. 📅 진행 상황 (2026-05-31)
 
-### Week 1 — UI + 더미 데이터 ✅
-- 구글 로그인 화면 + 온보딩 7화면
-- 챌린지 만들기 폼 + 챌린지 방 + 카메라 인증
-- 디자인 토큰 + Pretendard 폰트 + StyleSheet 기반
+### Week 1~3 — UI + DB + Realtime + 베타 완성도 A~L ✅
+- 5탭 기본 (홈/내챌린지/+/둘러보기/내정보) ✓
+- Supabase + R2 + Edge Function + Google/Apple OAuth ✓
+- 챌린지 생성 (RPC 우회) + 인증 + 댓글 + 응원 (❤ 1개) ✓
+- 둘러보기 + 잠시 멈춤 + 진행률 + Streak + 로컬 알림 ✓
+- 마이그레이션 0001~0006
 
-### Week 2 — Supabase + R2 + 실시간 ✅
-- Supabase DB 5테이블 + RLS + 트리거 (마이그레이션 0001)
-- Cloudflare R2 + Edge Function (SigV4 presign) + 업로드
-- Google OAuth → Supabase signInWithIdToken
-- expo-camera 실제 연동
-- Realtime 구독 (proofs / cheers)
-- home/create/room 전 화면 Supabase 연동
+### Week 4~6 — v2 재설계 적용 ⏳
+- [ ] 만들기 1화면 → **7단계 마법사**
+- [ ] 카테고리 자유 텍스트 → **10 대분류 + 소분류** (DB: categories 테이블)
+- [ ] 응원 ❤ 1개 → **인증 응원 4가지 (🔥👏💪❤️) + 선물 placeholder**
+- [ ] 둘러보기 카드 → **챌린지 평가 4가지 (✨😱🥹💫) + 뱃지**
+- [ ] 챌린지방 1탭 → **5탭** (대화 / 인증 / 기록 / 현황 / 박제 안내)
+- [ ] 대화 탭: Realtime 채팅 (`chat_messages` 테이블)
+- [ ] 기록 탭: Vlog (`logs` 테이블 + `log_likes` / `log_comments`)
+- [ ] 현황 탭: 멤버별 인증률 집계
+- [ ] 박제 탭: 진행 중 안내 + 완주 시 단순 트로피
+- [ ] 챌린지 종류 뱃지 (일반 자동 + 임팩트 자동)
+- [ ] 내기 UI placeholder (만들기 7단계)
 
-### Week 3 — 베타 완성도 ✅
-- 초대 딥링크 (`dohada://invite/<id>`)
-- 카톡 초대 안내 모달
-- ErrorState 컴포넌트 + Sentry 골격 + i18n 골격
-- **A~I 일괄** (완주/단독/잠시멈춤/진행률/Haptic/Streak/로컬알림/Skeleton/Pull-to-refresh)
-- **J. 둘러보기 + 공개 챌린지** (마이그레이션 0003)
-- **K. AI 콘텐츠 검수** — Edge Function `moderate-challenge` (Claude Haiku 4.5)
-- **L. 인증 댓글** — comments 테이블 + Realtime + 길게 눌러 삭제
-- 마이그레이션 0002 (`challenges.kind`, `challenge_members.paused_until`),
-  0003 (`open` kind + RLS, 비멤버 조회/참여),
-  0004 (`comments` 테이블 + RLS)
-
-### Week 4 — 베타 출시 ⏳
-- ⏳ Apple Developer Program 활성화 대기
-- [ ] EAS Build (`development` profile)
-- [ ] iPhone 설치 + 전체 흐름 실기기 검증
-- [ ] 클로즈드 베타 30명 모집 (TestFlight)
-- [ ] Sentry DSN 발급 + .env 채우기 (선택)
+### Week 7 — 베타 출시 ⏳
+- [ ] 본인 며칠 실기기 풀 검증
+- [ ] production 빌드 + TestFlight
+- [ ] 베타 30명 모집 + 인터뷰 셋업
 
 ---
 
-## 🗄️ DB 스키마 (Phase 1)
+## 7. 🗄️ DB 스키마 (Phase 1 v2 확장)
 
-**5개 테이블이면 충분.** 통합기획서 13장의 20개 테이블 → **5개**로 줄임.
-(connections, ratings, logs, badges, bets, archives 등은 Phase 2에서 추가)
+기존 5개 (users, challenges, challenge_members, proofs, cheers) + comments + 신규.
 
-실제 마이그레이션: [0001_init.sql](supabase/migrations/0001_init.sql) +
-[0002_kind_pause.sql](supabase/migrations/0002_kind_pause.sql) +
-[0003_open_challenge.sql](supabase/migrations/0003_open_challenge.sql)
+### 변경/신규
 
 ```sql
--- users (auth.users 와 1:1)
-id, google_sub, email, nickname, avatar_url, created_at
+-- challenges 추가 컬럼 (마이그레이션 0007 예정)
+alter table challenges
+  add column category_id    int references categories(id),
+  add column subcategory    text,
+  add column frequency      text check (frequency in ('daily','weekly3','weekly1')) default 'daily',
+  add column proof_type     text check (proof_type in ('photo')) default 'photo';  -- gps/screenshot Phase 2
 
--- challenges
-id, creator_id, title, description,
-kind ('closed' | 'solo' | 'open'),  -- 0002: solo, 0003: open
-start_date, end_date, created_at
+-- categories (10 대분류, seed)
+create table categories (
+  id          int primary key,
+  slug        text unique not null,
+  emoji       text not null,
+  name        text not null,
+  copy        text not null,           -- "건강을 가꾸는 사람들"
+  is_impact   boolean not null default false
+);
 
--- challenge_members
-id, challenge_id, user_id, joined_at,
-paused_until                    -- 0002: 잠시 멈춤 종료일 (nullable)
+-- subcategories (대분류별 표준 소분류)
+create table subcategories (
+  id          int primary key,
+  category_id int references categories(id),
+  name        text not null
+);
 
--- proofs (인증, 하루 1회 unique 인덱스)
-id, challenge_id, user_id, photo_url, caption, created_at
+-- cheers 확장 (4가지 응원 종류)
+alter table cheers
+  add column cheer_type text not null default 'heart'
+    check (cheer_type in ('fire','clap','muscle','heart'));
+-- 기존 unique (proof_id, user_id) → unique (proof_id, user_id, cheer_type)
 
--- cheers (응원 ❤️, 1인 1회 unique)
-id, proof_id, user_id, created_at
+-- challenge_votes (둘러보기 4가지 평가)
+create table challenge_votes (
+  id           uuid primary key default gen_random_uuid(),
+  challenge_id uuid references challenges(id) on delete cascade,
+  user_id      uuid references users(id) on delete cascade,
+  vote_type    text check (vote_type in ('creative','hard','touching','fresh')),
+  created_at   timestamptz default now(),
+  unique (challenge_id, user_id, vote_type)
+);
+
+-- chat_messages (대화 탭)
+create table chat_messages (
+  id           uuid primary key default gen_random_uuid(),
+  challenge_id uuid references challenges(id) on delete cascade,
+  user_id      uuid references users(id) on delete cascade,
+  content      text not null check (char_length(content) between 1 and 1000),
+  created_at   timestamptz default now()
+);
+
+-- logs (기록/Vlog 탭)
+create table logs (
+  id           uuid primary key default gen_random_uuid(),
+  challenge_id uuid references challenges(id) on delete cascade,
+  user_id      uuid references users(id) on delete cascade,
+  title        text not null check (char_length(title) between 1 and 80),
+  content      text not null check (char_length(content) between 1 and 4000),
+  photo_url    text,                          -- nullable
+  created_at   timestamptz default now()
+);
+
+-- log_likes, log_comments — 패턴은 cheers/comments 와 동일
 ```
 
-추가 인프라:
-- **RLS 정책**: 멤버 only, 본인만 작성/삭제
-- **트리거**: 챌린지 생성 시 creator 자동 가입
-- **Edge Function** `r2-presign`: SigV4 presigned PUT URL 발급 (R2 키 클라이언트 노출 X)
+테이블 8개 → **13개** 로 확장. Phase 1.5 의 도전 인연 / 박제 / 내기 추가 시 +5~7.
 
 ---
 
-## 🚫 Claude Code 작업 시 규칙
+## 8. 🚫 Claude Code 작업 시 규칙
 
-**1. 이 문서에 없는 기능은 만들지 않는다.**
-"이거 만들 때 X도 같이 만들면 어떨까요?" 같은 제안 거절한다.
-거절 멘트: "MVP_SCOPE.md에 없어요. Phase 2에서 봅시다."
+1. **이 문서에 없는 기능은 만들지 않는다.**
+   거절 멘트: "MVP_SCOPE v2 에 없어요. Phase 1.5 / 2 에서 봅시다."
 
-**2. 통합기획서 v4.0.1은 참고만.**
-v4.0.1은 디자인 톤·정책 (친구 단어 금지, 비교 압박 금지, 미성년자 보호) 참고용.
-기능 목록은 이 문서 우선.
+2. **통합기획서 v4.0.1 은 정체성·정책·디자인 톤 참고.**
+   기능 목록은 이 문서 우선.
 
-**3. 30명 베타가 끝나기 전엔 Phase 2 기능 일절 안 만든다.**
-사용자 인터뷰 결과 보고 결정한다.
+3. **`prototype/do-hada-app-v4.html` 은 UI/UX 의 절대 기준.**
+   화면 디자인 결정 시 반드시 해당 화면의 HTML/CSS 를 먼저 본다.
+
+4. **30명 베타 결과 보기 전엔 Phase 2 일절 안 만든다.**
 
 ---
 
-## 🎯 핵심
+## 9. 🎯 핵심
 
-> **"6개 + A~L 완성도. 베타 30명에게 보여준다."**
+> **"차세대 SNS — 매슬로우 5단계 자아실현. 7대 영역 풀 구현. 베타 30명에게 보여준다."**
 
-코드 측은 완료. 남은 건:
-1. Apple Developer 활성화 → EAS Build → iPhone 설치
-2. 베타 30명 모집 + 1주일 인증 지속 관찰
-3. 결과로 Phase 2 기능 결정 (도전 인연, 내기, 박제, AI 검수 등)
+남은 일:
+1. v2 재설계 코드 구현 (Week 4~6, 위 진행 상황 표)
+2. 본인 며칠 풀 검증
+3. production 빌드 + TestFlight + 베타 30명
+4. 결과로 Phase 1.5 / 2 기능 우선순위 결정 (박제 자산화, 내기, 도전 인연, 명사, 글로벌 등)
