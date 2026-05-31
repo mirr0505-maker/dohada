@@ -1,71 +1,145 @@
-// 🚀 챌린지 만들기 — 1화면 폼 (MVP_SCOPE: 7단계 마법사 X)
-import React, { useState } from 'react';
+// 🚀 챌린지 만들기 — v4 7단계 마법사 (MVP_SCOPE v2 §3.2)
+// 1: 제목  2: 카테고리  3: 기간  4: 빈도  5: 인증 방식 (사진)
+// 6: 방 타입  7: 내기 (Phase 2)
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, TextInput, StyleSheet, ScrollView, Pressable,
-  KeyboardAvoidingView, Platform, Alert,
+  KeyboardAvoidingView, Platform, Alert, ActivityIndicator,
 } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { Screen } from '@/components/Screen';
-import { Button } from '@/components/Button';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
-import { createChallenge } from '@/lib/db';
+import {
+  createChallenge, fetchCategoryTree, type CreateChallengeFrequency,
+  type DbCategory, type DbSubcategory,
+} from '@/lib/db';
 import { haptic } from '@/lib/haptics';
 import { supabase } from '@/lib/supabase';
 import type { ChallengeKind } from '@/lib/types';
 
+const TOTAL_STEPS = 7;
+
+const SUGGESTIONS = [
+  '📚 100일 책 읽기',
+  '🏃 매일 5km 러닝',
+  '🚭 100일 금연',
+  '💪 매일 푸쉬업 50개',
+  '🧘 매일 명상 10분',
+  '💰 30일 무지출',
+];
+
 const DURATIONS = [
-  { label: '7일', value: 7 },
-  { label: '14일', value: 14 },
-  { label: '30일', value: 30 },
-  { label: '60일', value: 60 },
-  { label: '100일', value: 100 },
+  { label: '7일',  desc: '맛보기',           icon: '🌱', days: 7 },
+  { label: '30일', desc: '습관 형성',         icon: '🌿', days: 30 },
+  { label: '100일', desc: '박제 가치 최고 ⭐', icon: '🌳', days: 100, recommended: true },
+  { label: '1년',  desc: '인생 변환점',       icon: '🌟', days: 365 },
 ] as const;
+
+const FREQUENCIES: { value: CreateChallengeFrequency; label: string; desc: string; icon: string }[] = [
+  { value: 'daily',   label: '매일',         desc: '하루도 빠지지 않고', icon: '🔥' },
+  { value: 'weekly3', label: '주 3회 이상',  desc: '유연하게',           icon: '📅' },
+  { value: 'weekly1', label: '주 1회',       desc: '긴 호흡으로',        icon: '📆' },
+];
+
+const PROOF_TYPES = [
+  { value: 'photo',      label: '사진 인증',    desc: '카메라로 직접 촬영', icon: '📸', enabled: true },
+  { value: 'gps',        label: 'GPS 위치 인증', desc: 'Phase 2 출시 예정', icon: '📍', enabled: false },
+  { value: 'screenshot', label: '앱 스크린샷',  desc: 'Phase 2 출시 예정', icon: '📱', enabled: false },
+];
+
+const ROOM_TYPES: { value: ChallengeKind; label: string; desc: string; icon: string }[] = [
+  { value: 'solo',   label: '혼자 (비공개)',     desc: '나만의 다짐 · 둘러보기 미노출', icon: '🤫' },
+  { value: 'closed', label: '동료들과 (폐쇄형)', desc: '초대한 사람만 · 둘러보기 미노출', icon: '🔒' },
+  { value: 'open',   label: '누구나 (개방형)',   desc: '둘러보기 공개 · 누구나 참여',     icon: '🌍' },
+];
+
+const BETS = [
+  { label: '내기 없이',    desc: '부담 없이, 즐겁게',        icon: '😌', enabled: true },
+  { label: '1인당 1만원',  desc: 'Phase 2 출시 예정',         icon: '💸', enabled: false },
+  { label: '1인당 5만원',  desc: 'Phase 2 출시 예정',         icon: '🔥', enabled: false },
+  { label: '1인당 10만원', desc: 'Phase 2 출시 예정',         icon: '💎', enabled: false },
+];
 
 export default function CreateChallenge() {
   const session = useSession();
+  const [step, setStep] = useState(1);
+
+  // 폼 state
   const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [duration, setDuration] = useState<number>(30);
-  const [kind, setKind] = useState<ChallengeKind>('closed');
+  const [categoryId, setCategoryId] = useState<number | null>(null);
+  const [subcategoryId, setSubcategoryId] = useState<number | null>(null);
+  const [durationDays, setDurationDays] = useState<number>(100);   // 기본 100일 (v4 추천)
+  const [frequency, setFrequency] = useState<CreateChallengeFrequency>('daily');
+  const [kind, setKind] = useState<ChallengeKind>('solo');
+  // proofType 은 'photo' 고정. bet 은 'none' 고정.
+
   const [submitting, setSubmitting] = useState(false);
 
-  const canSubmit = title.trim().length >= 2 && !submitting;
+  // 카테고리 트리 (1회 fetch + 캐시)
+  const [tree, setTree] = useState<{ categories: DbCategory[]; subcategories: DbSubcategory[] } | null>(null);
+  useEffect(() => {
+    fetchCategoryTree().then(setTree).catch(() => setTree({ categories: [], subcategories: [] }));
+  }, []);
 
-  const onSubmit = async () => {
+  const canGoNext = useMemo(() => {
+    if (submitting) return false;
+    if (step === 1) return title.trim().length >= 2;
+    if (step === 2) return categoryId != null;
+    if (step === 3) return durationDays > 0;
+    if (step === 4) return Boolean(frequency);
+    if (step === 5) return true;                     // 사진 자동 선택
+    if (step === 6) return Boolean(kind);
+    if (step === 7) return true;                     // 내기 없이 자동
+    return false;
+  }, [step, title, categoryId, durationDays, frequency, kind, submitting]);
+
+  const onPrev = () => {
+    haptic.tap();
+    if (step === 1) router.back();
+    else setStep(s => Math.max(1, s - 1));
+  };
+
+  const onNext = async () => {
+    if (!canGoNext) return;
+    if (step < TOTAL_STEPS) {
+      haptic.tap();
+      setStep(s => s + 1);
+      return;
+    }
+    // 마지막 → 만들기 실행
+    await submit();
+  };
+
+  const submit = useCallback(async () => {
     if (!session?.user) {
       Alert.alert('로그인 필요', '먼저 로그인해주세요.');
       return;
     }
     setSubmitting(true);
     try {
-      // 1) AI 콘텐츠 검수 — 비윤리/반국가/폭력/불법 차단 (기획서 4.6.3)
-      //    검수 우회 분기 만들지 말 것 (CLAUDE.md 절대 규칙 5).
+      // 1) AI 검수 (기존)
       const { data: mod, error: modErr } = await supabase.functions.invoke<{
-        verdict: 'allow' | 'block';
-        reason: string | null;
-        category: string | null;
-      }>('moderate-challenge', { body: { title, description } });
+        verdict: 'allow' | 'block'; reason: string | null; category: string | null;
+      }>('moderate-challenge', { body: { title, description: '' } });
       if (modErr) throw modErr;
       if (!mod || mod.verdict === 'block') {
         haptic.warning();
-        Alert.alert(
-          '챌린지 생성이 차단됐어요',
-          mod?.reason ?? '부적절한 내용이 포함되어 있어요.',
-        );
+        Alert.alert('챌린지 생성이 차단됐어요', mod?.reason ?? '부적절한 내용이 포함되어 있어요.');
         return;
       }
 
-      // 2) DB insert
+      // 2) DB insert (RPC)
       const challenge = await createChallenge({
         userId: session.user.id,
         title,
-        description,
-        durationDays: duration,
         kind,
+        durationDays,
+        categoryId,
+        subcategoryId,
+        frequency,
       });
       haptic.success();
-      // solo/open 챌린지는 카톡 초대 안내 X.  closed 만 fromCreate=1.
       const path = kind === 'closed'
         ? `/room/${challenge.id}?fromCreate=1`
         : `/room/${challenge.id}`;
@@ -75,7 +149,9 @@ export default function CreateChallenge() {
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [session, title, kind, durationDays, categoryId, subcategoryId, frequency]);
+
+  const stepMeta = STEP_META[step];
 
   return (
     <Screen backgroundColor={colors.background}>
@@ -84,277 +160,554 @@ export default function CreateChallenge() {
       {/* 헤더 */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Text style={styles.cancel}>취소</Text>
+          <Text style={styles.close}>✕</Text>
         </Pressable>
-        <Text style={styles.headerTitle}>새 챌린지</Text>
-        <View style={{ width: 40 }} />
+        <Text style={styles.counter}>{step} / {TOTAL_STEPS}</Text>
+        <View style={{ width: 24 }} />
+      </View>
+
+      {/* step dot bar */}
+      <View style={styles.dotBar}>
+        {Array.from({ length: TOTAL_STEPS }, (_, i) => (
+          <View
+            key={i}
+            style={[
+              styles.dot,
+              i + 1 < step  && styles.dotDone,
+              i + 1 === step && styles.dotActive,
+            ]}
+          />
+        ))}
       </View>
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
       >
         <ScrollView contentContainerStyle={styles.scroll}>
-          {/* 제목 */}
-          <Field label="챌린지 제목">
-            <TextInput
-              value={title}
-              onChangeText={setTitle}
-              placeholder="예: 매일 아침 6시 기상"
-              placeholderTextColor={colors.primary300}
-              style={styles.input}
-              maxLength={40}
-              returnKeyType="next"
+          <Text style={styles.stepLabel}>{stepMeta.label}</Text>
+          <Text style={styles.question}>{stepMeta.question}</Text>
+          <Text style={styles.hint}>{stepMeta.hint}</Text>
+
+          {/* 단계별 body */}
+          {step === 1 && (
+            <Step1Title title={title} setTitle={setTitle} />
+          )}
+          {step === 2 && (
+            <Step2Category
+              tree={tree}
+              categoryId={categoryId}
+              setCategoryId={(id) => { setCategoryId(id); setSubcategoryId(null); }}
+              subcategoryId={subcategoryId}
+              setSubcategoryId={setSubcategoryId}
             />
-            <Text style={styles.counter}>{title.length} / 40</Text>
-          </Field>
-
-          {/* 기간 */}
-          <Field label="기간">
-            <View style={styles.chipRow}>
-              {DURATIONS.map(d => (
-                <Pressable
-                  key={d.value}
-                  style={[
-                    styles.chip,
-                    duration === d.value && styles.chipActive,
-                  ]}
-                  onPress={() => setDuration(d.value)}
-                >
-                  <Text
-                    style={[
-                      styles.chipText,
-                      duration === d.value && styles.chipTextActive,
-                    ]}
-                  >
-                    {d.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </Field>
-
-          {/* 방 종류 — 순서: 혼자 / 동료들과 / 누구나 (비공개 → 공개 흐름) */}
-          <Field label="방 종류">
-            <View style={styles.kindRow}>
-              <Pressable
-                style={[styles.kindOpt, kind === 'solo' && styles.kindOptActive]}
-                onPress={() => setKind('solo')}
-              >
-                <Text style={styles.kindEmoji}>🧘</Text>
-                <Text style={[styles.kindTitle, kind === 'solo' && styles.kindTitleActive]}>
-                  혼자
-                </Text>
-                <Text style={styles.kindDesc}>나만의 다짐</Text>
-                <Text style={styles.kindHint}>둘러보기 미노출</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.kindOpt, kind === 'closed' && styles.kindOptActive]}
-                onPress={() => setKind('closed')}
-              >
-                <Text style={styles.kindEmoji}>🤝</Text>
-                <Text style={[styles.kindTitle, kind === 'closed' && styles.kindTitleActive]}>
-                  동료들과
-                </Text>
-                <Text style={styles.kindDesc}>초대한 사람만</Text>
-                <Text style={styles.kindHint}>둘러보기 미노출</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.kindOpt, kind === 'open' && styles.kindOptActive]}
-                onPress={() => setKind('open')}
-              >
-                <Text style={styles.kindEmoji}>🌍</Text>
-                <Text style={[styles.kindTitle, kind === 'open' && styles.kindTitleActive]}>
-                  누구나
-                </Text>
-                <Text style={styles.kindDesc}>둘러보기에 공개</Text>
-                <Text style={[styles.kindHint, styles.kindHintOpen]}>아무나 참여 가능</Text>
-              </Pressable>
-            </View>
-          </Field>
-
-          {/* 설명 (선택) */}
-          <Field label="설명 (선택)">
-            <TextInput
-              value={description}
-              onChangeText={setDescription}
-              placeholder="동료들에게 보여줄 한 문장"
-              placeholderTextColor={colors.primary300}
-              style={[styles.input, styles.inputMulti]}
-              maxLength={200}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
-            <Text style={styles.counter}>{description.length} / 200</Text>
-          </Field>
-
-          <View style={styles.note}>
-            <Text style={styles.noteText}>
-              만들면 카톡으로 공유할 초대 링크가 자동 생성돼요. 동료가 들어오면 함께 도전이 시작됩니다.
-            </Text>
-          </View>
+          )}
+          {step === 3 && (
+            <Step3Duration value={durationDays} setValue={setDurationDays} />
+          )}
+          {step === 4 && (
+            <Step4Frequency value={frequency} setValue={setFrequency} />
+          )}
+          {step === 5 && (
+            <Step5ProofType />
+          )}
+          {step === 6 && (
+            <Step6RoomType value={kind} setValue={setKind} />
+          )}
+          {step === 7 && (
+            <Step7Bet />
+          )}
         </ScrollView>
-      </KeyboardAvoidingView>
 
-      {/* 하단 액션 */}
-      <View style={styles.bottom}>
-        <Button
-          label={submitting ? '검수 중…' : '만들기'}
-          size="xl"
-          block
-          disabled={!canSubmit}
-          onPress={onSubmit}
-        />
-      </View>
+        {/* 하단 버튼 */}
+        <View style={styles.bottomBar}>
+          <Pressable
+            style={styles.prevBtn}
+            onPress={onPrev}
+            disabled={submitting}
+          >
+            <Text style={styles.prevText}>{step === 1 ? '취소' : '← 이전'}</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.nextBtn, !canGoNext && styles.nextBtnDisabled]}
+            onPress={onNext}
+            disabled={!canGoNext}
+          >
+            {submitting ? (
+              <ActivityIndicator color={colors.surface} />
+            ) : (
+              <Text style={styles.nextText}>
+                {step === TOTAL_STEPS ? '🎉 만들기' : '다음 →'}
+              </Text>
+            )}
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+// ─── 각 step 메타 ───
+const STEP_META: Record<number, { label: string; question: string; hint: string }> = {
+  1: { label: 'CHALLENGE TITLE', question: '어떤 도전을\n해보고 싶어요?', hint: '짧고 명확한 문장이 좋아요.' },
+  2: { label: 'CATEGORY',        question: '어떤 분야의\n도전인가요?',   hint: '대분류를 먼저 고르면 세부 분야가 나타나요.' },
+  3: { label: 'DURATION',        question: '얼마 동안\n도전할까요?',     hint: '길수록 어렵지만 박제 가치가 커져요.' },
+  4: { label: 'FREQUENCY',       question: '얼마나 자주\n인증할까요?',   hint: '인증 빈도가 챌린지 강도를 결정해요.' },
+  5: { label: 'PROOF TYPE',      question: '어떻게\n인증할까요?',        hint: '베타는 사진 인증만 가능해요.' },
+  6: { label: 'ROOM TYPE',       question: '누구와 함께\n도전할까요?',   hint: '방 타입에 따라 둘러보기 노출이 달라져요.' },
+  7: { label: 'BETTING',         question: '내기를\n걸어볼까요?',        hint: '내기는 Phase 2 에서 만나요.' },
+};
+
+// ─── Step 1: 제목 ───
+function Step1Title({ title, setTitle }: { title: string; setTitle: (s: string) => void }) {
   return (
-    <View style={{ gap: 8 }}>
-      <Text style={styles.label}>{label}</Text>
-      {children}
+    <View style={{ gap: 16 }}>
+      <TextInput
+        value={title}
+        onChangeText={setTitle}
+        placeholder="예: 100일 금연 챌린지"
+        placeholderTextColor={colors.primary300}
+        style={styles.bigInput}
+        maxLength={40}
+        returnKeyType="next"
+        autoFocus
+      />
+      <Text style={styles.counterSmall}>{title.length} / 40</Text>
+
+      <Text style={styles.subSectionTitle}>💡 인기 챌린지에서 골라보기</Text>
+      <View style={styles.chipWrap}>
+        {SUGGESTIONS.map(s => (
+          <Pressable key={s} style={styles.chip} onPress={() => setTitle(s)}>
+            <Text style={styles.chipText}>{s}</Text>
+          </Pressable>
+        ))}
+      </View>
     </View>
   );
 }
 
+// ─── Step 2: 카테고리 (10 + 소분류) ───
+function Step2Category({
+  tree, categoryId, setCategoryId, subcategoryId, setSubcategoryId,
+}: {
+  tree: { categories: DbCategory[]; subcategories: DbSubcategory[] } | null;
+  categoryId: number | null;
+  setCategoryId: (id: number) => void;
+  subcategoryId: number | null;
+  setSubcategoryId: (id: number | null) => void;
+}) {
+  if (!tree) {
+    return <ActivityIndicator color={colors.accent} style={{ marginTop: 24 }} />;
+  }
+  const selected = tree.categories.find(c => c.id === categoryId) ?? null;
+  const subs = selected
+    ? tree.subcategories.filter(s => s.category_id === selected.id)
+    : [];
+
+  if (selected) {
+    return (
+      <View style={{ gap: 12 }}>
+        <Pressable style={styles.subBackBtn} onPress={() => setCategoryId(0)}>
+          <Text style={styles.subBackText}>← 다시 선택</Text>
+        </Pressable>
+        <View style={[styles.catItem, styles.catItemActive, { alignSelf: 'flex-start' }]}>
+          <Text style={styles.catEmoji}>{selected.emoji}</Text>
+          <Text style={styles.catName}>{selected.name}</Text>
+        </View>
+        <Text style={styles.subSectionTitle}>세부 분야 (선택)</Text>
+        <View style={styles.subWrap}>
+          {subs.map(s => {
+            const active = subcategoryId === s.id;
+            return (
+              <Pressable
+                key={s.id}
+                style={[styles.subChip, active && styles.subChipActive]}
+                onPress={() => setSubcategoryId(active ? null : s.id)}
+              >
+                <Text style={[styles.subChipText, active && styles.subChipTextActive]}>{s.name}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.catGrid}>
+      {tree.categories.map(c => {
+        const active = categoryId === c.id;
+        return (
+          <Pressable
+            key={c.id}
+            style={[
+              styles.catItem,
+              c.is_impact && styles.catItemImpact,
+              active && styles.catItemActive,
+            ]}
+            onPress={() => { setCategoryId(c.id); }}
+          >
+            <Text style={styles.catEmoji}>{c.emoji}</Text>
+            <Text style={styles.catName}>{c.name}</Text>
+            {c.is_impact && <Text style={styles.catImpactTag}>세상에</Text>}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+// ─── Step 3: 기간 ───
+function Step3Duration({ value, setValue }: { value: number; setValue: (n: number) => void }) {
+  return (
+    <View style={{ gap: 12 }}>
+      {DURATIONS.map(d => {
+        const active = value === d.days;
+        return (
+          <Pressable
+            key={d.days}
+            style={[styles.option, active && styles.optionActive]}
+            onPress={() => setValue(d.days)}
+          >
+            <Text style={styles.optionIcon}>{d.icon}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.optionTitle, active && styles.optionTitleActive]}>{d.label}</Text>
+              <Text style={styles.optionDesc}>{d.desc}</Text>
+            </View>
+            {active && <Text style={styles.optionCheck}>✓</Text>}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+// ─── Step 4: 인증 빈도 ───
+function Step4Frequency({
+  value, setValue,
+}: { value: CreateChallengeFrequency; setValue: (v: CreateChallengeFrequency) => void }) {
+  return (
+    <View style={{ gap: 12 }}>
+      {FREQUENCIES.map(f => {
+        const active = value === f.value;
+        return (
+          <Pressable
+            key={f.value}
+            style={[styles.option, active && styles.optionActive]}
+            onPress={() => setValue(f.value)}
+          >
+            <Text style={styles.optionIcon}>{f.icon}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.optionTitle, active && styles.optionTitleActive]}>{f.label}</Text>
+              <Text style={styles.optionDesc}>{f.desc}</Text>
+            </View>
+            {active && <Text style={styles.optionCheck}>✓</Text>}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+// ─── Step 5: 인증 방식 (사진만 활성) ───
+function Step5ProofType() {
+  return (
+    <View style={{ gap: 12 }}>
+      {PROOF_TYPES.map(p => {
+        const active = p.value === 'photo';
+        return (
+          <View
+            key={p.value}
+            style={[
+              styles.option,
+              active && styles.optionActive,
+              !p.enabled && styles.optionDisabled,
+            ]}
+          >
+            <Text style={styles.optionIcon}>{p.icon}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.optionTitle, active && styles.optionTitleActive]}>{p.label}</Text>
+              <Text style={styles.optionDesc}>{p.desc}</Text>
+            </View>
+            {active && <Text style={styles.optionCheck}>✓</Text>}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+// ─── Step 6: 방 타입 ───
+function Step6RoomType({
+  value, setValue,
+}: { value: ChallengeKind; setValue: (v: ChallengeKind) => void }) {
+  return (
+    <View style={{ gap: 12 }}>
+      {ROOM_TYPES.map(r => {
+        const active = value === r.value;
+        return (
+          <Pressable
+            key={r.value}
+            style={[styles.option, active && styles.optionActive]}
+            onPress={() => setValue(r.value)}
+          >
+            <Text style={styles.optionIcon}>{r.icon}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.optionTitle, active && styles.optionTitleActive]}>{r.label}</Text>
+              <Text style={styles.optionDesc}>{r.desc}</Text>
+            </View>
+            {active && <Text style={styles.optionCheck}>✓</Text>}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+// ─── Step 7: 내기 (Phase 2 placeholder) ───
+function Step7Bet() {
+  return (
+    <View style={{ gap: 12 }}>
+      {BETS.map((b, idx) => {
+        const active = idx === 0;
+        return (
+          <View
+            key={b.label}
+            style={[
+              styles.option,
+              active && styles.optionActive,
+              !b.enabled && styles.optionDisabled,
+            ]}
+          >
+            <Text style={styles.optionIcon}>{b.icon}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.optionTitle, active && styles.optionTitleActive]}>{b.label}</Text>
+              <Text style={styles.optionDesc}>{b.desc}</Text>
+            </View>
+            {active && <Text style={styles.optionCheck}>✓</Text>}
+          </View>
+        );
+      })}
+      <Text style={styles.smallNote}>
+        * 내기 기능은 결제·정산 안정화 후 Phase 2 에서 열려요.
+      </Text>
+    </View>
+  );
+}
+
+// ─── 스타일 ───
 const styles = StyleSheet.create({
   header: {
-    height: 52,
+    height: 56,
     paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottomWidth: 1,
+  },
+  close: { fontSize: 20, color: colors.primary, paddingHorizontal: 4 },
+  counter: { fontSize: fontSize.sm, color: colors.primary500, fontFamily: fontFamily.medium },
+  dotBar: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    gap: 6,
+    marginBottom: 16,
+  },
+  dot: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.primary100,
+  },
+  dotDone: { backgroundColor: colors.accent700 },
+  dotActive: { backgroundColor: colors.accent },
+  scroll: { paddingHorizontal: 24, paddingBottom: 100 },
+  stepLabel: {
+    fontSize: fontSize.xs,
+    color: colors.accent700,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 1.5,
+    marginBottom: 8,
+  },
+  question: {
+    fontSize: fontSize['3xl'],
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    lineHeight: 36,
+    letterSpacing: -0.4,
+  },
+  hint: {
+    fontSize: fontSize.sm,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+    marginTop: 8,
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  bigInput: {
+    fontSize: fontSize.xl,
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    paddingVertical: 12,
+    borderBottomWidth: 2,
     borderBottomColor: colors.primary100,
   },
-  cancel: {
-    fontSize: fontSize.base,
-    color: colors.primary500,
-    fontFamily: fontFamily.medium,
-    width: 40,
-  },
-  headerTitle: {
-    fontSize: fontSize.lg,
-    color: colors.primary,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-  },
-  scroll: {
-    padding: 24,
-    gap: 28,
-  },
-  label: {
-    fontSize: fontSize.base,
-    color: colors.primary,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-  },
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.primary100,
-    borderRadius: radius.lg,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: fontSize.lg,
-    fontFamily: fontFamily.regular,
-    color: colors.primary,
-  },
-  inputMulti: {
-    minHeight: 100,
-  },
-  counter: {
+  counterSmall: {
     fontSize: fontSize.xs,
     color: colors.primary300,
-    fontFamily: fontFamily.regular,
     textAlign: 'right',
   },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+  subSectionTitle: {
+    fontSize: fontSize.sm,
+    color: colors.primary500,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.semibold,
+    marginTop: 8,
   },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: radius.pill,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.primary100,
   },
-  chipActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
   chipText: {
-    fontSize: fontSize.base,
-    color: colors.primary500,
-    fontFamily: fontFamily.medium,
-  },
-  chipTextActive: {
-    color: colors.surface,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-  },
-  note: {
-    padding: 14,
-    backgroundColor: colors.accent50,
-    borderRadius: radius.md,
-  },
-  noteText: {
     fontSize: fontSize.sm,
-    color: colors.accent700,
-    fontFamily: fontFamily.regular,
-    lineHeight: 20,
+    color: colors.primary,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
   },
-  bottom: {
-    padding: 24,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.primary100,
-    backgroundColor: colors.background,
-  },
-  kindRow: { flexDirection: 'row', gap: 12 },
-  kindOpt: {
-    flex: 1,
-    padding: 16,
+
+  // 카테고리 그리드 (2열)
+  catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 8 },
+  catItem: {
+    width: '47%',
+    paddingVertical: 20,
+    paddingHorizontal: 12,
     borderRadius: radius.lg,
     backgroundColor: colors.surface,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: colors.primary100,
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
-  kindOptActive: {
+  catItemActive: {
     borderColor: colors.accent,
     backgroundColor: colors.accent50,
   },
-  kindEmoji: { fontSize: 28, marginBottom: 4 },
-  kindTitle: {
+  catItemImpact: { borderColor: colors.success, backgroundColor: '#F0FDF4' },
+  catEmoji: { fontSize: 28 },
+  catName: {
     fontSize: fontSize.base,
     color: colors.primary,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },
-  kindTitleActive: { color: colors.accent700 },
-  kindDesc: {
+  catImpactTag: {
+    fontSize: 10,
+    color: colors.success,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    marginTop: 2,
+  },
+  subBackBtn: { alignSelf: 'flex-start', paddingVertical: 4 },
+  subBackText: { fontSize: fontSize.sm, color: colors.primary500, fontFamily: fontFamily.medium },
+  subWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  subChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.primary100,
+  },
+  subChipActive: { backgroundColor: colors.accent50, borderColor: colors.accent },
+  subChipText: { fontSize: fontSize.sm, color: colors.primary, fontFamily: fontFamily.medium },
+  subChipTextActive: { color: colors.accent700, fontWeight: fontWeight.bold },
+
+  // 옵션 카드 (기간/빈도/방식/방타입/내기 공용)
+  option: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.primary100,
+  },
+  optionActive: { borderColor: colors.accent, backgroundColor: colors.accent50 },
+  optionDisabled: { opacity: 0.5 },
+  optionIcon: { fontSize: 24 },
+  optionTitle: {
+    fontSize: fontSize.base,
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  optionTitleActive: { color: colors.accent700 },
+  optionDesc: {
     fontSize: fontSize.xs,
     color: colors.primary500,
     fontFamily: fontFamily.regular,
-  },
-  kindHint: {
-    fontSize: 10,
-    color: colors.primary300,
-    fontFamily: fontFamily.regular,
     marginTop: 2,
-    textAlign: 'center',
   },
-  kindHintOpen: {
-    color: colors.accent700,
-    fontFamily: fontFamily.medium,
-    fontWeight: fontWeight.medium,
+  optionCheck: {
+    fontSize: 18,
+    color: colors.accent,
+    fontWeight: fontWeight.bold,
+  },
+  smallNote: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+    textAlign: 'center',
+    marginTop: 16,
+    lineHeight: 18,
+  },
+
+  // 하단
+  bottomBar: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.primary100,
+    backgroundColor: colors.surface,
+    gap: 12,
+  },
+  prevBtn: {
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.primary100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  prevText: { fontSize: fontSize.base, color: colors.primary, fontFamily: fontFamily.medium },
+  nextBtn: {
+    flex: 1,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    backgroundColor: colors.accent,
+    borderRadius: radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nextBtnDisabled: { opacity: 0.5 },
+  nextText: {
+    fontSize: fontSize.base,
+    color: colors.surface,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
   },
 });
