@@ -15,11 +15,57 @@ if (!url || !anonKey) {
   );
 }
 
-// SecureStore 어댑터 — Supabase 세션을 device keychain 에 저장
+// SecureStore 청크 어댑터 — Keychain item 의 2KB 한도 우회
+// Supabase 세션(JWT + user_metadata)이 2KB 넘어서 SecureStore 저장 실패 → 다음 요청에
+// JWT 누락 → auth.uid() = null → RLS 위반. 1KB 단위로 쪼개 저장.
+const CHUNK = 1024;
+const META = '-chunks';
 const ExpoSecureStoreAdapter = {
-  getItem: (key: string) => SecureStore.getItemAsync(key),
-  setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
-  removeItem: (key: string) => SecureStore.deleteItemAsync(key),
+  async getItem(key: string) {
+    const meta = await SecureStore.getItemAsync(key + META);
+    if (!meta) return await SecureStore.getItemAsync(key);   // 청크 안 한 짧은 값 호환
+    const parts: string[] = [];
+    for (let i = 0; i < Number(meta); i++) {
+      const part = await SecureStore.getItemAsync(`${key}-${i}`);
+      if (part === null) return null;                          // 손상된 청크
+      parts.push(part);
+    }
+    return parts.join('');
+  },
+  async setItem(key: string, value: string) {
+    // 기존 청크/단일 값 모두 정리 후 새로 저장 (잔재 방지)
+    const oldMeta = await SecureStore.getItemAsync(key + META);
+    if (oldMeta) {
+      for (let i = 0; i < Number(oldMeta); i++) {
+        await SecureStore.deleteItemAsync(`${key}-${i}`);
+      }
+      await SecureStore.deleteItemAsync(key + META);
+    }
+    await SecureStore.deleteItemAsync(key);
+
+    if (value.length <= CHUNK) {
+      await SecureStore.setItemAsync(key, value);
+      return;
+    }
+    const chunks = Math.ceil(value.length / CHUNK);
+    for (let i = 0; i < chunks; i++) {
+      await SecureStore.setItemAsync(
+        `${key}-${i}`,
+        value.slice(i * CHUNK, (i + 1) * CHUNK),
+      );
+    }
+    await SecureStore.setItemAsync(key + META, String(chunks));
+  },
+  async removeItem(key: string) {
+    const meta = await SecureStore.getItemAsync(key + META);
+    if (meta) {
+      for (let i = 0; i < Number(meta); i++) {
+        await SecureStore.deleteItemAsync(`${key}-${i}`);
+      }
+      await SecureStore.deleteItemAsync(key + META);
+    }
+    await SecureStore.deleteItemAsync(key);
+  },
 };
 
 export const supabase = createClient(
