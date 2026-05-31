@@ -53,9 +53,8 @@ export default function RootLayout() {
           <Stack.Screen name="login" />
           <Stack.Screen name="welcome" />
 
-          {/* 메인 */}
-          <Stack.Screen name="home" />
-          <Stack.Screen name="discover" options={{ animation: 'slide_from_right' }} />
+          {/* 메인 — 5탭 bottom navigation */}
+          <Stack.Screen name="(tabs)" />
 
           {/* 모달 / 동적 라우트 */}
           <Stack.Screen name="create" options={{ presentation: 'modal' }} />

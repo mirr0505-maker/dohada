@@ -6,6 +6,47 @@ import type {
   CommentWithAuthor,
 } from './types';
 
+// ─── 동료들의 최근 인증 (홈 cross-section) ───────────────────────────────
+// 내가 참여 중인 모든 챌린지의 최근 인증 (본인 제외).
+// RLS 가 알아서 멤버인 챌린지로 한정. open 챌린지 인증은 비멤버도 볼 수 있지만
+// 여기선 user_id != me 만 적용 → 결과는 "내가 멤버인 챌린지의 동료 N명 인증".
+export type FellowProof = {
+  id: string;
+  photo_url: string;
+  caption: string | null;
+  created_at: string;
+  challenge_id: string;
+  challenge_title: string;
+  user_id: string;
+  nickname: string;
+  avatar_url: string | null;
+};
+
+export async function fetchFellowProofs(myUserId: string, limit = 10): Promise<FellowProof[]> {
+  const { data, error } = await supabase
+    .from('proofs')
+    .select(`
+      id, photo_url, caption, created_at, challenge_id, user_id,
+      users (nickname, avatar_url),
+      challenges (title)
+    `)
+    .neq('user_id', myUserId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []).map((p: any) => ({
+    id: p.id,
+    photo_url: p.photo_url,
+    caption: p.caption,
+    created_at: p.created_at,
+    challenge_id: p.challenge_id,
+    challenge_title: p.challenges?.title ?? '',
+    user_id: p.user_id,
+    nickname: p.users?.nickname ?? '',
+    avatar_url: p.users?.avatar_url ?? null,
+  }));
+}
+
 // ─── 내 챌린지 목록 (홈) ───────────────────────────────
 // RLS 가 멤버인 챌린지만 보여줌. challenge_members(count) 로 멤버 수 같이.
 export async function fetchMyChallenges(): Promise<ChallengeWithCount[]> {

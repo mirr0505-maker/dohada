@@ -134,9 +134,20 @@ export default function CreateChallenge() {
             </View>
           </Field>
 
-          {/* 방 종류 */}
+          {/* 방 종류 — 순서: 혼자 / 동료들과 / 누구나 (비공개 → 공개 흐름) */}
           <Field label="방 종류">
             <View style={styles.kindRow}>
+              <Pressable
+                style={[styles.kindOpt, kind === 'solo' && styles.kindOptActive]}
+                onPress={() => setKind('solo')}
+              >
+                <Text style={styles.kindEmoji}>🧘</Text>
+                <Text style={[styles.kindTitle, kind === 'solo' && styles.kindTitleActive]}>
+                  혼자
+                </Text>
+                <Text style={styles.kindDesc}>나만의 다짐</Text>
+                <Text style={styles.kindHint}>둘러보기 미노출</Text>
+              </Pressable>
               <Pressable
                 style={[styles.kindOpt, kind === 'closed' && styles.kindOptActive]}
                 onPress={() => setKind('closed')}
@@ -146,6 +157,7 @@ export default function CreateChallenge() {
                   동료들과
                 </Text>
                 <Text style={styles.kindDesc}>초대한 사람만</Text>
+                <Text style={styles.kindHint}>둘러보기 미노출</Text>
               </Pressable>
               <Pressable
                 style={[styles.kindOpt, kind === 'open' && styles.kindOptActive]}
@@ -156,16 +168,7 @@ export default function CreateChallenge() {
                   누구나
                 </Text>
                 <Text style={styles.kindDesc}>둘러보기에 공개</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.kindOpt, kind === 'solo' && styles.kindOptActive]}
-                onPress={() => setKind('solo')}
-              >
-                <Text style={styles.kindEmoji}>🧘</Text>
-                <Text style={[styles.kindTitle, kind === 'solo' && styles.kindTitleActive]}>
-                  혼자
-                </Text>
-                <Text style={styles.kindDesc}>나만의 다짐</Text>
+                <Text style={[styles.kindHint, styles.kindHintOpen]}>아무나 참여 가능</Text>
               </Pressable>
             </View>
           </Field>
@@ -341,5 +344,17 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     color: colors.primary500,
     fontFamily: fontFamily.regular,
+  },
+  kindHint: {
+    fontSize: 10,
+    color: colors.primary300,
+    fontFamily: fontFamily.regular,
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  kindHintOpen: {
+    color: colors.accent700,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
   },
 });

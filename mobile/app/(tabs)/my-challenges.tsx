@@ -1,45 +1,45 @@
-// 🚀 둘러보기 — 공개(open) 챌린지 목록
-// home 의 "둘러보기" 진입점 → 공개 챌린지 카드 리스트 → 탭하면 room 으로 (비멤버 상태)
-import React, { useCallback, useEffect, useState } from 'react';
+// 🚀 내 챌린지 — 참여 중인 모든 챌린지를 순수 목록으로 (동료 섹션 X)
+// 홈과 달리 챌린지 관리 중심. 진행률 + D-N 만 빠르게 훑기.
+import React, { useCallback, useState } from 'react';
 import {
-  View, Text, Pressable, FlatList, StyleSheet,
-  RefreshControl,
+  View, Text, Pressable, FlatList, StyleSheet, RefreshControl,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Screen } from '@/components/Screen';
-import { ChallengeCardSkeleton } from '@/components/Skeleton';
-import { ErrorState } from '@/components/ErrorState';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
-import { fetchOpenChallenges } from '@/lib/db';
+import { fetchMyChallenges } from '@/lib/db';
+import { ErrorState } from '@/components/ErrorState';
+import { ChallengeCardSkeleton } from '@/components/Skeleton';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import type { ChallengeWithCount } from '@/lib/types';
 
-export default function DiscoverScreen() {
+export default function MyChallengesScreen() {
   const session = useSession();
-  const [items, setItems] = useState<ChallengeWithCount[]>([]);
+  const [challenges, setChallenges] = useState<ChallengeWithCount[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (session === null) router.replace('/login');
   }, [session]);
 
   const load = useCallback(async () => {
+    if (!session) return;
     try {
       setError(null);
-      const data = await fetchOpenChallenges();
-      setItems(data);
+      const data = await fetchMyChallenges();
+      setChallenges(data);
     } catch (e: any) {
-      reportError(e, { where: 'discover/fetchOpenChallenges' });
-      setError(e?.message ?? '둘러보기를 불러오지 못했어요.');
+      reportError(e, { where: 'my-challenges/fetch' });
+      setError(e?.message ?? '챌린지 목록을 불러오지 못했어요.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [session]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -51,11 +51,7 @@ export default function DiscoverScreen() {
   return (
     <Screen backgroundColor={colors.background}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Text style={styles.back}>←</Text>
-        </Pressable>
-        <Text style={styles.title}>둘러보기</Text>
-        <View style={{ width: 32 }} />
+        <Text style={styles.title}>내 챌린지</Text>
       </View>
 
       {loading ? (
@@ -68,22 +64,18 @@ export default function DiscoverScreen() {
         <ErrorState message={error} onRetry={() => { setLoading(true); load(); }} />
       ) : (
         <FlatList
-          data={items}
+          data={challenges}
           keyExtractor={c => c.id}
           contentContainerStyle={styles.list}
           refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={colors.accent}
-            />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
           }
-          renderItem={({ item }) => <OpenCard challenge={item} />}
+          renderItem={({ item }) => <Card challenge={item} />}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>🌍</Text>
+              <Text style={styles.emptyEmoji}>🌱</Text>
               <Text style={styles.emptyText}>
-                아직 공개 챌린지가 없어요.{'\n'}첫 공개 챌린지를 만들어볼까요?
+                참여 중인 챌린지가 없어요.{'\n'}하단 + 로 첫 챌린지를 만들어볼까요?
               </Text>
             </View>
           }
@@ -93,7 +85,8 @@ export default function DiscoverScreen() {
   );
 }
 
-function OpenCard({ challenge }: { challenge: ChallengeWithCount }) {
+function Card({ challenge }: { challenge: ChallengeWithCount }) {
+  const { daysLeft, progress, dayN, totalDays } = computeProgress(challenge.start_date, challenge.end_date);
   return (
     <Pressable
       style={styles.card}
@@ -105,49 +98,46 @@ function OpenCard({ challenge }: { challenge: ChallengeWithCount }) {
       <View style={styles.cardHeader}>
         <Text style={styles.cardTitle} numberOfLines={1}>{challenge.title}</Text>
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>🌍 공개</Text>
+          <Text style={styles.badgeText}>D-{daysLeft}</Text>
         </View>
       </View>
-      {challenge.description ? (
-        <Text style={styles.cardDesc} numberOfLines={2}>{challenge.description}</Text>
-      ) : null}
-      <View style={styles.cardFooter}>
-        <Text style={styles.cardMeta}>👥 {challenge.member_count}명</Text>
-        <Text style={styles.cardMeta}>
-          {challenge.start_date.slice(5)} ~ {challenge.end_date.slice(5)}
-        </Text>
+      <Text style={styles.cardMeta}>
+        👥 {challenge.member_count}명 · {dayN}/{totalDays}일
+      </Text>
+      <View style={styles.progressTrack}>
+        <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
       </View>
     </Pressable>
   );
 }
 
+function computeProgress(start: string, end: string) {
+  const startDate = new Date(start + 'T00:00:00');
+  const endDate = new Date(end + 'T23:59:59');
+  const now = new Date();
+  const totalDays = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / 86_400_000) + 1);
+  const elapsed = Math.max(0, Math.round((now.getTime() - startDate.getTime()) / 86_400_000));
+  const dayN = Math.min(totalDays, elapsed + 1);
+  const progress = Math.min(1, Math.max(0, elapsed / totalDays));
+  const daysLeft = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / 86_400_000));
+  return { daysLeft, progress, dayN, totalDays };
+}
+
 const styles = StyleSheet.create({
   header: {
-    height: 56,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.primary100,
-    backgroundColor: colors.surface,
-  },
-  back: {
-    fontSize: 24,
-    color: colors.primary,
-    paddingHorizontal: 8,
-    fontWeight: fontWeight.medium,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
   },
   title: {
-    fontSize: fontSize.lg,
+    fontSize: fontSize['2xl'],
     color: colors.primary,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
+    letterSpacing: -0.4,
   },
   list: {
     paddingHorizontal: 24,
-    paddingVertical: 16,
-    paddingBottom: 80,
+    paddingBottom: 24,
     gap: 12,
     flexGrow: 1,
   },
@@ -183,21 +173,21 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },
-  cardDesc: {
-    fontSize: fontSize.sm,
-    color: colors.primary500,
-    fontFamily: fontFamily.regular,
-    lineHeight: 18,
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 4,
-  },
   cardMeta: {
     fontSize: fontSize.xs,
     color: colors.primary500,
     fontFamily: fontFamily.regular,
+  },
+  progressTrack: {
+    height: 6,
+    backgroundColor: colors.primary100,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: 6,
+    backgroundColor: colors.accent,
+    borderRadius: 3,
   },
   empty: {
     flex: 1,
