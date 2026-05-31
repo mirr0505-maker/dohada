@@ -16,6 +16,8 @@ import { ProofCardSkeleton } from '@/components/Skeleton';
 import { CommentsSheet } from '@/components/CommentsSheet';
 import { ChatTab } from '@/components/challenge/ChatTab';
 import { LogTab } from '@/components/challenge/LogTab';
+import { StatusTab } from '@/components/challenge/StatusTab';
+import { ArchiveTab } from '@/components/challenge/ArchiveTab';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import { computeProgress, computeStreak, isCompleted } from '@/lib/stats';
@@ -538,17 +540,19 @@ export default function ChallengeRoom() {
         />
       )}
       {activeTab === 'status' && (
-        <TabPlaceholder
-          emoji="📊"
-          title="현황은 곧 열려요"
-          desc={'멤버별 연속 인증·인증률을\n한눈에 보여주는 페이지가 곧 추가돼요.'}
+        <StatusTab
+          challenge={challenge}
+          members={members}
+          proofs={proofs}
+          myUserId={myUserId}
         />
       )}
       {activeTab === 'archive' && (
-        <TabPlaceholder
-          emoji="🏆"
-          title="박제는 챌린지 종료 후"
-          desc={`${challenge.title} 이(가) 끝나면\n여기에 모든 추억이 박제됩니다.`}
+        <ArchiveTab
+          challenge={challenge}
+          proofs={proofs}
+          totalCheers={totalCheers}
+          totalLogs={totalLogs}
         />
       )}
 
