@@ -29,16 +29,15 @@ export function StatusTab({ challenge, members, proofs, myUserId }: Props) {
     });
   }, [members, proofs, progress.passedDays]);
 
-  // 인증률 내림차순 + 본인은 항상 맨 위
+  // 시간의 흐름 정렬 — 가입 순 (members 가 이미 joined_at asc).
+  // 본인만 맨 위로 옮김. 인증률 desc 정렬 X (비교 압박 회피, v3.5 조용한 SNS).
   const sorted = useMemo(() => {
-    const arr = [...rows];
-    arr.sort((a, b) => b.rate - a.rate);
-    const me = arr.find(r => r.member.id === myUserId);
+    const me = rows.find(r => r.member.id === myUserId);
     if (me) {
-      const rest = arr.filter(r => r.member.id !== myUserId);
+      const rest = rows.filter(r => r.member.id !== myUserId);
       return [me, ...rest];
     }
-    return arr;
+    return rows;
   }, [rows, myUserId]);
 
   return (
@@ -99,8 +98,7 @@ function StatusCard({
           )}
         </View>
         <Text style={styles.subtext}>
-          {uniqDays}/{totalDays}일
-          {isMine && !todayChecked ? '  · 오늘 인증 전 ⚠️' : ''}
+          {uniqDays}/{totalDays}일{isMine && !todayChecked ? '  · 오늘 인증 전 ⚠️' : ''}
         </Text>
         <View style={styles.track}>
           <View
@@ -111,8 +109,6 @@ function StatusCard({
           />
         </View>
       </View>
-
-      <Text style={[styles.rateNum, isMine && styles.rateNumMine]}>{rate}%</Text>
     </View>
   );
 }

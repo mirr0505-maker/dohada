@@ -73,6 +73,7 @@ export type ChallengeWithCount = DbChallenge & {
 export type MemberWithToday = DbUser & {
   today_checked: boolean;
   paused_until: string | null;
+  joined_at: string;     // 정렬용 — '시간의 흐름' (비교 압박 회피)
 };
 
 export type ProofWithRelations = DbProof & {

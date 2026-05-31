@@ -324,8 +324,9 @@ export async function fetchRoomData(challengeId: string, myUserId: string) {
     supabase.from('challenges').select('*').eq('id', challengeId).single(),
     supabase
       .from('challenge_members')
-      .select('paused_until, users(*)')
-      .eq('challenge_id', challengeId),
+      .select('paused_until, joined_at, users(*)')
+      .eq('challenge_id', challengeId)
+      .order('joined_at', { ascending: true }),
     supabase
       .from('proofs')
       .select('*, users:user_id(*), cheers(user_id, cheer_type), comments(count)')
@@ -345,6 +346,7 @@ export async function fetchRoomData(challengeId: string, myUserId: string) {
     .map((m: any) => ({
       ...m.users,
       paused_until: m.paused_until ?? null,
+      joined_at: m.joined_at,
       today_checked: proofsRaw.some(
         (p: any) => p.user_id === m.users.id && (p.created_at as string).startsWith(today),
       ),
