@@ -40,6 +40,7 @@ const ROOM_TABS: { key: RoomTab; emoji: string; label: string }[] = [
 // 방 종류 메타 라벨 — 분류 용어 X, 사람 단위 톤
 function roomKindLabel(kind: ChallengeKind, memberCount: number): string {
   if (kind === 'solo') return '혼자만의 다짐';
+  if (kind === 'cheered') return `응원받는 도전 · 함께 ${memberCount}명`;
   if (kind === 'open') return `누구나 합류 가능 · 함께 ${memberCount}명`;
   return `함께 도전하는 ${memberCount}명`;
 }
@@ -260,6 +261,9 @@ export default function ChallengeRoom() {
   );
   const isMember = Boolean(me);
   const todayChecked = me?.today_checked ?? false;
+  const isCreator = challenge?.creator_id === myUserId;
+  // cheered 방은 creator 만 인증/기록 가능, 나머지 멤버는 응원만
+  const isCheeredCheerOnly = challenge?.kind === 'cheered' && isMember && !isCreator;
   const [joining, setJoining] = useState(false);
 
   // 비멤버가 공개 챌린지에서 "참여하기" 누름 → DB insert → 다시 load
@@ -387,7 +391,7 @@ export default function ChallengeRoom() {
           <Text style={styles.title} numberOfLines={1}>{challenge.title}</Text>
           <Text style={styles.subtitle}>{roomKindLabel(challenge.kind, members.length)}</Text>
         </View>
-        {challenge.kind === 'closed' ? (
+        {challenge.kind === 'closed' || challenge.kind === 'cheered' ? (
           <Pressable onPress={onShareInvite} hitSlop={12}>
             <Text style={styles.share}>초대</Text>
           </Pressable>
@@ -538,6 +542,7 @@ export default function ChallengeRoom() {
           challengeStartDate={challenge.start_date}
           myUserId={myUserId}
           isMember={isMember}
+          canCreate={isMember && !isCheeredCheerOnly}
         />
       )}
       {activeTab === 'status' && (
@@ -561,11 +566,17 @@ export default function ChallengeRoom() {
         style={[
           styles.fab,
           !isMember && styles.fabJoin,
-          isMember && todayChecked && styles.fabDone,
+          isMember && isCheeredCheerOnly && styles.fabCheer,
+          isMember && !isCheeredCheerOnly && todayChecked && styles.fabDone,
           isMember && isPaused && styles.fabPaused,
         ]}
         onPress={() => {
           if (!isMember) { onJoin(); return; }
+          if (isCheeredCheerOnly) {
+            haptic.tap();
+            setActiveTab('chat');
+            return;
+          }
           if (isPaused) {
             Alert.alert('잠시 멈춤 중', `${me?.paused_until} 까지 인증 의무가 면제예요.`);
             return;
@@ -581,11 +592,13 @@ export default function ChallengeRoom() {
         <Text style={styles.fabLabel}>
           {!isMember
             ? (joining ? '참여 중…' : '🌍 이 챌린지에 참여하기')
-            : isPaused
-              ? '⏸ 잠시 멈춤 중'
-              : todayChecked
-                ? '✓ 오늘 인증 완료 · 내일 또 만나요'
-                : '📸 오늘 인증하기'}
+            : isCheeredCheerOnly
+              ? '💛 응원으로 함께해요'
+              : isPaused
+                ? '⏸ 잠시 멈춤 중'
+                : todayChecked
+                  ? '✓ 오늘 인증 완료 · 내일 또 만나요'
+                  : '📸 오늘 인증하기'}
         </Text>
       </Pressable>
 
@@ -1087,6 +1100,7 @@ const styles = StyleSheet.create({
   fabDone: { backgroundColor: colors.success },
   fabPaused: { backgroundColor: colors.primary500 },
   fabJoin: { backgroundColor: colors.info },
+  fabCheer: { backgroundColor: colors.accent700 },     // 응원받기 방의 응원자용 (도전자 아닌 사람)
   fabLabel: {
     color: colors.surface,
     fontSize: fontSize.lg,

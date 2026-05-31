@@ -18,9 +18,10 @@ type Props = {
   challengeStartDate: string;        // YYYY-MM-DD
   myUserId: string | undefined;
   isMember: boolean;
+  canCreate: boolean;                // cheered 방은 creator 만 기록 가능
 };
 
-export function LogTab({ challengeId, challengeStartDate, myUserId, isMember }: Props) {
+export function LogTab({ challengeId, challengeStartDate, myUserId, isMember, canCreate }: Props) {
   const [logs, setLogs] = useState<LogWithAuthor[]>([]);
   const [loading, setLoading] = useState(true);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -114,8 +115,8 @@ export function LogTab({ challengeId, challengeStartDate, myUserId, isMember }: 
 
   return (
     <View style={styles.wrap}>
-      {/* 새 기록 작성 버튼 */}
-      {isMember && (
+      {/* 새 기록 작성 버튼 — 응원받기 방은 도전자만 */}
+      {canCreate && (
         <View style={{ padding: 16, paddingBottom: 0 }}>
           <Pressable style={styles.newBtn} onPress={() => { haptic.tap(); setComposerOpen(true); }}>
             <Text style={styles.newBtnEmoji}>📝</Text>

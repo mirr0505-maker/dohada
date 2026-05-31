@@ -49,9 +49,10 @@ const PROOF_TYPES = [
 ];
 
 const ROOM_TYPES: { value: ChallengeKind; label: string; desc: string; icon: string }[] = [
-  { value: 'solo',   label: '혼자 (비공개)',     desc: '나만의 다짐 · 둘러보기 미노출', icon: '🤫' },
-  { value: 'closed', label: '동료들과 (폐쇄형)', desc: '초대한 사람만 · 둘러보기 미노출', icon: '🔒' },
-  { value: 'open',   label: '누구나 (개방형)',   desc: '둘러보기 공개 · 누구나 참여',     icon: '🌍' },
+  { value: 'solo',    label: '혼자만의 다짐',  desc: '나만 보는 조용한 기록',              icon: '🤫' },
+  { value: 'cheered', label: '응원받기',       desc: '나 혼자 도전, 지인들이 응원해줘요',   icon: '🙋' },
+  { value: 'closed',  label: '함께 도전하기',  desc: '초대한 사람들이 같이 도전',            icon: '🤝' },
+  { value: 'open',    label: '누구나 합류',    desc: '둘러보기 공개 · 아무나 참여',          icon: '🌍' },
 ];
 
 const BETS = [
@@ -140,7 +141,9 @@ export default function CreateChallenge() {
         frequency,
       });
       haptic.success();
-      const path = kind === 'closed'
+      // 응원자를 초대해야 의미 있는 방 = closed (함께 도전) + cheered (응원받기)
+      const needsInvitation = kind === 'closed' || kind === 'cheered';
+      const path = needsInvitation
         ? `/room/${challenge.id}?fromCreate=1`
         : `/room/${challenge.id}`;
       router.replace(path as any);

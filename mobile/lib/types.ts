@@ -9,7 +9,12 @@ export type DbUser = {
   created_at: string;
 };
 
-export type ChallengeKind = 'closed' | 'solo' | 'open';
+// 챌린지 방 4종
+//   solo    — 비공개, 본인만
+//   cheered — 본인 1명 도전 + 초대된 지인 N명 응원 (둘러보기 X)
+//   closed  — 멤버 다수 함께 도전 (둘러보기 X)
+//   open    — 누구나 합류, 둘러보기 공개
+export type ChallengeKind = 'closed' | 'solo' | 'open' | 'cheered';
 
 export type DbChallenge = {
   id: string;
