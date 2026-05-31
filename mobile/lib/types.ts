@@ -31,10 +31,25 @@ export type DbProof = {
   created_at: string;
 };
 
+// 인증 응원 4가지 (0007 cheers.cheer_type 컬럼)
+export type CheerType = 'fire' | 'clap' | 'muscle' | 'heart';
+
 export type DbCheer = {
   id: string;
   proof_id: string;
   user_id: string;
+  cheer_type: CheerType;
+  created_at: string;
+};
+
+// 챌린지 평가 4가지 (둘러보기 카드 — challenge_votes.vote_type)
+export type ChallengeVoteType = 'creative' | 'hard' | 'touching' | 'fresh';
+
+export type DbChallengeVote = {
+  id: string;
+  challenge_id: string;
+  user_id: string;
+  vote_type: ChallengeVoteType;
   created_at: string;
 };
 
@@ -62,7 +77,13 @@ export type MemberWithToday = DbUser & {
 
 export type ProofWithRelations = DbProof & {
   author: DbUser;
-  cheer_count: number;
-  cheered_by_me: boolean;
+  // 4가지 응원 카운트 (0007). 기존 cheer_count 호환을 위해 합도 같이 노출.
+  cheer_count: number;                                  // 모든 type 합
+  cheered_by_me: boolean;                               // 1개 이상 응원했나
+  cheers_by_type: Record<CheerType, number>;            // type 별 카운트
+  my_cheers: CheerType[];                               // 내가 누른 type 들
   comment_count: number;
 };
+
+// 챌린지 평가 4가지 — 둘러보기 카드용 카운트
+export type ChallengeVoteCounts = Record<ChallengeVoteType, number>;

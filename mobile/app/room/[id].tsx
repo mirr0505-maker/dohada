@@ -9,6 +9,7 @@ import { Screen } from '@/components/Screen';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import { fetchRoomData, toggleCheer, pauseMembership, resumeMembership } from '@/lib/db';
+import type { CheerType } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 import { ErrorState } from '@/components/ErrorState';
 import { ProofCardSkeleton } from '@/components/Skeleton';
@@ -80,32 +81,42 @@ export default function ChallengeRoom() {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'cheers' },
         (payload) => {
-          const c = payload.new as { proof_id: string; user_id: string };
-          setProofs(prev => prev.map(p =>
-            p.id === c.proof_id
-              ? {
-                  ...p,
-                  cheer_count: p.cheer_count + 1,
-                  cheered_by_me: p.cheered_by_me || c.user_id === myUserId,
-                }
-              : p,
-          ));
+          const c = payload.new as { proof_id: string; user_id: string; cheer_type: CheerType };
+          const t = (c.cheer_type ?? 'heart') as CheerType;
+          setProofs(prev => prev.map(p => {
+            if (p.id !== c.proof_id) return p;
+            const counts = { ...p.cheers_by_type, [t]: (p.cheers_by_type[t] ?? 0) + 1 };
+            const my = c.user_id === myUserId && !p.my_cheers.includes(t)
+              ? [...p.my_cheers, t]
+              : p.my_cheers;
+            return {
+              ...p,
+              cheer_count: p.cheer_count + 1,
+              cheered_by_me: p.cheered_by_me || c.user_id === myUserId,
+              cheers_by_type: counts,
+              my_cheers: my,
+            };
+          }));
         },
       )
       .on(
         'postgres_changes',
         { event: 'DELETE', schema: 'public', table: 'cheers' },
         (payload) => {
-          const c = payload.old as { proof_id: string; user_id: string };
-          setProofs(prev => prev.map(p =>
-            p.id === c.proof_id
-              ? {
-                  ...p,
-                  cheer_count: Math.max(0, p.cheer_count - 1),
-                  cheered_by_me: c.user_id === myUserId ? false : p.cheered_by_me,
-                }
-              : p,
-          ));
+          const c = payload.old as { proof_id: string; user_id: string; cheer_type: CheerType };
+          const t = (c.cheer_type ?? 'heart') as CheerType;
+          setProofs(prev => prev.map(p => {
+            if (p.id !== c.proof_id) return p;
+            const counts = { ...p.cheers_by_type, [t]: Math.max(0, (p.cheers_by_type[t] ?? 0) - 1) };
+            const my = c.user_id === myUserId ? p.my_cheers.filter(x => x !== t) : p.my_cheers;
+            return {
+              ...p,
+              cheer_count: Math.max(0, p.cheer_count - 1),
+              cheered_by_me: c.user_id === myUserId ? my.length > 0 : p.cheered_by_me,
+              cheers_by_type: counts,
+              my_cheers: my,
+            };
+          }));
         },
       )
       .on(
@@ -139,35 +150,50 @@ export default function ChallengeRoom() {
     return () => { supabase.removeChannel(channel); };
   }, [id, myUserId, load]);
 
-  const onCheer = useCallback(async (proofId: string) => {
+  const onCheer = useCallback(async (proofId: string, cheerType: CheerType) => {
     if (!myUserId) return;
     const target = proofs.find(p => p.id === proofId);
     if (!target) return;
+    const currentlyCheered = target.my_cheers.includes(cheerType);
 
     haptic.tap();
 
     // 낙관적 업데이트
-    setProofs(prev => prev.map(p =>
-      p.id === proofId
-        ? {
-            ...p,
-            cheered_by_me: !p.cheered_by_me,
-            cheer_count: p.cheer_count + (p.cheered_by_me ? -1 : 1),
-          }
-        : p,
-    ));
+    setProofs(prev => prev.map(p => {
+      if (p.id !== proofId) return p;
+      const has = p.my_cheers.includes(cheerType);
+      const my = has ? p.my_cheers.filter(t => t !== cheerType) : [...p.my_cheers, cheerType];
+      const delta = has ? -1 : 1;
+      return {
+        ...p,
+        my_cheers: my,
+        cheered_by_me: my.length > 0,
+        cheer_count: Math.max(0, p.cheer_count + delta),
+        cheers_by_type: {
+          ...p.cheers_by_type,
+          [cheerType]: Math.max(0, (p.cheers_by_type[cheerType] ?? 0) + delta),
+        },
+      };
+    }));
 
     try {
       await toggleCheer({
         proofId,
         userId: myUserId,
-        currentlyCheered: target.cheered_by_me,
+        cheerType,
+        currentlyCheered,
       });
     } catch (e: any) {
       // 실패 → 롤백
       setProofs(prev => prev.map(p =>
         p.id === proofId
-          ? { ...p, cheered_by_me: target.cheered_by_me, cheer_count: target.cheer_count }
+          ? {
+              ...p,
+              my_cheers: target.my_cheers,
+              cheered_by_me: target.cheered_by_me,
+              cheer_count: target.cheer_count,
+              cheers_by_type: target.cheers_by_type,
+            }
           : p,
       ));
       Alert.alert('응원 실패', e?.message ?? String(e));
@@ -406,7 +432,7 @@ export default function ChallengeRoom() {
         renderItem={({ item }) => (
           <ProofCard
             proof={item}
-            onCheer={() => onCheer(item.id)}
+            onCheer={(type) => onCheer(item.id, type)}
             onComments={() => { haptic.tap(); setActiveProofId(item.id); }}
           />
         )}
@@ -468,11 +494,18 @@ export default function ChallengeRoom() {
   );
 }
 
+const CHEER_OPTIONS: { type: CheerType; emoji: string }[] = [
+  { type: 'fire',   emoji: '🔥' },
+  { type: 'clap',   emoji: '👏' },
+  { type: 'muscle', emoji: '💪' },
+  { type: 'heart',  emoji: '❤️' },
+];
+
 function ProofCard({
   proof, onCheer, onComments,
 }: {
   proof: ProofWithRelations;
-  onCheer: () => void;
+  onCheer: (type: CheerType) => void;
   onComments: () => void;
 }) {
   return (
@@ -497,18 +530,40 @@ function ProofCard({
         <Text style={styles.proofCaption}>{proof.caption}</Text>
       ) : null}
 
-      <View style={styles.proofFooter}>
-        <Pressable style={styles.cheerBtn} onPress={onCheer} hitSlop={6}>
-          <Text style={[styles.cheerIcon, proof.cheered_by_me && styles.cheerIconOn]}>❤</Text>
-          <Text style={[styles.cheerCount, proof.cheered_by_me && styles.cheerCountOn]}>
-            {proof.cheer_count}
-          </Text>
-        </Pressable>
-        <Pressable style={styles.cheerBtn} onPress={onComments} hitSlop={6}>
-          <Text style={styles.cheerIcon}>💬</Text>
-          <Text style={styles.cheerCount}>{proof.comment_count}</Text>
+      {/* 4가지 응원 chips — type 별 독립 카운트 */}
+      <View style={styles.cheerRow}>
+        {CHEER_OPTIONS.map(({ type, emoji }) => {
+          const count = proof.cheers_by_type[type] ?? 0;
+          const active = proof.my_cheers.includes(type);
+          return (
+            <Pressable
+              key={type}
+              style={[styles.cheerChip, active && styles.cheerChipActive]}
+              onPress={() => onCheer(type)}
+              hitSlop={4}
+            >
+              <Text style={styles.cheerChipEmoji}>{emoji}</Text>
+              {count > 0 ? (
+                <Text style={[styles.cheerChipCount, active && styles.cheerChipCountActive]}>
+                  {count}
+                </Text>
+              ) : null}
+            </Pressable>
+          );
+        })}
+        <Pressable
+          style={styles.giftBtn}
+          onPress={() => Alert.alert('선물', '🎁 선물 응원은 Phase 2 에서 만나요.')}
+          hitSlop={4}
+        >
+          <Text style={styles.giftBtnText}>🎁 선물</Text>
         </Pressable>
       </View>
+
+      <Pressable style={styles.commentRow} onPress={onComments} hitSlop={6}>
+        <Text style={styles.cheerIcon}>💬</Text>
+        <Text style={styles.cheerCount}>댓글 {proof.comment_count}</Text>
+      </Pressable>
     </View>
   );
 }
@@ -685,6 +740,66 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.medium,
   },
   cheerCountOn: { color: colors.danger, fontWeight: fontWeight.bold },
+
+  // 4가지 응원 chips + 선물 + 댓글 (v2)
+  cheerRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+    paddingTop: 8,
+    paddingHorizontal: 2,
+  },
+  cheerChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary50,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    minWidth: 44,
+    justifyContent: 'center',
+  },
+  cheerChipActive: {
+    backgroundColor: colors.accent50,
+    borderColor: colors.accent,
+  },
+  cheerChipEmoji: { fontSize: 16 },
+  cheerChipCount: {
+    fontSize: fontSize.sm,
+    color: colors.primary500,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
+  },
+  cheerChipCountActive: {
+    color: colors.accent700,
+    fontWeight: fontWeight.bold,
+  },
+  giftBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    backgroundColor: colors.accent50,
+    marginLeft: 4,
+  },
+  giftBtnText: {
+    fontSize: fontSize.sm,
+    color: colors.accent700,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.semibold,
+  },
+  commentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingTop: 12,
+    paddingHorizontal: 2,
+  },
 
   empty: { paddingVertical: 80, alignItems: 'center', gap: 16 },
   emptyEmoji: { fontSize: 64 },

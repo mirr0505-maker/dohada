@@ -3,7 +3,7 @@
 import { supabase } from './supabase';
 import type {
   ChallengeWithCount, ChallengeKind, MemberWithToday, ProofWithRelations, DbChallenge,
-  CommentWithAuthor,
+  CommentWithAuthor, CheerType,
 } from './types';
 
 // ─── 동료들의 최근 인증 (홈 cross-section) ───────────────────────────────
@@ -105,7 +105,7 @@ export async function fetchRoomData(challengeId: string, myUserId: string) {
       .eq('challenge_id', challengeId),
     supabase
       .from('proofs')
-      .select('*, users:user_id(*), cheers(user_id), comments(count)')
+      .select('*, users:user_id(*), cheers(user_id, cheer_type), comments(count)')
       .eq('challenge_id', challengeId)
       .order('created_at', { ascending: false }),
   ]);
@@ -127,18 +127,30 @@ export async function fetchRoomData(challengeId: string, myUserId: string) {
       ),
     }));
 
-  const proofs: ProofWithRelations[] = proofsRaw.map((p: any) => ({
-    id: p.id,
-    challenge_id: p.challenge_id,
-    user_id: p.user_id,
-    photo_url: p.photo_url,
-    caption: p.caption,
-    created_at: p.created_at,
-    author: p.users,
-    cheer_count: p.cheers?.length ?? 0,
-    cheered_by_me: p.cheers?.some((c: any) => c.user_id === myUserId) ?? false,
-    comment_count: p.comments?.[0]?.count ?? 0,
-  }));
+  const proofs: ProofWithRelations[] = proofsRaw.map((p: any) => {
+    const cheers: { user_id: string; cheer_type: CheerType }[] = p.cheers ?? [];
+    const cheersByType: Record<CheerType, number> = { fire: 0, clap: 0, muscle: 0, heart: 0 };
+    const myCheers: CheerType[] = [];
+    for (const c of cheers) {
+      const t = (c.cheer_type ?? 'heart') as CheerType;
+      cheersByType[t] = (cheersByType[t] ?? 0) + 1;
+      if (c.user_id === myUserId) myCheers.push(t);
+    }
+    return {
+      id: p.id,
+      challenge_id: p.challenge_id,
+      user_id: p.user_id,
+      photo_url: p.photo_url,
+      caption: p.caption,
+      created_at: p.created_at,
+      author: p.users,
+      cheer_count: cheers.length,
+      cheered_by_me: myCheers.length > 0,
+      cheers_by_type: cheersByType,
+      my_cheers: myCheers,
+      comment_count: p.comments?.[0]?.count ?? 0,
+    };
+  });
 
   return { challenge: resChallenge.data as DbChallenge, members, proofs };
 }
@@ -246,23 +258,25 @@ export async function deleteComment(commentId: string): Promise<void> {
   if (error) throw error;
 }
 
-// ─── 응원 토글 (room 의 ❤) ─────────────────────────────
-// cheers 테이블의 unique(proof_id, user_id) 제약 활용.
+// ─── 응원 토글 (room 의 4가지 응원) ─────────────────────
+// 0007 부터 cheers 의 unique 가 (proof_id, user_id, cheer_type) → type 별 독립 토글.
+// 같은 인증에 동일 type 의 응원이 이미 있으면 DELETE, 없으면 INSERT.
 export async function toggleCheer(args: {
   proofId: string;
   userId: string;
+  cheerType: CheerType;
   currentlyCheered: boolean;
 }): Promise<void> {
   if (args.currentlyCheered) {
     const { error } = await supabase
       .from('cheers')
       .delete()
-      .match({ proof_id: args.proofId, user_id: args.userId });
+      .match({ proof_id: args.proofId, user_id: args.userId, cheer_type: args.cheerType });
     if (error) throw error;
   } else {
     const { error } = await supabase
       .from('cheers')
-      .insert({ proof_id: args.proofId, user_id: args.userId });
+      .insert({ proof_id: args.proofId, user_id: args.userId, cheer_type: args.cheerType });
     if (error) throw error;
   }
 }
