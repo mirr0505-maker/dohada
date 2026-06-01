@@ -175,7 +175,7 @@
     border-radius: 16px;
     padding: 20px 22px;
     display: grid;
-    grid-template-columns: 28px 1fr;
+    grid-template-columns: 28px minmax(0, 1fr);
     gap: 16px;
     align-items: start;
   }
@@ -275,13 +275,15 @@
   }
   .promise-row {
     display: grid;
-    grid-template-columns: 24px 1fr;
+    grid-template-columns: 24px minmax(0, 1fr);
     gap: 10px;
     align-items: start;
     font-size: 14.5px;
     color: var(--primary);
     margin-bottom: 8px;
     line-height: 1.6;
+    word-break: keep-all;
+    overflow-wrap: break-word;
   }
   .promise-row.bad { color: var(--primary-500); }
   .promise-row .icon {
@@ -323,12 +325,14 @@
   }
   .promise-list .item {
     display: grid;
-    grid-template-columns: 20px 1fr;
+    grid-template-columns: 20px minmax(0, 1fr);
     gap: 12px;
     align-items: center;
     font-size: 15px;
     color: var(--primary);
     padding: 6px 0;
+    word-break: keep-all;
+    overflow-wrap: break-word;
   }
   .promise-list .item .check {
     color: var(--accent);
