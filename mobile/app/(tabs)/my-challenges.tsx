@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Screen } from '@/components/Screen';
+import { AppHeader } from '@/components/AppHeader';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import { fetchMyChallenges } from '@/lib/db';
@@ -30,7 +31,7 @@ export default function MyChallengesScreen() {
     if (!session) return;
     try {
       setError(null);
-      const data = await fetchMyChallenges();
+      const data = await fetchMyChallenges(session.user.id);
       setChallenges(data);
     } catch (e: any) {
       reportError(e, { where: 'my-challenges/fetch' });
@@ -50,8 +51,9 @@ export default function MyChallengesScreen() {
 
   return (
     <Screen backgroundColor={colors.background}>
-      <View style={styles.header}>
-        <Text style={styles.title}>내 챌린지</Text>
+      <AppHeader />
+      <View style={styles.subHeader}>
+        <Text style={styles.subTitle}>내 챌린지</Text>
       </View>
 
       {loading ? (
@@ -124,16 +126,17 @@ function computeProgress(start: string, end: string) {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
+  subHeader: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
-  title: {
-    fontSize: fontSize['2xl'],
+  subTitle: {
+    fontSize: fontSize.lg,
     color: colors.primary,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
-    letterSpacing: -0.4,
+    letterSpacing: -0.2,
   },
   list: {
     paddingHorizontal: 24,

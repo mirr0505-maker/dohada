@@ -6,25 +6,35 @@ import {
   View, Text, TextInput, Pressable, StyleSheet, FlatList, Modal,
   KeyboardAvoidingView, Platform, Alert, Image,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '@/lib/supabase';
 import {
-  fetchLogs, createLog, toggleLogLike, type LogWithAuthor,
+  fetchLogs, createLog, updateLog, deleteLog, toggleLogLike, type LogWithAuthor,
 } from '@/lib/db';
+import { uploadProofImage } from '@/lib/upload';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { haptic } from '@/lib/haptics';
+import { LogCommentsSheet } from './LogCommentsSheet';
 
 type Props = {
   challengeId: string;
   challengeStartDate: string;        // YYYY-MM-DD
   myUserId: string | undefined;
   isMember: boolean;
-  canCreate: boolean;                // cheered 방은 creator 만 기록 가능
+  canComment: boolean;               // solo 방은 false — 기록 댓글 숨김
+  composerOpen: boolean;             // 기록 모달 — 부모(room) FAB 가 트리거
+  onComposerClose: () => void;
 };
 
-export function LogTab({ challengeId, challengeStartDate, myUserId, isMember, canCreate }: Props) {
+export function LogTab({
+  challengeId, challengeStartDate, myUserId, isMember, canComment,
+  composerOpen, onComposerClose,
+}: Props) {
   const [logs, setLogs] = useState<LogWithAuthor[]>([]);
   const [loading, setLoading] = useState(true);
-  const [composerOpen, setComposerOpen] = useState(false);
+  const [activeLogId, setActiveLogId] = useState<string | null>(null);   // 댓글 시트 대상
+  const [editingLog, setEditingLog] = useState<LogWithAuthor | null>(null);   // 본인 글 수정 (v2.2)
 
   const load = useCallback(async () => {
     if (!challengeId || !myUserId) return;
@@ -115,16 +125,6 @@ export function LogTab({ challengeId, challengeStartDate, myUserId, isMember, ca
 
   return (
     <View style={styles.wrap}>
-      {/* 새 기록 작성 버튼 — 응원받기 방은 도전자만 */}
-      {canCreate && (
-        <View style={{ padding: 16, paddingBottom: 0 }}>
-          <Pressable style={styles.newBtn} onPress={() => { haptic.tap(); setComposerOpen(true); }}>
-            <Text style={styles.newBtnEmoji}>📝</Text>
-            <Text style={styles.newBtnText}>인상깊은 순간을 기록해요</Text>
-          </Pressable>
-        </View>
-      )}
-
       <FlatList
         data={logs}
         keyExtractor={l => l.id}
@@ -133,7 +133,29 @@ export function LogTab({ challengeId, challengeStartDate, myUserId, isMember, ca
           <LogCard
             log={item}
             startDate={challengeStartDate}
+            canComment={canComment}
+            isMine={item.user_id === myUserId}
             onLike={() => onLike(item.id)}
+            onComment={() => { haptic.tap(); setActiveLogId(item.id); }}
+            onEdit={() => { haptic.tap(); setEditingLog(item); }}
+            onDelete={() => {
+              Alert.alert('기록 삭제', '이 기록을 삭제할까요?\n좋아요·댓글도 같이 사라져요.', [
+                { text: '취소', style: 'cancel' },
+                {
+                  text: '삭제',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      await deleteLog(item.id);
+                      haptic.warning();
+                      setLogs(prev => prev.filter(l => l.id !== item.id));
+                    } catch (e: any) {
+                      Alert.alert('삭제 실패', e?.message ?? String(e));
+                    }
+                  },
+                },
+              ]);
+            }}
           />
         )}
         ListEmptyComponent={
@@ -153,11 +175,25 @@ export function LogTab({ challengeId, challengeStartDate, myUserId, isMember, ca
       />
 
       <LogComposer
-        visible={composerOpen}
-        onClose={() => setComposerOpen(false)}
+        visible={composerOpen || !!editingLog}
+        onClose={() => { setEditingLog(null); onComposerClose(); }}
         challengeId={challengeId}
         myUserId={myUserId}
-        onCreated={() => { setComposerOpen(false); load(); }}
+        editingLog={editingLog}
+        onCreated={() => { setEditingLog(null); onComposerClose(); load(); }}
+      />
+
+      <LogCommentsSheet
+        logId={activeLogId}
+        myUserId={myUserId}
+        onClose={() => setActiveLogId(null)}
+        onCountChange={(lid, delta) => {
+          setLogs(prev => prev.map(x =>
+            x.id === lid
+              ? { ...x, comment_count: Math.max(0, x.comment_count + delta) }
+              : x,
+          ));
+        }}
       />
     </View>
   );
@@ -165,15 +201,32 @@ export function LogTab({ challengeId, challengeStartDate, myUserId, isMember, ca
 
 // ─── 기록 카드 ──────────────────────────
 function LogCard({
-  log, startDate, onLike,
+  log, startDate, canComment, isMine, onLike, onComment, onEdit, onDelete,
 }: {
   log: LogWithAuthor;
   startDate: string;
+  canComment: boolean;
+  isMine: boolean;
   onLike: () => void;
+  onComment: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const dayN = computeDayN(startDate, log.created_at);
+  const onLongPress = () => {
+    if (!isMine) return;
+    Alert.alert(
+      '이 기록',
+      '',
+      [
+        { text: '수정', onPress: onEdit },
+        { text: '삭제', style: 'destructive', onPress: onDelete },
+        { text: '취소', style: 'cancel' },
+      ],
+    );
+  };
   return (
-    <View style={styles.card}>
+    <Pressable style={styles.card} onLongPress={onLongPress} delayLongPress={400}>
       <View style={styles.cardHeader}>
         {log.author.avatar_url ? (
           <Image source={{ uri: log.author.avatar_url }} style={styles.avatar} />
@@ -183,8 +236,12 @@ function LogCard({
           </View>
         )}
         <View style={{ flex: 1 }}>
-          <Text style={styles.authorName} numberOfLines={1}>{log.author.nickname || '동료'}</Text>
-          <Text style={styles.authorMeta}>{dayN}일째 · {formatRel(log.created_at)}</Text>
+          <Text style={styles.authorName} numberOfLines={1}>
+            {log.author.nickname || '동료'}{isMine ? ' (나)' : ''}
+          </Text>
+          <Text style={styles.authorMeta}>
+            {dayN}일째 · {formatRel(log.created_at)}{isMine ? ' · 길게 눌러 수정/삭제' : ''}
+          </Text>
         </View>
       </View>
 
@@ -204,32 +261,84 @@ function LogCard({
             {log.like_count}
           </Text>
         </Pressable>
+        {canComment && (
+          <Pressable style={styles.likeBtn} onPress={onComment} hitSlop={6}>
+            <Text style={styles.likeIcon}>💬</Text>
+            <Text style={styles.likeCount}>{log.comment_count}</Text>
+          </Pressable>
+        )}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
 // ─── 작성 모달 ──────────────────────────
 function LogComposer({
-  visible, onClose, challengeId, myUserId, onCreated,
+  visible, onClose, challengeId, myUserId, editingLog, onCreated,
 }: {
   visible: boolean;
   onClose: () => void;
   challengeId: string;
   myUserId: string | undefined;
+  editingLog: LogWithAuthor | null;       // 있으면 수정 모드 (v2.2)
   onCreated: () => void;
 }) {
+  const insets = useSafeAreaInsets();         // status bar 와 겹침 방지
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [photoUri, setPhotoUri] = useState<string | null>(null);   // 선택 이미지 (v2.2)
   const [saving, setSaving] = useState(false);
 
-  const reset = () => { setTitle(''); setContent(''); };
+  const reset = () => { setTitle(''); setContent(''); setPhotoUri(null); };
+
+  // 수정 모드 진입 시 기존 값 채우기
+  useEffect(() => {
+    if (editingLog) {
+      setTitle(editingLog.title);
+      setContent(editingLog.content);
+      setPhotoUri(editingLog.photo_url);
+    } else if (visible) {
+      reset();
+    }
+  }, [editingLog?.id, visible]);
+
+  const onPickPhoto = async () => {
+    haptic.tap();
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (perm.status === 'denied') {
+        Alert.alert(
+          '보관함 접근 권한이 필요해요',
+          '설정 → Do:하다 → 사진 에서 켜주세요.',
+        );
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.85,
+        exif: false,
+      });
+      if (result.canceled) return;
+      const uri = result.assets?.[0]?.uri;
+      if (uri) setPhotoUri(uri);
+    } catch (e: any) {
+      Alert.alert('사진 선택 실패', e?.message ?? String(e));
+    }
+  };
 
   const onSave = async () => {
     if (!myUserId || saving) return;
     setSaving(true);
     try {
-      await createLog({ challengeId, userId: myUserId, title, content });
+      // photoUri 가 이미 http(s) URL 이면 기존 사진 그대로, 아니면 R2 업로드
+      const photoUrl = photoUri
+        ? (photoUri.startsWith('http') ? photoUri : await uploadProofImage(photoUri, 'jpg'))
+        : null;
+      if (editingLog) {
+        await updateLog({ logId: editingLog.id, title, content, photoUrl });
+      } else {
+        await createLog({ challengeId, userId: myUserId, title, content, photoUrl });
+      }
       haptic.success();
       reset();
       onCreated();
@@ -246,11 +355,11 @@ function LogComposer({
         style={{ flex: 1, backgroundColor: colors.background }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.modalHeader}>
+        <View style={[styles.modalHeader, { paddingTop: insets.top + 12 }]}>
           <Pressable onPress={() => { reset(); onClose(); }} hitSlop={12}>
             <Text style={styles.modalCancel}>취소</Text>
           </Pressable>
-          <Text style={styles.modalTitle}>새 기록</Text>
+          <Text style={styles.modalTitle}>{editingLog ? '기록 수정' : '새 기록'}</Text>
           <Pressable
             onPress={onSave}
             disabled={!title.trim() || !content.trim() || saving}
@@ -275,6 +384,25 @@ function LogComposer({
             maxLength={80}
             editable={!saving}
           />
+
+          {photoUri ? (
+            <View style={styles.photoBox}>
+              <Image source={{ uri: photoUri }} style={styles.photoPreview} resizeMode="cover" />
+              <Pressable
+                style={styles.photoRemove}
+                onPress={() => setPhotoUri(null)}
+                disabled={saving}
+                hitSlop={8}
+              >
+                <Text style={styles.photoRemoveText}>✕</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable style={styles.photoAddBtn} onPress={onPickPhoto} disabled={saving}>
+              <Text style={styles.photoAddText}>📷 사진 추가 (선택)</Text>
+            </Pressable>
+          )}
+
           <TextInput
             value={content}
             onChangeText={setContent}
@@ -313,24 +441,6 @@ function formatRel(iso: string): string {
 const styles = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.background },
   list: { padding: 16, gap: 12, flexGrow: 1, paddingBottom: 80 },
-  newBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.primary100,
-  },
-  newBtnEmoji: { fontSize: 18 },
-  newBtnText: {
-    fontSize: fontSize.base,
-    color: colors.primary,
-    fontFamily: fontFamily.medium,
-    fontWeight: fontWeight.medium,
-  },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
@@ -397,8 +507,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    height: 56,
+    minHeight: 56,
     paddingHorizontal: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.primary100,
     backgroundColor: colors.surface,
@@ -440,5 +551,50 @@ const styles = StyleSheet.create({
     color: colors.primary300,
     textAlign: 'right',
     paddingBottom: 16,
+  },
+  photoAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.primary100,
+    borderStyle: 'dashed',
+  },
+  photoAddText: {
+    fontSize: fontSize.sm,
+    color: colors.primary500,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
+  },
+  photoBox: {
+    marginTop: 12,
+    position: 'relative',
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+  },
+  photoPreview: {
+    width: '100%',
+    aspectRatio: 16 / 10,
+    backgroundColor: colors.primary100,
+  },
+  photoRemove: {
+    position: 'absolute',
+    top: 8, right: 8,
+    width: 28, height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoRemoveText: {
+    color: colors.surface,
+    fontSize: 14,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
   },
 });

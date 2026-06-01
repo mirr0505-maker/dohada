@@ -11,7 +11,8 @@ import { Screen } from '@/components/Screen';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import {
-  createChallenge, fetchCategoryTree, type CreateChallengeFrequency,
+  createChallenge, fetchCategoryTree,
+  type CreateChallengeFrequency, type CreateChallengeProofType,
   type DbCategory, type DbSubcategory,
 } from '@/lib/db';
 import { haptic } from '@/lib/haptics';
@@ -43,9 +44,9 @@ const FREQUENCIES: { value: CreateChallengeFrequency; label: string; desc: strin
 ];
 
 const PROOF_TYPES = [
-  { value: 'photo',      label: '사진 인증',    desc: '카메라로 직접 촬영', icon: '📸', enabled: true },
-  { value: 'gps',        label: 'GPS 위치 인증', desc: 'Phase 2 출시 예정', icon: '📍', enabled: false },
-  { value: 'screenshot', label: '앱 스크린샷',  desc: 'Phase 2 출시 예정', icon: '📱', enabled: false },
+  { value: 'photo',      label: '사진 인증',     desc: '카메라로 직접 촬영',             icon: '📸', enabled: true },
+  { value: 'screenshot', label: '앱 스크린샷',   desc: '운동·걷기 앱 기록 화면 (보관함)', icon: '🖼️', enabled: true },
+  { value: 'gps',        label: 'GPS 위치 인증', desc: 'Phase 2 출시 예정',               icon: '📍', enabled: false },
 ];
 
 const ROOM_TYPES: { value: ChallengeKind; label: string; desc: string; icon: string }[] = [
@@ -72,8 +73,9 @@ export default function CreateChallenge() {
   const [subcategoryId, setSubcategoryId] = useState<number | null>(null);
   const [durationDays, setDurationDays] = useState<number>(100);   // 기본 100일 (v4 추천)
   const [frequency, setFrequency] = useState<CreateChallengeFrequency>('daily');
+  const [proofType, setProofType] = useState<CreateChallengeProofType>('photo');   // v2.2
   const [kind, setKind] = useState<ChallengeKind>('solo');
-  // proofType 은 'photo' 고정. bet 은 'none' 고정.
+  // bet 은 'none' 고정.
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -133,6 +135,7 @@ export default function CreateChallenge() {
       // 2) DB insert (RPC)
       const challenge = await createChallenge({
         userId: session.user.id,
+        proofType,
         title,
         kind,
         durationDays,
@@ -152,7 +155,7 @@ export default function CreateChallenge() {
     } finally {
       setSubmitting(false);
     }
-  }, [session, title, kind, durationDays, categoryId, subcategoryId, frequency]);
+  }, [session, title, kind, durationDays, categoryId, subcategoryId, frequency, proofType]);
 
   const stepMeta = STEP_META[step];
 
@@ -213,7 +216,7 @@ export default function CreateChallenge() {
             <Step4Frequency value={frequency} setValue={setFrequency} />
           )}
           {step === 5 && (
-            <Step5ProofType />
+            <Step5ProofType value={proofType} setValue={setProofType} />
           )}
           {step === 6 && (
             <Step6RoomType value={kind} setValue={setKind} />
@@ -257,7 +260,7 @@ const STEP_META: Record<number, { label: string; question: string; hint: string 
   2: { label: 'CATEGORY',        question: '어떤 분야의\n도전인가요?',   hint: '대분류를 먼저 고르면 세부 분야가 나타나요.' },
   3: { label: 'DURATION',        question: '얼마 동안\n도전할까요?',     hint: '길수록 어렵지만 박제 가치가 커져요.' },
   4: { label: 'FREQUENCY',       question: '얼마나 자주\n인증할까요?',   hint: '인증 빈도가 챌린지 강도를 결정해요.' },
-  5: { label: 'PROOF TYPE',      question: '어떻게\n인증할까요?',        hint: '베타는 사진 인증만 가능해요.' },
+  5: { label: 'PROOF TYPE',      question: '어떻게\n인증할까요?',        hint: '사진 인증과 앱 스크린샷 둘 다 가능해요.' },
   6: { label: 'ROOM TYPE',       question: '누구와 함께\n도전할까요?',   hint: '방 타입에 따라 둘러보기 노출이 달라져요.' },
   7: { label: 'BETTING',         question: '내기를\n걸어볼까요?',        hint: '내기는 Phase 2 에서 만나요.' },
 };
@@ -413,19 +416,24 @@ function Step4Frequency({
   );
 }
 
-// ─── Step 5: 인증 방식 (사진만 활성) ───
-function Step5ProofType() {
+// ─── Step 5: 인증 방식 (사진 / 앱 스크린샷 / GPS 비활성) ───
+function Step5ProofType({
+  value, setValue,
+}: { value: CreateChallengeProofType; setValue: (v: CreateChallengeProofType) => void }) {
   return (
     <View style={{ gap: 12 }}>
       {PROOF_TYPES.map(p => {
-        const active = p.value === 'photo';
+        const active = p.value === value;
+        const disabled = !p.enabled;
         return (
-          <View
+          <Pressable
             key={p.value}
+            disabled={disabled}
+            onPress={() => setValue(p.value as CreateChallengeProofType)}
             style={[
               styles.option,
               active && styles.optionActive,
-              !p.enabled && styles.optionDisabled,
+              disabled && styles.optionDisabled,
             ]}
           >
             <Text style={styles.optionIcon}>{p.icon}</Text>
@@ -434,7 +442,7 @@ function Step5ProofType() {
               <Text style={styles.optionDesc}>{p.desc}</Text>
             </View>
             {active && <Text style={styles.optionCheck}>✓</Text>}
-          </View>
+          </Pressable>
         );
       })}
     </View>

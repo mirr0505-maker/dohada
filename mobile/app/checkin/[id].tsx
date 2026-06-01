@@ -1,18 +1,21 @@
-// 🚀 사진 인증 — expo-camera 로 직접 촬영 (MVP_SCOPE: 갤러리 X)
-// 흐름: 권한 요청 → 카메라 → 셔터 → 미리보기 + 캡션 → R2 업로드 + proofs insert
-import React, { useRef, useState } from 'react';
+// 🚀 사진 인증 — 카메라 + 보관함 스크린샷 (v2.2)
+// 운동·등산·사이클·걷기 앱의 자체 기록 화면 스샷을 인증으로 활용 (페르소나 직답).
+// 흐름: 카메라 셔터 OR 보관함 선택 → 미리보기 + 캡션 → R2 업로드 + proofs insert
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, Pressable, TextInput, StyleSheet, Alert, Image,
   ActivityIndicator,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { uploadProofImage } from '@/lib/upload';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { haptic } from '@/lib/haptics';
+import type { ChallengeKind } from '@/lib/types';
 
 export default function CheckinScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -22,6 +25,17 @@ export default function CheckinScreen() {
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [pickerBusy, setPickerBusy] = useState(false);   // ImagePicker 호출 동안 CameraView unmount (native UI 충돌 방지)
+  const [challengeKind, setChallengeKind] = useState<ChallengeKind | null>(null);   // 인증 완료 메시지 분류별 분기
+
+  // 진입 시 challenge.kind 한 번 fetch — 분류별 톤
+  useEffect(() => {
+    if (!id || !isSupabaseConfigured) return;
+    supabase.from('challenges').select('kind').eq('id', id).single()
+      .then(({ data }) => {
+        if (data?.kind) setChallengeKind(data.kind as ChallengeKind);
+      });
+  }, [id]);
 
   const onCapture = async () => {
     if (!cameraRef.current) return;
@@ -37,6 +51,44 @@ export default function CheckinScreen() {
   const onRetake = () => {
     setPhotoUri(null);
     setCaption('');
+  };
+
+  // 보관함에서 스크린샷 선택 (v2.2 — 운동/걷기 앱 기록 화면 활용)
+  // CameraView 가 떠있으면 PHPicker 와 native UI 충돌해서 picker 가 즉시 닫힘 → CameraView 잠시 unmount.
+  const onPickFromLibrary = async () => {
+    haptic.tap();
+    setPickerBusy(true);
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (perm.status === 'denied') {
+        Alert.alert('보관함 접근 권한이 필요해요', '설정 → Do:하다 → 사진 에서 켜주세요.');
+        return;
+      }
+      // CameraView unmount 가 commit 될 시간 한 박자
+      await new Promise(r => setTimeout(r, 80));
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],   // v18 호환 — MediaTypeOptions 는 deprecated
+        quality: 0.85,
+        exif: false,
+      });
+      console.log('[checkin/picker]', JSON.stringify({
+        canceled: result.canceled,
+        count: result.assets?.length ?? 0,
+        uri: result.assets?.[0]?.uri?.slice(0, 60),
+      }));
+      if (result.canceled) return;
+      const uri = result.assets?.[0]?.uri;
+      if (uri) {
+        console.log('[checkin/setPhotoUri] calling with', uri.slice(0, 80));
+        setPhotoUri(uri);
+      } else {
+        Alert.alert('사진을 못 가져왔어요', '다시 시도해주세요.');
+      }
+    } catch (e: any) {
+      Alert.alert('사진 선택 실패', e?.message ?? String(e));
+    } finally {
+      setPickerBusy(false);
+    }
   };
 
   const onSubmit = async () => {
@@ -60,7 +112,7 @@ export default function CheckinScreen() {
       }
 
       haptic.success();
-      Alert.alert('인증 완료!', '동료들이 응원하러 올 거예요. 💛', [
+      Alert.alert('인증 완료!', kindCompleteMessage(challengeKind), [
         { text: '확인', onPress: () => router.back() },
       ]);
     } catch (e: any) {
@@ -88,16 +140,19 @@ export default function CheckinScreen() {
           <Pressable onPress={() => router.back()} hitSlop={12}>
             <Text style={styles.close}>✕</Text>
           </Pressable>
-          <Text style={styles.title}>카메라 권한 필요</Text>
+          <Text style={styles.title}>오늘 인증</Text>
           <View style={{ width: 32 }} />
         </View>
         <View style={styles.permWrap}>
           <Text style={styles.permEmoji}>📷</Text>
-          <Text style={styles.permTitle}>카메라로 직접 촬영해야 인증돼요</Text>
+          <Text style={styles.permTitle}>카메라로 인증하면 가장 빨라요</Text>
           <Text style={styles.permDesc}>
-            갤러리 업로드는 어뷰징 방지를 위해 막혀 있어요.
+            운동·걷기 앱 기록 화면 스샷도 인증으로 OK.{'\n'}시간 표시가 보이는 스샷이면 좋아요.
           </Text>
           <Button label="카메라 권한 허용" size="lg" onPress={requestPermission} />
+          <Pressable style={styles.libBtnAlt} onPress={onPickFromLibrary}>
+            <Text style={styles.libBtnAltText}>🖼️ 보관함에서 선택 (앱 스샷)</Text>
+          </Pressable>
         </View>
       </Screen>
     );
@@ -116,7 +171,15 @@ export default function CheckinScreen() {
 
       <View style={styles.viewfinder}>
         {photoUri ? (
-          <Image source={{ uri: photoUri }} style={styles.preview} resizeMode="cover" />
+          <Image
+            source={{ uri: photoUri }}
+            style={styles.preview}
+            resizeMode="cover"
+            onLoad={() => console.log('[checkin/Image] loaded', photoUri.slice(0, 60))}
+            onError={e => console.log('[checkin/Image] error', e.nativeEvent?.error ?? 'unknown')}
+          />
+        ) : pickerBusy ? (
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0A0A0A' }]} />
         ) : (
           <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" />
         )}
@@ -148,18 +211,33 @@ export default function CheckinScreen() {
             />
             <Pressable style={styles.retake} onPress={onRetake} disabled={submitting}>
               <Text style={[styles.retakeText, submitting && { opacity: 0.4 }]}>
-                다시 찍기
+                다시 선택
               </Text>
             </Pressable>
           </View>
         ) : (
-          <Pressable style={styles.shutter} onPress={onCapture}>
-            <View style={styles.shutterInner} />
-          </Pressable>
+          <View style={{ alignItems: 'center', gap: 12 }}>
+            <Pressable style={styles.shutter} onPress={onCapture}>
+              <View style={styles.shutterInner} />
+            </Pressable>
+            <Pressable style={styles.libBtn} onPress={onPickFromLibrary}>
+              <Text style={styles.libBtnText}>🖼️ 보관함 (앱 스샷)</Text>
+            </Pressable>
+            <Text style={styles.libHint}>
+              운동·걷기 앱 기록 화면 — 시간 표시 보이게
+            </Text>
+          </View>
         )}
       </View>
     </Screen>
   );
+}
+
+// 챌린지 방 종류별 인증 완료 메시지 — solo 는 "동료" 단어 사용 X (조용한 SNS 톤)
+function kindCompleteMessage(kind: ChallengeKind | null): string {
+  if (kind === 'solo')    return '오늘 하루 잘 해냈어요.\n내일 또 만나요. 💛';
+  if (kind === 'cheered') return '응원자들이 곧 응원하러 올 거예요. 💛';
+  return '동료들이 응원하러 올 거예요. 💛';
 }
 
 const styles = StyleSheet.create({
@@ -218,6 +296,36 @@ const styles = StyleSheet.create({
     color: colors.primary300,
     fontSize: fontSize.base,
     fontFamily: fontFamily.medium,
+  },
+  libBtn: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: radius.pill,
+  },
+  libBtnText: {
+    color: colors.surface,
+    fontSize: fontSize.sm,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
+  },
+  libHint: {
+    color: colors.primary300,
+    fontSize: fontSize.xs,
+    fontFamily: fontFamily.regular,
+  },
+  libBtnAlt: {
+    marginTop: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderRadius: radius.pill,
+  },
+  libBtnAltText: {
+    color: colors.surface,
+    fontSize: fontSize.base,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
   },
   permWrap: {
     flex: 1,

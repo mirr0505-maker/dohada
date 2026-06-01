@@ -70,9 +70,9 @@ function StatusCard({
   totalDays: number;
 }) {
   const { member, uniqDays, rate, streak, todayChecked } = row;
+  const gaveUp = !!member.gave_up_at;
   return (
-    <View style={[styles.card, isMine && styles.cardMine]}>
-      {/* 아바타 + 오늘 인증 체크 표시 */}
+    <View style={[styles.card, isMine && styles.cardMine, gaveUp && styles.cardGaveUp]}>
       <View style={styles.avatarWrap}>
         {member.avatar_url ? (
           <Image source={{ uri: member.avatar_url }} style={styles.avatar} />
@@ -81,7 +81,7 @@ function StatusCard({
             <Text style={{ fontSize: 18 }}>{member.nickname?.slice(0, 1) || '🐰'}</Text>
           </View>
         )}
-        {todayChecked && (
+        {todayChecked && !gaveUp && (
           <View style={styles.checkBadge}>
             <Text style={styles.checkBadgeText}>✓</Text>
           </View>
@@ -93,21 +93,27 @@ function StatusCard({
           <Text style={styles.name} numberOfLines={1}>
             {member.nickname}{isMine ? ' (나)' : ''}
           </Text>
-          {streak > 0 && (
+          {gaveUp ? (
+            <Text style={styles.gaveUpTag}>포기</Text>
+          ) : streak > 0 ? (
             <Text style={styles.streak}>🔥 {streak}</Text>
-          )}
+          ) : null}
         </View>
         <Text style={styles.subtext}>
-          {uniqDays}/{totalDays}일{isMine && !todayChecked ? '  · 오늘 인증 전 ⚠️' : ''}
+          {gaveUp
+            ? '도전을 포기했어요'
+            : `${uniqDays}/${totalDays}일${isMine && !todayChecked ? '  · 오늘 인증 전 ⚠️' : ''}`}
         </Text>
-        <View style={styles.track}>
-          <View
-            style={[
-              styles.fill,
-              { width: `${rate}%`, backgroundColor: isMine ? colors.accent : colors.success },
-            ]}
-          />
-        </View>
+        {!gaveUp && (
+          <View style={styles.track}>
+            <View
+              style={[
+                styles.fill,
+                { width: `${rate}%`, backgroundColor: isMine ? colors.accent : colors.success },
+              ]}
+            />
+          </View>
+        )}
       </View>
     </View>
   );
@@ -128,6 +134,20 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.accent,
     backgroundColor: colors.accent50,
+  },
+  cardGaveUp: {
+    opacity: 0.5,
+    backgroundColor: colors.primary50,
+  },
+  gaveUpTag: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    backgroundColor: colors.primary100,
+    borderRadius: radius.pill,
   },
   avatarWrap: { width: 48, height: 48, position: 'relative' },
   avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primary50 },

@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Screen } from '@/components/Screen';
+import { AppHeader } from '@/components/AppHeader';
 import { ChallengeCardSkeleton } from '@/components/Skeleton';
 import { ErrorState } from '@/components/ErrorState';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
@@ -94,8 +95,9 @@ export default function DiscoverScreen() {
 
   return (
     <Screen backgroundColor={colors.background}>
-      <View style={styles.header}>
-        <Text style={styles.title}>둘러보기</Text>
+      <AppHeader />
+      <View style={styles.subHeader}>
+        <Text style={styles.subTitle}>둘러보기</Text>
       </View>
 
       {/* MVP 큐레이션 안내 (필터는 Phase 1.5) */}
@@ -253,16 +255,17 @@ function computeProgress(startDate: string, endDate: string): number {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
+  subHeader: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
-  title: {
-    fontSize: fontSize['2xl'],
+  subTitle: {
+    fontSize: fontSize.lg,
     color: colors.primary,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
-    letterSpacing: -0.4,
+    letterSpacing: -0.2,
   },
   curationInfo: {
     flexDirection: 'row',

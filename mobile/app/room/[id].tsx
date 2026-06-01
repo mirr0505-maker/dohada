@@ -8,7 +8,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
-import { fetchRoomData, toggleCheer, pauseMembership, resumeMembership } from '@/lib/db';
+import { fetchRoomData, toggleCheer, pauseMembership, resumeMembership, giveUpMembership } from '@/lib/db';
 import type { CheerType } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 import { ErrorState } from '@/components/ErrorState';
@@ -18,6 +18,8 @@ import { ChatTab } from '@/components/challenge/ChatTab';
 import { LogTab } from '@/components/challenge/LogTab';
 import { StatusTab } from '@/components/challenge/StatusTab';
 import { ArchiveTab } from '@/components/challenge/ArchiveTab';
+import { MemberSheet } from '@/components/challenge/MemberSheet';
+import { ImpactModal } from '@/components/challenge/ImpactModal';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import { computeProgress, computeStreak, isCompleted } from '@/lib/stats';
@@ -59,6 +61,9 @@ export default function ChallengeRoom() {
   const [completeRedirected, setCompleteRedirected] = useState(false);
   const [activeProofId, setActiveProofId] = useState<string | null>(null);    // 댓글 sheet 대상
   const [activeTab, setActiveTab] = useState<RoomTab>('proof');               // v4 5탭 활성 탭
+  const [logComposerOpen, setLogComposerOpen] = useState(false);              // 기록 탭 FAB → LogTab 컴포저
+  const [memberSheetOpen, setMemberSheetOpen] = useState(false);              // 헤더 avatars → 멤버 시트
+  const [impactModalOpen, setImpactModalOpen] = useState(false);              // info-bar 💚 → 함께 만든 변화 팝업
 
   const myUserId = session?.user?.id;
 
@@ -229,9 +234,13 @@ export default function ChallengeRoom() {
     try {
       // Do : 하다 앱 설치된 사람만 동작. 베타 안내문에 TestFlight 링크 같이 보내야 함.
       const link = `dohada://invite/${challenge.id}`;
+      // 응원받기 방은 도전자 1명 + 응원자 N명 — 메시지 톤 분기
+      const intro = challenge.kind === 'cheered'
+        ? `"${challenge.title}" 챌린지를 시작합니다.\n와서 응원해주세요! 💛`
+        : `"${challenge.title}" 챌린지에 함께해요!`;
       await Share.share({
         message:
-          `"${challenge.title}" 챌린지에 함께해요!\n\n` +
+          `${intro}\n\n` +
           `📱 Do : 하다 앱에서 아래 링크를 누르세요:\n${link}\n\n` +
           `※ 카카오톡에서 링크가 안 열리면 메시지를 길게 눌러 복사 후\n` +
           `   Safari 주소창에 붙여넣어 주세요.`,
@@ -245,9 +254,13 @@ export default function ChallengeRoom() {
   useEffect(() => {
     if (fromCreate !== '1' || !challenge || createPromptShown) return;
     setCreatePromptShown(true);
+    // 응원받기 방은 응원 요청 톤, 그 외는 함께 도전 톤
+    const isCheered = challenge.kind === 'cheered';
     Alert.alert(
       'Do : 하다',
-      '더 나은 나 더 나은 세상\n함께하면 완주 성공 3배',
+      isCheered
+        ? '응원받는 도전!\n지인들에게 응원을 부탁해보세요'
+        : '더 나은 나 더 나은 세상\n함께하면 완주 성공 3배',
       [
         { text: '나중에', style: 'cancel' },
         { text: '카톡으로 초대', onPress: onShareInvite },
@@ -291,6 +304,11 @@ export default function ChallengeRoom() {
     () => (challenge ? computeProgress(challenge) : null),
     [challenge],
   );
+  // 헤더 "함께 만든 변화" 응원 총합 — early return 위로 (Hooks 순서 안정성)
+  const totalCheers = useMemo(
+    () => proofs.reduce((sum, p) => sum + p.cheer_count, 0),
+    [proofs],
+  );
 
   // 잠시 멈춤 상태 (오늘이 paused_until 이전)
   const isPaused = useMemo(() => {
@@ -308,29 +326,23 @@ export default function ChallengeRoom() {
     }
   }, [challenge, myProofs, completeRedirected]);
 
-  // ─── 잠시 멈춤 / 재개 ─────────────────────────────────
+  // ─── 잠시 멈춤 / 재개 / 도전 포기 ─────────────────────
   const onTogglePause = useCallback(() => {
     if (!challenge || !myUserId) return;
     if (isPaused) {
-      // 즉시 재개
       resumeMembership({ challengeId: challenge.id, userId: myUserId })
         .then(() => { haptic.success(); load(); })
         .catch(e => Alert.alert('재개 실패', e?.message ?? String(e)));
       return;
     }
     Alert.alert(
-      '잠시 멈춤',
-      '며칠 쉴까요? 그 동안 인증 의무가 면제돼요.',
+      '잠시 멈춤 / 도전 포기',
+      '며칠 쉴까요? 또는 완전히 포기할 수 있어요.',
       [
         { text: '취소', style: 'cancel' },
-        {
-          text: '3일',
-          onPress: () => doPause(3),
-        },
-        {
-          text: '7일',
-          onPress: () => doPause(7),
-        },
+        { text: '3일 쉼', onPress: () => doPause(3) },
+        { text: '7일 쉼', onPress: () => doPause(7) },
+        { text: '🚫 도전 포기', style: 'destructive', onPress: confirmGiveUp },
       ],
     );
 
@@ -344,6 +356,25 @@ export default function ChallengeRoom() {
       })
         .then(() => { haptic.success(); load(); })
         .catch(e => Alert.alert('멈춤 실패', e?.message ?? String(e)));
+    }
+
+    function confirmGiveUp() {
+      Alert.alert(
+        '도전 포기',
+        '정말 포기할까요?\n이 챌린지가 내 목록에서 사라져요.\n작성한 인증·기록은 보존돼요.',
+        [
+          { text: '취소', style: 'cancel' },
+          {
+            text: '포기',
+            style: 'destructive',
+            onPress: () => {
+              giveUpMembership({ challengeId: challenge!.id, userId: myUserId! })
+                .then(() => { haptic.warning(); router.back(); })
+                .catch(e => Alert.alert('포기 실패', e?.message ?? String(e)));
+            },
+          },
+        ],
+      );
     }
   }, [challenge, myUserId, isPaused, load]);
 
@@ -372,23 +403,27 @@ export default function ChallengeRoom() {
 
   // ─── 헤더 통계 (v4 함께 만든 변화) ───────────────────
   const totalProofs = proofs.length;
-  const totalCheers = useMemo(
-    () => proofs.reduce((sum, p) => sum + p.cheer_count, 0),
-    [proofs],
-  );
   const totalLogs = 0;                       // Step 4 의 logs 도입 후 fetch 로 채움
   const daysLeft = progress ? Math.max(0, progress.totalDays - progress.passedDays) : 0;
   const todayCheckedCount = members.filter(m => m.today_checked).length;
 
   return (
     <Screen backgroundColor={colors.background}>
-      {/* ─── 헤더 ─── */}
+      {/* ─── 헤더 — 챌린지명 라인에 stacked avatars (탭=멤버 시트) ─── */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Text style={styles.back}>←</Text>
         </Pressable>
-        <View style={{ flex: 1, marginHorizontal: 12 }}>
-          <Text style={styles.title} numberOfLines={1}>{challenge.title}</Text>
+        <View style={{ flex: 1, marginHorizontal: 8 }}>
+          <View style={styles.headerTitleRow}>
+            <Text style={styles.title} numberOfLines={1}>{challenge.title}</Text>
+            <Pressable
+              onPress={() => { haptic.tap(); setMemberSheetOpen(true); }}
+              hitSlop={6}
+            >
+              <StackedAvatars members={members} />
+            </Pressable>
+          </View>
           <Text style={styles.subtitle}>{roomKindLabel(challenge.kind, members.length)}</Text>
         </View>
         {challenge.kind === 'closed' || challenge.kind === 'cheered' ? (
@@ -407,6 +442,9 @@ export default function ChallengeRoom() {
           <Text style={styles.infoStatItem}>📸 {todayCheckedCount}/{Math.max(1, members.length)} 인증</Text>
         </View>
         <View style={styles.infoRight}>
+          <Pressable onPress={() => { haptic.tap(); setImpactModalOpen(true); }} hitSlop={6}>
+            <Text style={styles.impactBtn}>💚</Text>
+          </Pressable>
           <Text style={styles.ddayBig}>D-{daysLeft}</Text>
           {isMember && (
             <Pressable onPress={onTogglePause} hitSlop={6}>
@@ -423,64 +461,7 @@ export default function ChallengeRoom() {
         </View>
       )}
 
-      {/* ─── 멤버 가로 strip + 오늘 ─── */}
-      <View style={styles.memberStrip}>
-        <FlatList
-          data={members}
-          keyExtractor={m => m.id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 24, gap: 12 }}
-          renderItem={({ item }) => {
-            const paused = isMemberPaused(item.paused_until);
-            return (
-              <View style={[styles.member, paused && { opacity: 0.45 }]}>
-                <View style={[
-                  styles.memberAvatar,
-                  item.today_checked && styles.memberAvatarChecked,
-                ]}>
-                  {item.avatar_url ? (
-                    <Image source={{ uri: item.avatar_url }} style={styles.avatarImg} />
-                  ) : (
-                    <Text style={{ fontSize: 20 }}>🐰</Text>
-                  )}
-                </View>
-                <Text style={styles.memberName} numberOfLines={1}>
-                  {paused ? '⏸ ' : ''}{item.nickname}
-                </Text>
-              </View>
-            );
-          }}
-          ListEmptyComponent={
-            <Text style={styles.memberEmpty}>아직 동료가 없어요. 카톡으로 초대하세요.</Text>
-          }
-        />
-      </View>
-
-      {/* ─── 💚 함께 만든 변화 (4 stats) ─── */}
-      <View style={styles.impact}>
-        <Text style={styles.impactLabel}>💚 함께 만든 변화</Text>
-        <View style={styles.impactStats}>
-          <View style={styles.impactStat}>
-            <Text style={styles.impactNum}>{progress?.passedDays ?? 0}일</Text>
-            <Text style={styles.impactName}>함께</Text>
-          </View>
-          <View style={styles.impactStat}>
-            <Text style={styles.impactNum}>{totalProofs}</Text>
-            <Text style={styles.impactName}>번 인증</Text>
-          </View>
-          <View style={styles.impactStat}>
-            <Text style={styles.impactNum}>{totalCheers}</Text>
-            <Text style={styles.impactName}>번 응원</Text>
-          </View>
-          <View style={styles.impactStat}>
-            <Text style={styles.impactNum}>{totalLogs}</Text>
-            <Text style={styles.impactName}>개 기록</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* ─── 5탭 bar ─── */}
+      {/* ─── 5탭 bar (재구성 후 progress 바 바로 아래로 — content 영역 최대화) ─── */}
       <View style={styles.tabsBar}>
         {ROOM_TABS.map(t => {
           const active = activeTab === t.key;
@@ -542,7 +523,9 @@ export default function ChallengeRoom() {
           challengeStartDate={challenge.start_date}
           myUserId={myUserId}
           isMember={isMember}
-          canCreate={isMember && !isCheeredCheerOnly}
+          canComment={challenge.kind !== 'solo'}
+          composerOpen={logComposerOpen}
+          onComposerClose={() => setLogComposerOpen(false)}
         />
       )}
       {activeTab === 'status' && (
@@ -562,45 +545,68 @@ export default function ChallengeRoom() {
         />
       )}
 
-      <Pressable
-        style={[
-          styles.fab,
-          !isMember && styles.fabJoin,
-          isMember && isCheeredCheerOnly && styles.fabCheer,
-          isMember && !isCheeredCheerOnly && todayChecked && styles.fabDone,
-          isMember && isPaused && styles.fabPaused,
-        ]}
-        onPress={() => {
-          if (!isMember) { onJoin(); return; }
-          if (isCheeredCheerOnly) {
-            haptic.tap();
-            setActiveTab('chat');
-            return;
-          }
-          if (isPaused) {
-            Alert.alert('잠시 멈춤 중', `${me?.paused_until} 까지 인증 의무가 면제예요.`);
-            return;
-          }
-          if (todayChecked) {
-            haptic.tap();   // 약한 진동으로 "눌렸음 + 이미 완료" 피드백
-            return;
-          }
-          haptic.tap();
-          router.push(`/checkin/${challenge.id}`);
-        }}
-      >
-        <Text style={styles.fabLabel}>
-          {!isMember
-            ? (joining ? '참여 중…' : '🌍 이 챌린지에 참여하기')
-            : isCheeredCheerOnly
-              ? '💛 응원으로 함께해요'
-              : isPaused
-                ? '⏸ 잠시 멈춤 중'
-                : todayChecked
-                  ? '✓ 오늘 인증 완료 · 내일 또 만나요'
-                  : '📸 오늘 인증하기'}
-        </Text>
-      </Pressable>
+      {/* 탭별 적응형 FAB
+         - 비멤버: 모든 탭에서 참여 권유
+         - 응원받기 응원자: 기록 탭에서만 노출
+         - 일반 멤버: 인증 탭(카메라) / 기록 탭(컴포저). 채팅·현황·박제는 숨김 (작업 흐름 방해 방지) */}
+      {(() => {
+        if (!isMember) {
+          return (
+            <Pressable style={[styles.fab, styles.fabJoin]} onPress={onJoin}>
+              <Text style={styles.fabLabel}>
+                {joining ? '참여 중…' : '🌍 이 챌린지에 참여하기'}
+              </Text>
+            </Pressable>
+          );
+        }
+        if (isCheeredCheerOnly) {
+          if (activeTab !== 'log') return null;
+          return (
+            <Pressable
+              style={[styles.fab, styles.fabCheer]}
+              onPress={() => { haptic.tap(); setActiveTab('chat'); }}
+            >
+              <Text style={styles.fabLabel}>💛 응원으로 함께해요</Text>
+            </Pressable>
+          );
+        }
+        if (activeTab === 'log') {
+          return (
+            <Pressable
+              style={styles.fab}
+              onPress={() => { haptic.tap(); setLogComposerOpen(true); }}
+            >
+              <Text style={styles.fabLabel}>📝 기록 쓰기</Text>
+            </Pressable>
+          );
+        }
+        if (activeTab !== 'proof') return null;
+        if (isPaused) {
+          return (
+            <Pressable
+              style={[styles.fab, styles.fabPaused]}
+              onPress={() => Alert.alert('잠시 멈춤 중', `${me?.paused_until} 까지 인증 의무가 면제예요.`)}
+            >
+              <Text style={styles.fabLabel}>⏸ 잠시 멈춤 중</Text>
+            </Pressable>
+          );
+        }
+        if (todayChecked) {
+          return (
+            <Pressable style={[styles.fab, styles.fabDone]} onPress={() => haptic.tap()}>
+              <Text style={styles.fabLabel}>✓ 오늘 인증 완료 · 내일 또 만나요</Text>
+            </Pressable>
+          );
+        }
+        return (
+          <Pressable
+            style={styles.fab}
+            onPress={() => { haptic.tap(); router.push(`/checkin/${challenge.id}`); }}
+          >
+            <Text style={styles.fabLabel}>📸 오늘 인증하기</Text>
+          </Pressable>
+        );
+      })()}
 
       <CommentsSheet
         proofId={activeProofId}
@@ -614,7 +620,48 @@ export default function ChallengeRoom() {
           ));
         }}
       />
+
+      <MemberSheet
+        visible={memberSheetOpen}
+        onClose={() => setMemberSheetOpen(false)}
+        members={members}
+        myUserId={myUserId}
+      />
+
+      <ImpactModal
+        visible={impactModalOpen}
+        onClose={() => setImpactModalOpen(false)}
+        days={progress?.passedDays ?? 0}
+        proofs={totalProofs}
+        cheers={totalCheers}
+        logs={totalLogs}
+      />
     </Screen>
+  );
+}
+
+// 헤더 stacked avatars — 최대 4개 + "+N"
+function StackedAvatars({ members }: { members: MemberWithToday[] }) {
+  const MAX_VISIBLE = 4;
+  const visible = members.slice(0, MAX_VISIBLE);
+  const remaining = Math.max(0, members.length - MAX_VISIBLE);
+  return (
+    <View style={styles.stackedRow}>
+      {visible.map((m, i) => (
+        <View key={m.id} style={[styles.stackedAvatar, { marginLeft: i === 0 ? 0 : -8 }]}>
+          {m.avatar_url ? (
+            <Image source={{ uri: m.avatar_url }} style={styles.stackedAvatarImg} />
+          ) : (
+            <Text style={{ fontSize: 12 }}>🐰</Text>
+          )}
+        </View>
+      ))}
+      {remaining > 0 && (
+        <View style={[styles.stackedAvatar, styles.stackedAvatarMore, { marginLeft: -8 }]}>
+          <Text style={styles.stackedMoreText}>+{remaining}</Text>
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -725,14 +772,48 @@ const styles = StyleSheet.create({
   notFoundText: { fontSize: fontSize.base, color: colors.primary500 },
 
   header: {
-    height: 56,
+    minHeight: 56,
     paddingHorizontal: 16,
+    paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     borderBottomWidth: 1,
     borderBottomColor: colors.primary100,
     backgroundColor: colors.surface,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  stackedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  stackedAvatar: {
+    width: 26, height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.primary50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.surface,
+    overflow: 'hidden',
+  },
+  stackedAvatarImg: { width: '100%', height: '100%' },
+  stackedAvatarMore: {
+    backgroundColor: colors.accent50,
+  },
+  stackedMoreText: {
+    fontSize: 10,
+    color: colors.accent700,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  impactBtn: {
+    fontSize: 22,
+    paddingHorizontal: 4,
   },
   back: {
     fontSize: 24,

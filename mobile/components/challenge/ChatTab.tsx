@@ -37,7 +37,7 @@ export function ChatTab({ challengeId, myUserId, isMember }: Props) {
 
   useEffect(() => { load(); }, [load]);
 
-  // Realtime — chat_messages INSERT 구독
+  // Realtime — chat_messages INSERT 구독 (본인/타인 무관, author join 필요해서 재조회)
   useEffect(() => {
     if (!challengeId) return;
     const channel = supabase
@@ -45,13 +45,7 @@ export function ChatTab({ challengeId, myUserId, isMember }: Props) {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `challenge_id=eq.${challengeId}` },
-        (payload) => {
-          const m = payload.new as { id: string };
-          // 본인 메시지는 onSend 가 이미 낙관적 추가 → 중복 방지를 위해 id 중복 체크
-          setMessages(prev => prev.some(x => x.id === m.id) ? prev : prev);
-          // 작성자 정보 join 위해 다시 fetch (간단)
-          load();
-        },
+        () => { load(); },
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -64,11 +58,25 @@ export function ChatTab({ challengeId, myUserId, isMember }: Props) {
     setSending(true);
     setInput('');
     haptic.tap();
+
+    // 낙관적 추가 — Realtime self-broadcast 가 늦거나 누락돼도 즉시 보이게.
+    // 본인 메시지는 UI 에서 author 정보 안 보므로 빈 author 로 OK. load() 가 진짜 row 로 교체.
+    const tempId = `temp-${Date.now()}`;
+    const optimistic: ChatMessageWithAuthor = {
+      id: tempId,
+      challenge_id: challengeId,
+      user_id: myUserId,
+      content: text,
+      created_at: new Date().toISOString(),
+      author: { id: myUserId, nickname: '', avatar_url: null },
+    };
+    setMessages(prev => [...prev, optimistic]);
+
     try {
       await sendChatMessage({ challengeId, userId: myUserId, content: text });
-      // Realtime 이 곧 도착 (자기 자신 포함). 즉시 입력만 비움.
     } catch (e: any) {
-      setInput(text);   // 실패 시 입력 복원
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+      setInput(text);
       Alert.alert('전송 실패', e?.message ?? String(e));
     } finally {
       setSending(false);

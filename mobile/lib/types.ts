@@ -79,6 +79,7 @@ export type MemberWithToday = DbUser & {
   today_checked: boolean;
   paused_until: string | null;
   joined_at: string;     // 정렬용 — '시간의 흐름' (비교 압박 회피)
+  gave_up_at: string | null;   // 도전 포기 (soft delete) — 본인 화면 hide, 다른 멤버는 '포기' 라벨
 };
 
 export type ProofWithRelations = DbProof & {
