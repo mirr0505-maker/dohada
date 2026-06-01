@@ -165,21 +165,20 @@
   .diag-callout strong { color: var(--accent-700); }
 
   /* ── Three Questions ────────────────────────────── */
-  .q-list {
-    display: grid;
-    gap: 14px;
-  }
+  .q-list { display: flex; flex-direction: column; gap: 14px; }
   .q-item {
     background: white;
     border: 1px solid var(--primary-100);
     border-radius: 16px;
-    padding: 20px 22px;
-    display: grid;
-    grid-template-columns: 28px minmax(0, 1fr);
-    gap: 16px;
-    align-items: start;
+    padding: 20px 22px 20px 66px;   /* left = 22 + 28 icon + 16 gap */
+    position: relative;
+    word-break: keep-all;
+    overflow-wrap: break-word;
   }
   .q-num {
+    position: absolute;
+    left: 22px;
+    top: 20px;
     width: 28px; height: 28px;
     border-radius: 50%;
     background: var(--accent);
@@ -250,7 +249,8 @@
 
   /* ── Promises (7 cards) ─────────────────────────── */
   .promises {
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: 14px;
   }
   .promise-card {
@@ -258,6 +258,7 @@
     border: 1px solid var(--primary-100);
     border-radius: 16px;
     padding: 22px;
+    width: 100%;
   }
   .promise-card .num {
     font-size: 11px;
@@ -274,10 +275,8 @@
     letter-spacing: -0.2px;
   }
   .promise-row {
-    display: grid;
-    grid-template-columns: 24px minmax(0, 1fr);
-    gap: 10px;
-    align-items: start;
+    position: relative;
+    padding-left: 34px;       /* 24 icon + 10 gap */
     font-size: 14.5px;
     color: var(--primary);
     margin-bottom: 8px;
@@ -287,10 +286,13 @@
   }
   .promise-row.bad { color: var(--primary-500); }
   .promise-row .icon {
+    position: absolute;
+    left: 0;
+    top: 0;
     width: 24px;
     font-size: 14px;
     text-align: center;
-    flex-shrink: 0;
+    line-height: 1.6;
   }
   .promise-row.bad .icon { color: #D85A4A; }
   .promise-row.good .icon { color: var(--success); }
@@ -324,17 +326,18 @@
     padding: 20px 24px;
   }
   .promise-list .item {
-    display: grid;
-    grid-template-columns: 20px minmax(0, 1fr);
-    gap: 12px;
-    align-items: center;
+    position: relative;
+    padding: 6px 0 6px 32px;       /* 20 icon + 12 gap */
     font-size: 15px;
     color: var(--primary);
-    padding: 6px 0;
     word-break: keep-all;
     overflow-wrap: break-word;
   }
   .promise-list .item .check {
+    position: absolute;
+    left: 0;
+    top: 6px;
+    width: 20px;
     color: var(--accent);
     font-weight: 700;
   }
