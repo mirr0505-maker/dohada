@@ -15,6 +15,22 @@
 - 큰 숫자 노출 정책: [`mobile/lib/format.ts`](mobile/lib/format.ts)
 - 알림: [`mobile/lib/push.ts`](mobile/lib/push.ts) + [`supabase/functions/flush-notifications/`](supabase/functions/flush-notifications/)
 
+### 신규 코드 위치 (v2.2 ~ v2.4)
+- 통합 헤더 (4 탭 공통): [`mobile/components/AppHeader.tsx`](mobile/components/AppHeader.tsx)
+- 챌린지방 모달: [`mobile/components/challenge/MemberSheet.tsx`](mobile/components/challenge/MemberSheet.tsx) · [`ImpactModal.tsx`](mobile/components/challenge/ImpactModal.tsx) · [`LogCommentsSheet.tsx`](mobile/components/challenge/LogCommentsSheet.tsx)
+- 홈 v2.3 분류별 카드: [`mobile/components/home/MyChallengeCard.tsx`](mobile/components/home/MyChallengeCard.tsx) — Solo/Cheered/Closed/Open 4 variants
+- 관심 분류 시스템 (v2.4):
+  - DB: [`supabase/migrations/0014_user_interests.sql`](supabase/migrations/0014_user_interests.sql)
+  - 함수: `fetchMyInterests` · `addInterest` · `removeInterest` · `fetchInterestingOpenChallenges` ([`mobile/lib/db.ts`](mobile/lib/db.ts))
+  - UI: [`mobile/app/(tabs)/profile.tsx`](mobile/app/(tabs)/profile.tsx) — `InterestEditModal`
+- 도전 포기 (soft delete): [`mobile/lib/db.ts`](mobile/lib/db.ts) `giveUpMembership` + [`mobile/app/room/[id].tsx`](mobile/app/room/[id].tsx) 멈춤 Alert 분기
+
+### 분류별 SNS 톤 (v2.3 정체성)
+4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.
+- 인증 완료 Alert / 카톡 초대 / 생성 후 Alert / 챌린지방 헤더 부제 / FAB 라벨 — 모두 분류별 분기 완료
+- 홈 그룹 컨테이너 순서: solo → cheered → closed → open (사용자 결정)
+- 박제 자산화 5단계 (Phase 2) 도 분류별 분기 예정
+
 ---
 
 ## 절대 수칙

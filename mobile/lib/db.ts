@@ -84,6 +84,219 @@ export async function fetchMyChallenges(myUserId?: string): Promise<ChallengeWit
     }));
 }
 
+// ─── 홈 v2.3 — 분류별 카드용 상세 데이터 ─────────────────
+// 4분류 카드 (Solo/Cheered/Closed/Open) 각자 다른 톤이라 데이터도 분류별.
+export type MyChallengeDetail = ChallengeWithCount & {
+  kind: ChallengeKind;
+  is_impact: boolean;
+  description: string | null;
+  today_check_count: number;      // 오늘 인증한 멤버 수
+  my_cheers_count: number;        // 본인 인증에 받은 응원 합계 (cheered 카드용)
+  top_members: { id: string; nickname: string; avatar_url: string | null }[];   // 멤버 top 5 (아바타 가로용)
+};
+
+export async function fetchMyChallengesWithDetails(myUserId: string): Promise<MyChallengeDetail[]> {
+  // 1. 기본 챌린지 + 카테고리 임팩트 여부 (RLS 가 멤버 챌린지만 보여줌)
+  const { data: challenges, error } = await supabase
+    .from('challenges')
+    .select(`
+      *,
+      category:category_id(is_impact),
+      challenge_members(count)
+    `)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  if (!challenges?.length) return [];
+
+  // 2. 본인 포기 챌린지 제외 (soft delete)
+  const { data: gaveUp } = await supabase
+    .from('challenge_members')
+    .select('challenge_id')
+    .eq('user_id', myUserId)
+    .not('gave_up_at', 'is', null);
+  const gaveUpIds = new Set((gaveUp ?? []).map((g: any) => g.challenge_id));
+  const filtered = (challenges as any[]).filter(c => !gaveUpIds.has(c.id));
+  if (!filtered.length) return [];
+
+  const challengeIds = filtered.map(c => c.id);
+  const today = new Date().toISOString().slice(0, 10);
+
+  // 3. 오늘 인증한 멤버 수 (챌린지별)
+  const { data: todayProofs } = await supabase
+    .from('proofs')
+    .select('challenge_id, user_id')
+    .in('challenge_id', challengeIds)
+    .gte('created_at', today + 'T00:00:00')
+    .lt('created_at', today + 'T23:59:59');
+  const todayCountMap = new Map<string, number>();
+  for (const p of (todayProofs ?? []) as any[]) {
+    todayCountMap.set(p.challenge_id, (todayCountMap.get(p.challenge_id) ?? 0) + 1);
+  }
+
+  // 4. 본인 인증에 받은 응원 합계 (cheered 카드의 "응원 N개 받았어요")
+  const { data: myProofs } = await supabase
+    .from('proofs')
+    .select('challenge_id, cheers(count)')
+    .in('challenge_id', challengeIds)
+    .eq('user_id', myUserId);
+  const myCheersMap = new Map<string, number>();
+  for (const p of (myProofs ?? []) as any[]) {
+    const cheers = p.cheers?.[0]?.count ?? 0;
+    myCheersMap.set(p.challenge_id, (myCheersMap.get(p.challenge_id) ?? 0) + cheers);
+  }
+
+  // 5. 멤버 top 5 (가입 순 — 시간의 흐름 톤)
+  const { data: members } = await supabase
+    .from('challenge_members')
+    .select('challenge_id, joined_at, users(id, nickname, avatar_url)')
+    .in('challenge_id', challengeIds)
+    .is('gave_up_at', null)
+    .order('joined_at', { ascending: true });
+  const topMembersMap = new Map<string, MyChallengeDetail['top_members']>();
+  for (const m of (members ?? []) as any[]) {
+    const arr = topMembersMap.get(m.challenge_id) ?? [];
+    if (arr.length < 5 && m.users) {
+      arr.push({ id: m.users.id, nickname: m.users.nickname, avatar_url: m.users.avatar_url });
+      topMembersMap.set(m.challenge_id, arr);
+    }
+  }
+
+  // 6. 합치기
+  return filtered.map(c => ({
+    id: c.id,
+    creator_id: c.creator_id,
+    title: c.title,
+    description: c.description ?? null,
+    kind: (c.kind ?? 'closed') as ChallengeKind,
+    start_date: c.start_date,
+    end_date: c.end_date,
+    created_at: c.created_at,
+    member_count: c.challenge_members?.[0]?.count ?? 0,
+    is_impact: !!c.category?.is_impact,
+    today_check_count: todayCountMap.get(c.id) ?? 0,
+    my_cheers_count: myCheersMap.get(c.id) ?? 0,
+    top_members: topMembersMap.get(c.id) ?? [],
+  }));
+}
+
+// ─── 관심 분류 시스템 (v2.3) ─────────────────────────
+// Hybrid: 명시 등록 (user_interests) + 자동 추론 (본인 챌린지 카테고리) 합집합.
+// Phase 1 = 대분류만 매칭. Phase 1.5 에서 소분류 + 가중치 정교화.
+
+export type MyInterest = {
+  id: string;
+  category_id: number;
+  category_emoji: string;
+  category_name: string;
+};
+
+export async function fetchMyInterests(userId: string): Promise<MyInterest[]> {
+  const { data, error } = await supabase
+    .from('user_interests')
+    .select('id, category_id, categories(emoji, name)')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((r: any) => ({
+    id: r.id,
+    category_id: r.category_id,
+    category_emoji: r.categories?.emoji ?? '✨',
+    category_name: r.categories?.name ?? '기타',
+  }));
+}
+
+export async function addInterest(userId: string, categoryId: number): Promise<void> {
+  const { error } = await supabase
+    .from('user_interests')
+    .insert({ user_id: userId, category_id: categoryId });
+  // 중복(unique 위반)은 무시
+  if (error && !error.message.includes('duplicate')) throw error;
+}
+
+export async function removeInterest(interestId: string): Promise<void> {
+  const { error } = await supabase
+    .from('user_interests')
+    .delete()
+    .eq('id', interestId);
+  if (error) throw error;
+}
+
+// 본인 명시 관심 카테고리 IDs 매칭 (자동 추론 X — 사용자 의도 명확).
+// 본인이 이미 멤버이거나 만든 챌린지는 제외 — "발견" 의도.
+export type InterestingChallenge = OpenChallengeCard & {
+  matched_category: { emoji: string; name: string } | null;
+};
+
+export async function fetchInterestingOpenChallenges(
+  userId: string,
+  limit = 6,
+): Promise<InterestingChallenge[]> {
+  // 1. 명시 관심 카테고리 IDs
+  const interests = await fetchMyInterests(userId);
+  const interestIds = new Set(interests.map(i => i.category_id));
+  if (interestIds.size === 0) return [];
+
+  // 2. 본인이 멤버인 챌린지 ID (제외용)
+  const { data: myMemberChs } = await supabase
+    .from('challenge_members')
+    .select('challenge_id')
+    .eq('user_id', userId)
+    .is('gave_up_at', null);
+  const memberChallengeIds = new Set(
+    ((myMemberChs ?? []) as any[]).map(r => r.challenge_id),
+  );
+
+  // 3. open 챌린지 중 관심 매칭 + 본인 미참여
+  const { data: opens, error } = await supabase
+    .from('challenges')
+    .select(`
+      *,
+      challenge_members(count),
+      creator:creator_id(nickname),
+      category:category_id(emoji, name, is_impact),
+      subcategory:subcategory_id(name),
+      challenge_votes(user_id, vote_type)
+    `)
+    .eq('kind', 'open')
+    .in('category_id', Array.from(interestIds))
+    .order('created_at', { ascending: false })
+    .limit(limit * 3);   // 본인 챌린지 제외 후 limit 만큼 확보
+  if (error) throw error;
+
+  return (opens ?? [])
+    .filter((c: any) => !memberChallengeIds.has(c.id) && c.creator_id !== userId)
+    .slice(0, limit)
+    .map((c: any) => {
+      const votesByType: any = { creative: 0, hard: 0, touching: 0, fresh: 0 };
+      const myVotes: string[] = [];
+      for (const v of (c.challenge_votes ?? []) as any[]) {
+        votesByType[v.vote_type] = (votesByType[v.vote_type] ?? 0) + 1;
+        if (v.user_id === userId) myVotes.push(v.vote_type);
+      }
+      return {
+        id: c.id,
+        creator_id: c.creator_id,
+        title: c.title,
+        description: c.description,
+        kind: c.kind,
+        start_date: c.start_date,
+        end_date: c.end_date,
+        created_at: c.created_at,
+        member_count: c.challenge_members?.[0]?.count ?? 0,
+        creator: { nickname: c.creator?.nickname ?? '도전자' },
+        category: c.category
+          ? { emoji: c.category.emoji, name: c.category.name, is_impact: !!c.category.is_impact }
+          : null,
+        subcategory: c.subcategory ? { name: c.subcategory.name } : null,
+        votes_by_type: votesByType,
+        my_votes: myVotes,
+        matched_category: c.category
+          ? { emoji: c.category.emoji, name: c.category.name }
+          : null,
+      };
+    });
+}
+
 // ─── 둘러보기 — 공개(open) 챌린지 카드 ──────────────────
 // v2 풀: creator/category/subcategory + 4가지 평가 카운트 + 본인 vote.
 export async function fetchOpenChallenges(myUserId: string | undefined): Promise<OpenChallengeCard[]> {

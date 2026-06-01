@@ -26,6 +26,22 @@
 > 베타 30명 인터뷰에서 어뷰징 실제 발생 여부 확인 후 Phase 1.5 에 EXIF/시간/AI 검증 활성화 결정.
 > 기록 (Vlog) 사진 첨부도 같은 인프라로 동시 허용 (MVP_SCOPE §3.6 의 "선택 이미지" 가시화).
 
+> **2026-06-02 v2.3 추가 메모** — 베타 출시 직전 정체성·UX 보강
+> 1. **🚫 도전 포기 (soft delete)** — 잠시 멈춤과 본질 다름. challenge_members.gave_up_at 컬럼으로 영구 중단.
+>    본인 화면 hide, 다른 멤버 화면엔 "포기" 라벨. 데이터 보존 → Phase 2 박제 재활용.
+> 2. **📝 기록·댓글 수정/삭제** — 본인 글만. RLS UPDATE policy 추가 (마이그레이션 0013).
+> 3. **🏠 홈 v2.3 — 분류별 그룹 컨테이너** — 4분류 = 4가지 SNS 톤이 한 앱에 공존.
+>    순서: 🤫 혼자만의 다짐 → 🙋 응원받는 도전 → 🤝 함께 도전 → 🌍 누구나 합류.
+>    각 분류 카드 디자인·카피·매칭 알림 다름. 동료 활동 Feed 는 만들지 않음 (챌린지방 안 컨텍스트 보존).
+> 4. **👤 통합 AppHeader** — 4 탭 (홈/내챌린지/둘러보기/내정보) 공통 헤더. 닉네임/아바타 자동 동기화.
+
+> **2026-06-02 v2.4 추가 메모** — 관심 분류 시스템
+> **명시 관심 등록 → 매칭 오픈 도전 자동 노출.** 알고리즘 도파민 X · 사용자 의도 명확.
+> - 내정보 → 관심 분야 → 10 대분류 토글 (2-column 모던 grid).
+> - 홈에 "✨ 관심 도전" 섹션 (4그룹 다음 + 둘러보기 전).
+> - 매칭 = 대분류만 (Phase 1). 소분류 + 가중치 + 인연 연계는 Phase 1.5.
+> - 자동 추론 (본인 챌린지 카테고리 union) 도입 검토했으나 **베타에선 제외** — 사용자 명시 의도만.
+
 ---
 
 ## 1. 왜 만드는가 — 차세대 SNS 의 자리잡기
@@ -357,10 +373,18 @@ MVP 단계:
 - Edge Function `flush-notifications` 배포 + cron 매 1분 ✓
 - EAS 새 빌드 (`expo-notifications` plugin) ✓
 
-### Week 6 — 베타 출시 ⏳
-- [ ] 본인 며칠 실기기 풀 검증 (응원받기 방 + 알림 + 5탭 통합)
-- [ ] [`BLUEPRINT.md`](BLUEPRINT.md) 기반 베타 모집 HTML 작성
-- [ ] production 빌드 + TestFlight
+### Week 6 — 베타 출시 직전 v2.2 ~ v2.4 ✅
+- 보관함 스크린샷 인증 + 기록 사진 첨부 (마이그레이션 0010) ✓
+- 도전 포기 soft delete + RLS UPDATE policy (마이그레이션 0011·0012) ✓
+- 기록·댓글 수정/삭제 + RLS UPDATE policy (마이그레이션 0013) ✓
+- 홈 v2.3 — 4분류 그룹 컨테이너 (solo → cheered → closed → open) ✓
+- 통합 AppHeader (4 탭 공통) ✓
+- 닉네임·아바타 편집 + Provider lock (Apple/Google) ✓
+- 관심 분류 시스템 v2.4 (마이그레이션 0014) ✓
+- TestFlight production 빌드 + ASC 외부 그룹 + 공개 링크 (jXrf3QpW) ✓
+- BLUEPRINT 기반 베타 모집 HTML + GitHub Pages 배포 ✓
+- [ ] Apple Beta App Review 통과 대기 (~24-48h)
+- [ ] 다른 폰으로 채팅 푸시 검증
 - [ ] 베타 30명 모집 + 인터뷰 셋업 (BLUEPRINT §8 질문지)
 
 ---
@@ -468,10 +492,28 @@ create table notification_queue (
 );
 -- + 5 INSERT 트리거 (chat/comment/cheer/log_comment/log_like → enqueue)
 -- + Edge Function `flush-notifications` (매 1분 cron)
+
+-- ─── v2.2~v2.4 (0010 ~ 0014) ───
+
+-- 0010: proof_type 제약 확장 (photo + screenshot)
+-- 0011: challenge_members.gave_up_at (도전 포기 soft delete)
+-- 0012: challenge_members UPDATE policy (paused_until/gave_up_at 본인만)
+-- 0013: logs / log_comments UPDATE policy (기록·댓글 수정)
+
+-- 0014: 관심 분류 (v2.4)
+create table user_interests (
+  id              uuid primary key default gen_random_uuid(),
+  user_id         uuid references users(id) on delete cascade,
+  category_id     int  references categories(id) on delete cascade,
+  subcategory_id  int  references subcategories(id) on delete cascade,   -- null = 대분류 전체
+  created_at      timestamptz default now(),
+  unique (user_id, category_id, subcategory_id)
+);
+-- + RLS: 본인만 select/insert/delete
 ```
 
-테이블 8개 → **16개** 로 확장.
-마이그레이션 0001~0009 + Edge Function 3개 (`moderate-challenge`, `r2-presign`, `flush-notifications`).
+테이블 16개 → **17개** 로 확장 (user_interests 추가).
+마이그레이션 0001~0014 + Edge Function 3개 (`moderate-challenge`, `r2-presign`, `flush-notifications`).
 Phase 1.5 의 도전 인연 / 박제 / 내기 추가 시 +5~7.
 
 ---

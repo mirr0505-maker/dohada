@@ -1,12 +1,10 @@
-// 🚀 홈 — v2.2 SNS 정체성 강조 재구성
-//   헤더: 로고 + 닉네임 + 알람 + 아바타 (탭 → 내정보)
-//   Hero: gradient + 동적 헤드라인 (5단계 자아실현 톤)
-//   섹션 1 — 내 챌린지: 상위 3 + 더보기 → 내챌린지 탭
-//   섹션 2 — 둘러보기: 오픈 챌린지 상위 3 + 더보기 → 둘러보기 탭
-//   푸터: "더 나은 나, 더 나은 세상" 슬로건 (정체성 마무리)
+// 🚀 홈 v2.3 — 분류별 SNS 톤이 다른 4개 그룹 컨테이너
+//   순서: 🤫 혼자만의 다짐 → 🙋 응원받는 도전 → 🤝 함께 도전 → 🌍 누구나 합류
+//   각 분류는 서로 다른 SNS 경험 — 같은 앱 안에 4개의 다른 정체성이 공존.
+//   동료 활동은 챌린지방 안에서만 보임 (홈 Feed 로 옮기지 않음 — 컨텍스트 보존).
 import React, { useCallback, useState } from 'react';
 import {
-  View, Text, Pressable, ScrollView, StyleSheet, RefreshControl, Alert, Image,
+  View, Text, Pressable, ScrollView, StyleSheet, RefreshControl, Image,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Screen } from '@/components/Screen';
@@ -14,22 +12,31 @@ import { AppHeader } from '@/components/AppHeader';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import {
-  fetchMyChallenges, fetchOpenChallenges,
-  type OpenChallengeCard,
+  fetchMyChallengesWithDetails, fetchOpenChallenges, fetchInterestingOpenChallenges,
+  type MyChallengeDetail, type OpenChallengeCard, type InterestingChallenge,
 } from '@/lib/db';
 import { ErrorState } from '@/components/ErrorState';
 import { ChallengeCardSkeleton } from '@/components/Skeleton';
+import { MyChallengeCard } from '@/components/home/MyChallengeCard';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
-import type { ChallengeWithCount } from '@/lib/types';
 import { formatCheerCount } from '@/lib/format';
+import type { ChallengeKind } from '@/lib/types';
 
-const MAX_PREVIEW = 3;
+const MAX_PER_GROUP = 3;
+const DISCOVER_PREVIEW = 3;
+
+type Group = {
+  kind: ChallengeKind;
+  title: string;
+  items: MyChallengeDetail[];
+};
 
 export default function HomeScreen() {
   const session = useSession();
-  const [challenges, setChallenges] = useState<ChallengeWithCount[]>([]);
+  const [details, setDetails] = useState<MyChallengeDetail[]>([]);
   const [openChs, setOpenChs] = useState<OpenChallengeCard[]>([]);
+  const [interestingChs, setInterestingChs] = useState<InterestingChallenge[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,12 +47,14 @@ export default function HomeScreen() {
     if (!myUserId) return;
     try {
       setError(null);
-      const [chs, opens] = await Promise.all([
-        fetchMyChallenges(myUserId),
+      const [det, opens, interesting] = await Promise.all([
+        fetchMyChallengesWithDetails(myUserId),
         fetchOpenChallenges(myUserId),
+        fetchInterestingOpenChallenges(myUserId, 6).catch(() => []),   // 마이그레이션 0014 미적용 시 빈 배열
       ]);
-      setChallenges(chs);
+      setDetails(det);
       setOpenChs(opens);
+      setInterestingChs(interesting);
     } catch (e: any) {
       reportError(e, { where: 'home/load' });
       setError(e?.message ?? '불러오지 못했어요.');
@@ -61,16 +70,21 @@ export default function HomeScreen() {
     if (session === null) router.replace('/login');
   }, [session]);
 
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    load();
-  }, [load]);
+  const onRefresh = useCallback(() => { setRefreshing(true); load(); }, [load]);
 
-  const myCount = challenges.length;
-  // Hero 동적 헤드라인: 챌린지 수에 따라 5단계 자아실현 톤
-  const heroLine = myCount > 0
-    ? { top: '오늘도 한 걸음', bottom: `${myCount}개 챌린지 진행 중이에요` }
-    : { top: '비교 없이 응원받는', bottom: '첫 한 걸음을 선언해볼까요?' };
+  // 분류별 그룹화 — 순서: solo → cheered → closed → open
+  const groups: Group[] = [
+    { kind: 'solo',    title: '🤫 혼자만의 다짐', items: details.filter(c => c.kind === 'solo') },
+    { kind: 'cheered', title: '🙋 응원받는 도전', items: details.filter(c => c.kind === 'cheered') },
+    { kind: 'closed',  title: '🤝 함께 도전',     items: details.filter(c => c.kind === 'closed') },
+    { kind: 'open',    title: '🌍 누구나 합류',   items: details.filter(c => c.kind === 'open') },
+  ];
+
+  const totalCount = details.length;
+  // 본인 미니 상태 카피 — 단순 카운트 (5단계 자아실현 톤)
+  const miniLine = totalCount > 0
+    ? `오늘도 한 걸음 · ${totalCount}개 도전 진행 중`
+    : '비교 없이 응원받는 곳, 첫 한 걸음을 선언해볼까요?';
 
   return (
     <Screen backgroundColor={colors.background}>
@@ -91,71 +105,96 @@ export default function HomeScreen() {
           }
           showsVerticalScrollIndicator={false}
         >
-          {/* ─── Hero — accent50 배경 + 동적 헤드라인 ─── */}
-          <View style={styles.hero}>
-            <Text style={styles.heroTop}>{heroLine.top}</Text>
-            <Text style={styles.heroBottom}>{heroLine.bottom}</Text>
+          {/* ─── 본인 미니 상태 (한 줄) ─── */}
+          <View style={styles.mini}>
+            <Text style={styles.miniText}>{miniLine}</Text>
           </View>
 
-          {/* ─── 섹션 1: 내 챌린지 ─── */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>내 챌린지</Text>
-              {myCount > 0 && (
-                <Pressable
-                  onPress={() => { haptic.tap(); router.push('/(tabs)/my-challenges' as any); }}
-                  hitSlop={8}
-                >
-                  <Text style={styles.more}>더보기 →</Text>
-                </Pressable>
-              )}
+          {/* ─── 빈 상태 (챌린지 0개) ─── */}
+          {totalCount === 0 && (
+            <Pressable
+              style={styles.emptyCard}
+              onPress={() => { haptic.tap(); router.push('/create' as any); }}
+            >
+              <Text style={styles.emptyEmoji}>🌱</Text>
+              <Text style={styles.emptyTitle}>아직 도전이 없어요</Text>
+              <Text style={styles.emptyDesc}>
+                조용히 응원받는 첫 한 걸음,{'\n'}시작해볼까요?
+              </Text>
+              <View style={styles.emptyCta}>
+                <Text style={styles.emptyCtaText}>+ 첫 도전 선언하기</Text>
+              </View>
+            </Pressable>
+          )}
+
+          {/* ─── 4분류 그룹 컨테이너 ─── */}
+          {groups.map(group => group.items.length === 0 ? null : (
+            <View key={group.kind} style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>{group.title}</Text>
+                {group.items.length > MAX_PER_GROUP && (
+                  <Pressable
+                    onPress={() => { haptic.tap(); router.push('/(tabs)/my-challenges' as any); }}
+                    hitSlop={8}
+                  >
+                    <Text style={styles.more}>더보기 →</Text>
+                  </Pressable>
+                )}
+              </View>
+              <View style={{ gap: 10 }}>
+                {group.items.slice(0, MAX_PER_GROUP).map(c => (
+                  <MyChallengeCard key={c.id} challenge={c} />
+                ))}
+              </View>
             </View>
+          ))}
 
-            {myCount === 0 ? (
-              <Pressable
-                style={styles.emptyCard}
-                onPress={() => { haptic.tap(); router.push('/create' as any); }}
-              >
-                <Text style={styles.emptyEmoji}>🌱</Text>
-                <Text style={styles.emptyTitle}>아직 도전이 없어요</Text>
-                <Text style={styles.emptyDesc}>
-                  조용히 응원받는 첫 한 걸음,{'\n'}시작해볼까요?
-                </Text>
-                <View style={styles.emptyCta}>
-                  <Text style={styles.emptyCtaText}>+ 첫 도전 선언하기</Text>
-                </View>
-              </Pressable>
-            ) : (
-              challenges.slice(0, MAX_PREVIEW).map(c => (
-                <MyChallengeCard key={c.id} challenge={c} />
-              ))
-            )}
-          </View>
-
-          {/* ─── 섹션 2: 둘러보기 ─── */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>둘러보기</Text>
-              {openChs.length > 0 && (
+          {/* ─── ✨ 관심 도전 — 본인 관심 분류 매칭 open 챌린지 ─── */}
+          {interestingChs.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>✨ 관심 도전</Text>
                 <Pressable
                   onPress={() => { haptic.tap(); router.push('/(tabs)/discover' as any); }}
                   hitSlop={8}
                 >
                   <Text style={styles.more}>더보기 →</Text>
                 </Pressable>
-              )}
-            </View>
-
-            {openChs.length === 0 ? (
-              <View style={styles.discEmpty}>
-                <Text style={styles.discEmptyText}>아직 공개 챌린지가 없어요.</Text>
               </View>
-            ) : (
-              openChs.slice(0, MAX_PREVIEW).map(c => (
-                <DiscoverMiniCard key={c.id} challenge={c} />
-              ))
-            )}
-          </View>
+              <View style={{ gap: 10 }}>
+                {interestingChs.map(c => (
+                  <View key={c.id}>
+                    {c.matched_category && (
+                      <Text style={styles.matchLabel}>
+                        🎯 {c.matched_category.emoji} {c.matched_category.name} 관심
+                      </Text>
+                    )}
+                    <DiscoverMiniCard challenge={c} />
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* ─── 둘러보기 미니 섹션 ─── */}
+          {openChs.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>🔍 둘러보기</Text>
+                <Pressable
+                  onPress={() => { haptic.tap(); router.push('/(tabs)/discover' as any); }}
+                  hitSlop={8}
+                >
+                  <Text style={styles.more}>더보기 →</Text>
+                </Pressable>
+              </View>
+              <View style={{ gap: 10 }}>
+                {openChs.slice(0, DISCOVER_PREVIEW).map(c => (
+                  <DiscoverMiniCard key={c.id} challenge={c} />
+                ))}
+              </View>
+            </View>
+          )}
 
           {/* ─── 푸터 슬로건 ─── */}
           <View style={styles.footer}>
@@ -168,29 +207,7 @@ export default function HomeScreen() {
   );
 }
 
-// ─── 내 챌린지 카드 (v4 패턴 — 간략화) ─────────────────
-function MyChallengeCard({ challenge }: { challenge: ChallengeWithCount }) {
-  const { daysLeft, progress, dayN, totalDays } = computeProgress(challenge.start_date, challenge.end_date);
-  return (
-    <Pressable
-      style={styles.myCard}
-      onPress={() => { haptic.tap(); router.push(`/room/${challenge.id}` as any); }}
-    >
-      <View style={styles.myCardRow}>
-        <Text style={styles.myCardTitle} numberOfLines={1}>{challenge.title}</Text>
-        <Text style={styles.myCardDday}>D-{daysLeft}</Text>
-      </View>
-      <Text style={styles.myCardMeta}>
-        {roomKindShort(challenge.kind)} · {dayN}/{totalDays}일
-      </Text>
-      <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-      </View>
-    </Pressable>
-  );
-}
-
-// ─── 둘러보기 미니 카드 (4가지 평가 chips 포함) ────────
+// ─── 둘러보기 미니 카드 (기존 코드 유지) ────────────
 function DiscoverMiniCard({ challenge }: { challenge: OpenChallengeCard }) {
   const isImpact = !!challenge.category?.is_impact;
   const daysLeft = computeDaysLeft(challenge.end_date);
@@ -212,9 +229,7 @@ function DiscoverMiniCard({ challenge }: { challenge: OpenChallengeCard }) {
       <Text style={styles.discTitle} numberOfLines={1}>{challenge.title}</Text>
       <View style={styles.discStats}>
         <Text style={styles.discStat}>👥 {challenge.member_count}명</Text>
-        <Text style={styles.discStat}>
-          @{challenge.creator?.nickname ?? '익명'}
-        </Text>
+        <Text style={styles.discStat}>@{challenge.creator?.nickname ?? '익명'}</Text>
       </View>
       <View style={styles.votesRow}>
         {(['creative','hard','touching','fresh'] as const).map(t => {
@@ -232,147 +247,33 @@ function DiscoverMiniCard({ challenge }: { challenge: OpenChallengeCard }) {
   );
 }
 
-// ─── 유틸 ─────────────────
-function roomKindShort(kind: string): string {
-  if (kind === 'solo')    return '혼자 도전';
-  if (kind === 'cheered') return '응원받는 도전';
-  if (kind === 'open')    return '누구나 합류';
-  return '함께 도전';
-}
-
-function computeProgress(start: string, end: string) {
-  const startDate = new Date(start + 'T00:00:00');
-  const endDate = new Date(end + 'T23:59:59');
-  const now = new Date();
-  const totalDays = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / 86_400_000) + 1);
-  const elapsed = Math.max(0, Math.round((now.getTime() - startDate.getTime()) / 86_400_000));
-  const dayN = Math.min(totalDays, elapsed + 1);
-  const progress = Math.min(1, Math.max(0, elapsed / totalDays));
-  const daysLeft = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / 86_400_000));
-  return { daysLeft, progress, dayN, totalDays };
-}
-
 function computeDaysLeft(endDate: string): number {
   const end = new Date(endDate + 'T23:59:59');
   return Math.max(0, Math.ceil((end.getTime() - Date.now()) / 86_400_000));
 }
 
 const styles = StyleSheet.create({
-  // 헤더
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.primary100,
-    ...shadow.sm,
-  },
-  brand: { flexDirection: 'row', alignItems: 'baseline', gap: 0 },
-  brandDo: {
-    fontSize: fontSize.xl,
-    color: colors.primary,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-    letterSpacing: -0.4,
-  },
-  brandColon: {
-    fontSize: fontSize.xl,
-    color: colors.accent,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-    marginHorizontal: 2,
-  },
-  brandHada: {
-    fontSize: fontSize.xl,
-    color: colors.primary,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-    letterSpacing: -0.4,
-  },
-  headerNick: {
-    flex: 1,
-    fontSize: fontSize.base,
-    color: colors.primary500,
-    fontFamily: fontFamily.medium,
-    fontWeight: fontWeight.medium,
-    marginLeft: 6,
-  },
-  headerIcon: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: colors.primary50,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  headerAvatar: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: colors.accent50,
-    overflow: 'hidden',
-  },
-  headerAvatarFallback: { alignItems: 'center', justifyContent: 'center' },
-  headerAvatarInit: {
-    fontSize: 14,
-    color: colors.accent700,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-  },
-
-  // 본문 스크롤
   scroll: { paddingBottom: 40 },
   list: { paddingHorizontal: 24, paddingTop: 16, gap: 12 },
 
-  // Hero
-  hero: {
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 28,
-    backgroundColor: colors.accent50,
-  },
-  heroTop: {
-    fontSize: fontSize.base,
-    color: colors.accent700,
-    fontFamily: fontFamily.medium,
-    fontWeight: fontWeight.semibold,
-    marginBottom: 4,
-  },
-  heroBottom: {
-    fontSize: fontSize['2xl'],
-    color: colors.primary,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-    letterSpacing: -0.4,
-    lineHeight: 32,
-  },
-
-  // 섹션 공통
-  section: {
+  // 본인 미니 상태 (한 줄)
+  mini: {
     paddingHorizontal: 20,
-    paddingTop: 20,
-    gap: 10,
+    paddingTop: 16,
+    paddingBottom: 12,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  sectionTitle: {
-    fontSize: fontSize.lg,
+  miniText: {
+    fontSize: fontSize.base,
     color: colors.primary,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
     letterSpacing: -0.2,
   },
-  more: {
-    fontSize: fontSize.sm,
-    color: colors.accent,
-    fontFamily: fontFamily.medium,
-    fontWeight: fontWeight.semibold,
-  },
 
-  // 빈 상태 (내 챌린지)
+  // 빈 상태 카드
   emptyCard: {
+    marginHorizontal: 20,
+    marginTop: 8,
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
     paddingVertical: 32,
@@ -412,52 +313,41 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
   },
 
-  // 내 챌린지 카드
-  myCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: 14,
-    gap: 6,
-    ...shadow.sm,
+  // 섹션 (분류별 그룹 + 둘러보기 공통)
+  section: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    gap: 8,
   },
-  myCardRow: {
+  sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
+    marginBottom: 4,
   },
-  myCardTitle: {
-    flex: 1,
+  sectionTitle: {
     fontSize: fontSize.base,
     color: colors.primary,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
+    letterSpacing: -0.2,
   },
-  myCardDday: {
+  more: {
     fontSize: fontSize.sm,
     color: colors.accent,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.semibold,
   },
-  myCardMeta: {
-    fontSize: fontSize.xs,
-    color: colors.primary500,
-    fontFamily: fontFamily.regular,
-  },
-  progressTrack: {
-    height: 6,
-    backgroundColor: colors.primary100,
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginTop: 2,
-  },
-  progressFill: {
-    height: 6,
-    backgroundColor: colors.accent,
-    borderRadius: 3,
+  matchLabel: {
+    fontSize: 11,
+    color: colors.accent700,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.semibold,
+    marginBottom: 4,
+    marginLeft: 4,
   },
 
-  // 둘러보기 미니 카드
+  // 둘러보기 미니 카드 (기존 그대로)
   discCard: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
@@ -470,74 +360,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.success,
   },
-  discRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    backgroundColor: colors.success,
-    borderRadius: radius.pill,
-  },
+  discRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  badge: { paddingHorizontal: 10, paddingVertical: 3, backgroundColor: colors.success, borderRadius: radius.pill },
   badgeImpact: { backgroundColor: colors.success },
-  badgeText: {
-    fontSize: 10,
-    color: colors.surface,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-  },
-  discDday: {
-    fontSize: fontSize.sm,
-    color: colors.accent,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-  },
-  discTitle: {
-    fontSize: fontSize.base,
-    color: colors.primary,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-  },
-  discStats: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  discStat: {
-    fontSize: fontSize.xs,
-    color: colors.primary500,
-    fontFamily: fontFamily.regular,
-  },
-  votesRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 4,
-  },
+  badgeText: { fontSize: 10, color: colors.surface, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
+  discDday: { fontSize: fontSize.sm, color: colors.accent, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
+  discTitle: { fontSize: fontSize.base, color: colors.primary, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
+  discStats: { flexDirection: 'row', gap: 12 },
+  discStat: { fontSize: fontSize.xs, color: colors.primary500, fontFamily: fontFamily.regular },
+  votesRow: { flexDirection: 'row', gap: 6, marginTop: 4 },
   voteChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primary50,
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: radius.pill, backgroundColor: colors.primary50,
   },
   voteEmoji: { fontSize: 12 },
   voteCount: {
-    fontSize: 11,
-    color: colors.primary500,
-    fontFamily: fontFamily.medium,
-    fontWeight: fontWeight.medium,
-  },
-  discEmpty: {
-    paddingVertical: 20,
-    alignItems: 'center',
-  },
-  discEmptyText: {
-    fontSize: fontSize.sm,
-    color: colors.primary500,
-    fontFamily: fontFamily.regular,
+    fontSize: 11, color: colors.primary500,
+    fontFamily: fontFamily.medium, fontWeight: fontWeight.medium,
   },
 
   // 푸터 슬로건

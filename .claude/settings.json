@@ -69,7 +69,8 @@
       "Bash(gh pr *)",
       "Bash(git -C e:/dohada diff --stat efcf3c4^..dc4b86f)",
       "Bash(ls -la \"/c/Users/kidoo kim/.claude/projects/e--dohada/\" 2>&1 | head -20)",
-      "Read(//c/Users/kidoo kim/.claude/projects/e--dohada//**)"
+      "Read(//c/Users/kidoo kim/.claude/projects/e--dohada//**)",
+      "Bash(git remote *)"
     ]
   }
 }

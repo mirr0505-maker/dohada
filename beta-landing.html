@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5">
+<title>Do : 하다 — 비교 없이 응원받는 도전 SNS · 베타 30명 모집</title>
+<meta name="description" content="비교에 지친 SNS와 작별, 오늘도 한 걸음 나아가는 곳. Do : 하다 베타 30명 모집.">
+<meta name="theme-color" content="#FF6B35">
+
+<!-- Open Graph -->
+<meta property="og:title" content="Do : 하다 — 비교 없이 응원받는 도전 SNS">
+<meta property="og:description" content="비교에 지친 SNS와 작별, 오늘도 한 걸음 나아가는 곳. 베타 30명 모집.">
+<meta property="og:type" content="website">
+
+<style>
+  /* ── Reset & Base ───────────────────────────────── */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard",
+                 "Noto Sans KR", "Helvetica Neue", Arial, sans-serif;
+    color: #1A1A1A;
+    background: #FFFFFF;
+    line-height: 1.6;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+  a { color: inherit; text-decoration: none; }
+
+  /* ── Tokens ─────────────────────────────────────── */
+  :root {
+    --accent: #FF6B35;
+    --accent-700: #C44A1C;
+    --accent-50: #FFF4ED;
+    --accent-100: #FFE4D6;
+    --primary: #1A1A1A;
+    --primary-500: #6B6B6B;
+    --primary-300: #9C9C9C;
+    --primary-100: #E8E8E8;
+    --primary-50: #F5F5F5;
+    --success: #4CAF50;
+    --success-50: #E8F5E9;
+    --bg: #FFFFFF;
+    --bg-soft: #FAFAFA;
+  }
+
+  /* ── Layout ─────────────────────────────────────── */
+  .container { max-width: 720px; margin: 0 auto; padding: 0 24px; }
+  section { padding: 64px 0; }
+  @media (max-width: 480px) {
+    section { padding: 48px 0; }
+    .container { padding: 0 20px; }
+  }
+
+  /* ── Hero ───────────────────────────────────────── */
+  .hero {
+    background: linear-gradient(180deg, var(--accent-50) 0%, #FFFFFF 100%);
+    padding: 88px 0 72px;
+    text-align: center;
+  }
+  .hero-brand {
+    display: inline-flex; align-items: baseline; gap: 4px;
+    font-size: 18px; font-weight: 700;
+    color: var(--primary); letter-spacing: -0.4px;
+    margin-bottom: 24px;
+  }
+  .hero-brand .colon { color: var(--accent); margin: 0 2px; }
+  .hero-tag {
+    display: inline-block;
+    padding: 6px 14px;
+    background: var(--accent);
+    color: white;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    margin-bottom: 28px;
+  }
+  .hero h1 {
+    font-size: 38px;
+    font-weight: 800;
+    line-height: 1.25;
+    color: var(--primary);
+    letter-spacing: -0.8px;
+    margin-bottom: 16px;
+  }
+  .hero h1 .accent { color: var(--accent); }
+  .hero p.lead {
+    font-size: 16px;
+    color: var(--primary-500);
+    max-width: 480px;
+    margin: 0 auto 36px;
+    line-height: 1.7;
+  }
+  .cta {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 16px 28px;
+    background: var(--accent);
+    color: white !important;
+    border-radius: 999px;
+    font-size: 16px; font-weight: 700;
+    box-shadow: 0 10px 30px rgba(255, 107, 53, 0.32);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .cta:hover { transform: translateY(-2px); box-shadow: 0 14px 36px rgba(255, 107, 53, 0.42); }
+  .cta:active { transform: translateY(0); }
+  .cta-note {
+    font-size: 13px;
+    color: var(--primary-500);
+    margin-top: 14px;
+  }
+  @media (max-width: 480px) {
+    .hero h1 { font-size: 30px; letter-spacing: -0.6px; }
+    .hero p.lead { font-size: 15px; }
+  }
+
+  /* ── Section Common ─────────────────────────────── */
+  .label {
+    display: inline-block;
+    font-size: 12px; font-weight: 700;
+    color: var(--accent-700);
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  h2 {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.3;
+    color: var(--primary);
+    letter-spacing: -0.5px;
+    margin-bottom: 16px;
+  }
+  h2 .accent { color: var(--accent); }
+  .section-lead {
+    font-size: 16px;
+    color: var(--primary-500);
+    line-height: 1.7;
+    margin-bottom: 32px;
+  }
+  @media (max-width: 480px) {
+    h2 { font-size: 24px; }
+  }
+
+  /* ── Diagnosis ──────────────────────────────────── */
+  .diag {
+    background: var(--bg-soft);
+  }
+  .diag p {
+    font-size: 15px;
+    color: var(--primary);
+    line-height: 1.75;
+    margin-bottom: 16px;
+  }
+  .diag .quiet {
+    color: var(--primary-500);
+  }
+  .diag-callout {
+    background: white;
+    border-left: 4px solid var(--accent);
+    padding: 20px 24px;
+    margin-top: 28px;
+    border-radius: 0 12px 12px 0;
+  }
+  .diag-callout strong { color: var(--accent-700); }
+
+  /* ── Three Questions ────────────────────────────── */
+  .q-list { display: flex; flex-direction: column; gap: 14px; }
+  .q-item {
+    background: white;
+    border: 1px solid var(--primary-100);
+    border-radius: 16px;
+    padding: 20px 22px 20px 66px;   /* left = 22 + 28 icon + 16 gap */
+    position: relative;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+  .q-num {
+    position: absolute;
+    left: 22px;
+    top: 20px;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    font-size: 13px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .q-text { font-size: 15px; color: var(--primary); line-height: 1.65; }
+  .q-text .strong { font-weight: 700; }
+  .q-text .answer { display: block; color: var(--primary-500); margin-top: 4px; font-size: 14px; }
+
+  /* ── Maslow Table ───────────────────────────────── */
+  .maslow {
+    background: var(--bg-soft);
+  }
+  .maslow-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.4fr 1.4fr;
+    gap: 1px;
+    background: var(--primary-100);
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--primary-100);
+    font-size: 13.5px;
+  }
+  .maslow-grid > div {
+    background: white;
+    padding: 14px 14px;
+  }
+  .maslow-grid .head {
+    background: var(--primary-50);
+    font-weight: 700;
+    color: var(--primary-500);
+    text-align: center;
+    font-size: 12px;
+    letter-spacing: 0.4px;
+  }
+  .maslow-grid .stage {
+    font-weight: 700;
+    color: var(--primary);
+  }
+  .maslow-grid .dohada {
+    color: var(--accent-700);
+    font-weight: 600;
+  }
+  .maslow-grid .star {
+    background: var(--accent-50);
+  }
+  .maslow-quote {
+    margin-top: 32px;
+    padding: 24px;
+    background: white;
+    border-radius: 16px;
+    text-align: center;
+    color: var(--primary-500);
+    line-height: 2;
+    font-size: 14px;
+  }
+  .maslow-quote .focus {
+    color: var(--accent-700);
+    font-weight: 700;
+    font-size: 16px;
+  }
+  @media (max-width: 480px) {
+    .maslow-grid { font-size: 12.5px; }
+    .maslow-grid > div { padding: 11px 10px; }
+  }
+
+  /* ── Promises (7 cards) ─────────────────────────── */
+  .promises {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .promise-card {
+    background: white;
+    border: 1px solid var(--primary-100);
+    border-radius: 16px;
+    padding: 22px;
+    width: 100%;
+  }
+  .promise-card .num {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 1.2px;
+    margin-bottom: 6px;
+  }
+  .promise-card h3 {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 12px;
+    letter-spacing: -0.2px;
+  }
+  .promise-row {
+    position: relative;
+    padding-left: 34px;       /* 24 icon + 10 gap */
+    font-size: 14.5px;
+    color: var(--primary);
+    margin-bottom: 8px;
+    line-height: 1.6;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+  .promise-row.bad { color: var(--primary-500); }
+  .promise-row .icon {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 24px;
+    font-size: 14px;
+    text-align: center;
+    line-height: 1.6;
+  }
+  .promise-row.bad .icon { color: #D85A4A; }
+  .promise-row.good .icon { color: var(--success); }
+  .promise-card .extra {
+    margin-top: 8px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--primary-100);
+    font-size: 13px;
+    color: var(--primary-500);
+    line-height: 1.6;
+  }
+
+  /* ── Beta Promise ───────────────────────────────── */
+  .promise-section {
+    background: var(--accent-50);
+  }
+  .promise-quote {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--primary);
+    line-height: 1.5;
+    text-align: center;
+    letter-spacing: -0.4px;
+    margin-bottom: 32px;
+  }
+  .promise-list {
+    display: grid;
+    gap: 8px;
+    background: white;
+    border-radius: 16px;
+    padding: 20px 24px;
+  }
+  .promise-list .item {
+    position: relative;
+    padding: 6px 0 6px 32px;       /* 20 icon + 12 gap */
+    font-size: 15px;
+    color: var(--primary);
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+  .promise-list .item .check {
+    position: absolute;
+    left: 0;
+    top: 6px;
+    width: 20px;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  @media (max-width: 480px) {
+    .promise-quote { font-size: 19px; }
+  }
+
+  /* ── Final CTA ──────────────────────────────────── */
+  .final {
+    background: linear-gradient(180deg, #FFFFFF 0%, var(--accent-50) 100%);
+    text-align: center;
+    padding: 88px 0;
+  }
+  .final h2 {
+    font-size: 30px;
+    margin-bottom: 16px;
+  }
+  .final p {
+    font-size: 16px;
+    color: var(--primary-500);
+    margin-bottom: 36px;
+    line-height: 1.7;
+  }
+  .final .cta-note {
+    margin-top: 18px;
+  }
+
+  /* ── Mir's Note ─────────────────────────────────── */
+  .mir-note {
+    padding: 64px 0;
+    background: var(--primary);
+    color: white;
+  }
+  .mir-note .label { color: var(--accent-100); }
+  .mir-note h2 { color: white; }
+  .mir-quote {
+    font-size: 17px;
+    line-height: 1.85;
+    color: #DDD;
+    border-left: 3px solid var(--accent);
+    padding-left: 20px;
+    margin-top: 20px;
+  }
+  .mir-quote .strong { color: white; font-weight: 700; }
+
+  /* ── Footer ─────────────────────────────────────── */
+  footer {
+    background: var(--primary);
+    color: #999;
+    padding: 36px 0;
+    text-align: center;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  footer .slogan {
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 8px;
+    letter-spacing: -0.2px;
+  }
+
+  /* ── Status Banner ──────────────────────────────── */
+  .status {
+    background: #FFFBE6;
+    border-bottom: 1px solid #F5E4A0;
+    padding: 12px 24px;
+    text-align: center;
+    font-size: 13px;
+    color: #6B5200;
+  }
+  .status strong { color: #423300; }
+</style>
+</head>
+
+<body>
+
+<!-- Beta App Review 통과 전까지는 아래 배너 유지. 통과 후 삭제하거나 톤 변경. -->
+<div class="status">
+  ⏳ <strong>Apple 베타 심사 통과 후 가입 가능합니다.</strong> 24–48시간 내 활성화 예정 — 지금 미리 링크를 받아두세요.
+</div>
+
+<!-- ────────────────────────────────────────────── -->
+<!-- HERO                                          -->
+<!-- ────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-brand">Do<span class="colon">:</span>하다</div>
+    <div class="hero-tag">베타 30명 모집</div>
+    <h1>
+      비교에 지친 SNS와 작별,<br>
+      오늘도 한 걸음<br>
+      <span class="accent">나아가는 곳.</span>
+    </h1>
+    <p class="lead">
+      도전을 선언하고, 매일 인증하고,<br>
+      동료의 응원을 받는 — 자아실현 SNS.
+    </p>
+    <a class="cta" href="https://testflight.apple.com/join/jXrf3QpW" target="_blank" rel="noopener">
+      🍎 베타 가입하기 →
+    </a>
+    <p class="cta-note">iOS · TestFlight · 무료</p>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────── -->
+<!-- DIAGNOSIS                                     -->
+<!-- ────────────────────────────────────────────── -->
+<section class="diag">
+  <div class="container">
+    <div class="label">왜 지금</div>
+    <h2>SNS의 시대가<br>끝나가고 있어요.</h2>
+    <p>
+      인스타그램은 광고판이 되었고, 페이스북은 노년의 공간이 되었고, 카카오톡은 업무 도구가 되었어요.
+      "친구의 일상" 은 알고리즘 깊은 곳에 묻혔고, 우리가 보는 것은 인플루언서의 협찬,
+      광고, 그리고 끝없이 스크롤되는 비교의 대상이죠.
+    </p>
+    <p class="quiet">
+      MZ세대는 이미 이 흐름을 거부하고 있어요. 카톡 프로필 사진을 바꾸지 않는 것,
+      인스타 스토리를 닫는 것, 친구 추가를 망설이는 것 — 단순한 트렌드가 아니라
+      <strong style="color:var(--primary);">디지털 시대에 살아남기 위한 자기보호</strong>예요.
+    </p>
+    <div class="diag-callout">
+      <strong>그리고 학생 폰 중독, 가족 폭력.</strong><br>
+      어린 학생들이 핸드폰을 놓지 못해 부모와 싸우고 폭력적으로 변한다는 뉴스.
+      가장 큰 원인 중 하나가 SNS 예요. 비교, 박탈, 무한 스크롤, 도파민 알림, 자랑 경쟁 —
+      사춘기의 약한 자아가 견디기엔 너무 가혹한 환경.
+      <br><br>
+      <strong>우리는 그 반대로 만들어요.</strong>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────── -->
+<!-- THREE QUESTIONS                               -->
+<!-- ────────────────────────────────────────────── -->
+<section>
+  <div class="container">
+    <div class="label">Do : 하다가 답하는</div>
+    <h2>세 가지 질문</h2>
+    <div class="q-list">
+      <div class="q-item">
+        <div class="q-num">1</div>
+        <div class="q-text">
+          <span class="strong">"비교 없이 응원받을 수 있을까?"</span>
+          <span class="answer">→ 챌린지 방 안의 동료만 보임 · 큰 숫자 없음 · 4가지 응원</span>
+        </div>
+      </div>
+      <div class="q-item">
+        <div class="q-num">2</div>
+        <div class="q-text">
+          <span class="strong">"친구 신청 없이 동료를 만날 수 있을까?"</span>
+          <span class="answer">→ 같은 도전을 가는 사람이 자동으로 모임 · 신청·수락 X</span>
+        </div>
+      </div>
+      <div class="q-item">
+        <div class="q-num">3</div>
+        <div class="q-text">
+          <span class="strong">"내가 더 나아지면서, 세상도 함께 나아질 수 있을까?"</span>
+          <span class="answer">→ 임팩트 카테고리 (환경/기부/봉사) — "더 나은 나, 더 나은 세상"</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────── -->
+<!-- MASLOW                                        -->
+<!-- ────────────────────────────────────────────── -->
+<section class="maslow">
+  <div class="container">
+    <div class="label">매슬로우 5단계</div>
+    <h2>다른 SNS는 3단계에서<br>멈춰요. 우리는 <span class="accent">5단계</span>로.</h2>
+    <p class="section-lead">
+      대부분의 SNS 는 매슬로우 피라미드의 <strong style="color:var(--primary);">3단계 (소속/애정)</strong>
+      에서 멈춰요. 친구를 만들고 좋아요를 받고 댓글로 연결되지만,
+      그 한계는 명확해요 — <strong style="color:var(--primary);">비교, 박탈감, 피상적 연결</strong>.
+    </p>
+
+    <div class="maslow-grid">
+      <div class="head">단계 · 욕구</div>
+      <div class="head">기존 SNS</div>
+      <div class="head">Do : 하다</div>
+
+      <div class="stage">1 생리적</div>
+      <div>없음</div>
+      <div class="dohada">건강 챌린지<br>(수면 · 식사 · 운동)</div>
+
+      <div class="stage">2 안전</div>
+      <div>없음</div>
+      <div class="dohada">금연 · 금주 · 재테크</div>
+
+      <div class="stage">3 소속·애정</div>
+      <div>친구·좋아요<br>(피상적)</div>
+      <div class="dohada">도전 동료<br>(목적 기반 · 신청 X)</div>
+
+      <div class="stage">4 존중·인정</div>
+      <div>좋아요 수<br>(비교 압박)</div>
+      <div class="dohada">4가지 응원·평가<br>작은 동료 단위</div>
+
+      <div class="stage star">5 자아실현</div>
+      <div class="star">거의 없음 ★</div>
+      <div class="star dohada">100일 완주 · 박제<br>"더 나은 나"</div>
+    </div>
+
+    <div class="maslow-quote">
+      인스타: "내가 얼마나 예쁜지 보세요" <small>(3단계 — 피상적 인정)</small><br>
+      카톡: "친구야 잘 지내?" <small>(3단계 — 피상적 소속)</small><br>
+      <span class="focus">Do : 하다 : "오늘도 한 걸음 나아갔어요"</span><br>
+      <small>(5단계 — 자아실현)</small>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────── -->
+<!-- 7 PROMISES                                    -->
+<!-- ────────────────────────────────────────────── -->
+<section>
+  <div class="container">
+    <div class="label">차세대 SNS의</div>
+    <h2>7가지 약속</h2>
+    <p class="section-lead">
+      기존 SNS 와 무엇이 다른지, 정확히 풀어 적어요.
+    </p>
+
+    <div class="promises">
+
+      <div class="promise-card">
+        <div class="num">01</div>
+        <h3>비교 압박 X</h3>
+        <div class="promise-row bad"><span class="icon">✕</span> 좋아요·평가의 큰 숫자 노출</div>
+        <div class="promise-row good"><span class="icon">✓</span> 0–99 만 그대로, <strong>100+ 는 "99+"</strong>로 통일</div>
+        <div class="promise-row bad"><span class="icon">✕</span> 멤버별 인증률 순위</div>
+        <div class="promise-row good"><span class="icon">✓</span> <strong>가입 순 정렬</strong> + 본인 위 (시간의 흐름 톤)</div>
+      </div>
+
+      <div class="promise-card">
+        <div class="num">02</div>
+        <h3>친구 신청 X</h3>
+        <div class="promise-row bad"><span class="icon">✕</span> 친구 / 팔로우 / 친구 추가 단어 자체 안 씀</div>
+        <div class="promise-row good"><span class="icon">✓</span> 챌린지 참여로 <strong>자동 동료 발생</strong> — "도전 인연"</div>
+      </div>
+
+      <div class="promise-card">
+        <div class="num">03</div>
+        <h3>조용한 알림 — 가장 본질적 차별</h3>
+        <div class="extra" style="border:none; padding:0 0 12px; margin:0;">
+          학생들이 핸드폰 못 놓는 가장 큰 메커니즘이 <strong style="color:var(--accent-700);">실시간 알림 도파민 루프</strong>예요.
+          우리는 알림을 제공하되 <strong style="color:var(--accent-700);">4원칙</strong>으로 묶어요.
+        </div>
+        <div class="promise-row good"><span class="icon">①</span> <strong>묶음</strong> — 응원·좋아요는 1시간 단위로 묶어 "지난 1시간 동료 3명이 응원했어요" 한 건</div>
+        <div class="promise-row good"><span class="icon">②</span> <strong>즉시는 대화만</strong> — 채팅·댓글만 즉시, 단 무음 + 진동</div>
+        <div class="promise-row good"><span class="icon">③</span> <strong>조용한 시간</strong> — 밤 10시 ~ 아침 8시 자동 보류</div>
+        <div class="promise-row good"><span class="icon">④</span> <strong>일별 상한</strong> — 사용자당 하루 최대 5건</div>
+      </div>
+
+      <div class="promise-card">
+        <div class="num">04</div>
+        <h3>끝이 있는 도전</h3>
+        <div class="promise-row bad"><span class="icon">✕</span> 무한 스크롤 / 무한 피드</div>
+        <div class="promise-row good"><span class="icon">✓</span> <strong>기간 7 / 30 / 100 / 365일</strong> 챌린지</div>
+        <div class="promise-row good"><span class="icon">✓</span> 매일 1번 인증 후엔 라벨이 "오늘 인증 완료 · 내일 또 만나요"</div>
+      </div>
+
+      <div class="promise-card">
+        <div class="num">05</div>
+        <h3>작은 동료 단위</h3>
+        <div class="promise-row bad"><span class="icon">✕</span> "12,847 명이 함께 도전 중" 식 거대한 숫자</div>
+        <div class="promise-row good"><span class="icon">✓</span> "내 동료 5명 중 3명 ✓"</div>
+        <div class="promise-row good"><span class="icon">✓</span> 챌린지방은 평균 <strong>3–5명 친밀 단위</strong>가 기본</div>
+      </div>
+
+      <div class="promise-card">
+        <div class="num">06</div>
+        <h3>의미 있는 평가 4가지</h3>
+        <div class="promise-row bad"><span class="icon">✕</span> 좋아요 1차원 도파민</div>
+        <div class="promise-row good"><span class="icon">✓</span> 두 가지 평가 시스템 (의미 분리):</div>
+        <div class="extra">
+          · <strong>인증 응원</strong> (방 안): 🔥 / 👏 / 💪 / ❤️ <small>(감정 표현)</small><br>
+          · <strong>챌린지 평가</strong> (둘러보기): ✨ 기발 / 😱 대단 / 🥹 뭉클 / 💫 새로움 <small>(의미 평가)</small>
+        </div>
+      </div>
+
+      <div class="promise-card">
+        <div class="num">07</div>
+        <h3>더 나은 세상</h3>
+        <div class="promise-row good"><span class="icon">✓</span> <strong>임팩트 카테고리</strong> (환경 · 기부 · 봉사 · 공익)</div>
+        <div class="promise-row good"><span class="icon">✓</span> 둘러보기에 초록 뱃지 + 💚 "함께 만든 변화" 배너 + [+ 동참] 버튼</div>
+        <div class="promise-row good"><span class="icon">✓</span> 내가 나아질수록 세상도 함께 나아짐 — 슬로건의 실제 구현</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────── -->
+<!-- BETA PROMISE                                  -->
+<!-- ────────────────────────────────────────────── -->
+<section class="promise-section">
+  <div class="container">
+    <div class="label">베타 30명에게 약속하는 것</div>
+    <p class="promise-quote">
+      "30명 중 10명이 친구에게<br>
+      추천하고 싶다 라고 답하지 않으면<br>
+      우리는 멈춥니다."
+    </p>
+    <div class="promise-list">
+      <div class="item"><span class="check">✓</span><span><strong>무한 스크롤 없음</strong> — 끝이 있는 도전.</span></div>
+      <div class="item"><span class="check">✓</span><span><strong>친구 신청·수락 없음</strong> — 동료는 도전이 만들어요.</span></div>
+      <div class="item"><span class="check">✓</span><span><strong>알림 폭격 없음</strong> — 묶음·조용시간·상한.</span></div>
+      <div class="item"><span class="check">✓</span><span><strong>큰 숫자 비교 없음</strong> — 99+ 통일.</span></div>
+      <div class="item"><span class="check">✓</span><span><strong>광고 협찬·내기·박제 결제</strong> = Phase 2. 베타는 순수 검증.</span></div>
+    </div>
+    <p style="margin-top: 28px; color: var(--primary-500); text-align: center; font-size: 14px; line-height: 1.7;">
+      이게 안 되면 우리는 <strong style="color:var(--primary);">인스타와 같은 카테고리</strong>가 되는 거고,<br>
+      만들 가치가 없어요.
+    </p>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────── -->
+<!-- MIR'S NOTE                                    -->
+<!-- ────────────────────────────────────────────── -->
+<section class="mir-note">
+  <div class="container">
+    <div class="label">만든 사람의 말</div>
+    <h2>가장 원초적인 한 문장.</h2>
+    <p class="mir-quote">
+      "내가 도전하는데 내 지인들이 응원해줘요. 난 선언하는 거죠.<br>
+      앞으로 100일 동안 10kg 몸무게를 줄일 거야.<br>
+      100일 동안 금연할 거야.<br>
+      <span class="strong">나를 응원해주고 지지해줘.</span>"
+    </p>
+    <p style="margin-top: 28px; color: #999; font-size: 14px; line-height: 1.7;">
+      이게 Do : 하다 의 가장 원초적이고 본질적인 사용자 시나리오예요.<br>
+      "응원받기 방" 은 이 한 문장을 위해 만들었어요.
+    </p>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────── -->
+<!-- FINAL CTA                                     -->
+<!-- ────────────────────────────────────────────── -->
+<section class="final">
+  <div class="container">
+    <div class="label">베타 시작하기</div>
+    <h2>오늘, 첫 한 걸음.</h2>
+    <p>
+      30명 모집 중. iOS 만 — Android 는 Phase 2.<br>
+      Apple Sign In 으로 가입 (이메일 숨김 가능).
+    </p>
+    <a class="cta" href="https://testflight.apple.com/join/jXrf3QpW" target="_blank" rel="noopener">
+      🍎 베타 가입하기 →
+    </a>
+    <p class="cta-note">
+      TestFlight 앱이 자동 설치됩니다. (Apple 무료 베타 도구)
+    </p>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────── -->
+<!-- FOOTER                                        -->
+<!-- ────────────────────────────────────────────── -->
+<footer>
+  <div class="container">
+    <div class="slogan">도전, 그냥 하다.</div>
+    <div>더 나은 나, 더 나은 세상.</div>
+    <div style="margin-top:18px; color:#666;">
+      © 2026 Do : 하다 — Beta · 문의: mirr0505@gmail.com
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

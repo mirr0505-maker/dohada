@@ -15,7 +15,11 @@ import { useSession } from '@/lib/session';
 import { signOut } from '@/lib/auth';
 import { haptic } from '@/lib/haptics';
 import { fetchNotificationPrefs, updateNotificationPrefs, type NotificationPrefs } from '@/lib/push';
-import { fetchMyProfile, updateMyNickname, updateMyAvatar } from '@/lib/db';
+import {
+  fetchMyProfile, updateMyNickname, updateMyAvatar,
+  fetchMyInterests, addInterest, removeInterest, fetchCategoryTree,
+  type MyInterest, type DbCategory,
+} from '@/lib/db';
 import { uploadProofImage } from '@/lib/upload';
 import { scheduleDailyReminder, cancelDailyReminder } from '@/lib/notifications';
 import Constants from 'expo-constants';
@@ -27,13 +31,16 @@ export default function ProfileScreen() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [editingNick, setEditingNick] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [interests, setInterests] = useState<MyInterest[]>([]);
+  const [categories, setCategories] = useState<DbCategory[]>([]);
+  const [editingInterests, setEditingInterests] = useState(false);
   const myUserId = session?.user?.id;
 
   useEffect(() => {
     if (session === null) router.replace('/login');
   }, [session]);
 
-  // 알림 prefs + 프로필(닉네임+아바타) 로드 (users 테이블 기준)
+  // 알림 prefs + 프로필 + 관심 분야 + 카테고리 트리 로드
   useEffect(() => {
     if (!myUserId || myUserId === 'dev') return;
     fetchNotificationPrefs(myUserId).then(setPrefs).catch(() => {});
@@ -41,6 +48,8 @@ export default function ProfileScreen() {
       setNickname(p.nickname);
       setAvatarUrl(p.avatar_url);
     }).catch(() => {});
+    fetchMyInterests(myUserId).then(setInterests).catch(() => {});
+    fetchCategoryTree().then(t => setCategories(t.categories)).catch(() => {});
   }, [myUserId]);
 
   // 보관함에서 아바타 사진 선택 → R2 업로드 → DB → state
@@ -148,6 +157,35 @@ export default function ProfileScreen() {
           {visibleEmail ? <Text style={styles.email}>{visibleEmail}</Text> : null}
         </View>
 
+        {/* 관심 분야 — 명시 등록 (자동 추론은 백그라운드 합집합) */}
+        <View style={styles.notifSection}>
+          <Text style={styles.sectionTitle}>관심 분야</Text>
+          <Pressable
+            style={styles.notifCard}
+            onPress={() => { haptic.tap(); setEditingInterests(true); }}
+          >
+            <View style={styles.interestRow}>
+              {interests.length === 0 ? (
+                <Text style={styles.interestHint}>
+                  관심 분야를 등록하면 매칭되는 오픈 도전이 홈에 올라와요
+                </Text>
+              ) : (
+                <View style={styles.chipsWrap}>
+                  {interests.map(i => (
+                    <View key={i.id} style={styles.chip}>
+                      <Text style={styles.chipText}>{i.category_emoji} {i.category_name}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+              <Text style={styles.editHint}>✏️</Text>
+            </View>
+          </Pressable>
+          <Text style={styles.notifNote}>
+            🎯 등록한 관심 분야의 오픈 도전이 만들어지면 홈의 "✨ 관심 도전" 에 자동으로 올라와요.
+          </Text>
+        </View>
+
         {/* 알림 설정 */}
         {prefs && (
           <View style={styles.notifSection}>
@@ -206,7 +244,102 @@ export default function ProfileScreen() {
         onClose={() => setEditingNick(false)}
         onSaved={(next) => { setNickname(next); setEditingNick(false); }}
       />
+
+      <InterestEditModal
+        visible={editingInterests}
+        userId={myUserId}
+        categories={categories}
+        interests={interests}
+        onClose={() => setEditingInterests(false)}
+        onChanged={(next) => setInterests(next)}
+      />
     </Screen>
+  );
+}
+
+// ─── 관심 분야 편집 모달 ──────────────────────
+function InterestEditModal({
+  visible, userId, categories, interests, onClose, onChanged,
+}: {
+  visible: boolean;
+  userId: string | undefined;
+  categories: DbCategory[];
+  interests: MyInterest[];
+  onClose: () => void;
+  onChanged: (next: MyInterest[]) => void;
+}) {
+  const [saving, setSaving] = useState<number | null>(null);   // 진행 중 categoryId
+
+  const isSelected = (catId: number) => interests.some(i => i.category_id === catId);
+
+  const onToggle = async (cat: DbCategory) => {
+    if (!userId || saving) return;
+    haptic.tap();
+    setSaving(cat.id);
+    try {
+      if (isSelected(cat.id)) {
+        const existing = interests.find(i => i.category_id === cat.id);
+        if (existing) {
+          await removeInterest(existing.id);
+          onChanged(interests.filter(i => i.id !== existing.id));
+        }
+      } else {
+        await addInterest(userId, cat.id);
+        const fresh = await fetchMyInterests(userId);
+        onChanged(fresh);
+      }
+    } catch (e: any) {
+      Alert.alert('저장 실패', e?.message ?? String(e));
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <SafeAreaView style={styles.modalSafe} edges={['top', 'bottom']}>
+        <View style={styles.modalHeader}>
+          <View style={{ width: 40 }} />
+          <Text style={styles.modalTitle}>관심 분야</Text>
+          <Pressable onPress={onClose} hitSlop={12}>
+            <Text style={styles.modalCancel}>완료</Text>
+          </Pressable>
+        </View>
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+          <Text style={styles.modalHint}>
+            관심 분야의 오픈 도전이 만들어지면 홈에서 발견할 수 있어요.{'\n'}
+            여러 개 선택 가능.
+          </Text>
+          <View style={styles.catGrid}>
+            {categories.map(cat => {
+              const selected = isSelected(cat.id);
+              const busy = saving === cat.id;
+              return (
+                <Pressable
+                  key={cat.id}
+                  style={[styles.catCard, selected && styles.catCardSelected]}
+                  onPress={() => onToggle(cat)}
+                  disabled={busy}
+                >
+                  {selected && (
+                    <View style={styles.catCheckBadge}>
+                      <Text style={styles.catCheckBadgeText}>✓</Text>
+                    </View>
+                  )}
+                  <Text style={styles.catEmojiBig}>{cat.emoji}</Text>
+                  <Text style={[styles.catNameBig, selected && styles.catNameSelected]}>
+                    {cat.name}
+                  </Text>
+                  {cat.copy ? (
+                    <Text style={styles.catCopySmall} numberOfLines={2}>{cat.copy}</Text>
+                  ) : null}
+                </Pressable>
+              );
+            })}
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
   );
 }
 
@@ -489,5 +622,96 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.primary500,
     fontFamily: fontFamily.regular,
+    paddingHorizontal: 4,
+    paddingBottom: 16,
+    lineHeight: 20,
+  },
+
+  // 관심 분야 — 프로필 섹션 (chips)
+  interestRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    gap: 12,
+  },
+  interestHint: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+    lineHeight: 20,
+  },
+  chipsWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  chip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: colors.accent50,
+    borderRadius: radius.pill,
+  },
+  chipText: {
+    fontSize: fontSize.sm,
+    color: colors.accent700,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
+  },
+
+  // 관심 분야 모달 — 2-column grid
+  catGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  catCard: {
+    width: '48%',
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    paddingVertical: 18,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 2,
+    borderColor: colors.primary100,
+    position: 'relative',
+    ...shadow.sm,
+  },
+  catCardSelected: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accent50,
+  },
+  catCheckBadge: {
+    position: 'absolute',
+    top: 8, right: 8,
+    width: 20, height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  catCheckBadgeText: {
+    color: colors.surface,
+    fontSize: 12,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  catEmojiBig: { fontSize: 38, marginBottom: 4 },
+  catNameBig: {
+    fontSize: fontSize.base,
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    textAlign: 'center',
+  },
+  catNameSelected: { color: colors.accent700 },
+  catCopySmall: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+    textAlign: 'center',
+    lineHeight: 16,
   },
 });
