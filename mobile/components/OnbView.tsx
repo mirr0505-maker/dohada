@@ -52,7 +52,7 @@ export function OnbView({ step }: Props) {
     <Screen backgroundColor={colors.background}>
       {/* 좌상단: 정체성 마크 (모든 슬라이드 공통) */}
       <View style={styles.brand}>
-        <Text style={styles.brandMark}>( ◉ )</Text>
+        <Text style={styles.brandMark}>( ⊙ )</Text>
         <Text style={styles.brandLabel}>Do : 하다</Text>
       </View>
 

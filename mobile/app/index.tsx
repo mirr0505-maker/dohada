@@ -10,7 +10,7 @@ export default function SplashScreen() {
     <Screen fullScreen backgroundColor={colors.accent} statusBarStyle="light">
       <Pressable style={styles.tapArea} onPress={() => router.push('/onb1')}>
         <View style={styles.center}>
-          <Text style={styles.logo}>(  ◉  )</Text>
+          <Text style={styles.logo}>(  ⊙  )</Text>
           <Text style={styles.title}>Do : 하다</Text>
           <Text style={styles.tagline}>더 나은 나, 더 나은 세상</Text>
           <Text style={styles.subTagline}>나의 도전이 나와 세상을 바꾼다</Text>

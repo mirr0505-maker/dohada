@@ -28,7 +28,7 @@ export function AppHeader() {
   return (
     <View style={styles.header}>
       <View style={styles.brand}>
-        <Text style={styles.brandMark}>( ◉ )</Text>
+        <Text style={styles.brandMark}>( ⊙ )</Text>
         <Text style={styles.brandDo}>Do</Text>
         <Text style={styles.brandColon}>:</Text>
         <Text style={styles.brandHada}>하다</Text>
