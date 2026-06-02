@@ -4,6 +4,7 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Alert, Image } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import { fetchMyProfile } from '@/lib/db';
@@ -38,7 +39,7 @@ export function AppHeader() {
         style={styles.headerIcon}
         onPress={() => { haptic.tap(); Alert.alert('알림', 'Phase 2 에서 활성화돼요.'); }}
       >
-        <Text style={{ fontSize: 16 }}>🔔</Text>
+        <Ionicons name="notifications-outline" size={20} color={colors.primary} />
       </Pressable>
       <Pressable
         onPress={() => { haptic.tap(); router.push('/(tabs)/profile' as any); }}
@@ -70,7 +71,7 @@ const styles = StyleSheet.create({
   },
   brand: { flexDirection: 'row', alignItems: 'baseline', gap: 0 },
   brandMark: {
-    fontSize: fontSize.base,
+    fontSize: fontSize.xl,
     color: colors.accent,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
