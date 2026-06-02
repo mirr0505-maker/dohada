@@ -3,7 +3,7 @@
 //   🤫 Solo     — 사적 일기 (미니멀, 회색)
 //   🙋 Cheered  — 도전자 무대 (받은 응원 강조, 노랑)
 //   🤝 Closed   — 친밀 모임 (동료 아바타, 오렌지)
-//   🌍 Open     — 광장 (임팩트면 초록, 일반이면 오렌지+멤버수)
+//   🌍 Open     — 광장 (사회공헌면 초록, 일반이면 오렌지+멤버수)
 import React from 'react';
 import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
 import { router } from 'expo-router';
@@ -90,7 +90,7 @@ function ClosedCard({ challenge, onPress }: { challenge: MyChallengeDetail; onPr
   );
 }
 
-// ─── 🌍 Open — 임팩트면 초록, 일반이면 오렌지 ─────────
+// ─── 🌍 Open — 사회공헌면 초록, 일반이면 오렌지 ─────────
 function OpenCard({ challenge, onPress }: { challenge: MyChallengeDetail; onPress: () => void }) {
   const { progress, dayN, totalDays, daysLeft } = computeProgress(challenge.start_date, challenge.end_date);
   const isImpact = challenge.is_impact;
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     borderColor: '#F7E59C',
   },
   cardImpact: {
-    backgroundColor: '#F1FBF3',     // 임팩트 = 옅은 초록
+    backgroundColor: '#F1FBF3',     // 사회공헌 = 옅은 초록
     borderWidth: 1,
     borderColor: colors.success,
   },

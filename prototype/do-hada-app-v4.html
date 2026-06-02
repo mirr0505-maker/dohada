@@ -2715,7 +2715,7 @@
     }
     .disc-cur-item:active { transform: scale(0.95); }
 
-    /* 🌍 임팩트 큐레이션 - 초록 그라데이션 (자아실현/기여) */
+    /* 🌍 사회공헌 큐레이션 - 초록 그라데이션 (자아실현/기여) */
     .disc-cur-impact {
       background: linear-gradient(135deg, #DCFCE7, #BBF7D0) !important;
       border-color: #86EFAC !important;
@@ -2845,7 +2845,7 @@
       color: #D97706;
     }
 
-    /* 🌍 임팩트 카드 - 매슬로우 5단계 (자아실현/기여) */
+    /* 🌍 사회공헌 카드 - 매슬로우 5단계 (자아실현/기여) */
     .disc-card-impact {
       background: linear-gradient(180deg, #F0FDF4 0%, var(--surface) 30%);
       border: 1.5px solid #BBF7D0;
@@ -3321,7 +3321,7 @@
       border-radius: 9999px;
     }
 
-    /* 🌍 임팩트 카테고리 - 매슬로우 5단계 (자아실현/기여) */
+    /* 🌍 사회공헌 카테고리 - 매슬로우 5단계 (자아실현/기여) */
     .create-cat-impact {
       background: linear-gradient(135deg, #DCFCE7, #BBF7D0);
       border-color: #86EFAC;
@@ -4518,7 +4518,7 @@
     }
 
     /* ============================================================
-       🌍 임팩트 점수 카드 (자아실현/기여 차원)
+       🌍 사회공헌 점수 카드 (자아실현/기여 차원)
        ============================================================ */
     .impact-score-card {
       background: linear-gradient(135deg, #DCFCE7 0%, #BBF7D0 50%, #86EFAC 100%);
@@ -5217,11 +5217,11 @@
               </div>
             </div>
 
-            <!-- 카드 4: 임팩트 (한강 쓰레기) -->
+            <!-- 카드 4: 사회공헌 (한강 쓰레기) -->
             <div class="disc-card disc-card-impact" onclick="go('room')">
               <div class="disc-card-header">
                 <div class="disc-card-tags">
-                  <span class="badge badge-impact">🌍 임팩트</span>
+                  <span class="badge badge-impact">🌍 사회공헌</span>
                   <span class="badge badge-hot">🔥 인기</span>
                 </div>
                 <span style="font-size:10px;color:#16A34A;font-weight:700;">D-67</span>
@@ -5257,11 +5257,11 @@
               </div>
             </div>
 
-            <!-- 카드 5: 임팩트 (기부) -->
+            <!-- 카드 5: 사회공헌 (기부) -->
             <div class="disc-card disc-card-impact" onclick="go('room')">
               <div class="disc-card-header">
                 <div class="disc-card-tags">
-                  <span class="badge badge-impact">🌍 임팩트</span>
+                  <span class="badge badge-impact">🌍 사회공헌</span>
                   <span class="badge badge-public">🌱 공익</span>
                 </div>
                 <span style="font-size:10px;color:#16A34A;font-weight:700;">D-365</span>
@@ -5730,13 +5730,13 @@
             </div>
           </div>
 
-          <!-- 🌍 임팩트 점수 카드 -->
+          <!-- 🌍 사회공헌 점수 카드 -->
           <div class="profile-section" style="padding-top: 4px;">
             <div class="impact-score-card">
               <div class="impact-score-header">
                 <div class="impact-score-title">
                   <span>🌍</span>
-                  <span>나의 임팩트</span>
+                  <span>나의 사회공헌</span>
                 </div>
                 <div class="impact-score-value">487</div>
               </div>
@@ -5773,7 +5773,7 @@
               </div>
 
               <button class="btn btn-outline btn-md btn-block impact-cta" onclick="toast('🌍 세상을 바꾸는 챌린지 보기')">
-                🌍 더 많은 임팩트 챌린지 찾기
+                🌍 더 많은 사회공헌 챌린지 찾기
               </button>
             </div>
           </div>
@@ -7535,7 +7535,7 @@
           <div class="filter-option" onclick="selectCuration('impact', '🌍', '세상을 바꾸는')">
             <span class="filter-option-icon">🌍</span>
             <span class="filter-option-name">세상을 바꾸는</span>
-            <span class="filter-option-desc">임팩트 챌린지</span>
+            <span class="filter-option-desc">사회공헌 챌린지</span>
           </div>
         </div>
       </div>
@@ -8873,7 +8873,7 @@ const stepContents = {
         </div>
         <div class="create-cat-item create-cat-impact" onclick="pickCat(this, 'impact')">
           <div class="create-cat-emoji">🌍</div>
-          <div class="create-cat-name">임팩트</div>
+          <div class="create-cat-name">사회공헌</div>
           <div class="create-cat-impact-tag">세상에</div>
         </div>
         <div class="create-cat-item create-cat-other" onclick="pickCat(this, 'other')">
@@ -9099,9 +9099,9 @@ const categoryData = {
     subs: ['가족과 시간', '친구 챙기기', '감사일기', '연인', '소통', '기타']
   },
   impact: {
-    label: '🌍 임팩트',
+    label: '🌍 사회공헌',
     subs: ['환경/제로웨이스트', '자원봉사', '기부', '시민참여', '멘토링', '캠페인', '동물보호', '공익활동', '기타'],
-    isImpact: true  // 임팩트 카테고리 표시
+    isImpact: true  // 사회공헌 카테고리 표시
   },
   other: {
     label: '✨ 기타',

@@ -96,7 +96,7 @@ export type MyChallengeDetail = ChallengeWithCount & {
 };
 
 export async function fetchMyChallengesWithDetails(myUserId: string): Promise<MyChallengeDetail[]> {
-  // 1. 기본 챌린지 + 카테고리 임팩트 여부 (RLS 가 멤버 챌린지만 보여줌)
+  // 1. 기본 챌린지 + 카테고리 사회공헌 여부 (RLS 가 멤버 챌린지만 보여줌)
   const { data: challenges, error } = await supabase
     .from('challenges')
     .select(`

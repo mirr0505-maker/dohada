@@ -43,7 +43,7 @@ insert into public.categories (id, slug, emoji, name, copy, is_impact, sort_orde
   (6, 'money',     '💰', '재테크',   '미래를 준비하는 사람들',        false, 60),
   (7, 'life',      '🌍', '라이프',   '일상을 가꾸는 사람들',          false, 70),
   (8, 'relation',  '🤝', '관계',     '마음을 나누는 사람들',          false, 80),
-  (9, 'impact',    '🌍', '임팩트',   '세상에 변화를 만드는 사람들',   true,  90),
+  (9, 'impact',    '🌍', '사회공헌', '세상에 변화를 만드는 사람들',   true,  90),
   (10, 'other',    '✨', '기타',     '새로운 길을 여는 사람들',       false, 100)
 on conflict (id) do update set
   slug=excluded.slug, emoji=excluded.emoji, name=excluded.name,
@@ -93,7 +93,7 @@ insert into public.subcategories (id, category_id, name, sort_order) values
   -- 관계
   (801, 8, '가족',     10),(802, 8, '연인',     20),(803, 8, '친구',     30),
   (804, 8, '육아',     40),(805, 8, '반려동물', 50),
-  -- 임팩트
+  -- 사회공헌
   (901, 9, '환경',     10),(902, 9, '기부',     20),(903, 9, '봉사',     30),
   (904, 9, '공익',     40)
 on conflict (id) do update set

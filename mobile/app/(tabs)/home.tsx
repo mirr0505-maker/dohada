@@ -219,7 +219,7 @@ function DiscoverMiniCard({ challenge }: { challenge: OpenChallengeCard }) {
       <View style={styles.discRow}>
         {isImpact ? (
           <View style={[styles.badge, styles.badgeImpact]}>
-            <Text style={styles.badgeText}>🌍 임팩트</Text>
+            <Text style={styles.badgeText}>🌍 사회공헌</Text>
           </View>
         ) : (
           <View style={{ flex: 0 }} />

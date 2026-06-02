@@ -1,4 +1,4 @@
-// 🚀 둘러보기 — v4 disc-card + 4가지 평가 (✨😱🥹💫) + 임팩트 배너
+// 🚀 둘러보기 — v4 disc-card + 4가지 평가 (✨😱🥹💫) + 사회공헌 배너
 // MVP 큐레이션: "지금 핫한" 단일 (가입자 폭증 — 베타엔 단순 created_at desc).
 // 명사/브랜드/공익 뱃지는 Phase 2 (운영 큐레이션).
 import React, { useCallback, useState } from 'react';
@@ -167,7 +167,7 @@ function DiscCard({
         <View style={styles.badgeRow}>
           {isImpact ? (
             <View style={[styles.badge, styles.badgeImpact]}>
-              <Text style={styles.badgeText}>🌍 임팩트</Text>
+              <Text style={styles.badgeText}>🌍 사회공헌</Text>
             </View>
           ) : null}
         </View>
@@ -190,7 +190,7 @@ function DiscCard({
         <View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: fillColor }]} />
       </View>
 
-      {/* 임팩트 배너 (있을 때만) */}
+      {/* 사회공헌 배너 (있을 때만) */}
       {isImpact && (
         <View style={styles.impactBanner}>
           <Text style={styles.impactBannerText}>
