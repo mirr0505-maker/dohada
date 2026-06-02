@@ -114,7 +114,7 @@ export default function LoginScreen() {
     <Screen backgroundColor={colors.background}>
       <View style={styles.container}>
         <View style={styles.logoBlock}>
-          <Text style={styles.logoCircle}>(  ◯  )</Text>
+          <Text style={styles.logoCircle}>(  ◉  )</Text>
           <Text style={styles.logoTitle}>Do : 하다</Text>
           <Text style={styles.logoSub}>더 나은 나, 더 나은 세상</Text>
         </View>

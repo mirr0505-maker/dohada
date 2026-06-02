@@ -50,6 +50,12 @@ export function OnbView({ step }: Props) {
 
   return (
     <Screen backgroundColor={colors.background}>
+      {/* 좌상단: 정체성 마크 (모든 슬라이드 공통) */}
+      <View style={styles.brand}>
+        <Text style={styles.brandMark}>( ◉ )</Text>
+        <Text style={styles.brandLabel}>Do : 하다</Text>
+      </View>
+
       {/* 우상단: 건너뛰기 (마지막 화면엔 없음) */}
       {step < 4 && (
         <Pressable style={styles.skip} onPress={() => router.replace('/login')}>
@@ -93,6 +99,29 @@ export function OnbView({ step }: Props) {
 }
 
 const styles = StyleSheet.create({
+  brand: {
+    position: 'absolute',
+    top: 16,
+    left: 20,
+    zIndex: 10,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
+    paddingVertical: 8,
+  },
+  brandMark: {
+    fontSize: fontSize.base,
+    color: colors.accent,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.5,
+  },
+  brandLabel: {
+    fontSize: fontSize.sm,
+    color: colors.primary500,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
+  },
   skip: {
     position: 'absolute',
     top: 16,

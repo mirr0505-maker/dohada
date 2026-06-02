@@ -28,6 +28,7 @@ export function AppHeader() {
   return (
     <View style={styles.header}>
       <View style={styles.brand}>
+        <Text style={styles.brandMark}>( ◉ )</Text>
         <Text style={styles.brandDo}>Do</Text>
         <Text style={styles.brandColon}>:</Text>
         <Text style={styles.brandHada}>하다</Text>
@@ -68,6 +69,14 @@ const styles = StyleSheet.create({
     ...shadow.sm,
   },
   brand: { flexDirection: 'row', alignItems: 'baseline', gap: 0 },
+  brandMark: {
+    fontSize: fontSize.base,
+    color: colors.accent,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    marginRight: 6,
+    letterSpacing: 0.5,
+  },
   brandDo: {
     fontSize: fontSize.xl,
     color: colors.primary,
