@@ -29,49 +29,61 @@ export function AppHeader() {
 
   return (
     <View style={styles.header}>
+      {/* 좌: 로고 + Do:하다 (한 텍스트 라인) */}
       <View style={styles.brand}>
         <BrandMark size="md" color={colors.accent} />
-        <Text style={styles.brandDo}>Do</Text>
-        <Text style={styles.brandColon}>:</Text>
-        <Text style={styles.brandHada}>하다</Text>
+        <Text style={styles.brandText}>
+          Do<Text style={styles.brandColon}>:</Text>하다
+        </Text>
       </View>
-      <Text style={styles.headerNick} numberOfLines={1}>{nickname}</Text>
-      <Pressable
-        style={styles.headerIcon}
-        onPress={() => { haptic.tap(); Alert.alert('알림', 'Phase 2 에서 활성화돼요.'); }}
-      >
-        <Ionicons name="notifications-outline" size={20} color={colors.primary} />
-      </Pressable>
-      <Pressable
-        onPress={() => { haptic.tap(); router.push('/(tabs)/profile' as any); }}
-        hitSlop={6}
-      >
-        {avatarUrl ? (
-          <Image source={{ uri: avatarUrl }} style={styles.headerAvatar} />
-        ) : (
-          <View style={[styles.headerAvatar, styles.headerAvatarFallback]}>
-            <Text style={styles.headerAvatarInit}>{nickname.slice(0, 1)}</Text>
-          </View>
-        )}
-      </Pressable>
+
+      {/* 우: 알림 + 아바타 */}
+      <View style={styles.rightGroup}>
+        <Pressable
+          style={styles.headerIcon}
+          onPress={() => { haptic.tap(); Alert.alert('알림', 'Phase 2 에서 활성화돼요.'); }}
+        >
+          <Ionicons name="notifications-outline" size={20} color={colors.primary} />
+        </Pressable>
+        <Pressable
+          onPress={() => { haptic.tap(); router.push('/(tabs)/profile' as any); }}
+          hitSlop={6}
+        >
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.headerAvatar} />
+          ) : (
+            <View style={[styles.headerAvatar, styles.headerAvatarFallback]}>
+              <Text style={styles.headerAvatarInit}>{nickname.slice(0, 1)}</Text>
+            </View>
+          )}
+        </Pressable>
+      </View>
+
+      {/* 중앙: 닉네임 pill (accent 배경 + 흰 글씨) */}
+      <View style={styles.nickWrap} pointerEvents="none">
+        <View style={styles.nickPill}>
+          <Text style={styles.headerNick} numberOfLines={1}>{nickname}</Text>
+        </View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   header: {
+    position: 'relative',
     paddingHorizontal: 20,
     paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    justifyContent: 'space-between',
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.primary100,
     ...shadow.sm,
   },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  brandDo: {
+  brand: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  brandText: {
     fontSize: fontSize.xl,
     color: colors.primary,
     fontFamily: fontFamily.bold,
@@ -79,26 +91,35 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
   },
   brandColon: {
-    fontSize: fontSize.xl,
     color: colors.accent,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-    marginHorizontal: 2,
   },
-  brandHada: {
-    fontSize: fontSize.xl,
-    color: colors.primary,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-    letterSpacing: -0.4,
+  rightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  nickWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nickPill: {
+    backgroundColor: colors.accent,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    maxWidth: 140,
   },
   headerNick: {
-    flex: 1,
-    fontSize: fontSize.base,
-    color: colors.primary500,
-    fontFamily: fontFamily.medium,
-    fontWeight: fontWeight.medium,
-    marginLeft: 6,
+    fontSize: fontSize.lg,
+    color: colors.surface,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    letterSpacing: -0.2,
   },
   headerIcon: {
     width: 36, height: 36, borderRadius: 18,
