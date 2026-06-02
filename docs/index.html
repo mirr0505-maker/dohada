@@ -229,18 +229,31 @@
   }
   .maslow-quote {
     margin-top: 32px;
-    padding: 24px;
+    padding: 28px 24px;
     background: white;
     border-radius: 16px;
     text-align: center;
+    line-height: 1.9;
+  }
+  .maslow-quote .line {
+    color: var(--primary);
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: -0.3px;
+  }
+  .maslow-quote small {
     color: var(--primary-500);
-    line-height: 2;
-    font-size: 14px;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0;
   }
   .maslow-quote .focus {
     color: var(--accent-700);
-    font-weight: 700;
-    font-size: 16px;
+    font-size: 19px;
+  }
+  @media (max-width: 480px) {
+    .maslow-quote .line { font-size: 16px; }
+    .maslow-quote .focus { font-size: 17px; }
   }
   @media (max-width: 480px) {
     .maslow-grid { font-size: 12.5px; }
@@ -400,25 +413,10 @@
     letter-spacing: -0.2px;
   }
 
-  /* ── Status Banner ──────────────────────────────── */
-  .status {
-    background: #FFFBE6;
-    border-bottom: 1px solid #F5E4A0;
-    padding: 12px 24px;
-    text-align: center;
-    font-size: 13px;
-    color: #6B5200;
-  }
-  .status strong { color: #423300; }
 </style>
 </head>
 
 <body>
-
-<!-- Beta App Review 통과 전까지는 아래 배너 유지. 통과 후 삭제하거나 톤 변경. -->
-<div class="status">
-  ⏳ <strong>Apple 베타 심사 통과 후 가입 가능합니다.</strong> 24–48시간 내 활성화 예정 — 지금 미리 링크를 받아두세요.
-</div>
 
 <!-- ────────────────────────────────────────────── -->
 <!-- HERO                                          -->
@@ -436,10 +434,10 @@
       도전을 선언하고, 매일 인증하고,<br>
       동료의 응원을 받는 — 자아실현 SNS.
     </p>
-    <a class="cta" href="https://testflight.apple.com/join/jXrf3QpW" target="_blank" rel="noopener">
-      🍎 베타 가입하기 →
+    <a class="cta" href="https://docs.google.com/forms/d/e/1FAIpQLSfxhYWjC1hp0zb922LzGYeF0SgGY__1kuPb_OEToyZf9W87Qg/viewform" target="_blank" rel="noopener">
+      ✍️ 베타 신청하기 →
     </a>
-    <p class="cta-note">iOS · TestFlight · 무료</p>
+    <p class="cta-note">30명 한정 · iOS TestFlight · 1주 후 5분 인터뷰 동의</p>
   </div>
 </section>
 
@@ -449,25 +447,25 @@
 <section class="diag">
   <div class="container">
     <div class="label">왜 지금</div>
-    <h2>SNS의 시대가<br>끝나가고 있어요.</h2>
+    <h2>기존 SNS가<br>변화해야 하는 시점에 와 있어요.</h2>
     <p>
-      인스타그램은 광고판이 되었고, 페이스북은 노년의 공간이 되었고, 카카오톡은 업무 도구가 되었어요.
+      인스타그램은 광고판이 되었고, 페이스북은 젊은이의 기피 공간이 되었고, 카카오톡은 업무 도구가 되었어요.
       "친구의 일상" 은 알고리즘 깊은 곳에 묻혔고, 우리가 보는 것은 인플루언서의 협찬,
       광고, 그리고 끝없이 스크롤되는 비교의 대상이죠.
     </p>
     <p class="quiet">
-      MZ세대는 이미 이 흐름을 거부하고 있어요. 카톡 프로필 사진을 바꾸지 않는 것,
+      MZ세대는 이미 이 흐름을 거부하고 있어요. 카톡 업데이트를 거부하는 것,
       인스타 스토리를 닫는 것, 친구 추가를 망설이는 것 — 단순한 트렌드가 아니라
       <strong style="color:var(--primary);">디지털 시대에 살아남기 위한 자기보호</strong>예요.
     </p>
-    <div class="diag-callout">
-      <strong>그리고 학생 폰 중독, 가족 폭력.</strong><br>
-      어린 학생들이 핸드폰을 놓지 못해 부모와 싸우고 폭력적으로 변한다는 뉴스.
+    <p>
+      그리고 학생 폰 중독, 가족 폭력. 어린 학생들이 핸드폰을 놓지 못해 부모와 싸우고 폭력적으로 변한다는 뉴스.
       가장 큰 원인 중 하나가 SNS 예요. 비교, 박탈, 무한 스크롤, 도파민 알림, 자랑 경쟁 —
       사춘기의 약한 자아가 견디기엔 너무 가혹한 환경.
-      <br><br>
-      <strong>우리는 그 반대로 만들어요.</strong>
-    </div>
+    </p>
+    <p>
+      우리는 그 반대로 만들어요.
+    </p>
   </div>
 </section>
 
@@ -544,9 +542,9 @@
     </div>
 
     <div class="maslow-quote">
-      인스타: "내가 얼마나 예쁜지 보세요" <small>(3단계 — 피상적 인정)</small><br>
-      카톡: "친구야 잘 지내?" <small>(3단계 — 피상적 소속)</small><br>
-      <span class="focus">Do : 하다 : "오늘도 한 걸음 나아갔어요"</span><br>
+      <span class="line">인스타: "내가 얼마나 예쁜지 보세요"</span> <small>(3단계 — 피상적 인정)</small><br>
+      <span class="line">카톡: "친구야 잘 지내?"</span> <small>(3단계 — 피상적 소속)</small><br>
+      <span class="line focus">Do : 하다 : "오늘도 한 걸음, 더 나아졌어요"</span><br>
       <small>(5단계 — 자아실현)</small>
     </div>
   </div>
@@ -651,10 +649,6 @@
       <div class="item"><span class="check">✓</span><span><strong>큰 숫자 비교 없음</strong> — 99+ 통일.</span></div>
       <div class="item"><span class="check">✓</span><span><strong>광고 협찬·내기·박제 결제</strong> = Phase 2. 베타는 순수 검증.</span></div>
     </div>
-    <p style="margin-top: 28px; color: var(--primary-500); text-align: center; font-size: 14px; line-height: 1.7;">
-      이게 안 되면 우리는 <strong style="color:var(--primary);">인스타와 같은 카테고리</strong>가 되는 거고,<br>
-      만들 가치가 없어요.
-    </p>
   </div>
 </section>
 
@@ -686,14 +680,14 @@
     <div class="label">베타 시작하기</div>
     <h2>오늘, 첫 한 걸음.</h2>
     <p>
-      30명 모집 중. iOS 만 — Android 는 Phase 2.<br>
-      Apple Sign In 으로 가입 (이메일 숨김 가능).
+      30명 한정 모집 · iOS TestFlight.<br>
+      폼 제출 후 TestFlight 가입 안내가 발송돼요.
     </p>
-    <a class="cta" href="https://testflight.apple.com/join/jXrf3QpW" target="_blank" rel="noopener">
-      🍎 베타 가입하기 →
+    <a class="cta" href="https://docs.google.com/forms/d/e/1FAIpQLSfxhYWjC1hp0zb922LzGYeF0SgGY__1kuPb_OEToyZf9W87Qg/viewform" target="_blank" rel="noopener">
+      ✍️ 베타 신청하기 →
     </a>
     <p class="cta-note">
-      TestFlight 앱이 자동 설치됩니다. (Apple 무료 베타 도구)
+      1주 후 5분 인터뷰 + 작은 감사 (☕ + 창립 30인 뱃지)
     </p>
   </div>
 </section>
