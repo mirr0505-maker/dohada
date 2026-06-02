@@ -9,6 +9,7 @@ import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/
 import { useSession } from '@/lib/session';
 import { fetchMyProfile } from '@/lib/db';
 import { haptic } from '@/lib/haptics';
+import { BrandMark } from '@/components/BrandMark';
 
 export function AppHeader() {
   const session = useSession();
@@ -29,7 +30,7 @@ export function AppHeader() {
   return (
     <View style={styles.header}>
       <View style={styles.brand}>
-        <Text style={styles.brandMark}>( ⊙ )</Text>
+        <BrandMark size="md" color={colors.accent} />
         <Text style={styles.brandDo}>Do</Text>
         <Text style={styles.brandColon}>:</Text>
         <Text style={styles.brandHada}>하다</Text>
@@ -69,15 +70,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.primary100,
     ...shadow.sm,
   },
-  brand: { flexDirection: 'row', alignItems: 'baseline', gap: 0 },
-  brandMark: {
-    fontSize: fontSize.xl,
-    color: colors.accent,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-    marginRight: 6,
-    letterSpacing: 0.5,
-  },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   brandDo: {
     fontSize: fontSize.xl,
     color: colors.primary,

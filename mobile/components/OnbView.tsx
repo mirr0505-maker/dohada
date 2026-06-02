@@ -4,6 +4,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
+import { BrandMark } from '@/components/BrandMark';
 import { colors, fontFamily, fontSize, fontWeight } from '@/lib/tokens';
 
 // 온보딩 카피 — 프로토타입 do-hada-app-v4.html onb1~4 그대로
@@ -52,7 +53,7 @@ export function OnbView({ step }: Props) {
     <Screen backgroundColor={colors.background}>
       {/* 좌상단: 정체성 마크 (모든 슬라이드 공통) */}
       <View style={styles.brand}>
-        <Text style={styles.brandMark}>( ⊙ )</Text>
+        <BrandMark size="md" color={colors.accent} />
         <Text style={styles.brandLabel}>Do : 하다</Text>
       </View>
 
@@ -105,16 +106,9 @@ const styles = StyleSheet.create({
     left: 20,
     zIndex: 10,
     flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 6,
+    alignItems: 'center',
+    gap: 8,
     paddingVertical: 8,
-  },
-  brandMark: {
-    fontSize: fontSize.base,
-    color: colors.accent,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-    letterSpacing: 0.5,
   },
   brandLabel: {
     fontSize: fontSize.sm,

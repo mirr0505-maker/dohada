@@ -3,6 +3,7 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { Screen } from '@/components/Screen';
+import { BrandMark } from '@/components/BrandMark';
 import { colors, fontFamily, fontSize, fontWeight } from '@/lib/tokens';
 
 export default function SplashScreen() {
@@ -10,7 +11,7 @@ export default function SplashScreen() {
     <Screen fullScreen backgroundColor={colors.accent} statusBarStyle="light">
       <Pressable style={styles.tapArea} onPress={() => router.push('/onb1')}>
         <View style={styles.center}>
-          <Text style={styles.logo}>(  ⊙  )</Text>
+          <BrandMark size="xl" color={colors.surface} />
           <Text style={styles.title}>Do : 하다</Text>
           <Text style={styles.tagline}>더 나은 나, 더 나은 세상</Text>
           <Text style={styles.subTagline}>나의 도전이 나와 세상을 바꾼다</Text>

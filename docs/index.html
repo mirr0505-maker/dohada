@@ -59,30 +59,57 @@
     text-align: center;
   }
   .hero-mark {
-    font-size: 56px;
     color: var(--accent);
-    font-weight: 700;
-    line-height: 1;
     margin-bottom: 16px;
     display: inline-flex;
     align-items: center;
     gap: 14px;
     user-select: none;
+    --ring-size: 58px;
+    --paren-size: 64px;
+    --border-w: 5px;
+    --dot-size: 14px;
   }
   .hero-mark .paren {
     display: inline-block;
+    font-size: var(--paren-size);
+    font-weight: 700;
+    line-height: 1;
     animation: cheer 2.4s ease-in-out infinite;
   }
-  .hero-mark .paren.l { transform-origin: right center; }
-  .hero-mark .paren.r { transform-origin: left center; }
+  .hero-mark .ring {
+    display: inline-flex;
+    width: var(--ring-size);
+    height: var(--ring-size);
+    border-radius: 50%;
+    border: var(--border-w) solid var(--accent);
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+  }
+  .hero-mark .ring .dot {
+    width: var(--dot-size);
+    height: var(--dot-size);
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .hero-mark .paren.l { transform-origin: right center; --shift: -6px; }
+  .hero-mark .paren.r { transform-origin: left center;  --shift:  6px; }
   @keyframes cheer {
     0%, 100% { transform: translateX(0); }
     50%      { transform: translateX(var(--shift)); }
   }
-  .hero-mark .paren.l { --shift: -6px; }
-  .hero-mark .paren.r { --shift:  6px; }
   @media (prefers-reduced-motion: reduce) {
     .hero-mark .paren { animation: none; }
+  }
+  @media (max-width: 480px) {
+    .hero-mark {
+      --ring-size: 46px;
+      --paren-size: 50px;
+      --border-w: 4px;
+      --dot-size: 11px;
+      gap: 10px;
+    }
   }
   .hero-brand {
     display: inline-flex; align-items: baseline; gap: 4px;
@@ -91,9 +118,6 @@
     margin-bottom: 24px;
   }
   .hero-brand .colon { color: var(--accent); margin: 0 2px; }
-  @media (max-width: 480px) {
-    .hero-mark { font-size: 44px; }
-  }
   .hero-tag {
     display: inline-block;
     padding: 6px 14px;
@@ -413,7 +437,7 @@
 <section class="hero">
   <div class="container">
     <div class="hero-mark" aria-label="Do : 하다 — 응원 마크">
-      <span class="paren l">(</span><span class="dot">⊙</span><span class="paren r">)</span>
+      <span class="paren l">(</span><span class="ring"><span class="dot"></span></span><span class="paren r">)</span>
     </div>
     <div class="hero-brand">Do<span class="colon">:</span>하다</div>
     <div class="hero-tag">베타 테스터 30명 모집</div>
