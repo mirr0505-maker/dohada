@@ -65,14 +65,18 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StatusBar style="auto" />
+        {/* iOS 26.x 호환성 — RCTMountingManager / UISnapshotView snapshot 생성 시
+            native exception 발생 (analytics: thread 3 com.meta.react.turbomodulemanager.queue).
+            모든 화면 전환 animation 을 'none' 으로 끄면 snapshot 안 만들고 즉시 전환 → 우회.
+            iOS 26 RN/expo-router native fix 들어오면 'fade' 등으로 복원. */}
         <Stack
           screenOptions={{
             headerShown: false,
-            animation: 'fade',
+            animation: 'none',
           }}
         >
           {/* 온보딩 흐름 */}
-          <Stack.Screen name="index" options={{ animation: 'none' }} />
+          <Stack.Screen name="index" />
           <Stack.Screen name="onb1" />
           <Stack.Screen name="onb2" />
           <Stack.Screen name="onb3" />
@@ -83,12 +87,12 @@ export default function RootLayout() {
           {/* 메인 — 5탭 bottom navigation */}
           <Stack.Screen name="(tabs)" />
 
-          {/* 모달 / 동적 라우트 */}
+          {/* 모달 / 동적 라우트 — modal 만 유지, slide/fade 모두 'none' 으로 */}
           <Stack.Screen name="create" options={{ presentation: 'modal' }} />
           <Stack.Screen name="checkin/[id]" options={{ presentation: 'modal' }} />
-          <Stack.Screen name="room/[id]" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="room/[id]" />
           <Stack.Screen name="invite/[id]" />
-          <Stack.Screen name="complete/[id]" options={{ animation: 'fade', gestureEnabled: false }} />
+          <Stack.Screen name="complete/[id]" options={{ gestureEnabled: false }} />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>
