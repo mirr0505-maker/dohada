@@ -124,8 +124,8 @@ export default function HomeScreen() {
             </Pressable>
           </View>
 
-          {/* 빈 상태 카드 */}
-          {totalCount === 0 && completions.length === 0 && openChs.length === 0 && (
+          {/* 빈 상태 카드 — 본인 도전 0개면 항상 노출 (다른 사람 도전이 있어도 본인용 진입점 명확히) */}
+          {totalCount === 0 && (
             <Pressable
               style={styles.emptyCard}
               onPress={() => { haptic.tap(); router.push('/create' as any); }}
