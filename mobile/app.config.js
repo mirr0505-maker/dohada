@@ -1,20 +1,21 @@
 // 🚀 EAS 빌드 프로필별 동적 설정 (v2.5 — dev/prod 분리)
 //
-// EAS_BUILD_PROFILE 환경변수로 분기:
-//   - development → 'app.dohada.beta.dev' (다른 앱 아이콘 + 별도 설치 가능)
-//   - production / preview → 'app.dohada.beta' (TestFlight·App Store)
+// 분기 변수: APP_VARIANT (eas.json 의 build.development.env 에 명시).
+//   - 'development' → 'app.dohada.beta.dev' (다른 앱 아이콘 + 별도 설치 가능)
+//   - (그 외)        → 'app.dohada.beta'    (TestFlight·App Store)
+//
+// EAS_BUILD_PROFILE 자동 변수는 prebuild 단계에서 사용 불가한 경우가 있어
+// 직접 env 변수를 박는 게 안전 (EAS Build worker 가 명시 env 만 보장).
 //
 // ⚠️ Expo 가 자동으로 app.json 을 config 매개변수로 inject 하므로
-// 반드시 ({ config }) => {...} 함수 형태로 export. 정적 export 하면
-// app.json 값이 무시되고 production 설정으로 fallback (doctor 경고).
+// 반드시 ({ config }) => {...} 함수 형태로 export.
 //
 // ⚠️ dev 빌드는 Google OAuth 가 작동 X (Google Cloud Console 의 iOS Client 가
 // production bundle ID 와만 짝지어져 있음). 베타 검증은 Apple Sign In 으로 진행.
 // Phase 1.5 에 dev 용 Google iOS Client 별도 발급 검토.
 
 module.exports = ({ config }) => {
-  const profile = process.env.EAS_BUILD_PROFILE;
-  const isDev = profile === 'development';
+  const isDev = process.env.APP_VARIANT === 'development';
 
   return {
     ...config,
