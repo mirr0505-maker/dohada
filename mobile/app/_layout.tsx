@@ -1,11 +1,4 @@
 // 🚀 Root Stack — 전체 라우트의 진입점
-// iOS 26 호환 — react-native-screens 의 native screen container 자체 끄기.
-// animation:'none' 만으론 UISnapshotView crash 해결 X.
-// enableScreens(false) 면 RN 이 native stack 안 쓰고 JS-only View 로 화면 전환 → snapshot 안 만듦.
-// 약간의 성능 저하 + 일부 native gesture 비활성. iOS 26 RN 정식 fix 들어오면 복원.
-import { enableScreens } from 'react-native-screens';
-enableScreens(false);
-
 import { useEffect } from 'react';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -72,14 +65,9 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StatusBar style="auto" />
-        {/* iOS 26.x 호환성 — RCTMountingManager / UISnapshotView snapshot 생성 시
-            native exception 발생 (analytics: thread 3 com.meta.react.turbomodulemanager.queue).
-            모든 화면 전환 animation 을 'none' 으로 끄면 snapshot 안 만들고 즉시 전환 → 우회.
-            iOS 26 RN/expo-router native fix 들어오면 'fade' 등으로 복원. */}
         <Stack
           screenOptions={{
             headerShown: false,
-            animation: 'none',
           }}
         >
           {/* 온보딩 흐름 */}

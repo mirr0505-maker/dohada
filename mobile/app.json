@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "dohada",
     "userInterfaceStyle": "light",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "app.dohada.beta",
@@ -15,6 +15,11 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "dohada"
+            ]
+          },
           {
             "CFBundleURLSchemes": [
               "com.googleusercontent.apps.858061929352-220pfp0gj4ofhoi7ljeb1b1fu8pibppi"
@@ -42,6 +47,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-apple-authentication",
       [
         "expo-splash-screen",
         {
