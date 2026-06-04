@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Pretendard','Noto Sans CJK KR',sans-serif;-webkit-font-smoothing:antialiased;}
+:root{--accent:#FF6B35;--accent7:#C44A1C;--accent50:#FFF4ED;--accent100:#FFE4D6;--ink:#1A1A1A;--muted:#6E665D;--soft:#9A9087;--line:#ECE6DE;--bg:#FAF7F2;--ok:#0E7A4B;--ok50:#E7F6EE;}
+body{background:#E8E2D8;padding:22px;}
+.row{display:flex;gap:22px;align-items:flex-start;}
+.screen{width:392px;height:852px;background:var(--bg);position:relative;overflow:hidden;border-radius:30px;border:1px solid #d8d1c6;}
+.label{text-align:center;font-size:13px;font-weight:800;color:#7a7166;margin-bottom:9px;}
+.status{height:42px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-size:13px;font-weight:700;}
+.bar{display:flex;align-items:center;padding:4px 16px 12px;}
+.bk{font-size:21px;font-weight:700;margin-right:10px;}
+.h1{font-size:22px;font-weight:800;letter-spacing:-.5px;}
+.h1s{font-size:16px;font-weight:800;}
+.ava{margin-left:auto;width:34px;height:34px;border-radius:50%;background:#FF6B35;color:#fff;font-weight:800;font-size:14px;text-align:center;line-height:34px;box-shadow:0 0 0 2px #fff,0 0 0 4px var(--accent100);}
+.av{border-radius:50%;color:#fff;font-weight:800;text-align:center;flex:none;}
+.statpill{display:inline-block;font-size:11px;font-weight:800;color:var(--muted);background:var(--bg);border:1px solid var(--line);padding:5px 9px;border-radius:12px;margin:0 5px 6px 0;}
+.statpill b{color:var(--accent7);}
+.reacts{display:flex;align-items:center;gap:7px;}
+.rb{font-size:16px;width:34px;height:31px;border:1px solid var(--line);border-radius:10px;text-align:center;line-height:30px;}
+.rb.on{background:var(--accent50);border-color:var(--accent100);}
+.impact{margin-left:auto;font-size:11.5px;font-weight:800;color:var(--accent7);}
+.cta{display:block;width:100%;text-align:center;background:var(--accent);color:#fff;font-size:15px;font-weight:800;padding:13px;border-radius:13px;}
+.cta.o{background:#fff;color:var(--accent7);border:1.5px solid var(--accent);}
+.field{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:13px;color:var(--soft);font-weight:600;}
+.tabs{position:absolute;bottom:0;left:0;width:392px;height:70px;background:#fff;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-around;}
+.tab{text-align:center;font-size:10.5px;font-weight:700;color:var(--soft);width:58px;}
+.tab .ic{font-size:18px;display:block;margin-bottom:3px;filter:grayscale(1);opacity:.45;}
+.tab.on{color:var(--accent7);}
+.tab.on .ic{filter:none;opacity:1;}
+.tab.addbtn{width:54px;height:54px;border-radius:50%;background:var(--accent);color:#fff;line-height:54px;font-size:26px;font-weight:300;margin-top:-20px;box-shadow:0 6px 16px rgba(255,107,53,.4);}
+
+/* ① 작성 */
+.cap{padding:8px 18px 12px;font-size:13px;font-weight:600;color:var(--muted);line-height:1.5;}
+.block{margin:0 16px 13px;background:#fff;border:1px solid var(--line);border-radius:15px;padding:15px;}
+.bt{font-size:12.5px;font-weight:800;color:var(--ink);margin-bottom:10px;}
+.bt .tagsys{font-size:10.5px;font-weight:800;color:var(--ok);background:var(--ok50);padding:3px 8px;border-radius:10px;margin-left:6px;}
+.bt .tagopt{font-size:10.5px;font-weight:800;color:var(--soft);background:var(--bg);border:1px solid var(--line);padding:3px 8px;border-radius:10px;margin-left:6px;}
+.pickrow{display:flex;gap:8px;}
+.pick{width:62px;height:62px;border-radius:12px;background:linear-gradient(135deg,#FFD9C2,#FF8C5A);}
+.pick.add{background:var(--bg);border:1.5px dashed var(--line);text-align:center;line-height:62px;font-size:22px;color:var(--soft);}
+.radio{display:flex;align-items:center;font-size:13px;font-weight:700;padding:9px 0;}
+.dot{width:18px;height:18px;border-radius:50%;border:2px solid var(--accent);margin-right:10px;position:relative;flex:none;}
+.dot.sel:after{content:"";position:absolute;inset:3px;border-radius:50%;background:var(--accent);}
+.dot.off{border-color:var(--line);}
+
+/* ② 피드 */
+.chips{padding:0 16px 12px;white-space:nowrap;}
+.chip{display:inline-block;font-size:12px;font-weight:800;color:var(--muted);background:#fff;border:1px solid var(--line);padding:7px 13px;border-radius:18px;margin-right:7px;}
+.chip.on{color:#fff;background:var(--accent);border-color:var(--accent);}
+.story{margin:0 16px 14px;background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;}
+.shead{display:flex;align-items:center;padding:13px 15px 9px;}
+.who{font-size:14px;font-weight:800;}
+.tm{font-size:11px;color:var(--soft);font-weight:600;margin-top:1px;}
+.ctag{margin-left:auto;font-size:11px;font-weight:800;color:var(--accent7);background:var(--accent50);padding:5px 10px;border-radius:13px;}
+.hero{height:108px;position:relative;}
+.hbadge{position:absolute;left:12px;top:11px;background:rgba(0,0,0,.5);color:#fff;font-size:11.5px;font-weight:800;padding:4px 10px;border-radius:14px;}
+.sbody{padding:12px 15px 14px;}
+.stt{font-size:15.5px;font-weight:800;margin-bottom:9px;}
+.soneline{font-size:13px;color:var(--muted);font-weight:600;line-height:1.5;margin:2px 0 12px;}
+
+/* ③ 상세 */
+.cert{margin:12px 16px;border:2px solid var(--accent100);border-radius:18px;background:linear-gradient(160deg,#fff,var(--accent50));padding:20px;text-align:center;}
+.cert .paren{font-size:46px;font-weight:800;color:var(--accent);letter-spacing:4px;line-height:.9;}
+.cert .pdot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--accent);vertical-align:middle;margin:0 -25px;}
+.cert .big{font-size:19px;font-weight:800;margin-top:12px;}
+.cert .by{font-size:12px;color:var(--muted);font-weight:700;margin-top:5px;}
+.statgrid{margin:0 16px 13px;display:flex;flex-wrap:wrap;gap:9px;}
+.sg{width:calc(50% - 5px);background:#fff;border:1px solid var(--line);border-radius:13px;padding:13px;}
+.sg .v{font-size:20px;font-weight:800;color:var(--accent7);}
+.sg .k{font-size:11.5px;color:var(--soft);font-weight:700;margin-top:2px;}
+.qa{margin:0 16px 12px;}
+.q{font-size:13px;font-weight:800;color:var(--accent7);margin-bottom:5px;}
+.a{font-size:13px;color:var(--ink);font-weight:500;line-height:1.6;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;}
+.gal{display:flex;gap:8px;margin:0 16px 14px;}
+.gal .g{flex:1;height:74px;border-radius:11px;}
+</style></head>
+<body>
+<div class="row">
+
+  <!-- ① 완주 이야기 공유(작성) -->
+  <div>
+  <div class="label">① 박제 → "완주 이야기 공유"(작성)</div>
+  <div class="screen">
+    <div class="status"><span>9:41</span><span>● ● ● &nbsp;📶 &nbsp;🔋</span></div>
+    <div class="bar"><div class="bk">✕</div><div class="h1s">완주 이야기 공유</div><div class="ava">미</div></div>
+    <div class="cap">100일 금연을 해냈어요. 다음 사람에게 용기가 될 이야기를 남겨보세요.</div>
+
+    <div class="block">
+      <div class="bt">기록 <span class="tagsys">시스템이 증명 · 조작 불가</span></div>
+      <div>
+        <span class="statpill"><b>100일</b> 완주</span>
+        <span class="statpill">연속 최고 <b>100일</b></span>
+        <span class="statpill">총 인증 <b>100회</b></span>
+        <span class="statpill">완주율 <b>100%</b></span>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="bt">대표 사진 <span class="tagopt">선택</span></div>
+      <div class="pickrow">
+        <div class="pick"></div><div class="pick" style="background:linear-gradient(135deg,#CDE3FF,#7FA8E8)"></div><div class="pick add">＋</div>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="bt">한 줄 소감 <span class="tagopt">선택</span></div>
+      <div class="field">담배 없이 맞는 아침이 이렇게 다를 줄…</div>
+    </div>
+
+    <div class="block">
+      <div class="bt">가장 어려웠던 점은? <span class="tagopt">선택</span></div>
+      <div class="field" style="color:var(--soft)">예: 3일째 저녁이 가장 힘들었어요. 그때…</div>
+    </div>
+
+    <div class="block" style="padding:13px 15px;">
+      <div class="bt">공개 범위</div>
+      <div class="radio"><span class="dot sel"></span>🏆 해냈어요 탭에 공개 — 누구나</div>
+      <div class="radio" style="color:var(--muted)"><span class="dot off"></span>도전 인연에게만</div>
+    </div>
+
+    <div style="margin:4px 16px 0;"><a class="cta">이야기 공유하기</a></div>
+  </div>
+  </div>
+
+  <!-- ② 해냈어요 공개 탭 -->
+  <div>
+  <div class="label">② 해냈어요 (새 하단 탭 · 누구나)</div>
+  <div class="screen">
+    <div class="status"><span>9:41</span><span>● ● ● &nbsp;📶 &nbsp;🔋</span></div>
+    <div class="bar"><div class="h1">해냈어요 🏆</div><div class="ava">미</div></div>
+    <div class="cap" style="padding-top:0;padding-bottom:12px;">완주한 사람들의 이야기. 줄 세우지 않고, 서로에게 용기를.</div>
+    <div class="chips"><span class="chip on">전체</span><span class="chip">운동</span><span class="chip">금연</span><span class="chip">학습</span><span class="chip">재테크</span></div>
+
+    <div class="story">
+      <div class="shead"><div class="av" style="background:#0E7A4B;width:34px;height:34px;line-height:34px;font-size:14px;margin-right:10px;">정</div><div><div class="who">정민</div><div class="tm">2시간 전</div></div><div class="ctag">금연</div></div>
+      <div class="hero" style="background:linear-gradient(135deg,#BFE9D4,#5FB98E)"><div class="hbadge">🏆 100일 완주</div></div>
+      <div class="sbody">
+        <div class="stt">100일 금연, 드디어 해냈어요</div>
+        <div><span class="statpill"><b>100일</b></span><span class="statpill">연속 <b>100</b></span><span class="statpill">인증 <b>100회</b></span></div>
+        <div class="soneline">담배 없이 맞는 아침이 이렇게 다를 줄 몰랐어요.</div>
+        <div class="reacts"><div class="rb on">✨</div><div class="rb">🥹</div><div class="rb">💫</div><div class="impact">120명에게 용기를 줬어요</div></div>
+        <div style="height:12px"></div>
+        <a class="cta o">나도 금연 도전 시작하기 →</a>
+      </div>
+    </div>
+
+    <div class="story">
+      <div class="shead"><div class="av" style="background:#8B5CF6;width:34px;height:34px;line-height:34px;font-size:14px;margin-right:10px;">하</div><div><div class="who">하늘</div><div class="tm">어제</div></div><div class="ctag">운동</div></div>
+      <div class="hero" style="background:linear-gradient(135deg,#FFD9C2,#FF8C5A)"><div class="hbadge">🏆 30일 완주</div></div>
+      <div class="sbody"><div class="stt">새벽 5시 러닝 30일</div></div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab"><span class="ic">🏠</span>홈</div>
+      <div class="tab"><span class="ic">🚩</span>내도전</div>
+      <div class="tab addbtn">+</div>
+      <div class="tab"><span class="ic">🎬</span>기록</div>
+      <div class="tab on"><span class="ic">🏆</span>해냈어요</div>
+    </div>
+  </div>
+  </div>
+
+  <!-- ③ 완주 이야기 상세 -->
+  <div>
+  <div class="label">③ 완주 이야기 상세</div>
+  <div class="screen">
+    <div class="status"><span>9:41</span><span>● ● ● &nbsp;📶 &nbsp;🔋</span></div>
+    <div class="bar"><div class="bk">‹</div><div class="h1s">완주 이야기</div><div class="ava">미</div></div>
+
+    <div class="cert">
+      <div class="paren">(<span class="pdot"></span>)</div>
+      <div class="big">100일 금연 완주</div>
+      <div class="by">정민 · 2026 · Do : 하다</div>
+    </div>
+
+    <div class="statgrid">
+      <div class="sg"><div class="v">100일</div><div class="k">완주 기간</div></div>
+      <div class="sg"><div class="v">100일</div><div class="k">연속 최고 기록</div></div>
+      <div class="sg"><div class="v">100회</div><div class="k">총 인증</div></div>
+      <div class="sg"><div class="v">100%</div><div class="k">완주율 (시스템 증명)</div></div>
+    </div>
+
+    <div class="qa"><div class="q">어떻게 완주했나요?</div><div class="a">매일 같은 시간에 인증하는 루틴을 만들었어요. 흔들릴 때마다 응원 알림이 버팀목이 됐습니다.</div></div>
+    <div class="qa"><div class="q">가장 어려웠던 점은?</div><div class="a">3일째 저녁이 제일 힘들었어요. 그때 방 동료들에게 솔직히 털어놨더니 다들 응원해줬고, 그게 고비를 넘겼습니다.</div></div>
+
+    <div class="gal"><div class="g" style="background:linear-gradient(135deg,#BFE9D4,#5FB98E)"></div><div class="g" style="background:linear-gradient(135deg,#FFD9C2,#FF8C5A)"></div><div class="g" style="background:linear-gradient(135deg,#CDE3FF,#7FA8E8)"></div></div>
+
+    <div style="padding:0 16px 12px;"><div class="reacts"><div class="rb on">✨</div><div class="rb">😱</div><div class="rb">🥹</div><div class="rb">💫</div><div class="impact">120명에게 용기를 줬어요</div></div></div>
+
+    <div style="margin:2px 16px 0;"><a class="cta">나도 금연 도전 시작하기</a></div>
+  </div>
+  </div>
+
+</div>
+</body></html>

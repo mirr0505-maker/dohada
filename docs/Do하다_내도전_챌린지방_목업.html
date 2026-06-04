@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Pretendard','Noto Sans CJK KR',sans-serif;-webkit-font-smoothing:antialiased;}
+:root{--accent:#FF6B35;--accent7:#C44A1C;--accent50:#FFF4ED;--accent100:#FFE4D6;--ink:#1A1A1A;--muted:#6E665D;--soft:#9A9087;--line:#ECE6DE;--bg:#FAF7F2;--ok:#0E7A4B;--ok50:#E7F6EE;}
+body{background:#E8E2D8;padding:22px;}
+.row{display:flex;gap:22px;align-items:flex-start;}
+.screen{width:392px;height:852px;background:var(--bg);position:relative;overflow:hidden;border-radius:30px;border:1px solid #d8d1c6;}
+.label{text-align:center;font-size:13px;font-weight:800;color:#7a7166;margin-bottom:9px;letter-spacing:.3px;}
+.status{height:42px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-size:13px;font-weight:700;color:var(--ink);}
+/* top bar */
+.appbar{display:flex;align-items:center;justify-content:space-between;padding:4px 18px 12px;}
+.h1{font-size:23px;font-weight:800;letter-spacing:-.5px;}
+.add{font-size:13px;font-weight:800;color:var(--accent7);background:var(--accent50);padding:8px 13px;border-radius:20px;}
+.daysum{padding:0 20px 14px;font-size:13.5px;font-weight:600;color:var(--muted);}
+.daysum b{color:var(--ink);font-weight:800;}
+/* challenge list card */
+.lc{margin:0 16px 13px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:15px 16px;}
+.lc .top{display:flex;align-items:center;margin-bottom:11px;}
+.lc .nm{font-size:16px;font-weight:800;}
+.lc .tag{margin-left:auto;font-size:11px;font-weight:700;color:var(--accent7);background:var(--accent50);padding:4px 9px;border-radius:12px;}
+.lc .days{font-size:12.5px;font-weight:700;color:var(--soft);margin-bottom:6px;}
+.prog{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-bottom:12px;}
+.prog>i{display:block;height:100%;background:var(--accent);}
+.lc .foot{display:flex;align-items:center;}
+.chip{font-size:12px;font-weight:800;padding:6px 11px;border-radius:14px;}
+.chip.todo{color:var(--accent7);background:var(--accent50);}
+.chip.done{color:var(--ok);background:var(--ok50);}
+.faces{display:flex;align-items:center;margin-left:auto;}
+.fc{width:24px;height:24px;border-radius:50%;border:2px solid #fff;margin-left:-8px;color:#fff;font-size:10px;font-weight:800;text-align:center;line-height:21px;}
+.fc:first-child{margin-left:0;}
+.ftxt{font-size:11.5px;color:var(--soft);font-weight:700;margin-left:8px;}
+/* tabbar */
+.tabs{position:absolute;bottom:0;left:0;width:392px;height:70px;background:#fff;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-around;}
+.tab{text-align:center;font-size:10.5px;font-weight:700;color:var(--soft);width:58px;}
+.tab .ic{font-size:18px;display:block;margin-bottom:3px;filter:grayscale(1);opacity:.45;}
+.tab.on{color:var(--accent7);}
+.tab.on .ic{filter:none;opacity:1;}
+.tab.addbtn{width:54px;height:54px;border-radius:50%;background:var(--accent);color:#fff;line-height:54px;font-size:26px;font-weight:300;margin-top:-20px;box-shadow:0 6px 16px rgba(255,107,53,.4);}
+/* ROOM header */
+.rhead{display:flex;align-items:center;gap:11px;padding:6px 16px 12px;}
+.back{font-size:21px;font-weight:700;color:var(--ink);}
+.rtitle{font-size:17px;font-weight:800;}
+.rsub{font-size:12px;color:var(--soft);font-weight:700;margin-top:1px;}
+.rmore{margin-left:auto;font-size:19px;color:var(--soft);}
+/* in-room 5 tabs */
+.rtabs{display:flex;background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
+.rtab{flex:1;text-align:center;font-size:11.5px;font-weight:700;color:var(--soft);padding:11px 0 9px;}
+.rtab .i{font-size:16px;display:block;margin-bottom:2px;filter:grayscale(1);opacity:.5;}
+.rtab.on{color:var(--accent7);box-shadow:inset 0 -2px 0 var(--accent);}
+.rtab.on .i{filter:none;opacity:1;}
+/* proof prompt */
+.prompt{margin:14px 16px;background:linear-gradient(120deg,var(--accent50),#fff);border:1px solid var(--accent100);border-radius:16px;padding:15px;}
+.prompt .t{font-size:14px;font-weight:800;}
+.prompt .d{font-size:12px;color:var(--muted);font-weight:600;margin:3px 0 12px;}
+.shoot{display:block;width:100%;text-align:center;background:var(--accent);color:#fff;font-size:15px;font-weight:800;padding:13px;border-radius:13px;}
+.seclabel{padding:2px 20px 10px;font-size:12.5px;font-weight:800;color:var(--soft);}
+/* proof entry */
+.pe{margin:0 16px 13px;background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;}
+.pehead{display:flex;align-items:center;padding:12px 14px 9px;}
+.av{width:34px;height:34px;border-radius:50%;color:#fff;font-weight:800;font-size:14px;text-align:center;line-height:34px;margin-right:10px;}
+.who{font-size:14px;font-weight:800;}
+.tm{font-size:11.5px;color:var(--soft);font-weight:600;margin-top:1px;}
+.photo{height:140px;position:relative;}
+.photo .ov{position:absolute;left:13px;bottom:11px;color:#fff;font-size:12.5px;font-weight:800;text-shadow:0 1px 3px rgba(0,0,0,.3);}
+.react{display:flex;align-items:center;gap:7px;padding:11px 14px;}
+.rbtn{font-size:16px;width:36px;height:32px;border:1px solid var(--line);border-radius:10px;text-align:center;line-height:31px;}
+.rbtn.on{background:var(--accent50);border-color:var(--accent100);}
+.rf{width:20px;height:20px;border-radius:50%;border:2px solid #fff;margin-left:-6px;}
+.rtxt{font-size:11.5px;font-weight:700;color:var(--soft);margin-left:6px;}
+.rright{margin-left:auto;display:flex;align-items:center;}
+/* chat */
+.chat{position:absolute;top:154px;bottom:62px;left:0;width:392px;padding:16px 14px;overflow:hidden;}
+.sysmsg{text-align:center;font-size:11.5px;font-weight:700;color:var(--soft);background:#fff;border:1px solid var(--line);border-radius:14px;padding:6px 12px;width:fit-content;margin:0 auto 16px;}
+.msg{display:flex;margin-bottom:14px;align-items:flex-start;gap:9px;}
+.msg .mav{width:32px;height:32px;border-radius:50%;color:#fff;font-weight:800;font-size:13px;text-align:center;line-height:32px;flex:none;}
+.mwrap .nm{font-size:11.5px;color:var(--soft);font-weight:700;margin-bottom:3px;}
+.bub{background:#fff;border:1px solid var(--line);border-radius:4px 15px 15px 15px;padding:9px 13px;font-size:13.5px;font-weight:500;line-height:1.45;max-width:232px;}
+.msg.me{flex-direction:row-reverse;}
+.msg.me .bub{background:var(--accent);color:#fff;border:none;border-radius:15px 4px 15px 15px;}
+.inputbar{position:absolute;bottom:0;left:0;width:392px;border-top:1px solid var(--line);background:#fff;display:flex;align-items:center;gap:9px;padding:11px 13px 14px;}
+.cam{width:36px;height:36px;border-radius:50%;background:var(--accent50);color:var(--accent7);text-align:center;line-height:36px;font-size:16px;flex:none;}
+.field{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:20px;padding:10px 15px;font-size:13px;color:var(--soft);font-weight:600;}
+.send{width:38px;height:38px;border-radius:50%;background:var(--accent);color:#fff;text-align:center;line-height:38px;font-size:16px;flex:none;}
+</style></head>
+<body>
+<div class="row">
+
+  <!-- ========== A. 내 도전 목록 ========== -->
+  <div>
+  <div class="label">① 내 도전 (탭: 내도전)</div>
+  <div class="screen">
+    <div class="status"><span>9:41</span><span>● ● ● &nbsp;📶 &nbsp;🔋</span></div>
+    <div class="appbar"><div class="h1">내 도전</div><div class="add">＋ 새 도전</div></div>
+    <div class="daysum">오늘 인증할 도전 <b>2개</b> 남았어요.</div>
+
+    <div class="lc">
+      <div class="top"><div class="nm">5시 러닝 클럽</div><div class="tag">🤝 함께</div></div>
+      <div class="days">12일째 · 30일 목표</div>
+      <div class="prog"><i style="width:40%"></i></div>
+      <div class="foot"><div class="chip todo">오늘 인증하기</div>
+        <div class="faces"><span class="fc" style="background:#3B82F6">현</span><span class="fc" style="background:#10B981">수</span><span class="fc" style="background:#9A9087">+3</span><span class="ftxt">함께 5명</span></div>
+      </div>
+    </div>
+
+    <div class="lc">
+      <div class="top"><div class="nm">나의 100일 글쓰기</div><div class="tag">🙋 응원받기</div></div>
+      <div class="days">8일째 · 100일 목표</div>
+      <div class="prog"><i style="width:8%"></i></div>
+      <div class="foot"><div class="chip done">오늘 인증 완료 ✓</div>
+        <div class="faces"><span class="fc" style="background:#EC4899">엄</span><span class="fc" style="background:#F59E0B">동</span><span class="ftxt">응원 4명</span></div>
+      </div>
+    </div>
+
+    <div class="lc">
+      <div class="top"><div class="nm">금연</div><div class="tag">🤫 혼자</div></div>
+      <div class="days">21일째 · 조용한 기록</div>
+      <div class="prog"><i style="width:21%"></i></div>
+      <div class="foot"><div class="chip todo">오늘 체크하기</div></div>
+    </div>
+
+    <div class="lc">
+      <div class="top"><div class="nm">100대명산 오르기</div><div class="tag">🌍 누구나</div></div>
+      <div class="days">3봉째 · 100봉 목표</div>
+      <div class="prog"><i style="width:3%"></i></div>
+      <div class="foot"><div class="chip done">오늘 인증 완료 ✓</div>
+        <div class="faces"><span class="ftxt" style="margin-left:0">함께 오르는 분들이 많아요</span></div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab"><span class="ic">🏠</span>홈</div>
+      <div class="tab on"><span class="ic">🚩</span>내도전</div>
+      <div class="tab addbtn">+</div>
+      <div class="tab"><span class="ic">🎬</span>기록</div>
+      <div class="tab"><span class="ic">🙂</span>MY</div>
+    </div>
+  </div>
+  </div>
+
+  <!-- ========== B. 챌린지 방 · 📸 인증 ========== -->
+  <div>
+  <div class="label">② 챌린지 방 · 📸 인증 탭</div>
+  <div class="screen">
+    <div class="status"><span>9:41</span><span>● ● ● &nbsp;📶 &nbsp;🔋</span></div>
+    <div class="rhead">
+      <div class="back">‹</div>
+      <div><div class="rtitle">5시 러닝 클럽</div><div class="rsub">🤝 함께 · 12일째 / 30일 · 5명</div></div>
+      <div class="rmore">⋯</div>
+    </div>
+    <div class="rtabs">
+      <div class="rtab"><span class="i">💬</span>대화</div>
+      <div class="rtab on"><span class="i">📸</span>인증</div>
+      <div class="rtab"><span class="i">🎬</span>기록</div>
+      <div class="rtab"><span class="i">📊</span>현황</div>
+      <div class="rtab"><span class="i">🏆</span>박제</div>
+    </div>
+
+    <div class="prompt">
+      <div class="t">오늘의 인증을 남겨보세요 · 12일째</div>
+      <div class="d">사진 촬영 또는 운동 앱 기록 스크린샷으로.</div>
+      <a class="shoot">📷 인증하기</a>
+    </div>
+
+    <div class="seclabel">오늘 도전 인연들의 인증</div>
+
+    <div class="pe">
+      <div class="pehead"><div class="av" style="background:#3B82F6">현</div><div><div class="who">현우</div><div class="tm">방금</div></div></div>
+      <div class="photo" style="background:linear-gradient(135deg,#FFD9C2,#FF8C5A)"><div class="ov">🏃 비 와서 트레드밀로 대체</div></div>
+      <div class="react"><div class="rbtn on">🔥</div><div class="rbtn">👏</div><div class="rbtn">💪</div><div class="rbtn">❤️</div>
+        <div class="rright"><span class="rf" style="background:#F59E0B"></span><span class="rf" style="background:#10B981"></span><span class="rtxt">응원했어요</span></div></div>
+    </div>
+
+    <div class="pe">
+      <div class="pehead"><div class="av" style="background:#10B981">수</div><div><div class="who">수진</div><div class="tm">23분 전</div></div></div>
+      <div class="photo" style="background:linear-gradient(135deg,#CDEFE0,#7FC8A9)"><div class="ov">🌅 한강 5km 완료</div></div>
+      <div class="react"><div class="rbtn">🔥</div><div class="rbtn on">👏</div><div class="rbtn">💪</div><div class="rbtn">❤️</div>
+        <div class="rright"><span class="rf" style="background:#3B82F6"></span><span class="rtxt">응원했어요</span></div></div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab"><span class="ic">🏠</span>홈</div>
+      <div class="tab on"><span class="ic">🚩</span>내도전</div>
+      <div class="tab addbtn">+</div>
+      <div class="tab"><span class="ic">🎬</span>기록</div>
+      <div class="tab"><span class="ic">🙂</span>MY</div>
+    </div>
+  </div>
+  </div>
+
+  <!-- ========== C. 챌린지 방 · 💬 대화 ========== -->
+  <div>
+  <div class="label">③ 챌린지 방 · 💬 대화 탭</div>
+  <div class="screen">
+    <div class="status"><span>9:41</span><span>● ● ● &nbsp;📶 &nbsp;🔋</span></div>
+    <div class="rhead">
+      <div class="back">‹</div>
+      <div><div class="rtitle">5시 러닝 클럽</div><div class="rsub">🤝 함께 · 12일째 / 30일 · 5명</div></div>
+      <div class="rmore">⋯</div>
+    </div>
+    <div class="rtabs">
+      <div class="rtab on"><span class="i">💬</span>대화</div>
+      <div class="rtab"><span class="i">📸</span>인증</div>
+      <div class="rtab"><span class="i">🎬</span>기록</div>
+      <div class="rtab"><span class="i">📊</span>현황</div>
+      <div class="rtab"><span class="i">🏆</span>박제</div>
+    </div>
+
+    <div class="chat">
+      <div class="sysmsg">🌅 12일째 아침이 시작됐어요</div>
+      <div class="msg"><div class="mav" style="background:#3B82F6">현</div>
+        <div class="mwrap"><div class="nm">현우</div><div class="bub">다들 일어났어요? 오늘 비 와서 저는 실내 ㅠㅠ</div></div></div>
+      <div class="msg"><div class="mav" style="background:#10B981">수</div>
+        <div class="mwrap"><div class="nm">수진</div><div class="bub">전 한강 나왔어요! 비 살짝 와도 뛸 만해요 💪</div></div></div>
+      <div class="sysmsg">📸 수진님이 오늘 인증을 남겼어요</div>
+      <div class="msg me"><div class="mav" style="background:#FF6B35">미</div>
+        <div class="mwrap"><div class="bub">오 다들 부지런하다… 저도 지금 나갑니다 🏃‍♂️</div></div></div>
+    </div>
+
+    <div class="inputbar">
+      <div class="cam">📷</div>
+      <div class="field">메시지 보내기…</div>
+      <div class="send">↑</div>
+    </div>
+  </div>
+  </div>
+
+</div>
+</body></html>

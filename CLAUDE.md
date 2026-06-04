@@ -3,7 +3,7 @@
 이 파일은 Claude Code가 이 저장소에서 작업할 때 **반드시 따라야 하는 지침**이다.
 서브에이전트 위임 없이 메인 세션이 코드 작성·검증·정책 검토까지 직접 수행한다.
 
-**Phase 1 MVP 의 단일 진실원천은 [`MVP_SCOPE.md`](MVP_SCOPE.md) (v2.1) 이다.**
+**Phase 1 MVP 의 단일 진실원천은 [`MVP_SCOPE.md`](MVP_SCOPE.md) (v2.5) 이다.**
 **베타 모집 HTML 의 청사진은 [`BLUEPRINT.md`](BLUEPRINT.md) — 정체성·기존 SNS 극복 메시지 정리.**
 장기 비전·정책·DB 설계는 [`Do_하다_통합기획서_v4_0_1.pdf`](Do_하다_통합기획서_v4_0_1.pdf) 를 참조.
 **UI/UX 의 절대 기준은 [`prototype/do-hada-app-v4.html`](prototype/do-hada-app-v4.html)** — 화면 디자인 결정 시 반드시 해당 화면의 HTML/CSS 를 먼저 본다 (v4 = 28화면).
@@ -25,15 +25,36 @@
   - UI: [`mobile/app/(tabs)/profile.tsx`](mobile/app/(tabs)/profile.tsx) — `InterestEditModal`
 - 도전 포기 (soft delete): [`mobile/lib/db.ts`](mobile/lib/db.ts) `giveUpMembership` + [`mobile/app/room/[id].tsx`](mobile/app/room/[id].tsx) 멈춤 Alert 분기
 
-### 분류별 SNS 톤 (v2.3 정체성)
+### 신규 코드 위치 (v2.5 — SNS-first 재설계)
+- 브랜드 마크: [`mobile/components/BrandMark.tsx`](mobile/components/BrandMark.tsx) — `( ⊙ )` 컴포넌트 (size sm/md/lg/xl, 폰트 무관)
+- 탭바 재구성: [`mobile/app/(tabs)/_layout.tsx`](mobile/app/(tabs)/_layout.tsx) — 홈 / 내도전 / ⊕ / 기록 / **해냈어요** (profile 탭 제거, 우상단 아바타로 MY 일원화)
+- 홈 SNS-first 피드: [`mobile/app/(tabs)/home.tsx`](mobile/app/(tabs)/home.tsx) — me-strip 1줄 + 피드 카드 5종 (🎉 완주리본 · 📸 오늘인증 · 🙋 응원받기 · 🌍 누구나합류 · ✨ 관심도전) + 🌙 끝 마커
+- 기록 탭 (신규): `mobile/app/(tabs)/record.tsx` — 앱 전체 기록(Vlog) 피드
+- 해냈어요 탭 (신규):
+  - 공개 탭: `mobile/app/(tabs)/done.tsx`
+  - 상세: `mobile/app/done/[id].tsx` — "나도 도전 시작하기" CTA (신규 유입 루프)
+  - 작성: `mobile/app/done/new.tsx` — 시스템 통계 자동 잠금 + 사진·소감 옵션
+- DB: [`supabase/migrations/0016_completion_stories.sql`](supabase/migrations/0016_completion_stories.sql) — 완주 이야기 + 공개 범위 + 반응
+- 박제 → 해냈어요 진입점: [`mobile/components/challenge/ArchiveTab.tsx`](mobile/components/challenge/ArchiveTab.tsx) "완주 이야기 공유" 버튼 + 4단계 상품 잠금 노출 (가격 "추후 결정")
+
+### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.
 - 인증 완료 Alert / 카톡 초대 / 생성 후 Alert / 챌린지방 헤더 부제 / FAB 라벨 — 모두 분류별 분기 완료
-- 홈 그룹 컨테이너 순서: solo → cheered → closed → open (사용자 결정)
-- 박제 자산화 5단계 (Phase 2) 도 분류별 분기 예정
+- **홈 v2.5**: 분류별 그룹 → 피드 카드 5종 (도전 인연들의 하루 중심). 챌린지방 5탭 컨텍스트는 그대로 유지 (이중 보존).
+- 박제 자산화 4단계 (Phase 2) 도 분류별 분기 예정 — 가격은 "추후 결정" (베타에 가격 못박지 않음)
+
+### 사상 진단 (v2.5)
+v2.1~v2.4 의 "X 빼기" 4개 (비교·친구신청·알림·무한스크롤) 만으론 챌린지 도구가 됨.
+v2.5 — **버릴 건 망가진 방식, 지킬 건 욕구 자체**:
+- 인정받기 욕구 → 좋아요 X · "목격받기" (동료가 내 여정 지켜봄)
+- 소속 욕구 → 팔로우 X · "도전 인연" (목적 기반)
+- 타인과 이어짐 욕구 → 도파민 피드 X · "되어가는 과정 피드"
+
+도전 인연 정의 (베타 v2.5) = **현재 같은 챌린지의 멤버만**. ×횟수 누적은 Phase 2.
 
 ---
 
-## 절대 수칙
+## 핵심 수칙
 
 ### 0. Human Readable 원칙 (대전제)
 모든 코드는 훗날 1인 개발자가 혼자 읽고 이해하고 유지보수할 수 있어야 한다.
@@ -111,7 +132,7 @@ UI/UX, 네비게이션, 디자인 토큰 적용, 빈 상태 화면 등은 Expo G
 
 ---
 
-## 절대 규칙 (통합기획서 8장 + 정책 — 위반 금지)
+## 기본 원칙 (통합기획서 8장 + 정책 — 위반 시 사전 상의)
 
 ### 1. 친구 신청 / 수락 금지 (v3.4)
 - "친구 추가", "친구 신청", "팔로우/팔로워" 같은 단어를 UI / 코드 / 푸시 알림에
@@ -203,7 +224,7 @@ npm test -- ai-moderation           # AI 검수만
 
 ---
 
-## 금지 사항
+## 주의 사항
 
 - `Write` 도구로 기존 파일 전체 덮어쓰기 (신규 파일 제외)
 - 요청 없는 리팩터링, 불필요한 주석·코드·의존성 추가 (= 코드 부풀리기)

@@ -1,12 +1,22 @@
-// 🚀 챌린지방 - 박제 탭
-// 진행 중: 안내 카드 ("종료 후 활성화돼요")
-// 완주 후 (= 종료일 지남 + 본인 모든 인증 완수): 단순 박제 카드
-//   인증서 PDF/포토북/책 등 자산화 5단계는 Phase 2.
+// 🚀 챌린지방 - 박제 탭 (v2.5 — 해냈어요 진입점 추가)
+// 진행 중: 안내 카드 + 박제 자산화 4단계 잠금 노출 (가격 "추후 결정")
+// 완주 후: 박제 카드 + "완주 이야기 공유" 버튼 → /done/new (해냈어요 작성)
+//   결제 흐름 (종이/포토북/굿즈) 은 Phase 2.
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, Pressable, Alert } from 'react-native';
+import { router } from 'expo-router';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { computeProgress } from '@/lib/stats';
+import { haptic } from '@/lib/haptics';
 import type { DbChallenge, ProofWithRelations } from '@/lib/types';
+
+// 박제 자산화 4단계 — 베타 노출용. 가격은 "추후 결정" (책 단계는 베타 보류).
+const ARCHIVE_TIERS = [
+  { emoji: '📜', label: '디지털 인증서 (PDF)', price: '무료', note: '완주 즉시 발급' },
+  { emoji: '✉️', label: '종이 인증서 · 우편', price: '추후 결정', note: '인쇄·우편 발송' },
+  { emoji: '📖', label: '포토북',           price: '추후 결정', note: '30일 분량 사진 모음' },
+  { emoji: '👕', label: '굿즈 (티셔츠·키링)', price: '추후 결정', note: '완주 기념' },
+];
 
 type Props = {
   challenge: DbChallenge;
@@ -22,26 +32,32 @@ export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs }: Props)
 
   if (!isFinished) {
     return (
-      <View style={styles.placeholder}>
-        <Text style={styles.placeholderEmoji}>🏆</Text>
-        <Text style={styles.placeholderTitle}>박제는 챌린지 종료 후</Text>
-        <Text style={styles.placeholderDesc}>
-          {challenge.title} 이(가) 끝나면{'\n'}
-          여기에 모든 추억이 박제됩니다.
-        </Text>
-        <View style={styles.previewCard}>
-          <Text style={styles.previewLabel}>박제될 항목</Text>
-          <View style={{ gap: 6 }}>
-            <Text style={styles.previewItem}>📸 모든 인증 사진 ({proofs.length}장)</Text>
-            <Text style={styles.previewItem}>💬 동료들의 응원 ({totalCheers}번)</Text>
-            <Text style={styles.previewItem}>🎥 기록 (Vlog) ({totalLogs}개)</Text>
-            <Text style={styles.previewItem}>🏆 완주 인증 (도전 끝까지 함께한 분들)</Text>
+      <FlatList
+        data={[]}
+        keyExtractor={() => '_'}
+        renderItem={() => null}
+        contentContainerStyle={{ paddingBottom: 32 }}
+        ListHeaderComponent={
+          <View style={styles.placeholder}>
+            <Text style={styles.placeholderEmoji}>🏆</Text>
+            <Text style={styles.placeholderTitle}>박제는 챌린지 종료 후</Text>
+            <Text style={styles.placeholderDesc}>
+              {challenge.title} 이(가) 끝나면{'\n'}
+              여기에 모든 추억이 박제됩니다.
+            </Text>
+            <View style={styles.previewCard}>
+              <Text style={styles.previewLabel}>박제될 항목</Text>
+              <View style={{ gap: 6 }}>
+                <Text style={styles.previewItem}>📸 모든 인증 사진 ({proofs.length}장)</Text>
+                <Text style={styles.previewItem}>💬 동료들의 응원 ({totalCheers}번)</Text>
+                <Text style={styles.previewItem}>🎥 기록 (Vlog) ({totalLogs}개)</Text>
+                <Text style={styles.previewItem}>🏆 완주 인증 (도전 끝까지 함께한 분들)</Text>
+              </View>
+            </View>
+            <ArchiveTiersCard />
           </View>
-          <Text style={styles.previewFootnote}>
-            * 인증서 PDF / 종이 인증서 / 포토북 / 책 출판 등 자산화 옵션은 다음 시즌에 열립니다.
-          </Text>
-        </View>
-      </View>
+        }
+      />
     );
   }
 
@@ -84,6 +100,23 @@ export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs }: Props)
           <Text style={styles.heroMessage}>
             도전, 그냥 하다.{'\n'}더 나은 나, 더 나은 세상.
           </Text>
+
+          {/* v2.5 — 완주 이야기 공유 (해냈어요 진입점) */}
+          <Pressable
+            style={styles.shareBtn}
+            onPress={() => {
+              haptic.tap();
+              router.push(`/done/new?challengeId=${challenge.id}` as any);
+            }}
+          >
+            <Text style={styles.shareBtnText}>✍️ 완주 이야기 공유하기</Text>
+          </Pressable>
+          <Text style={styles.shareBtnHint}>
+            줄세우기 X · 서로에게 용기를 주는 증언
+          </Text>
+
+          <ArchiveTiersCard />
+
           <Text style={styles.sectionTitle}>📸 인증 타임라인</Text>
         </View>
       }
@@ -96,6 +129,36 @@ export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs }: Props)
         <Text style={styles.emptyText}>저장된 인증 사진이 없어요.</Text>
       }
     />
+  );
+}
+
+// ─── 박제 자산화 4단계 잠금 노출 (v2.5) ─────────────────
+// 가격은 "추후 결정". 베타에 가격 못박지 않음.
+function ArchiveTiersCard() {
+  return (
+    <View style={styles.tiersCard}>
+      <Text style={styles.tiersLabel}>완주하면 남길 수 있어요</Text>
+      <View style={{ gap: 10, marginTop: 8 }}>
+        {ARCHIVE_TIERS.map(t => (
+          <View key={t.label} style={styles.tierRow}>
+            <Text style={styles.tierEmoji}>{t.emoji}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.tierLabel}>{t.label}</Text>
+              <Text style={styles.tierNote}>{t.note}</Text>
+            </View>
+            <Text style={[
+              styles.tierPrice,
+              t.price === '무료' && { color: colors.accent700 },
+            ]}>
+              {t.price}
+            </Text>
+          </View>
+        ))}
+      </View>
+      <Text style={styles.tiersFootnote}>
+        디지털 인증서를 제외한 상품은 정식 출시 시점에 가격이 결정돼요.
+      </Text>
+    </View>
   );
 }
 
@@ -151,6 +214,85 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.regular,
     marginTop: 8,
     lineHeight: 16,
+  },
+
+  // v2.5 — 4단계 상품 잠금 카드
+  tiersCard: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: colors.accent100,
+    ...shadow.sm,
+  },
+  tiersLabel: {
+    fontSize: fontSize.sm,
+    color: colors.accent700,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  tierRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  tierEmoji: {
+    fontSize: 22,
+    width: 28,
+    textAlign: 'center',
+  },
+  tierLabel: {
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.semibold,
+  },
+  tierNote: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+    marginTop: 1,
+  },
+  tierPrice: {
+    fontSize: fontSize.sm,
+    color: colors.primary300,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
+  },
+  tiersFootnote: {
+    fontSize: fontSize.xs,
+    color: colors.primary300,
+    fontFamily: fontFamily.regular,
+    marginTop: 12,
+    lineHeight: 16,
+  },
+
+  // v2.5 — 완주 이야기 공유 버튼 (완주 후)
+  shareBtn: {
+    marginTop: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    backgroundColor: colors.accent,
+    borderRadius: radius.pill,
+    width: '100%',
+    alignItems: 'center',
+    ...shadow.sm,
+  },
+  shareBtnText: {
+    fontSize: fontSize.base,
+    color: colors.surface,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    letterSpacing: -0.2,
+  },
+  shareBtnHint: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+    marginTop: 6,
+    textAlign: 'center',
   },
 
   // 완주 후

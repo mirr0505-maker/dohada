@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><style>
+@font-face{font-family:'Pretendard';src:local('Pretendard');}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Pretendard','Noto Sans CJK KR',sans-serif;-webkit-font-smoothing:antialiased;}
+:root{--accent:#FF6B35;--accent7:#C44A1C;--accent50:#FFF4ED;--accent100:#FFE4D6;--ink:#1A1A1A;--muted:#6E665D;--soft:#9A9087;--line:#ECE6DE;--bg:#FAF7F2;}
+body{width:392px;background:var(--bg);color:var(--ink);}
+.screen{width:392px;position:relative;padding-bottom:84px;}
+/* status bar */
+.status{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-size:13px;font-weight:700;}
+/* top app bar */
+.appbar{display:flex;align-items:center;justify-content:space-between;padding:6px 18px 10px;}
+.wordmark{font-size:21px;font-weight:800;letter-spacing:-1px;}
+.wordmark .c{color:var(--accent);}
+.bell{width:34px;height:34px;border-radius:50%;background:#fff;border:1px solid var(--line);position:relative;text-align:center;line-height:34px;font-size:16px;}
+.bell .dot{position:absolute;top:7px;right:8px;width:7px;height:7px;border-radius:50%;background:var(--accent);}
+/* me strip (secondary, compact) */
+.me{margin:0 16px 16px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:13px 16px;display:flex;align-items:center;justify-content:space-between;}
+.me .l{font-size:14px;font-weight:600;color:var(--muted);}
+.me .l b{color:var(--ink);font-weight:800;}
+.me .go{font-size:13px;font-weight:800;color:var(--accent7);background:var(--accent50);padding:7px 13px;border-radius:20px;}
+/* section label */
+.seclabel{padding:2px 20px 12px;font-size:13px;font-weight:800;letter-spacing:.5px;color:var(--soft);}
+/* feed card */
+.card{margin:0 16px 14px;background:#fff;border:1px solid var(--line);border-radius:20px;overflow:hidden;}
+.chead{display:flex;align-items:center;padding:14px 16px 10px;}
+.av{width:38px;height:38px;border-radius:50%;color:#fff;font-weight:800;font-size:15px;text-align:center;line-height:38px;margin-right:11px;}
+.who{font-size:15px;font-weight:800;}
+.sub{font-size:12.5px;color:var(--soft);font-weight:600;margin-top:2px;}
+.tag{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--accent7);background:var(--accent50);padding:5px 10px;border-radius:14px;}
+.cbody{padding:0 16px 14px;}
+.line{font-size:15px;font-weight:600;line-height:1.5;}
+/* milestone ribbon */
+.ribbon{margin:0 16px 14px;background:linear-gradient(120deg,var(--accent50),#fff);border:1px solid var(--accent100);border-radius:14px;padding:13px 15px;display:flex;align-items:center;gap:11px;}
+.ribbon .emoji{font-size:22px;}
+.ribbon .t{font-size:14.5px;font-weight:800;}
+.ribbon .d{font-size:12px;color:var(--muted);font-weight:600;margin-top:2px;}
+/* photo */
+.photo{height:168px;background:linear-gradient(135deg,#FFD9C2,#FFB38A 60%,#FF8C5A);position:relative;}
+.photo .ov{position:absolute;left:14px;bottom:12px;color:#fff;font-size:13px;font-weight:800;text-shadow:0 1px 3px rgba(0,0,0,.25);}
+/* reactions */
+.react{display:flex;align-items:center;gap:8px;padding:12px 16px 4px;}
+.rbtn{font-size:18px;width:40px;height:36px;border:1px solid var(--line);border-radius:12px;text-align:center;line-height:35px;}
+.rbtn.on{background:var(--accent50);border-color:var(--accent100);}
+.rfaces{margin-left:auto;display:flex;align-items:center;}
+.rf{width:22px;height:22px;border-radius:50%;border:2px solid #fff;margin-left:-7px;font-size:0;}
+.rtxt{font-size:12px;font-weight:700;color:var(--soft);margin-left:7px;}
+/* cheer button */
+.cheer{margin:4px 16px 0;}
+.cheerbtn{display:block;width:100%;text-align:center;background:var(--accent);color:#fff;font-size:15px;font-weight:800;padding:13px;border-radius:14px;}
+.joinbtn{display:block;width:100%;text-align:center;background:#fff;color:var(--accent7);border:1.5px solid var(--accent);font-size:14.5px;font-weight:800;padding:12px;border-radius:14px;}
+.faces{display:flex;align-items:center;margin-bottom:10px;}
+.fc{width:26px;height:26px;border-radius:50%;border:2px solid #fff;margin-left:-8px;color:#fff;font-size:11px;font-weight:800;text-align:center;line-height:23px;}
+.fc:first-child{margin-left:0;}
+/* end marker */
+.end{text-align:center;padding:18px 30px 8px;color:var(--soft);font-size:13px;font-weight:700;line-height:1.5;}
+.end .moon{font-size:22px;display:block;margin-bottom:6px;}
+/* tab bar */
+.tabs{position:absolute;bottom:0;left:0;width:392px;height:72px;background:#fff;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-around;padding-bottom:8px;}
+.tab{text-align:center;font-size:10.5px;font-weight:700;color:var(--soft);width:60px;}
+.tab .ic{font-size:19px;display:block;margin-bottom:3px;filter:grayscale(1);opacity:.5;}
+.tab.on{color:var(--accent7);}
+.tab.on .ic{filter:none;opacity:1;}
+.tab.add{width:56px;height:56px;border-radius:50%;background:var(--accent);color:#fff;line-height:56px;font-size:26px;font-weight:300;margin-top:-22px;box-shadow:0 6px 16px rgba(255,107,53,.4);}
+</style></head>
+<body>
+<div class="screen">
+  <div class="status"><span>9:41</span><span>● ● ● &nbsp; 📶 &nbsp; 🔋</span></div>
+
+  <div class="appbar">
+    <div class="wordmark">Do <span class="c">:</span> 하다</div>
+    <div class="bell">🔔<span class="dot"></span></div>
+  </div>
+
+  <!-- ME: 작고 부차적인 한 줄 (대시보드 아님) -->
+  <div class="me">
+    <div class="l">미르님, 오늘도 한 걸음. <b>오늘 인증 0 / 2</b></div>
+    <div class="go">인증하기</div>
+  </div>
+
+  <div class="seclabel">오늘, 도전 인연들의 하루</div>
+
+  <!-- 1. 완주 박제 (자아실현 정점, 네트워크가 목격) -->
+  <div class="ribbon">
+    <span class="emoji">🎉</span>
+    <div>
+      <div class="t">지은님이 <span style="color:var(--accent7)">100일</span>을 완주했어요</div>
+      <div class="d">새벽 기상 100일 · 함께 도전하기 · 박제 보러가기 →</div>
+    </div>
+  </div>
+
+  <!-- 2. 오늘의 인증 (사진 + 응원, 비교 숫자 없음) -->
+  <div class="card">
+    <div class="chead">
+      <div class="av" style="background:#3B82F6">현</div>
+      <div><div class="who">현우</div><div class="sub">방금 · 오늘의 인증</div></div>
+      <div class="tag">🤝 5시 러닝 클럽</div>
+    </div>
+    <div class="photo"><div class="ov">🏃 비 와서 트레드밀로 대체했어요</div></div>
+    <div class="react">
+      <div class="rbtn on">🔥</div><div class="rbtn">👏</div><div class="rbtn">💪</div><div class="rbtn">❤️</div>
+      <div class="rfaces">
+        <span class="rf" style="background:#F59E0B"></span><span class="rf" style="background:#10B981"></span><span class="rf" style="background:#8B5CF6"></span>
+        <span class="rtxt">도전 인연들이 응원했어요</span>
+      </div>
+    </div>
+    <div style="height:10px"></div>
+  </div>
+
+  <!-- 3. 응원받기 (목격받는 욕구 — 비교 아닌 지지) -->
+  <div class="card">
+    <div class="chead">
+      <div class="av" style="background:#EC4899">엄</div>
+      <div><div class="who">엄마의 100일 다이어트</div><div class="sub">32일째 · 응원받기 방</div></div>
+      <div class="tag">🙋 응원받기</div>
+    </div>
+    <div class="cbody">
+      <div class="faces">
+        <span class="fc" style="background:#FF6B35">미</span><span class="fc" style="background:#3B82F6">형</span><span class="fc" style="background:#10B981">누</span><span class="fc" style="background:#9A9087">+1</span>
+        <span style="font-size:12.5px;color:var(--soft);font-weight:700;margin-left:10px;">오늘도 지켜보는 가족 4명</span>
+      </div>
+      <a class="cheerbtn">오늘의 응원 보내기</a>
+    </div>
+  </div>
+
+  <!-- 4. 누구나 합류 (소속 — 목적 기반 연결) -->
+  <div class="card">
+    <div class="chead">
+      <div class="av" style="background:#1A1A1A">김</div>
+      <div><div class="who">김작가의 매일 한 문단 쓰기</div><div class="sub">🌍 누구나 합류 · 함께하는 23명</div></div>
+    </div>
+    <div class="cbody">
+      <div class="line" style="color:var(--muted);font-size:14px;margin-bottom:12px;">"잘 쓰려 말고, 매일 쓰세요. 오늘 한 문단이면 충분합니다."</div>
+      <a class="joinbtn">함께 합류하기</a>
+    </div>
+  </div>
+
+  <!-- 끝이 있는 피드 (무한 스크롤 X) -->
+  <div class="end"><span class="moon">🌙</span>오늘은 여기까지예요.<br>내일 또, 한 걸음.</div>
+
+  <!-- 탭바 -->
+  <div class="tabs">
+    <div class="tab on"><span class="ic">🏠</span>홈</div>
+    <div class="tab"><span class="ic">🧭</span>탐색</div>
+    <div class="tab add">+</div>
+    <div class="tab"><span class="ic">🎬</span>기록</div>
+    <div class="tab"><span class="ic">🙂</span>MY</div>
+  </div>
+</div>
+</body></html>

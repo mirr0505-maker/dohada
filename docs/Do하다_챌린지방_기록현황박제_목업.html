@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Pretendard','Noto Sans CJK KR',sans-serif;-webkit-font-smoothing:antialiased;}
+:root{--accent:#FF6B35;--accent7:#C44A1C;--accent50:#FFF4ED;--accent100:#FFE4D6;--ink:#1A1A1A;--muted:#6E665D;--soft:#9A9087;--line:#ECE6DE;--bg:#FAF7F2;--ok:#0E7A4B;--ok50:#E7F6EE;}
+body{background:#E8E2D8;padding:22px;}
+.row{display:flex;gap:22px;align-items:flex-start;}
+.screen{width:392px;height:852px;background:var(--bg);position:relative;overflow:hidden;border-radius:30px;border:1px solid #d8d1c6;}
+.label{text-align:center;font-size:13px;font-weight:800;color:#7a7166;margin-bottom:9px;}
+.status{height:42px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-size:13px;font-weight:700;}
+.rhead{display:flex;align-items:center;gap:11px;padding:6px 16px 12px;}
+.back{font-size:21px;font-weight:700;}
+.rtitle{font-size:17px;font-weight:800;}
+.rsub{font-size:12px;color:var(--soft);font-weight:700;margin-top:1px;}
+.rmore{margin-left:auto;font-size:19px;color:var(--soft);}
+.rtabs{display:flex;background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
+.rtab{flex:1;text-align:center;font-size:11.5px;font-weight:700;color:var(--soft);padding:11px 0 9px;}
+.rtab .i{font-size:16px;display:block;margin-bottom:2px;filter:grayscale(1);opacity:.5;}
+.rtab.on{color:var(--accent7);box-shadow:inset 0 -2px 0 var(--accent);}
+.rtab.on .i{filter:none;opacity:1;}
+.seclabel{padding:14px 20px 10px;font-size:12.5px;font-weight:800;color:var(--soft);}
+.av{width:32px;height:32px;border-radius:50%;color:#fff;font-weight:800;font-size:13px;text-align:center;line-height:32px;margin-right:10px;flex:none;}
+.rf{width:20px;height:20px;border-radius:50%;border:2px solid #fff;margin-left:-6px;}
+.rtxt{font-size:11.5px;font-weight:700;color:var(--soft);margin-left:7px;}
+
+/* ===== 기록 ===== */
+.recprompt{margin:14px 16px;background:#fff;border:1px solid var(--line);border-radius:15px;padding:14px;display:flex;align-items:center;gap:12px;}
+.recprompt .ic{width:42px;height:42px;border-radius:12px;background:var(--accent50);text-align:center;line-height:42px;font-size:20px;flex:none;}
+.recprompt .t{font-size:14px;font-weight:800;}
+.recprompt .d{font-size:11.5px;color:var(--soft);font-weight:600;margin-top:2px;}
+.recprompt .go{margin-left:auto;font-size:12.5px;font-weight:800;color:#fff;background:var(--accent);padding:9px 13px;border-radius:11px;flex:none;}
+.vlog{margin:0 16px 14px;background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;}
+.thumb{height:158px;position:relative;}
+.play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.85);text-align:center;line-height:50px;font-size:20px;color:var(--accent7);}
+.dur{position:absolute;right:11px;bottom:10px;background:rgba(0,0,0,.55);color:#fff;font-size:11px;font-weight:700;padding:3px 7px;border-radius:6px;}
+.vmeta{padding:12px 15px 14px;}
+.vtitle{font-size:15px;font-weight:800;}
+.vby{display:flex;align-items:center;margin:9px 0 0;}
+.vby .who{font-size:12.5px;font-weight:700;}
+.vby .dt{font-size:11.5px;color:var(--soft);font-weight:600;margin-left:6px;}
+.vby .faces{margin-left:auto;display:flex;align-items:center;}
+
+/* ===== 현황 ===== */
+.statcard{margin:14px 16px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;}
+.bigday{font-size:38px;font-weight:800;letter-spacing:-1.5px;}
+.bigday small{font-size:16px;color:var(--soft);font-weight:700;}
+.streak{display:inline-block;margin-top:6px;font-size:12.5px;font-weight:800;color:var(--accent7);background:var(--accent50);padding:6px 12px;border-radius:20px;}
+.callabel{font-size:11.5px;font-weight:700;color:var(--soft);margin:16px 0 9px;}
+.cal{display:flex;flex-wrap:wrap;gap:7px;}
+.cd2{width:38px;height:30px;border-radius:8px;background:var(--line);}
+.cd2.done{background:var(--accent);}
+.cd2.today{background:var(--accent50);border:2px solid var(--accent);}
+.cd2.future{background:#F1ECE4;}
+.collect{margin:14px 16px;background:linear-gradient(120deg,var(--accent50),#fff);border:1px solid var(--accent100);border-radius:16px;padding:16px;text-align:center;}
+.collect .n{font-size:15px;font-weight:800;}
+.collect .n b{color:var(--accent7);}
+.collect .d{font-size:12px;color:var(--muted);font-weight:600;margin-top:4px;}
+.together{margin:14px 16px;}
+.tgrid{display:flex;align-items:center;gap:10px;margin-top:10px;}
+.mem{text-align:center;}
+.mem .c{width:42px;height:42px;border-radius:50%;color:#fff;font-weight:800;font-size:15px;line-height:42px;position:relative;}
+.mem .c.off{opacity:.3;}
+.mem .c .tick{position:absolute;right:-2px;bottom:-2px;width:18px;height:18px;border-radius:50%;background:var(--ok);border:2px solid #fff;font-size:9px;line-height:15px;color:#fff;}
+.mem .nm{font-size:10.5px;font-weight:700;color:var(--soft);margin-top:4px;}
+
+/* ===== 박제 ===== */
+.lockbar{margin:14px 16px 0;text-align:center;font-size:12px;font-weight:800;color:var(--accent7);background:var(--accent50);border-radius:12px;padding:9px;}
+.cert{margin:12px 16px;border:2px solid var(--accent100);border-radius:18px;background:linear-gradient(160deg,#fff,var(--accent50));padding:24px 22px;text-align:center;opacity:.92;}
+.cert .paren{font-size:56px;font-weight:800;color:var(--accent);line-height:.9;letter-spacing:4px;}
+.cert .dot{display:inline-block;width:11px;height:11px;border-radius:50%;background:var(--accent);vertical-align:middle;margin:0 -30px;}
+.cert .kl{font-size:11px;font-weight:800;letter-spacing:3px;color:var(--accent7);margin-top:14px;}
+.cert .big{font-size:21px;font-weight:800;margin-top:7px;}
+.cert .meta{font-size:12px;color:var(--muted);font-weight:600;margin-top:10px;line-height:1.6;}
+.tierlabel{padding:6px 20px 10px;font-size:12.5px;font-weight:800;color:var(--soft);}
+.tier{margin:0 16px 9px;display:flex;align-items:center;background:#fff;border:1px solid var(--line);border-radius:13px;padding:12px 14px;}
+.tier .lk{font-size:14px;margin-right:11px;opacity:.4;}
+.tier .ti{font-size:14px;font-weight:800;}
+.tier .ts{font-size:11px;color:var(--soft);font-weight:600;margin-top:1px;}
+.tier .pr{margin-left:auto;font-size:13.5px;font-weight:800;color:var(--accent7);}
+.tier .pr.free{color:var(--ok);}
+</style></head>
+<body>
+<div class="row">
+
+  <!-- ===== ④ 기록 ===== -->
+  <div>
+  <div class="label">④ 챌린지 방 · 🎥 기록</div>
+  <div class="screen">
+    <div class="status"><span>9:41</span><span>● ● ● &nbsp;📶 &nbsp;🔋</span></div>
+    <div class="rhead"><div class="back">‹</div><div><div class="rtitle">5시 러닝 클럽</div><div class="rsub">🤝 함께 · 12일째 / 30일 · 5명</div></div><div class="rmore">⋯</div></div>
+    <div class="rtabs">
+      <div class="rtab"><span class="i">💬</span>대화</div>
+      <div class="rtab"><span class="i">📸</span>인증</div>
+      <div class="rtab on"><span class="i">🎬</span>기록</div>
+      <div class="rtab"><span class="i">📊</span>현황</div>
+      <div class="rtab"><span class="i">🏆</span>박제</div>
+    </div>
+
+    <div class="recprompt">
+      <div class="ic">🎥</div>
+      <div><div class="t">이번 도전, 영상으로 기록하기</div><div class="d">하루의 인증이 아닌, 여정의 이야기를.</div></div>
+      <div class="go">기록 남기기</div>
+    </div>
+
+    <div class="seclabel">도전 인연들의 기록</div>
+
+    <div class="vlog">
+      <div class="thumb" style="background:linear-gradient(135deg,#FFD9C2,#FF8C5A)"><div class="play">▶</div><div class="dur">1:24</div></div>
+      <div class="vmeta">
+        <div class="vtitle">비 오는 날에도 뛰는 이유</div>
+        <div class="vby"><div class="av" style="background:#10B981;width:24px;height:24px;line-height:24px;font-size:11px;margin-right:7px;">수</div><div class="who">수진</div><span class="dt">· 12일차</span>
+          <div class="faces"><span class="rf" style="background:#3B82F6"></span><span class="rf" style="background:#FF6B35"></span><span class="rtxt">응원했어요</span></div></div>
+      </div>
+    </div>
+
+    <div class="vlog">
+      <div class="thumb" style="background:linear-gradient(135deg,#CDE3FF,#7FA8E8)"><div class="play">▶</div><div class="dur">0:48</div></div>
+      <div class="vmeta">
+        <div class="vtitle">11일째, 몸이 가벼워지는 게 느껴져요</div>
+        <div class="vby"><div class="av" style="background:#3B82F6;width:24px;height:24px;line-height:24px;font-size:11px;margin-right:7px;">현</div><div class="who">현우</div><span class="dt">· 11일차</span>
+          <div class="faces"><span class="rf" style="background:#EC4899"></span><span class="rtxt">응원했어요</span></div></div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <!-- ===== ⑤ 현황 ===== -->
+  <div>
+  <div class="label">⑤ 챌린지 방 · 📊 현황</div>
+  <div class="screen">
+    <div class="status"><span>9:41</span><span>● ● ● &nbsp;📶 &nbsp;🔋</span></div>
+    <div class="rhead"><div class="back">‹</div><div><div class="rtitle">5시 러닝 클럽</div><div class="rsub">🤝 함께 · 12일째 / 30일 · 5명</div></div><div class="rmore">⋯</div></div>
+    <div class="rtabs">
+      <div class="rtab"><span class="i">💬</span>대화</div>
+      <div class="rtab"><span class="i">📸</span>인증</div>
+      <div class="rtab"><span class="i">🎬</span>기록</div>
+      <div class="rtab on"><span class="i">📊</span>현황</div>
+      <div class="rtab"><span class="i">🏆</span>박제</div>
+    </div>
+
+    <div class="statcard">
+      <div class="bigday">12<small>일째</small> <span style="font-size:15px;color:var(--soft);font-weight:700;">/ 30일</span></div>
+      <div class="streak">🔥 연속 5일 인증 중</div>
+      <div class="callabel">나의 인증 달력</div>
+      <div class="cal">
+        <div class="cd2 done"></div><div class="cd2 done"></div><div class="cd2 done"></div><div class="cd2"></div><div class="cd2 done"></div><div class="cd2 done"></div><div class="cd2 done"></div>
+        <div class="cd2 done"></div><div class="cd2 done"></div><div class="cd2 done"></div><div class="cd2 done"></div><div class="cd2 today"></div><div class="cd2 future"></div><div class="cd2 future"></div>
+      </div>
+    </div>
+
+    <div class="collect">
+      <div class="n">우리 방이 함께 온 길 — <b>322번의 인증</b></div>
+      <div class="d">5명이 12일 동안 쌓아온 아침이에요.</div>
+    </div>
+
+    <div class="together">
+      <div class="callabel" style="margin:0 0 2px;">오늘, 함께한 동료 (5명 중 4명)</div>
+      <div class="tgrid">
+        <div class="mem"><div class="c" style="background:#FF6B35">미<span class="tick">✓</span></div><div class="nm">나</div></div>
+        <div class="mem"><div class="c" style="background:#3B82F6">현<span class="tick">✓</span></div><div class="nm">현우</div></div>
+        <div class="mem"><div class="c" style="background:#10B981">수<span class="tick">✓</span></div><div class="nm">수진</div></div>
+        <div class="mem"><div class="c" style="background:#8B5CF6">지<span class="tick">✓</span></div><div class="nm">지은</div></div>
+        <div class="mem"><div class="c off" style="background:#9A9087">민</div><div class="nm">민호</div></div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <!-- ===== ⑥ 박제 ===== -->
+  <div>
+  <div class="label">⑥ 챌린지 방 · 🏆 박제</div>
+  <div class="screen">
+    <div class="status"><span>9:41</span><span>● ● ● &nbsp;📶 &nbsp;🔋</span></div>
+    <div class="rhead"><div class="back">‹</div><div><div class="rtitle">5시 러닝 클럽</div><div class="rsub">🤝 함께 · 12일째 / 30일 · 5명</div></div><div class="rmore">⋯</div></div>
+    <div class="rtabs">
+      <div class="rtab"><span class="i">💬</span>대화</div>
+      <div class="rtab"><span class="i">📸</span>인증</div>
+      <div class="rtab"><span class="i">🎬</span>기록</div>
+      <div class="rtab"><span class="i">📊</span>현황</div>
+      <div class="rtab on"><span class="i">🏆</span>박제</div>
+    </div>
+
+    <div class="lockbar">🔒 30일 완주까지 18일 — 완주하면 박제됩니다</div>
+
+    <div class="cert">
+      <div class="paren">(<span class="dot"></span>)</div>
+      <div class="kl">CERTIFICATE OF COMPLETION</div>
+      <div class="big">5시 러닝 클럽 · 30일 완주</div>
+      <div class="meta">미르 님은 30일간 하루도 빠짐없이<br>새벽을 깨웠습니다.<br><span style="color:var(--soft)">2026 · Do : 하다</span></div>
+    </div>
+
+    <div class="tierlabel">완주하면 남길 수 있어요</div>
+    <div class="tier"><span class="lk">📄</span><div><div class="ti">디지털 인증서 (PDF)</div><div class="ts">바로 다운로드</div></div><div class="pr free">무료</div></div>
+    <div class="tier"><span class="lk">🔒</span><div><div class="ti">종이 인증서 · 우편</div><div class="ts">집으로 배송</div></div><div class="pr">₩9,900</div></div>
+    <div class="tier"><span class="lk">🔒</span><div><div class="ti">포토북</div><div class="ts">30일의 인증 사진 모음</div></div><div class="pr">₩39,000</div></div>
+    <div class="tier"><span class="lk">🔒</span><div><div class="ti">굿즈 · 티셔츠/키링</div><div class="ts">완주 기념</div></div><div class="pr">₩19,000~</div></div>
+  </div>
+  </div>
+
+</div>
+</body></html>

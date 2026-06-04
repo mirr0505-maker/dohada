@@ -103,3 +103,40 @@ export type OpenChallengeCard = ChallengeWithCount & {
   votes_by_type: ChallengeVoteCounts;
   my_votes: ChallengeVoteType[];
 };
+
+// ─── v2.5: 해냈어요 (완주 이야기) ─────────────────────
+// "자랑 X · 증언 ✓" 톤. 시스템 통계는 트리거가 자동 채움 (조작 불가).
+// 사용자 옵션: story / hardest / photo_urls / visibility.
+
+export type StoryVisibility = 'public' | 'allies';
+
+export type DbCompletionStory = {
+  id: string;
+  challenge_id: string;
+  user_id: string;
+  // 시스템 통계 (DB 트리거 자동 채움 — 조작 불가)
+  total_days: number;
+  proof_count: number;
+  longest_streak: number;
+  completion_rate: number;       // 0~100
+  // 사용자 옵션 — 6개 항목 모두 선택. 빈 항목은 상세에 노출 X.
+  story: string | null;                  // 한 줄 소감
+  hardest: string | null;                // 가장 어려웠던 점
+  helped_when_giving_up: string | null;  // 포기하고 싶을 때 뭐가 도왔나
+  advice_to_starters: string | null;     // 시작하는 사람에게 한마디
+  own_tip: string | null;                // 나만의 방법·꿀팁
+  what_changed: string | null;           // 이 도전으로 무엇이 달라졌나
+  photo_urls: string[];
+  visibility: StoryVisibility;
+  created_at: string;
+  updated_at: string;
+};
+
+// 해냈어요 공개 탭 / 상세 페이지 카드용 풀 데이터
+export type CompletionStoryCard = DbCompletionStory & {
+  author: DbUser;
+  challenge: {
+    title: string;
+    category: { emoji: string; name: string } | null;
+  };
+};

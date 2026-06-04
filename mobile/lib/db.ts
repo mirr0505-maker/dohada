@@ -5,6 +5,7 @@ import type {
   ChallengeWithCount, ChallengeKind, MemberWithToday, ProofWithRelations, DbChallenge,
   CommentWithAuthor, CheerType,
   OpenChallengeCard, ChallengeVoteType, ChallengeVoteCounts,
+  DbCompletionStory, CompletionStoryCard, StoryVisibility,
 } from './types';
 
 // ─── 동료들의 최근 인증 (홈 cross-section) ───────────────────────────────
@@ -889,4 +890,140 @@ export async function toggleCheer(args: {
       .insert({ proof_id: args.proofId, user_id: args.userId, cheer_type: args.cheerType });
     if (error) throw error;
   }
+}
+
+// ─── v2.5: 해냈어요 (완주 이야기) CRUD ────────────────────────────────────
+// 시스템 통계 (total_days/proof_count/longest_streak/completion_rate) 는 DB 트리거가 자동 채움.
+// 사용자는 story/hardest/photo_urls/visibility 만 전달.
+
+// 완주 이야기 작성 — 챌린지가 종료되고 본인이 멤버(미포기)일 때만 RLS 통과.
+// 트리거가 시스템 통계 자동 채움. 6개 사용자 옵션 모두 선택.
+export async function createCompletionStory(args: {
+  challengeId: string;
+  userId: string;
+  story?: string | null;
+  hardest?: string | null;
+  helpedWhenGivingUp?: string | null;
+  adviceToStarters?: string | null;
+  ownTip?: string | null;
+  whatChanged?: string | null;
+  photoUrls?: string[];
+  visibility?: StoryVisibility;
+}): Promise<DbCompletionStory> {
+  const { data, error } = await supabase
+    .from('completion_stories')
+    .insert({
+      challenge_id: args.challengeId,
+      user_id: args.userId,
+      // 시스템 통계는 트리거가 채움 — 일단 0 으로 전달 (NOT NULL 통과용)
+      total_days: 0,
+      proof_count: 0,
+      longest_streak: 0,
+      completion_rate: 0,
+      story: args.story ?? null,
+      hardest: args.hardest ?? null,
+      helped_when_giving_up: args.helpedWhenGivingUp ?? null,
+      advice_to_starters: args.adviceToStarters ?? null,
+      own_tip: args.ownTip ?? null,
+      what_changed: args.whatChanged ?? null,
+      photo_urls: args.photoUrls ?? [],
+      visibility: args.visibility ?? 'public',
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as DbCompletionStory;
+}
+
+// 해냈어요 공개 탭 — visibility='public' 이야기 최신순
+export async function fetchPublicCompletionStories(args: {
+  limit?: number;
+  offset?: number;
+} = {}): Promise<CompletionStoryCard[]> {
+  const { limit = 20, offset = 0 } = args;
+  const { data, error } = await supabase
+    .from('completion_stories')
+    .select(`
+      *,
+      author:user_id (id, email, nickname, avatar_url, created_at),
+      challenge:challenge_id (
+        title,
+        category:category_id (emoji, name)
+      )
+    `)
+    .eq('visibility', 'public')
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+  if (error) throw error;
+  return (data ?? []) as unknown as CompletionStoryCard[];
+}
+
+// 상세 — id 로 한 건 (RLS 가 공개/인연/본인 분기)
+export async function fetchCompletionStory(id: string): Promise<CompletionStoryCard | null> {
+  const { data, error } = await supabase
+    .from('completion_stories')
+    .select(`
+      *,
+      author:user_id (id, email, nickname, avatar_url, created_at),
+      challenge:challenge_id (
+        title,
+        category:category_id (emoji, name)
+      )
+    `)
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  return (data ?? null) as unknown as CompletionStoryCard | null;
+}
+
+// 박제 탭에서 "이미 작성?" 체크용 — 본인 + 챌린지 한 건
+export async function fetchMyCompletionStoryForChallenge(args: {
+  challengeId: string;
+  userId: string;
+}): Promise<DbCompletionStory | null> {
+  const { data, error } = await supabase
+    .from('completion_stories')
+    .select('*')
+    .eq('challenge_id', args.challengeId)
+    .eq('user_id', args.userId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data ?? null) as DbCompletionStory | null;
+}
+
+// 사용자 옵션·사진·공개범위만 수정 (시스템 통계는 트리거가 보호)
+export async function updateCompletionStory(args: {
+  id: string;
+  story?: string | null;
+  hardest?: string | null;
+  helpedWhenGivingUp?: string | null;
+  adviceToStarters?: string | null;
+  ownTip?: string | null;
+  whatChanged?: string | null;
+  photoUrls?: string[];
+  visibility?: StoryVisibility;
+}): Promise<void> {
+  const patch: Record<string, unknown> = {};
+  if (args.story !== undefined)              patch.story = args.story;
+  if (args.hardest !== undefined)            patch.hardest = args.hardest;
+  if (args.helpedWhenGivingUp !== undefined) patch.helped_when_giving_up = args.helpedWhenGivingUp;
+  if (args.adviceToStarters !== undefined)   patch.advice_to_starters = args.adviceToStarters;
+  if (args.ownTip !== undefined)             patch.own_tip = args.ownTip;
+  if (args.whatChanged !== undefined)        patch.what_changed = args.whatChanged;
+  if (args.photoUrls !== undefined)          patch.photo_urls = args.photoUrls;
+  if (args.visibility !== undefined)         patch.visibility = args.visibility;
+  if (Object.keys(patch).length === 0) return;
+  const { error } = await supabase
+    .from('completion_stories')
+    .update(patch)
+    .eq('id', args.id);
+  if (error) throw error;
+}
+
+export async function deleteCompletionStory(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('completion_stories')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
 }
