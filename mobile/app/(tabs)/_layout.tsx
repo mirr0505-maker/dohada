@@ -1,6 +1,7 @@
-// 🚀 5탭 bottom navigation — v4 통합기획서 홈 화면 디자인 기준
-// 탭: 홈 / 내챌린지 / + (가운데 큰 버튼) / 둘러보기 / 내정보
-// + 탭은 listener 로 /create 모달 트리거 (라우트 자체는 빈 화면)
+// 🚀 5탭 bottom navigation (v2.5 SNS-first 재설계)
+// 탭: 홈 (피드) / 내도전 / + (가운데 큰 버튼) / 기록 / 해냈어요
+// + 탭은 listener 로 /create 모달 트리거.
+// profile 탭 제거 — MY 는 우상단 아바타로 일원화 (AppHeader).
 import React from 'react';
 import { Tabs, router } from 'expo-router';
 import { Text, View, Platform } from 'react-native';
@@ -80,23 +81,26 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="discover"
+        name="record"
         options={{
-          title: '둘러보기',
+          title: '기록',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'compass' : 'compass-outline'} size={TAB_ICON_SIZE} color={color} />
+            <Ionicons name={focused ? 'film' : 'film-outline'} size={TAB_ICON_SIZE} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="done"
         options={{
-          title: '내정보',
+          title: '해냈어요',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'person-circle' : 'person-circle-outline'} size={TAB_ICON_SIZE + 2} color={color} />
+            <Ionicons name={focused ? 'trophy' : 'trophy-outline'} size={TAB_ICON_SIZE} color={color} />
           ),
         }}
       />
+      {/* discover / profile 은 v2.5 에서 탭 X — 라우트는 직접 접근 가능 유지 */}
+      <Tabs.Screen name="discover" options={{ href: null }} />
+      <Tabs.Screen name="profile"  options={{ href: null }} />
     </Tabs>
   );
 }

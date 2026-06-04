@@ -457,6 +457,55 @@ export async function fetchLogs(challengeId: string, myUserId: string, limit = 3
   });
 }
 
+// 전체 기록 피드 (v2.5 — 기록 탭 신규)
+// RLS 가 멤버 챌린지 + 오픈 챌린지 로그만 보여줌.
+// 본인 + 도전 인연 (현재 같은 챌린지 멤버) 의 기록이 자연스럽게 union 됨.
+export type LogWithChallenge = LogWithAuthor & {
+  challenge: { title: string; category: { emoji: string; name: string } | null };
+};
+
+export async function fetchRecentLogs(myUserId: string, limit = 30): Promise<LogWithChallenge[]> {
+  const { data, error } = await supabase
+    .from('logs')
+    .select(`
+      id, challenge_id, user_id, title, content, photo_url, created_at,
+      users:user_id(id, nickname, avatar_url),
+      log_likes(user_id),
+      log_comments(count),
+      challenge:challenge_id (
+        title,
+        category:category_id (emoji, name)
+      )
+    `)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []).map((l: any) => {
+    const likes: { user_id: string }[] = l.log_likes ?? [];
+    return {
+      id: l.id,
+      challenge_id: l.challenge_id,
+      user_id: l.user_id,
+      title: l.title,
+      content: l.content,
+      photo_url: l.photo_url,
+      created_at: l.created_at,
+      author: {
+        id: l.users?.id ?? l.user_id,
+        nickname: l.users?.nickname ?? '',
+        avatar_url: l.users?.avatar_url ?? null,
+      },
+      like_count: likes.length,
+      liked_by_me: likes.some(x => x.user_id === myUserId),
+      comment_count: l.log_comments?.[0]?.count ?? 0,
+      challenge: {
+        title: l.challenge?.title ?? '',
+        category: l.challenge?.category ?? null,
+      },
+    };
+  });
+}
+
 // ─── 기록 댓글 (log_comments) ─────────────────────────
 export type LogCommentWithAuthor = {
   id: string;

@@ -1,5 +1,5 @@
-// 🚀 내 챌린지 — 참여 중인 모든 챌린지를 순수 목록으로 (동료 섹션 X)
-// 홈과 달리 챌린지 관리 중심. 진행률 + D-N 만 빠르게 훑기.
+// 🚀 내 도전 (v2.5) — 참여 중인 모든 챌린지 목록
+// 홈은 도전 인연들의 하루 피드, 여기는 내 작업 공간 입구 — 방 진행률 + D-N.
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, Pressable, FlatList, StyleSheet, RefreshControl,
@@ -53,7 +53,12 @@ export default function MyChallengesScreen() {
     <Screen backgroundColor={colors.background}>
       <AppHeader />
       <View style={styles.subHeader}>
-        <Text style={styles.subTitle}>내 챌린지</Text>
+        <Text style={styles.subTitle}>🚩 내 도전</Text>
+        <Text style={styles.subDesc}>
+          {challenges.length === 0
+            ? '아직 도전이 없어요. 하단 ⊕ 로 시작해볼까요?'
+            : `함께 가고 있는 도전 ${challenges.length}개`}
+        </Text>
       </View>
 
       {loading ? (
@@ -132,11 +137,18 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   subTitle: {
-    fontSize: fontSize.lg,
+    fontSize: fontSize['2xl'],
     color: colors.primary,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
-    letterSpacing: -0.2,
+    letterSpacing: -0.5,
+  },
+  subDesc: {
+    fontSize: fontSize.sm,
+    color: colors.primary500,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
+    marginTop: 4,
   },
   list: {
     paddingHorizontal: 24,
