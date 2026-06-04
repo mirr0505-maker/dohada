@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "dohada",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "app.dohada.beta",
