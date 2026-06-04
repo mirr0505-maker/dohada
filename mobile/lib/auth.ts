@@ -26,8 +26,10 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { supabase, isSupabaseConfigured } from './supabase';
 
-// Expo Go / 브라우저 OAuth 마무리 처리
-WebBrowser.maybeCompleteAuthSession();
+// Expo Go / 브라우저 OAuth 마무리 처리 (웹에서만 실행하도록 제한하여 네이티브 환경 초기화 crash 방지)
+if (Platform.OS === 'web') {
+  WebBrowser.maybeCompleteAuthSession();
+}
 
 // ─── Device-local provider lock ────────────────────────
 const PROVIDER_KEY = 'do-hada.auth.provider';
