@@ -53,36 +53,38 @@ export async function fetchFellowProofs(myUserId: string, limit = 10): Promise<F
 // RLS 가 멤버인 챌린지만 보여줌. challenge_members(count) 로 멤버 수 같이.
 // myUserId 전달 시 본인이 포기(gave_up_at) 한 챌린지는 hide (soft delete 패턴).
 export async function fetchMyChallenges(myUserId?: string): Promise<ChallengeWithCount[]> {
+  if (!myUserId) return [];
+
+  // 1. 본인이 멤버인 (그리고 포기 X) challenge_id 만 먼저 추림
+  //    RLS 가 open 챌린지를 비멤버에도 SELECT 허용하기 때문에 명시적 필터 필요.
+  const { data: memberships, error: mErr } = await supabase
+    .from('challenge_members')
+    .select('challenge_id')
+    .eq('user_id', myUserId)
+    .is('gave_up_at', null);
+  if (mErr) throw mErr;
+  const ids = (memberships ?? []).map((m: any) => m.challenge_id);
+  if (!ids.length) return [];
+
+  // 2. 그 챌린지들만 fetch
   const { data, error } = await supabase
     .from('challenges')
     .select('*, challenge_members(count)')
+    .in('id', ids)
     .order('created_at', { ascending: false });
-
   if (error) throw error;
 
-  let gaveUpIds = new Set<string>();
-  if (myUserId) {
-    const { data: gaveUp } = await supabase
-      .from('challenge_members')
-      .select('challenge_id')
-      .eq('user_id', myUserId)
-      .not('gave_up_at', 'is', null);
-    gaveUpIds = new Set((gaveUp ?? []).map((g: any) => g.challenge_id));
-  }
-
-  return (data ?? [])
-    .filter((c: any) => !gaveUpIds.has(c.id))
-    .map((c: any) => ({
-      id: c.id,
-      creator_id: c.creator_id,
-      title: c.title,
-      description: c.description,
-      kind: (c.kind ?? 'closed') as ChallengeKind,
-      start_date: c.start_date,
-      end_date: c.end_date,
-      created_at: c.created_at,
-      member_count: c.challenge_members?.[0]?.count ?? 0,
-    }));
+  return (data ?? []).map((c: any) => ({
+    id: c.id,
+    creator_id: c.creator_id,
+    title: c.title,
+    description: c.description,
+    kind: (c.kind ?? 'closed') as ChallengeKind,
+    start_date: c.start_date,
+    end_date: c.end_date,
+    created_at: c.created_at,
+    member_count: c.challenge_members?.[0]?.count ?? 0,
+  }));
 }
 
 // ─── 홈 v2.3 — 분류별 카드용 상세 데이터 ─────────────────
@@ -97,7 +99,18 @@ export type MyChallengeDetail = ChallengeWithCount & {
 };
 
 export async function fetchMyChallengesWithDetails(myUserId: string): Promise<MyChallengeDetail[]> {
-  // 1. 기본 챌린지 + 카테고리 사회공헌 여부 (RLS 가 멤버 챌린지만 보여줌)
+  // 0. 본인 멤버십 챌린지 ID 추림 (포기 안 한 것만)
+  //    RLS 가 open 챌린지를 비멤버에도 SELECT 허용 → 명시적 필터 필요.
+  const { data: memberships, error: mErr } = await supabase
+    .from('challenge_members')
+    .select('challenge_id')
+    .eq('user_id', myUserId)
+    .is('gave_up_at', null);
+  if (mErr) throw mErr;
+  const myIds = (memberships ?? []).map((m: any) => m.challenge_id);
+  if (!myIds.length) return [];
+
+  // 1. 본인 멤버 챌린지만 fetch
   const { data: challenges, error } = await supabase
     .from('challenges')
     .select(`
@@ -105,20 +118,12 @@ export async function fetchMyChallengesWithDetails(myUserId: string): Promise<My
       category:category_id(is_impact),
       challenge_members(count)
     `)
+    .in('id', myIds)
     .order('created_at', { ascending: false });
   if (error) throw error;
   if (!challenges?.length) return [];
 
-  // 2. 본인 포기 챌린지 제외 (soft delete)
-  const { data: gaveUp } = await supabase
-    .from('challenge_members')
-    .select('challenge_id')
-    .eq('user_id', myUserId)
-    .not('gave_up_at', 'is', null);
-  const gaveUpIds = new Set((gaveUp ?? []).map((g: any) => g.challenge_id));
-  const filtered = (challenges as any[]).filter(c => !gaveUpIds.has(c.id));
-  if (!filtered.length) return [];
-
+  const filtered = challenges as any[];
   const challengeIds = filtered.map(c => c.id);
   const today = new Date().toISOString().slice(0, 10);
 
