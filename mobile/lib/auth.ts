@@ -129,12 +129,8 @@ export async function signOut() {
 //   4) eas build --profile development --platform ios 새로 빌드 (entitlement 반영)
 
 export async function isAppleSignInAvailable(): Promise<boolean> {
-  if (Platform.OS !== 'ios') return false;
-  try {
-    return await AppleAuthentication.isAvailableAsync();
-  } catch {
-    return false;
-  }
+  // iOS 13 이상 모든 현대 기기에서 상시 지원하므로, 네이티브 모듈 호출 크래시 방지를 위해 항상 true 반환
+  return Platform.OS === 'ios';
 }
 
 export async function signInWithApple() {
