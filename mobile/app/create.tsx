@@ -31,9 +31,11 @@ const SUGGESTIONS = [
 ];
 
 const DURATIONS = [
+  { label: '3일',  desc: '초단기 작심삼일 깨기', icon: '⚡', days: 3 },
   { label: '7일',  desc: '맛보기',           icon: '🌱', days: 7 },
   { label: '30일', desc: '습관 형성',         icon: '🌿', days: 30 },
   { label: '100일', desc: '박제 가치 최고 ⭐', icon: '🌳', days: 100, recommended: true },
+  { label: '180일', desc: '반년의 지속',       icon: '🏔️', days: 180 },
   { label: '1년',  desc: '인생 변환점',       icon: '🌟', days: 365 },
 ] as const;
 
@@ -478,18 +480,29 @@ function Step6RoomType({
 
 // ─── Step 7: 내기 (Phase 2 placeholder) ───
 function Step7Bet() {
+  const handleBetPress = (enabled: boolean) => {
+    if (!enabled) {
+      haptic.tap();
+      Alert.alert(
+        '준비 중인 기능 🔒',
+        '🔥 보석금을 걸고 하는 강력한 동기부여 페널티 내기 기능이 곧 준비됩니다!\n\n베타 기간 동안은 내기 없이 안전하게 테스트가 진행됩니다.'
+      );
+    }
+  };
+
   return (
     <View style={{ gap: 12 }}>
       {BETS.map((b, idx) => {
         const active = idx === 0;
         return (
-          <View
+          <Pressable
             key={b.label}
             style={[
               styles.option,
               active && styles.optionActive,
               !b.enabled && styles.optionDisabled,
             ]}
+            onPress={() => handleBetPress(b.enabled)}
           >
             <Text style={styles.optionIcon}>{b.icon}</Text>
             <View style={{ flex: 1 }}>
@@ -497,7 +510,8 @@ function Step7Bet() {
               <Text style={styles.optionDesc}>{b.desc}</Text>
             </View>
             {active && <Text style={styles.optionCheck}>✓</Text>}
-          </View>
+            {!b.enabled && <Text style={{ fontSize: 16, color: colors.primary300 }}>🔒</Text>}
+          </Pressable>
         );
       })}
       <Text style={styles.smallNote}>

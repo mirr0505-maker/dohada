@@ -40,3 +40,10 @@ Thumbs.db
 
 # Supabase 로컬
 supabase/.temp/
+
+# 임시 파일 및 크래시 로그
+*.vsix
+*.ips
+**/Do-*.ips
+**/Do-*.ips.*
+

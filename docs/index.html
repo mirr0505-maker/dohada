@@ -3,13 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5">
-<title>Do : 하다 — 비교 없이 응원받는 도전 SNS · 베타 30명 모집</title>
-<meta name="description" content="비교에 지친 SNS와 작별, 오늘도 한 걸음 나아가는 곳. Do : 하다 베타 30명 모집.">
+<title>더 나은 나, 더 나은 세상 — Do : 하다 · 베타 30명 모집</title>
+<meta name="description" content="보여주기식 자랑이 아닌, 진짜 성장을 기록하고 완주를 박제하세요. 나와 동료의 도전과 응원! 선착순 베타 테스터 30명 모집 중!">
 <meta name="theme-color" content="#FF6B35">
 
 <!-- Open Graph -->
-<meta property="og:title" content="Do : 하다 — 비교 없이 응원받는 도전 SNS">
-<meta property="og:description" content="비교에 지친 SNS와 작별, 오늘도 한 걸음 나아가는 곳. 베타 30명 모집.">
+<meta property="og:title" content="더 나은 나, 더 나은 세상 — Do : 하다">
+<meta property="og:description" content="보여주기식 자랑이 아닌, 진짜 성장을 기록하고 완주를 박제하세요. 나와 동료의 도전과 응원! 선착순 베타 테스터 30명 모집 중!">
+<meta property="og:image" content="https://mirr0505-maker.github.io/dohada/icon.png">
 <meta property="og:type" content="website">
 
 <style>
@@ -371,6 +372,46 @@
     line-height: 1.6;
   }
 
+  /* ── Beta Promise ───────────────────────────────── */
+  .promise-section {
+    background: var(--accent-50);
+  }
+  .promise-quote {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--primary);
+    line-height: 1.5;
+    text-align: center;
+    letter-spacing: -0.4px;
+    margin-bottom: 32px;
+  }
+  .promise-list {
+    display: grid;
+    gap: 8px;
+    background: white;
+    border-radius: 16px;
+    padding: 20px 24px;
+  }
+  .promise-list .item {
+    position: relative;
+    padding: 6px 0 6px 32px;       /* 20 icon + 12 gap */
+    font-size: 15px;
+    color: var(--primary);
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+  .promise-list .item .check {
+    position: absolute;
+    left: 0;
+    top: 6px;
+    width: 20px;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  @media (max-width: 480px) {
+    .promise-quote { font-size: 19px; }
+  }
+
   /* ── Final CTA ──────────────────────────────────── */
   .final {
     background: linear-gradient(180deg, #FFFFFF 0%, var(--accent-50) 100%);
@@ -453,7 +494,7 @@
     <a class="cta" href="https://docs.google.com/forms/d/e/1FAIpQLSfxhYWjC1hp0zb922LzGYeF0SgGY__1kuPb_OEToyZf9W87Qg/viewform" target="_blank" rel="noopener">
       ✍️ 베타 신청하기 →
     </a>
-    <p class="cta-note">30명 한정 · iOS TestFlight · 1주 후 10분 인터뷰 동의</p>
+    <p class="cta-note">30명 한정 · iOS & Android 모두 지원 · 1주 후 10분 인터뷰 동의</p>
   </div>
 </section>
 
@@ -614,7 +655,7 @@
         <div class="num">04</div>
         <h3>끝이 있는 도전</h3>
         <div class="promise-row bad"><span class="icon">✕</span> 무한 스크롤 / 무한 피드</div>
-        <div class="promise-row good"><span class="icon">✓</span> <strong>기간 7 / 30 / 100 / 365일</strong> 챌린지</div>
+        <div class="promise-row good"><span class="icon">✓</span> <strong>기간 3 / 7 / 30 / 100 / 180 / 365일</strong> 챌린지</div>
         <div class="promise-row good"><span class="icon">✓</span> 매일 1번 인증 후엔 라벨이 "오늘 인증 완료 · 내일 또 만나요"</div>
       </div>
 
@@ -650,6 +691,31 @@
 </section>
 
 <!-- ────────────────────────────────────────────── -->
+<!-- BETA PROMISE                                  -->
+<!-- ────────────────────────────────────────────── -->
+<section class="promise-section">
+  <div class="container">
+    <div class="label">베타 30명에게 약속하는 것</div>
+    <p class="promise-quote">
+      "30명 중 10명이 친구에게<br>
+      추천하고 싶다 라고 답하지 않으면<br>
+      우리는 멈춥니다."
+    </p>
+    <div class="promise-list">
+      <div class="item"><span class="check">✓</span><span><strong>무한 스크롤 없음</strong> — 끝이 있는 도전.</span></div>
+      <div class="item"><span class="check">✓</span><span><strong>친구 신청·수락 없음</strong> — 동료는 도전이 만들어요.</span></div>
+      <div class="item"><span class="check">✓</span><span><strong>알림 폭격 없음</strong> — 묶음·조용시간·상한.</span></div>
+      <div class="item"><span class="check">✓</span><span><strong>큰 숫자 비교 없음</strong> — 99+ 통일.</span></div>
+      <div class="item"><span class="check">✓</span><span><strong>광고 협찬·내기·박제 결제</strong> = Phase 2. 베타는 순수 검증.</span></div>
+    </div>
+    <p style="margin-top: 28px; color: var(--primary-500); text-align: center; font-size: 14px; line-height: 1.7;">
+      이게 안 되면 우리는 <strong style="color:var(--primary);">인스타와 같은 카테고리</strong>가 되는 거고,<br>
+      만들 가치가 없어요.
+    </p>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────── -->
 <!-- MIR'S NOTE                                    -->
 <!-- ────────────────────────────────────────────── -->
 <section class="mir-note">
@@ -678,8 +744,8 @@
     <div class="label">베타 시작하기</div>
     <h2>오늘, 첫 한 걸음.</h2>
     <p>
-      30명 한정 모집 · iOS TestFlight.<br>
-      폼 제출 후 TestFlight 가입 안내가 발송돼요.
+      30명 한정 모집 · iOS & Android 지원.<br>
+      폼 제출 후 기기별 베타 가입 안내(TestFlight 또는 설치 링크)가 발송돼요.
     </p>
     <a class="cta" href="https://docs.google.com/forms/d/e/1FAIpQLSfxhYWjC1hp0zb922LzGYeF0SgGY__1kuPb_OEToyZf9W87Qg/viewform" target="_blank" rel="noopener">
       ✍️ 베타 신청하기 →

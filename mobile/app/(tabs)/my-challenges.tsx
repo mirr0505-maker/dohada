@@ -94,6 +94,10 @@ export default function MyChallengesScreen() {
 
 function Card({ challenge }: { challenge: ChallengeWithCount }) {
   const { daysLeft, progress, dayN, totalDays } = computeProgress(challenge.start_date, challenge.end_date);
+  
+  // 🚀 날짜 포맷 예쁘게 변환 (YYYY-MM-DD -> YYYY.MM.DD)
+  const formatDt = (d: string) => d.replace(/-/g, '.');
+
   return (
     <Pressable
       style={styles.card}
@@ -102,15 +106,64 @@ function Card({ challenge }: { challenge: ChallengeWithCount }) {
         router.push(`/room/${challenge.id}`);
       }}
     >
+      {/* 🚀 1. 알림 배지 줄 (본인 외 다른 사람이 올린 새 대화 / 새 기록이 있는 경우에만 표시) */}
+      {(challenge.has_new_chat || challenge.has_new_log) && (
+        <View style={styles.alertBadgeRow}>
+          {challenge.has_new_chat && (
+            <View style={[styles.alertBadge, styles.chatAlert]}>
+              <Text style={[styles.alertBadgeText, styles.chatAlertText]}>💬 새 대화</Text>
+            </View>
+          )}
+          {challenge.has_new_log && (
+            <View style={[styles.alertBadge, styles.logAlert]}>
+              <Text style={[styles.alertBadgeText, styles.logAlertText]}>📝 새 기록</Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* 🚀 2. 카드 헤더 (제목 + D-day + 인증 상태 배지) */}
       <View style={styles.cardHeader}>
         <Text style={styles.cardTitle} numberOfLines={1}>{challenge.title}</Text>
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>D-{daysLeft}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          {/* 🚀 오늘 인증 상태 배지 */}
+          {challenge.is_today_checked ? (
+            <View style={[styles.checkinBadge, styles.checkedBadge]}>
+              <Text style={[styles.checkinBadgeText, styles.checkedBadgeText]}>✓ 오늘 인증 완료</Text>
+            </View>
+          ) : (
+            <View style={[styles.checkinBadge, styles.uncheckedBadge]}>
+              <Text style={[styles.checkinBadgeText, styles.uncheckedBadgeText]}>📝 오늘 인증 전</Text>
+            </View>
+          )}
+          {/* 🚀 D-day 배지 */}
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>D-{daysLeft}</Text>
+          </View>
         </View>
       </View>
-      <Text style={styles.cardMeta}>
-        👥 {challenge.member_count}명 · {dayN}/{totalDays}일
+
+      {/* 🚀 3. 챌린지 상세 설명 (description) */}
+      {challenge.description ? (
+        <Text style={styles.cardDesc} numberOfLines={2}>
+          "{challenge.description}"
+        </Text>
+      ) : null}
+
+      {/* 🚀 4. 일정 범위 표기 */}
+      <Text style={styles.cardDates}>
+        🗓️ {formatDt(challenge.start_date)} ~ {formatDt(challenge.end_date)}
       </Text>
+
+      {/* 🚀 5. 메타 정보 (참여 인원 + 진행 일수 + 스트릭) */}
+      <Text style={styles.cardMeta}>
+        👥 {challenge.member_count}명 참여 중 · {dayN}/{totalDays}일째
+        {challenge.my_streak && challenge.my_streak > 0 ? (
+          <Text style={styles.streakText}> · 🔥 {challenge.my_streak}일 연속 성공 중</Text>
+        ) : null}
+      </Text>
+
+      {/* 🚀 6. 게이지 바 */}
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
       </View>
@@ -120,13 +173,18 @@ function Card({ challenge }: { challenge: ChallengeWithCount }) {
 
 function computeProgress(start: string, end: string) {
   const startDate = new Date(start + 'T00:00:00');
-  const endDate = new Date(end + 'T23:59:59');
+  const endDate = new Date(end + 'T00:00:00');
+  
   const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const todayDate = new Date(todayStr + 'T00:00:00');
+
   const totalDays = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / 86_400_000) + 1);
-  const elapsed = Math.max(0, Math.round((now.getTime() - startDate.getTime()) / 86_400_000));
+  const elapsed = Math.max(0, Math.round((todayDate.getTime() - startDate.getTime()) / 86_400_000));
   const dayN = Math.min(totalDays, elapsed + 1);
   const progress = Math.min(1, Math.max(0, elapsed / totalDays));
-  const daysLeft = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / 86_400_000));
+  const daysLeft = Math.max(0, Math.round((endDate.getTime() - todayDate.getTime()) / 86_400_000));
+
   return { daysLeft, progress, dayN, totalDays };
 }
 
@@ -159,8 +217,8 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
-    padding: 16,
-    gap: 8,
+    padding: 20, // 🚀 16 -> 20으로 확장
+    gap: 12,    // 🚀 간격을 넓혀 시각적으로 풍성하게 함
     ...shadow.sm,
   },
   cardHeader: {
@@ -188,21 +246,88 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },
+  cardDesc: {
+    fontSize: fontSize.sm,
+    color: colors.primary700,
+    fontFamily: fontFamily.regular,
+    fontStyle: 'italic', // 🚀 이탤릭체로 세련되게 표현
+    lineHeight: 18,
+  },
+  cardDates: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.medium,
+    marginTop: 2,
+  },
   cardMeta: {
     fontSize: fontSize.xs,
     color: colors.primary500,
     fontFamily: fontFamily.regular,
   },
+  streakText: {
+    color: colors.accent,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
   progressTrack: {
-    height: 6,
+    height: 8, // 🚀 6 -> 8로 확장
     backgroundColor: colors.primary100,
-    borderRadius: 3,
+    borderRadius: 4,
     overflow: 'hidden',
   },
   progressFill: {
-    height: 6,
+    height: 8, // 🚀 6 -> 8로 확장
     backgroundColor: colors.accent,
-    borderRadius: 3,
+    borderRadius: 4,
+  },
+  alertBadgeRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 4,
+  },
+  alertBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.sm,
+  },
+  chatAlert: {
+    backgroundColor: 'rgba(239, 68, 68, 0.08)', // 🚀 danger 컬러 연한 배경
+  },
+  logAlert: {
+    backgroundColor: 'rgba(59, 130, 246, 0.08)', // 🚀 info 컬러 연한 배경
+  },
+  alertBadgeText: {
+    fontSize: fontSize.xs,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  chatAlertText: {
+    color: colors.danger,
+  },
+  logAlertText: {
+    color: colors.info,
+  },
+  checkinBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radius.sm,
+  },
+  checkedBadge: {
+    backgroundColor: 'rgba(34, 197, 94, 0.08)', // 🚀 success 컬러 연한 배경
+  },
+  uncheckedBadge: {
+    backgroundColor: 'rgba(255, 107, 53, 0.08)', // 🚀 accent 컬러 연한 배경
+  },
+  checkinBadgeText: {
+    fontSize: fontSize.xs,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  checkedBadgeText: {
+    color: colors.success,
+  },
+  uncheckedBadgeText: {
+    color: colors.accent,
   },
   empty: {
     flex: 1,

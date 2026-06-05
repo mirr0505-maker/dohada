@@ -7,13 +7,17 @@ export function computeProgress(challenge: DbChallenge): {
   passedDays: number;
   percent: number;
 } {
-  const start = new Date(challenge.start_date);
-  const end = new Date(challenge.end_date + 'T23:59:59');
+  const start = new Date(challenge.start_date + 'T00:00:00');
+  const end = new Date(challenge.end_date + 'T00:00:00');
+  
   const now = new Date();
-  const totalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86_400_000));
+  const todayStr = now.toISOString().slice(0, 10);
+  const todayDate = new Date(todayStr + 'T00:00:00');
+
+  const totalDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1);
   const passedDays = Math.min(
     totalDays,
-    Math.max(0, Math.ceil((now.getTime() - start.getTime()) / 86_400_000)),
+    Math.max(0, Math.round((todayDate.getTime() - start.getTime()) / 86_400_000) + 1),
   );
   const percent = Math.round((passedDays / totalDays) * 100);
   return { totalDays, passedDays, percent };

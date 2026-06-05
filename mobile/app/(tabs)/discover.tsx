@@ -242,15 +242,23 @@ function DiscCard({
 
 // ─── 유틸 ───
 function computeDaysLeft(endDate: string): number {
-  const end = new Date(endDate + 'T23:59:59');
-  return Math.max(0, Math.ceil((end.getTime() - Date.now()) / 86_400_000));
+  const end = new Date(endDate + 'T00:00:00');
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const todayDate = new Date(todayStr + 'T00:00:00');
+  return Math.max(0, Math.round((end.getTime() - todayDate.getTime()) / 86_400_000));
 }
 
 function computeProgress(startDate: string, endDate: string): number {
   const start = new Date(startDate + 'T00:00:00');
-  const end = new Date(endDate + 'T23:59:59');
+  const end = new Date(endDate + 'T00:00:00');
+  
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const todayDate = new Date(todayStr + 'T00:00:00');
+
   const total = Math.max(1, end.getTime() - start.getTime());
-  const elapsed = Math.max(0, Date.now() - start.getTime());
+  const elapsed = Math.max(0, todayDate.getTime() - start.getTime());
   return Math.min(100, Math.round((elapsed / total) * 100));
 }
 

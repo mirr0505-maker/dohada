@@ -9,9 +9,10 @@
 // 도전 인연 정의 (베타 v2.5) = 현재 같은 챌린지의 멤버 (×횟수 누적은 Phase 2)
 import React, { useCallback, useState } from 'react';
 import {
-  View, Text, Pressable, ScrollView, StyleSheet, RefreshControl, Image,
+  View, Text, Pressable, ScrollView, StyleSheet, RefreshControl, Image, Alert,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { joinChallenge } from '@/lib/invite';
 import { Screen } from '@/components/Screen';
 import { AppHeader } from '@/components/AppHeader';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
@@ -19,14 +20,14 @@ import { useSession } from '@/lib/session';
 import {
   fetchMyChallengesWithDetails, fetchOpenChallenges, fetchInterestingOpenChallenges,
   fetchPublicCompletionStories, fetchFellowProofs,
-  type MyChallengeDetail, type OpenChallengeCard, type InterestingChallenge,
+  type MyChallengeDetail, type InterestingChallenge,
   type FellowProof,
 } from '@/lib/db';
 import { ErrorState } from '@/components/ErrorState';
 import { ChallengeCardSkeleton } from '@/components/Skeleton';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
-import type { CompletionStoryCard } from '@/lib/types';
+import type { CompletionStoryCard, OpenChallengeCard } from '@/lib/types';
 
 export default function HomeScreen() {
   const session = useSession();
@@ -41,22 +42,49 @@ export default function HomeScreen() {
 
   const myUserId = session?.user?.id;
 
+  const handleJoinChallenge = async (challengeId: string) => {
+    if (!myUserId) return;
+    Alert.alert(
+      '도전 합류',
+      '정말 개설자와 함께 도전하시겠습니까?',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '확인',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              await joinChallenge(challengeId, myUserId);
+              haptic.success();
+              Alert.alert('합류 완료', '챌린지에 성공적으로 합류했습니다!');
+              await load();
+            } catch (err: any) {
+              Alert.alert('합류 실패', err?.message ?? String(err));
+            } finally {
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const load = useCallback(async () => {
     if (!myUserId) return;
     try {
       setError(null);
       const [mine, fellows, recentDone, interesting, opens] = await Promise.all([
         fetchMyChallengesWithDetails(myUserId),
-        fetchFellowProofs(myUserId, 5),
-        fetchPublicCompletionStories({ limit: 3 }).catch(() => []),
-        fetchInterestingOpenChallenges(myUserId, 3).catch(() => []),
+        fetchFellowProofs(myUserId, 10),
+        fetchPublicCompletionStories({ limit: 5 }).catch(() => []),
+        fetchInterestingOpenChallenges(myUserId, 5).catch(() => []),
         fetchOpenChallenges(myUserId),
       ]);
       setMyChs(mine);
       setCompletions(recentDone);
       // 오늘 인증한 동료만 (당일 날짜 매칭)
       const today = new Date().toISOString().slice(0, 10);
-      setTodayProofs(fellows.filter(p => p.created_at.slice(0, 10) === today).slice(0, 3));
+      setTodayProofs(fellows.filter(p => p.created_at.slice(0, 10) === today).slice(0, 5));
       setInteresting(interesting);
       setOpenChs(opens);
     } catch (e: any) {
@@ -78,7 +106,7 @@ export default function HomeScreen() {
 
   // ─── me-strip 카피 ───
   const totalCount = myChs.length;
-  const cheeredRooms = myChs.filter(c => c.kind === 'cheered');
+  const cheeredRooms = myChs.filter(c => c.kind === 'cheered' && c.creator_id !== myUserId);
 
   // 오늘 인증 액션 — 미인증 챌린지 1개면 즉시, 여러개면 내도전 탭
   const onCheckinAction = () => {
@@ -110,28 +138,41 @@ export default function HomeScreen() {
           }
           showsVerticalScrollIndicator={false}
         >
-          {/* me-strip — 1줄 + [인증하기] */}
-          <View style={styles.meStrip}>
-            <Text style={styles.meText}>
-              {totalCount === 0
-                ? '비교 없이 응원받는 곳에 오신 걸 환영해요.'
-                : `오늘도 한 걸음 · 진행 중 ${totalCount}개`}
-            </Text>
-            <Pressable style={styles.meCta} onPress={onCheckinAction}>
-              <Text style={styles.meCtaText}>
-                {totalCount === 0 ? '시작하기' : '인증하기'}
-              </Text>
-            </Pressable>
-          </View>
-
-          {/* 빈 상태 카드 — 본인 도전 0개면 항상 노출 (다른 사람 도전이 있어도 본인용 진입점 명확히) */}
-          {totalCount === 0 && (
+          {/* [구조 1] 오늘, 나의 도전 섹션 */}
+          <Text style={styles.sectionLabel}>오늘, 나의 도전</Text>
+          {totalCount > 0 ? (
+            <View style={styles.myQuickCheckins}>
+              {myChs.map(c => (
+                <View key={c.id} style={styles.quickCheckinRow}>
+                  <Pressable
+                    style={styles.quickCheckinNamePress}
+                    onPress={() => { haptic.tap(); router.push(`/room/${c.id}` as any); }}
+                  >
+                    <Text style={styles.quickCheckinName} numberOfLines={1}>{c.title}</Text>
+                  </Pressable>
+                  {c.is_today_checked ? (
+                    <View style={styles.quickCheckinDoneBadge}>
+                      <Text style={styles.quickCheckinDoneText}>✓ 인증 완료</Text>
+                    </View>
+                  ) : (
+                    <Pressable
+                      style={styles.quickCheckinBtn}
+                      onPress={() => { haptic.tap(); router.push(`/room/${c.id}` as any); }}
+                    >
+                      <Text style={styles.quickCheckinBtnText}>인증하기</Text>
+                    </Pressable>
+                  )}
+                </View>
+              ))}
+            </View>
+          ) : (
+            /* 빈 상태 카드 — 본인 도전 0개 */
             <Pressable
               style={styles.emptyCard}
               onPress={() => { haptic.tap(); router.push('/create' as any); }}
             >
               <Text style={styles.emptyEmoji}>🌱</Text>
-              <Text style={styles.emptyTitle}>아직 도전이 없어요</Text>
+              <Text style={styles.emptyTitle}>아직 진행 중인 도전이 없어요</Text>
               <Text style={styles.emptyDesc}>
                 조용히 응원받는 첫 한 걸음,{'\n'}시작해볼까요?
               </Text>
@@ -141,35 +182,80 @@ export default function HomeScreen() {
             </Pressable>
           )}
 
-          {(completions.length > 0 || todayProofs.length > 0 || cheeredRooms.length > 0 ||
-            interestingChs.length > 0 || openChs.length > 0) && (
-            <Text style={styles.sectionLabel}>오늘, 도전 인연들의 하루</Text>
+          {/* [구조 2] 오늘, 도전 인연들의 하루 섹션 */}
+          <Text style={styles.sectionLabel}>오늘, 도전 인연들의 하루</Text>
+          {completions.length > 0 || todayProofs.length > 0 ? (
+            <>
+              {/* 1. 🎉 완주 리본 — 최근 공개 완주 이야기 */}
+              {completions.map(c => (
+                <CompletionRibbon key={c.id} story={c} />
+              ))}
+              {/* 2. 📸 오늘의 인증 — 동료 사진 카드 */}
+              {todayProofs.map(p => (
+                <TodayProofCard key={p.id} proof={p} />
+              ))}
+            </>
+          ) : (
+            /* 빈 상태 카드 — 동료 소식 없음 */
+            <View style={styles.emptyFellowCard}>
+              <Text style={styles.emptyFellowEmoji}>👣</Text>
+              <Text style={styles.emptyFellowTitle}>아직 오늘 올라온 동료들의 인증이 없어요</Text>
+              <Text style={styles.emptyFellowDesc}>
+                혼자보다 함께할 때 완주 확률이 3배 높아집니다. 내 챌린지에 친구나 동료를 초대해 보거나, 아래 '누구나 합류'에서 함께 달릴 첫 도전 인연을 만들어보세요!
+              </Text>
+            </View>
           )}
 
-          {/* 1. 🎉 완주 리본 — 최근 공개 완주 이야기 */}
-          {completions.map(c => (
-            <CompletionRibbon key={c.id} story={c} />
-          ))}
+          {/* [구조 4] 오늘, 응원으로 힘주기 섹션 */}
+          <Text style={styles.sectionLabel}>오늘, 응원으로 힘주기</Text>
+          {cheeredRooms.length > 0 ? (
+            cheeredRooms.slice(0, 5).map(c => (
+              <CheeredCard key={c.id} challenge={c} />
+            ))
+          ) : (
+            /* 빈 상태 카드 — 응원받기 챌린지 없음 */
+            <View style={styles.emptyCheerCard}>
+              <Text style={styles.emptyCheerEmoji}>🙋</Text>
+              <Text style={styles.emptyCheerTitle}>오늘 응원할 수 있는 챌린지가 없어요</Text>
+              <Text style={styles.emptyCheerDesc}>
+                현재 가입된 응원받기 챌린지가 없거나, 이미 모든 동료들에게 오늘 자 응원을 완료했습니다.
+              </Text>
+            </View>
+          )}
 
-          {/* 2. 📸 오늘의 인증 — 동료 사진 카드 */}
-          {todayProofs.map(p => (
-            <TodayProofCard key={p.id} proof={p} />
-          ))}
+          {/* [구조 3] 함께 합류하기 섹션 */}
+          <Text style={styles.sectionLabel}>함께 합류하기 (누구나 합류)</Text>
+          {openChs.length > 0 ? (
+            openChs.slice(0, 5).map(c => (
+              <JoinCard key={c.id} challenge={c} onJoin={handleJoinChallenge} />
+            ))
+          ) : (
+            /* 빈 상태 카드 — 공개 챌린지 없음 */
+            <View style={styles.emptyOpenCard}>
+              <Text style={styles.emptyOpenEmoji}>🌍</Text>
+              <Text style={styles.emptyOpenTitle}>현재 합류 가능한 공개 챌린지가 없어요</Text>
+              <Text style={styles.emptyOpenDesc}>
+                직접 새로운 공개 챌린지를 개설하여 첫 번째 동료들을 모집해 볼까요?
+              </Text>
+            </View>
+          )}
 
-          {/* 3. 🙋 응원받기 — cheered 방 */}
-          {cheeredRooms.slice(0, 2).map(c => (
-            <CheeredCard key={c.id} challenge={c} />
-          ))}
-
-          {/* 4. ✨ 관심 도전 */}
-          {interestingChs.slice(0, 2).map(c => (
-            <InterestCard key={c.id} challenge={c} />
-          ))}
-
-          {/* 5. 🌍 누구나 합류 */}
-          {openChs.slice(0, 2).map(c => (
-            <JoinCard key={c.id} challenge={c} />
-          ))}
+          {/* [구조 5] 내 관심 분야 도전 섹션 */}
+          <Text style={styles.sectionLabel}>내 관심 분야 도전 (관심 추천)</Text>
+          {interestingChs.length > 0 ? (
+            interestingChs.slice(0, 5).map(c => (
+              <InterestCard key={c.id} challenge={c} />
+            ))
+          ) : (
+            /* 빈 상태 카드 — 관심사 매칭 챌린지 없음 */
+            <View style={styles.emptyInterestCard}>
+              <Text style={styles.emptyInterestEmoji}>✨</Text>
+              <Text style={styles.emptyInterestTitle}>관심 분야의 추천 챌린지가 없어요</Text>
+              <Text style={styles.emptyInterestDesc}>
+                프로필 설정에서 관심 카테고리를 더 추가해 보시거나, 직접 나만의 멋진 관심 분야 챌린지를 개설해 보세요!
+              </Text>
+            </View>
+          )}
 
           {/* 🌙 끝 마커 — 무한 스크롤 의도적 차단 */}
           <View style={styles.endMarker}>
@@ -298,7 +384,7 @@ function InterestCard({ challenge }: { challenge: InterestingChallenge }) {
 }
 
 // ─── 카드 5: 🌍 누구나 합류 ────────────────────────────────
-function JoinCard({ challenge }: { challenge: OpenChallengeCard }) {
+function JoinCard({ challenge, onJoin }: { challenge: OpenChallengeCard; onJoin: (id: string) => void }) {
   return (
     <Pressable
       style={styles.card}
@@ -316,9 +402,16 @@ function JoinCard({ challenge }: { challenge: OpenChallengeCard }) {
       {challenge.description && (
         <Text style={styles.caption} numberOfLines={2}>"{challenge.description}"</Text>
       )}
-      <View style={styles.joinBtn}>
+      <Pressable
+        style={styles.joinBtn}
+        onPress={(e) => {
+          e.stopPropagation(); // 카드 전체 클릭 이벤트 전파 차단
+          haptic.tap();
+          onJoin(challenge.id);
+        }}
+      >
         <Text style={styles.joinBtnText}>함께 합류하기</Text>
-      </View>
+      </Pressable>
     </Pressable>
   );
 }
@@ -360,23 +453,229 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs, color: colors.accent700,
     fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
   },
+  myQuickCheckins: {
+    marginHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 8,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.primary100,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 12,
+  },
+  quickCheckinRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  quickCheckinNamePress: {
+    flex: 1,
+    marginRight: 12,
+  },
+  quickCheckinName: {
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.semibold,
+  },
+  quickCheckinBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: colors.accent,
+    borderRadius: radius.pill,
+  },
+  quickCheckinBtnText: {
+    fontSize: fontSize.xs,
+    color: colors.surface,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  quickCheckinDoneBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: colors.primary100,
+    borderRadius: radius.pill,
+  },
+  quickCheckinDoneText: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.medium,
+  },
 
   // 섹션 라벨
   sectionLabel: {
-    paddingHorizontal: 20, paddingTop: 20, paddingBottom: 8,
-    fontSize: fontSize.xs, color: colors.primary500,
+    paddingHorizontal: 20, paddingTop: 24, paddingBottom: 10,
+    fontSize: fontSize.lg, color: colors.primary,
     fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
-    letterSpacing: 0.5,
+    letterSpacing: -0.3,
+  },
+  sectionSubLabel: {
+    fontSize: fontSize.sm, color: colors.primary500,
+    fontFamily: fontFamily.regular, fontWeight: fontWeight.regular,
+  },
+
+  // 도전 인연 빈 상태 카드
+  emptyFellowCard: {
+    marginHorizontal: 16,
+    marginBottom: 14,
+    backgroundColor: '#F5F8FC',
+    borderRadius: radius.xl,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#E1EBF5',
+    borderStyle: 'dashed',
+  },
+  emptyFellowEmoji: {
+    fontSize: 32,
+    marginBottom: 2,
+  },
+  emptyFellowTitle: {
+    fontSize: fontSize.base,
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  emptyFellowDesc: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+
+  // 누구나 합류 빈 상태 카드
+  emptyOpenCard: {
+    marginHorizontal: 16,
+    marginBottom: 14,
+    backgroundColor: '#F0FBF5',
+    borderRadius: radius.xl,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#D2F3E2',
+    borderStyle: 'dashed',
+  },
+  emptyOpenEmoji: {
+    fontSize: 32,
+    marginBottom: 2,
+  },
+  emptyOpenTitle: {
+    fontSize: fontSize.base,
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  emptyOpenDesc: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+
+  // 응원 빈 상태 카드
+  emptyCheerCard: {
+    marginHorizontal: 16,
+    marginBottom: 14,
+    backgroundColor: '#FFFBEB',
+    borderRadius: radius.xl,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#FEF3C7',
+    borderStyle: 'dashed',
+  },
+  emptyCheerEmoji: {
+    fontSize: 32,
+    marginBottom: 2,
+  },
+  emptyCheerTitle: {
+    fontSize: fontSize.base,
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  emptyCheerDesc: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+
+  // 관심 추천 빈 상태 카드
+  emptyInterestCard: {
+    marginHorizontal: 16,
+    marginBottom: 14,
+    backgroundColor: '#FAF5FF',
+    borderRadius: radius.xl,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#F3E8FF',
+    borderStyle: 'dashed',
+  },
+  emptyInterestEmoji: {
+    fontSize: 32,
+    marginBottom: 2,
+  },
+  emptyInterestTitle: {
+    fontSize: fontSize.base,
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  emptyInterestDesc: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+
+  // 조용한 마커
+  quietMarker: {
+    alignItems: 'center',
+    paddingTop: 16,
+    paddingBottom: 8,
+    gap: 4,
+  },
+  quietEmoji: {
+    fontSize: 24,
+    marginBottom: 2,
+  },
+  quietText: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.semibold,
+  },
+  quietSubText: {
+    fontSize: 11,
+    color: colors.primary300,
+    fontFamily: fontFamily.regular,
   },
 
   // 빈 상태
   emptyCard: {
     marginHorizontal: 20, marginTop: 16,
-    backgroundColor: colors.surface,
+    backgroundColor: '#FFF9F5',
     borderRadius: radius.xl,
     paddingVertical: 32, paddingHorizontal: 24,
     alignItems: 'center', gap: 8,
-    borderWidth: 1, borderColor: colors.primary100,
+    borderWidth: 1, borderColor: '#FFE5D9',
     borderStyle: 'dashed',
   },
   emptyEmoji: { fontSize: 48, marginBottom: 4 },

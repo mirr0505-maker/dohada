@@ -73,6 +73,10 @@ export type CommentWithAuthor = DbComment & {
 // ─── UI 용 파생 ────────────────────────────────────────
 export type ChallengeWithCount = DbChallenge & {
   member_count: number;
+  is_today_checked?: boolean;
+  my_streak?: number;
+  has_new_chat?: boolean;
+  has_new_log?: boolean;
 };
 
 export type MemberWithToday = DbUser & {

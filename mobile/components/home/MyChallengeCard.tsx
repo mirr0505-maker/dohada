@@ -152,13 +152,18 @@ function StackedAvatars({
 // ─── 유틸 ──────────────────────────────────────────
 function computeProgress(start: string, end: string) {
   const startDate = new Date(start + 'T00:00:00');
-  const endDate = new Date(end + 'T23:59:59');
+  const endDate = new Date(end + 'T00:00:00');
+  
   const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const todayDate = new Date(todayStr + 'T00:00:00');
+
   const totalDays = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / 86_400_000) + 1);
-  const elapsed = Math.max(0, Math.round((now.getTime() - startDate.getTime()) / 86_400_000));
+  const elapsed = Math.max(0, Math.round((todayDate.getTime() - startDate.getTime()) / 86_400_000));
   const dayN = Math.min(totalDays, elapsed + 1);
   const progress = Math.min(1, Math.max(0, elapsed / totalDays));
-  const daysLeft = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / 86_400_000));
+  const daysLeft = Math.max(0, Math.round((endDate.getTime() - todayDate.getTime()) / 86_400_000));
+
   return { dayN, totalDays, progress, daysLeft };
 }
 

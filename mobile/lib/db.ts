@@ -30,13 +30,16 @@ export async function fetchFellowProofs(myUserId: string, limit = 10): Promise<F
     .select(`
       id, photo_url, caption, created_at, challenge_id, user_id,
       users (nickname, avatar_url),
-      challenges (title)
+      challenges (title, creator_id)
     `)
     .neq('user_id', myUserId)
     .order('created_at', { ascending: false })
-    .limit(limit);
+    .limit(limit * 3); // 넉넉히 가져온 뒤 필터링 진행
   if (error) throw error;
-  return (data ?? []).map((p: any) => ({
+
+  const filtered = (data ?? []).filter((p: any) => p.challenges?.creator_id !== myUserId);
+
+  return filtered.slice(0, limit).map((p: any) => ({
     id: p.id,
     photo_url: p.photo_url,
     caption: p.caption,
@@ -74,17 +77,92 @@ export async function fetchMyChallenges(myUserId?: string): Promise<ChallengeWit
     .order('created_at', { ascending: false });
   if (error) throw error;
 
-  return (data ?? []).map((c: any) => ({
-    id: c.id,
-    creator_id: c.creator_id,
-    title: c.title,
-    description: c.description,
-    kind: (c.kind ?? 'closed') as ChallengeKind,
-    start_date: c.start_date,
-    end_date: c.end_date,
-    created_at: c.created_at,
-    member_count: c.challenge_members?.[0]?.count ?? 0,
-  }));
+  const today = new Date().toISOString().slice(0, 10);
+  const oneDayAgo = new Date(Date.now() - 86_400_000).toISOString();
+
+  // 3. 오늘 본인의 인증 데이터 가져오기
+  const { data: todayProofs } = await supabase
+    .from('proofs')
+    .select('challenge_id')
+    .in('challenge_id', ids)
+    .eq('user_id', myUserId)
+    .gte('created_at', today + 'T00:00:00')
+    .lt('created_at', today + 'T23:59:59');
+  const myTodayProofSet = new Set<string>();
+  for (const p of (todayProofs ?? []) as any[]) {
+    myTodayProofSet.add(p.challenge_id);
+  }
+
+  // 4. 연속 인증 일수 계산용 데이터 가져오기 (내 모든 인증글)
+  const { data: myAllProofs } = await supabase
+    .from('proofs')
+    .select('challenge_id, created_at')
+    .in('challenge_id', ids)
+    .eq('user_id', myUserId)
+    .order('created_at', { ascending: false });
+  const proofsMap = new Map<string, string[]>();
+  for (const p of (myAllProofs ?? []) as any[]) {
+    const arr = proofsMap.get(p.challenge_id) ?? [];
+    arr.push(p.created_at);
+    proofsMap.set(p.challenge_id, arr);
+  }
+
+  // 5. 최근 24시간 내 타인의 새 대화 및 새 기록 데이터 가져오기
+  const [resNewChats, resNewLogs] = await Promise.all([
+    supabase
+      .from('chat_messages')
+      .select('challenge_id')
+      .in('challenge_id', ids)
+      .neq('user_id', myUserId)
+      .gte('created_at', oneDayAgo),
+    supabase
+      .from('logs')
+      .select('challenge_id')
+      .in('challenge_id', ids)
+      .neq('user_id', myUserId)
+      .gte('created_at', oneDayAgo)
+  ]);
+
+  const hasNewChatSet = new Set<string>();
+  for (const c of (resNewChats.data ?? []) as any[]) {
+    hasNewChatSet.add(c.challenge_id);
+  }
+
+  const hasNewLogSet = new Set<string>();
+  for (const l of (resNewLogs.data ?? []) as any[]) {
+    hasNewLogSet.add(l.challenge_id);
+  }
+
+  return (data ?? []).map((c: any) => {
+    // Streak 계산
+    const myDates = proofsMap.get(c.id) ?? [];
+    const datesSet = new Set(myDates.map(d => d.slice(0, 10)));
+    let streak = 0;
+    const cursor = new Date();
+    if (!datesSet.has(cursor.toISOString().slice(0, 10))) {
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    while (datesSet.has(cursor.toISOString().slice(0, 10))) {
+      streak += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+
+    return {
+      id: c.id,
+      creator_id: c.creator_id,
+      title: c.title,
+      description: c.description,
+      kind: (c.kind ?? 'closed') as ChallengeKind,
+      start_date: c.start_date,
+      end_date: c.end_date,
+      created_at: c.created_at,
+      member_count: c.challenge_members?.[0]?.count ?? 0,
+      is_today_checked: myTodayProofSet.has(c.id),
+      my_streak: streak,
+      has_new_chat: c.kind !== 'solo' && hasNewChatSet.has(c.id),
+      has_new_log: c.kind !== 'solo' && hasNewLogSet.has(c.id),
+    };
+  });
 }
 
 // ─── 홈 v2.3 — 분류별 카드용 상세 데이터 ─────────────────
@@ -96,6 +174,7 @@ export type MyChallengeDetail = ChallengeWithCount & {
   today_check_count: number;      // 오늘 인증한 멤버 수
   my_cheers_count: number;        // 본인 인증에 받은 응원 합계 (cheered 카드용)
   top_members: { id: string; nickname: string; avatar_url: string | null }[];   // 멤버 top 5 (아바타 가로용)
+  is_today_checked: boolean;      // 오늘 내가 인증했는지 여부
 };
 
 export async function fetchMyChallengesWithDetails(myUserId: string): Promise<MyChallengeDetail[]> {
@@ -127,7 +206,7 @@ export async function fetchMyChallengesWithDetails(myUserId: string): Promise<My
   const challengeIds = filtered.map(c => c.id);
   const today = new Date().toISOString().slice(0, 10);
 
-  // 3. 오늘 인증한 멤버 수 (챌린지별)
+  // 3. 오늘 인증한 멤버 수 (챌린지별) 및 본인의 오늘 인증 여부 판별
   const { data: todayProofs } = await supabase
     .from('proofs')
     .select('challenge_id, user_id')
@@ -135,8 +214,12 @@ export async function fetchMyChallengesWithDetails(myUserId: string): Promise<My
     .gte('created_at', today + 'T00:00:00')
     .lt('created_at', today + 'T23:59:59');
   const todayCountMap = new Map<string, number>();
+  const myTodayProofSet = new Set<string>();
   for (const p of (todayProofs ?? []) as any[]) {
     todayCountMap.set(p.challenge_id, (todayCountMap.get(p.challenge_id) ?? 0) + 1);
+    if (p.user_id === myUserId) {
+      myTodayProofSet.add(p.challenge_id);
+    }
   }
 
   // 4. 본인 인증에 받은 응원 합계 (cheered 카드의 "응원 N개 받았어요")
@@ -182,6 +265,7 @@ export async function fetchMyChallengesWithDetails(myUserId: string): Promise<My
     today_check_count: todayCountMap.get(c.id) ?? 0,
     my_cheers_count: myCheersMap.get(c.id) ?? 0,
     top_members: topMembersMap.get(c.id) ?? [],
+    is_today_checked: myTodayProofSet.has(c.id),
   }));
 }
 
@@ -274,10 +358,10 @@ export async function fetchInterestingOpenChallenges(
     .slice(0, limit)
     .map((c: any) => {
       const votesByType: any = { creative: 0, hard: 0, touching: 0, fresh: 0 };
-      const myVotes: string[] = [];
+      const myVotes: ChallengeVoteType[] = [];
       for (const v of (c.challenge_votes ?? []) as any[]) {
         votesByType[v.vote_type] = (votesByType[v.vote_type] ?? 0) + 1;
-        if (v.user_id === userId) myVotes.push(v.vote_type);
+        if (v.user_id === userId) myVotes.push(v.vote_type as ChallengeVoteType);
       }
       return {
         id: c.id,
@@ -306,7 +390,7 @@ export async function fetchInterestingOpenChallenges(
 // ─── 둘러보기 — 공개(open) 챌린지 카드 ──────────────────
 // v2 풀: creator/category/subcategory + 4가지 평가 카운트 + 본인 vote.
 export async function fetchOpenChallenges(myUserId: string | undefined): Promise<OpenChallengeCard[]> {
-  const { data, error } = await supabase
+  let query = supabase
     .from('challenges')
     .select(`
       *,
@@ -319,6 +403,12 @@ export async function fetchOpenChallenges(myUserId: string | undefined): Promise
     .eq('kind', 'open')
     .order('created_at', { ascending: false })
     .limit(50);
+
+  if (myUserId) {
+    query = query.neq('creator_id', myUserId);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw error;
 

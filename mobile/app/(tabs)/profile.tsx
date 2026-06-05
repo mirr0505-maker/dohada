@@ -225,6 +225,52 @@ export default function ProfileScreen() {
           </View>
         )}
 
+        {/* 🚀 업데이트 예정 로드맵 (Phase 2 티저) */}
+        <View style={styles.roadmapSection}>
+          <Text style={styles.sectionTitle}>로드맵 예고 🔒</Text>
+          <View style={styles.roadmapCard}>
+            <View style={styles.roadmapRow}>
+              <Text style={styles.roadmapEmoji}>💸</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.roadmapLabel}>내기 시스템 (에스크로 정산)</Text>
+                <Text style={styles.roadmapDesc}>
+                  챌린지 개설 시 보석금(1만/5만/10만)을 걸고 도전하는 에스크로 기반의 상호 정산 시스템이 추가됩니다.
+                </Text>
+              </View>
+            </View>
+            <View style={styles.roadmapDivider} />
+            <View style={styles.roadmapRow}>
+              <Text style={styles.roadmapEmoji}>🤝</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.roadmapLabel}>도전 인연 ×횟수 누적 시스템</Text>
+                <Text style={styles.roadmapDesc}>
+                  함께 도전한 동료들과의 누적 횟수(×횟수)가 기록되며, QR 명함 및 연락처 매칭 기능이 추가됩니다.
+                </Text>
+              </View>
+            </View>
+            <View style={styles.roadmapDivider} />
+            <View style={styles.roadmapRow}>
+              <Text style={styles.roadmapEmoji}>📚</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.roadmapLabel}>완주 박제 자산화 (실물 인쇄)</Text>
+                <Text style={styles.roadmapDesc}>
+                  100일 완주 성공 시 나의 도전 이야기를 책(인쇄/제본)으로 영구 소장할 수 있는 실물 인프라 결제 시스템이 연동됩니다.
+                </Text>
+              </View>
+            </View>
+            <View style={styles.roadmapDivider} />
+            <View style={styles.roadmapRow}>
+              <Text style={styles.roadmapEmoji}>🎁</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.roadmapLabel}>선물 응원 및 인증 수단 확장</Text>
+                <Text style={styles.roadmapDesc}>
+                  인증 피드 내에서 기프티콘 등 실물 선물을 보내는 응원 기능과 GPS 기반의 위치 인증 수단이 도입됩니다.
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
         {/* 액션 */}
         <View style={styles.actions}>
           <Button label="로그아웃" variant="ghost" block onPress={onLogout} />
@@ -713,5 +759,46 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.regular,
     textAlign: 'center',
     lineHeight: 16,
+  },
+  roadmapSection: {
+    marginHorizontal: 24,
+    marginTop: 24,
+    gap: 8,
+  },
+  roadmapCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    ...shadow.sm,
+  },
+  roadmapRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 14,
+    gap: 12,
+  },
+  roadmapEmoji: {
+    fontSize: 22,
+    marginTop: 2,
+    textAlign: 'center',
+    width: 28,
+  },
+  roadmapLabel: {
+    fontSize: fontSize.base,
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  roadmapDesc: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+    marginTop: 4,
+    lineHeight: 16,
+  },
+  roadmapDivider: {
+    height: 1,
+    backgroundColor: colors.primary100,
   },
 });

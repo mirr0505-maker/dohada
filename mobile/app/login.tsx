@@ -41,6 +41,9 @@ export default function LoginScreen() {
   const [signingIn, setSigningIn] = useState(false);
   const [appleAvailable, setAppleAvailable] = useState(false);
 
+  console.log('[Debug] isSupabaseConfigured:', isSupabaseConfigured);
+  console.log('[Debug] EXPO_PUBLIC_SUPABASE_URL:', process.env.EXPO_PUBLIC_SUPABASE_URL);
+
   useEffect(() => {
     isAppleSignInAvailable().then(setAppleAvailable);
   }, []);
