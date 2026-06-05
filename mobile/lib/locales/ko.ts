@@ -31,7 +31,7 @@ export default {
   room: {
     members_count: '{{count}}명 함께 도전 중',
     invite: '초대',
-    invite_share_msg: '"{{title}}" 챌린지에 함께해요!\n\n📱 Do : 하다 앱에서 아래 링크를 누르세요:\n{{link}}',
+    invite_share_msg: '"{{title}}" 챌린지에 함께해요!\n\n📱 아래 링크를 눌러 챌린지에 합류하세요:\n{{link}}',
     empty_proofs: '아직 인증이 없어요.\n오늘 첫 인증의 주인공이 되어볼까요?',
     today_checked: '✓ 오늘 인증 완료',
     today_cta: '📸 오늘 인증하기',

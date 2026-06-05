@@ -232,8 +232,8 @@ export default function ChallengeRoom() {
   const onShareInvite = useCallback(async () => {
     if (!challenge) return;
     try {
-      // Do : 하다 앱 설치된 사람만 동작. 베타 안내문에 TestFlight 링크 같이 보내야 함.
-      const link = `dohada://invite/${challenge.id}`;
+      // 카카오톡 등 외부 메신저에서 항상 클릭이 가능한 HTTPS 중계 게이트웨이 링크 사용
+      const link = `https://bpffxeddkuekefphsolz.supabase.co/functions/v1/invite?id=${challenge.id}`;
       // 응원받기 방은 도전자 1명 + 응원자 N명 — 메시지 톤 분기
       const intro = challenge.kind === 'cheered'
         ? `"${challenge.title}" 챌린지를 시작합니다.\n와서 응원해주세요! 💛`
@@ -241,9 +241,7 @@ export default function ChallengeRoom() {
       await Share.share({
         message:
           `${intro}\n\n` +
-          `📱 Do : 하다 앱에서 아래 링크를 누르세요:\n${link}\n\n` +
-          `※ 카카오톡에서 링크가 안 열리면 메시지를 길게 눌러 복사 후\n` +
-          `   Safari 주소창에 붙여넣어 주세요.`,
+          `📱 아래 링크를 눌러 챌린지에 합류하세요:\n${link}`,
       });
     } catch (e) {
       Alert.alert('공유 실패', String(e));

@@ -31,7 +31,7 @@ export default {
   room: {
     members_count: '{{count}} members',
     invite: 'Invite',
-    invite_share_msg: 'Join the "{{title}}" challenge!\n\n📱 Open the Do : Hada app and tap:\n{{link}}',
+    invite_share_msg: 'Join the "{{title}}" challenge!\n\n📱 Tap the link below to join:\n{{link}}',
     empty_proofs: 'No check-ins yet.\nBe the first today?',
     today_checked: '✓ Checked in today',
     today_cta: '📸 Check in for today',
