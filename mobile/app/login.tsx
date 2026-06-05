@@ -7,7 +7,7 @@ import { Screen } from '@/components/Screen';
 import { BrandMark } from '@/components/BrandMark';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import {
-  useGoogleAuth, signInWithGoogleIdToken,
+  signInWithGoogle,
   isAppleSignInAvailable, signInWithApple,
 } from '@/lib/auth';
 import { isSupabaseConfigured } from '@/lib/supabase';
@@ -38,7 +38,6 @@ function GoogleLogo({ size = 20 }: { size?: number }) {
 }
 
 export default function LoginScreen() {
-  const [, response, promptAsync] = useGoogleAuth();
   const [signingIn, setSigningIn] = useState(false);
   const [appleAvailable, setAppleAvailable] = useState(false);
 
@@ -46,28 +45,17 @@ export default function LoginScreen() {
     isAppleSignInAvailable().then(setAppleAvailable);
   }, []);
 
-  // Google 응답이 success 면 ID token 으로 Supabase 세션 생성
-  useEffect(() => {
-    if (!response) return;
-    if (response.type === 'cancel' || response.type === 'dismiss') return;
-    if (response.type === 'error') {
-      Alert.alert('로그인 오류', response.error?.message ?? '알 수 없는 오류가 발생했어요.');
+  const onGoogleSignIn = async () => {
+    // .env 미설정 시 더미 흐름 (UI 검증용)
+    if (!isSupabaseConfigured) {
+      router.replace('/welcome');
       return;
     }
-    if (response.type !== 'success') return;
-
-    const idToken = response.authentication?.idToken;
-    if (!idToken) {
-      Alert.alert('로그인 실패', 'Google ID 토큰을 받지 못했어요.');
-      return;
-    }
-    (async () => {
-      try {
-        setSigningIn(true);
-        await signInWithGoogleIdToken(idToken);
-
+    try {
+      setSigningIn(true);
+      const session = await signInWithGoogle();
+      if (session) {
         // 카톡 초대 링크로 진입한 경우 → 초대 화면으로 다시
-        // (`as any` 는 typed-routes 캐시가 아직 invite/[id] 를 모르기 때문 — 다음 expo start 후 자동 갱신)
         const pending = await getPendingInvite();
         if (pending) {
           await clearPendingInvite();
@@ -75,21 +63,13 @@ export default function LoginScreen() {
         } else {
           router.replace('/welcome');
         }
-      } catch (e: any) {
-        Alert.alert('로그인 실패', e?.message ?? String(e));
-      } finally {
-        setSigningIn(false);
       }
-    })();
-  }, [response]);
-
-  const onGoogleSignIn = async () => {
-    // .env 미설정 시 더미 흐름 (UI 검증용)
-    if (!isSupabaseConfigured) {
-      router.replace('/welcome');
-      return;
+    } catch (e: any) {
+      if (e?.message === 'CANCELLED') return;
+      Alert.alert('로그인 실패', e?.message ?? String(e));
+    } finally {
+      setSigningIn(false);
     }
-    await promptAsync();
   };
 
   const onAppleSignIn = async () => {

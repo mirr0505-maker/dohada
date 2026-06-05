@@ -19,10 +19,10 @@
 //   각 플랫폼 OAuth 2.0 클라이언트 ID 발급. iOS 번들 ID: app.dohada.beta,
 //   Android 패키지: app.dohada.beta + SHA-1 (EAS 빌드 후 확인 가능).
 
-import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as SecureStore from 'expo-secure-store';
+import * as Linking from 'expo-linking';
 import { Platform } from 'react-native';
 import { supabase, isSupabaseConfigured } from './supabase';
 
@@ -61,57 +61,104 @@ async function checkProviderAllowed(attempted: AuthProvider): Promise<void> {
   }
 }
 
-export type GoogleAuthState = {
-  request: ReturnType<typeof Google.useAuthRequest>[0];
-  response: ReturnType<typeof Google.useAuthRequest>[1];
-  promptAsync: ReturnType<typeof Google.useAuthRequest>[2];
-};
-
-// React 컴포넌트 안에서 호출. login.tsx 가 이 hook 의 결과로 버튼 동작.
-export function useGoogleAuth() {
-  return Google.useAuthRequest({
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID,
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB,
-  });
-}
-
-// Google ID token 으로 Supabase 세션 만들고, public.users 에 프로필 upsert
-export async function signInWithGoogleIdToken(idToken: string) {
+// Supabase OAuth + WebBrowser 를 통한 구글 로그인 처리 (New Architecture 크래시 방지)
+export async function signInWithGoogle() {
   if (!isSupabaseConfigured) {
     throw new Error('Supabase 가 구성되지 않았습니다. .env 를 확인하세요.');
   }
-  // Provider lock 검사 — Supabase 호출 전에 (auth.users 쓰레기 row 방지)
+  // Provider lock 검사 — Supabase 호출 전에
   await checkProviderAllowed('google');
 
-  const { data, error } = await supabase.auth.signInWithIdToken({
+  // redirect URI 생성 (dohada://)
+  const redirectUrl = Linking.createURL('');
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    token: idToken,
-  });
-  if (error) throw error;
-
-  // 성공 후 device-local provider 저장
-  await setStoredProvider('google');
-
-  // public.users 행 upsert — nickname 은 Google 이름 또는 이메일 prefix
-  const user = data.user;
-  if (user) {
-    const meta = (user.user_metadata ?? {}) as { full_name?: string; avatar_url?: string };
-    const fallbackNick = user.email?.split('@')[0] ?? '도전자';
-    await supabase.from('users').upsert(
-      {
-        id: user.id,
-        google_sub: user.identities?.[0]?.id ?? null,
-        email: user.email,
-        nickname: meta.full_name || fallbackNick,
-        avatar_url: meta.avatar_url ?? null,
+    options: {
+      redirectTo: redirectUrl,
+      queryParams: {
+        access_type: 'offline',
+        prompt: 'consent',
       },
-      // ignoreDuplicates: 사용자가 직접 수정한 닉네임을 재로그인 시 덮어쓰지 않도록
-      { onConflict: 'id', ignoreDuplicates: true },
-    );
-  }
+    },
+  });
 
-  return data;
+  if (error) throw error;
+  if (!data?.url) throw new Error('OAuth URL을 받지 못했습니다.');
+
+  // 브라우저로 OAuth 인증 진행
+  const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+
+  if (result.type === 'success') {
+    // result.url 에서 access_token, refresh_token 혹은 code 추출
+    const urlObj = Linking.parse(result.url);
+    const params = urlObj.queryParams || {};
+    
+    let accessToken = params.access_token as string;
+    let refreshToken = params.refresh_token as string;
+
+    // 만약 해시 파라미터(#)에 토큰이 들어있는 경우 파싱
+    if (!accessToken && result.url.includes('#')) {
+      const hash = result.url.split('#')[1];
+      const chunks = hash.split('&');
+      const hashParams: Record<string, string> = {};
+      for (const chunk of chunks) {
+        const [k, v] = chunk.split('=');
+        if (k && v) {
+          hashParams[k] = decodeURIComponent(v);
+        }
+      }
+      accessToken = hashParams.access_token;
+      refreshToken = hashParams.refresh_token;
+    }
+
+    let sessionData;
+    if (accessToken) {
+      const { data: sData, error: sessionError } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken || '',
+      });
+      if (sessionError) throw sessionError;
+      sessionData = sData;
+    } else {
+      // 만약 PKCE flow 로 code 가 넘어온 경우
+      const code = params.code as string;
+      if (code) {
+        const { data: sData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
+        if (sessionError) throw sessionError;
+        sessionData = sData;
+      } else {
+        throw new Error('인증 정보를 파싱할 수 없습니다.');
+      }
+    }
+
+    const user = sessionData?.user;
+    if (user) {
+      // 성공 후 device-local provider 저장
+      await setStoredProvider('google');
+
+      // public.users 행 upsert — nickname 은 Google 이름 또는 이메일 prefix
+      const meta = (user.user_metadata ?? {}) as { full_name?: string; avatar_url?: string };
+      const fallbackNick = user.email?.split('@')[0] ?? '도전자';
+      await supabase.from('users').upsert(
+        {
+          id: user.id,
+          google_sub: user.identities?.[0]?.id ?? null,
+          email: user.email,
+          nickname: meta.full_name || fallbackNick,
+          avatar_url: meta.avatar_url ?? null,
+        },
+        // ignoreDuplicates: 사용자가 직접 수정한 닉네임을 재로그인 시 덮어쓰지 않도록
+        { onConflict: 'id', ignoreDuplicates: true },
+      );
+    }
+    
+    return sessionData;
+  } else if (result.type === 'cancel') {
+    throw new Error('CANCELLED');
+  } else {
+    throw new Error('로그인 중 오류가 발생했습니다.');
+  }
 }
 
 export async function signOut() {
