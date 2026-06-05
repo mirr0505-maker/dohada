@@ -56,15 +56,19 @@ export default function LoginScreen() {
     }
     try {
       setSigningIn(true);
-      const session = await signInWithGoogle();
-      if (session) {
+      const res = await signInWithGoogle();
+      if (res && res.session) {
         // 카톡 초대 링크로 진입한 경우 → 초대 화면으로 다시
         const pending = await getPendingInvite();
         if (pending) {
           await clearPendingInvite();
           router.replace(`/invite/${pending}` as any);
         } else {
-          router.replace('/welcome');
+          if (res.isNewUser) {
+            router.replace('/welcome');
+          } else {
+            router.replace('/home');
+          }
         }
       }
     } catch (e: any) {
@@ -82,8 +86,14 @@ export default function LoginScreen() {
     }
     try {
       setSigningIn(true);
-      await signInWithApple();
-      router.replace('/welcome');
+      const res = await signInWithApple();
+      if (res && res.session) {
+        if (res.isNewUser) {
+          router.replace('/welcome');
+        } else {
+          router.replace('/home');
+        }
+      }
     } catch (e: any) {
       // 사용자 취소는 알림 안 띄움
       if (e?.code === 'ERR_REQUEST_CANCELED') return;

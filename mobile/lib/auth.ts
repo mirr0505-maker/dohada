@@ -133,7 +133,17 @@ export async function signInWithGoogle() {
     }
 
     const user = sessionData?.user;
+    let isNewUser = false;
     if (user) {
+      // 🚀 신규 유저 여부 판별: public.users에 데이터가 존재하는지 확인
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', user.id)
+        .maybeSingle();
+      
+      isNewUser = !existingUser;
+
       // 성공 후 device-local provider 저장
       await setStoredProvider('google');
 
@@ -153,7 +163,7 @@ export async function signInWithGoogle() {
       );
     }
     
-    return sessionData;
+    return { session: sessionData, isNewUser };
   } else if (result.type === 'cancel') {
     throw new Error('CANCELLED');
   } else {
@@ -212,7 +222,17 @@ export async function signInWithApple() {
   // 주의: Apple 은 첫 로그인 때만 fullName/email 을 줌. 두 번째부터는 null.
   // Hide My Email 사용 시 user.email 이 xxx@privaterelay.appleid.com 의미 없는 prefix → 사용 X.
   const user = data.user;
+  let isNewUser = false;
   if (user) {
+    // 🚀 신규 유저 여부 판별: public.users에 데이터가 존재하는지 확인
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    isNewUser = !existingUser;
+
     const fullName = [credential.fullName?.familyName, credential.fullName?.givenName]
       .filter(Boolean).join('') || null;
     const isHiddenEmail = (user.email ?? '').endsWith('@privaterelay.appleid.com');
@@ -230,5 +250,5 @@ export async function signInWithApple() {
     );
   }
 
-  return data;
+  return { session: data.session, isNewUser };
 }
