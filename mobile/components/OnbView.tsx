@@ -1,6 +1,7 @@
 // 🚀 온보딩 공통 뷰 — onb1~4 가 동일 구조라 step 만 받아서 렌더
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
@@ -48,18 +49,22 @@ type Props = { step: 1 | 2 | 3 | 4 };
 export function OnbView({ step }: Props) {
   const idx = step - 1;
   const slide = SLIDES[idx];
+  const insets = useSafeAreaInsets();
+  
+  // 기기 안전 영역(status bar/notch) 높이를 고려하여 상단 여백을 동적으로 조절
+  const topOffset = insets.top > 0 ? insets.top + 8 : 16;
 
   return (
     <Screen backgroundColor={colors.background}>
       {/* 좌상단: 정체성 마크 (모든 슬라이드 공통) */}
-      <View style={styles.brand}>
+      <View style={[styles.brand, { top: topOffset }]}>
         <BrandMark size="md" color={colors.accent} />
         <Text style={styles.brandLabel}>Do : 하다</Text>
       </View>
 
       {/* 우상단: 건너뛰기 (마지막 화면엔 없음) */}
       {step < 4 && (
-        <Pressable style={styles.skip} onPress={() => router.replace('/login')}>
+        <Pressable style={[styles.skip, { top: topOffset }]} onPress={() => router.replace('/login')}>
           <Text style={styles.skipText}>건너뛰기</Text>
         </Pressable>
       )}
@@ -102,7 +107,6 @@ export function OnbView({ step }: Props) {
 const styles = StyleSheet.create({
   brand: {
     position: 'absolute',
-    top: 16,
     left: 20,
     zIndex: 10,
     flexDirection: 'row',
@@ -118,7 +122,6 @@ const styles = StyleSheet.create({
   },
   skip: {
     position: 'absolute',
-    top: 16,
     right: 20,
     zIndex: 10,
     paddingVertical: 8,
