@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>Do : 하다 — 초대에 응하기</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css" />
+  <style>
+    :root {
+      --primary: #FF6B35;
+      --primary-grad: linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%);
+      --bg: #FAFAF9;
+      --card-bg: rgba(255, 255, 255, 0.85);
+      --text: #1C1917;
+      --text-muted: #78716C;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(255, 107, 53, 0.08) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(255, 142, 83, 0.05) 0px, transparent 50%);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 24px;
+    }
+
+    .container, .card {
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+      background: var(--card-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      border-radius: 28px;
+      padding: 40px 24px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.04);
+      animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .logo-container {
+      margin-bottom: 28px;
+    }
+
+    .logo {
+      font-size: 28px;
+      font-weight: 800;
+      background: var(--primary-grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+    }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 3.5px solid rgba(255, 107, 53, 0.15);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 24px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    h2, h1 {
+      font-size: 20px;
+      font-weight: 700;
+      margin: 0 0 12px 0;
+      color: var(--text);
+      letter-spacing: -0.5px;
+    }
+
+    h1 {
+      color: #FF6B35;
+      margin-bottom: 16px;
+    }
+
+    p {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin: 0 0 24px 0;
+      word-break: keep-all;
+    }
+
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 54px;
+      border-radius: 16px;
+      font-size: 16px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      border: none;
+      outline: none;
+      margin-bottom: 12px;
+    }
+
+    .btn-primary {
+      background: var(--primary-grad);
+      color: white;
+      box-shadow: 0 8px 16px rgba(255, 107, 53, 0.2);
+    }
+
+    .btn-primary:active {
+      transform: scale(0.98);
+      opacity: 0.95;
+    }
+
+    .btn-secondary {
+      background: #EFECE9;
+      color: #57534E;
+    }
+
+    .btn-secondary:active {
+      transform: scale(0.98);
+      background: #E7E3E0;
+    }
+
+    .guide-box {
+      margin-top: 28px;
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: 16px;
+      text-align: left;
+      border: 1px solid rgba(0, 0, 0, 0.03);
+    }
+
+    .guide-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #FF6B35;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .guide-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    #action-state {
+      display: none;
+      animation: fadeIn 0.4s ease-out forwards;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <!-- 에러 상태 (초대 코드 누락 시) -->
+  <div id="error-state" style="display: none;">
+    <div class="card">
+      <h1>⚠️ 올바르지 않은 접근</h1>
+      <p>초대 코드가 존재하지 않습니다.<br>다시 확인 후 접속해주세요.</p>
+    </div>
+  </div>
+
+  <!-- 메인 랜드 영역 -->
+  <div id="main-container" class="container">
+    <div class="logo-container">
+      <span class="logo">Do : 하다</span>
+    </div>
+
+    <!-- 로딩 상태 (진입 직후) -->
+    <div id="loading-state">
+      <div class="spinner"></div>
+      <h2>Do : 하다 앱으로 연결하는 중</h2>
+      <p>잠시 후 앱이 자동으로 실행됩니다.<br>반응이 없으면 아래 안내를 확인해주세요.</p>
+    </div>
+
+    <!-- 액션 상태 (미설치 혹은 인앱브라우저 제한 시 2.5초 후 표시) -->
+    <div id="action-state">
+      <h2>도전을 시작할 준비가 되셨나요?</h2>
+      <p>앱이 실행되지 않았다면 아래 버튼을 눌러주세요.</p>
+      
+      <button class="btn btn-primary" onclick="openApp()">Do : 하다 앱 실행하기</button>
+      <a id="store-link" class="btn btn-secondary" href="#" target="_blank">앱 다운로드 받기</a>
+
+      <div class="guide-box">
+        <div class="guide-title">
+          <span>💡</span> 카카오톡 등 메신저에서 열리지 않나요?
+        </div>
+        <p class="guide-desc">
+          오른쪽 상단 메뉴(점 3개 또는 공유 아이콘)를 클릭한 후, <strong>'다른 브라우저로 열기'</strong>(Safari 또는 Chrome)를 선택하여 접속해주세요.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // URL 쿼리 파라미터에서 챌린지 ID 획득
+    const urlParams = new URLSearchParams(window.location.search);
+    const challengeId = urlParams.get('id');
+
+    if (!challengeId) {
+      document.getElementById('main-container').style.display = 'none';
+      document.getElementById('error-state').style.display = 'block';
+    } else {
+      const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+      const isAndroid = /android/i.test(userAgent);
+      const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !window.MSStream;
+      const isKakaoTalk = /KAKAOTALK/i.test(userAgent);
+
+      // 카카오톡 인앱 브라우저 우회
+      if (isKakaoTalk) {
+        window.location.href = "kakaotalk://web/openExternal?url=" + encodeURIComponent(window.location.href);
+      }
+
+      // 딥링크 및 스토어 URL 설정
+      const iosDeeplink = "dohada://invite/" + challengeId;
+      const androidDeeplink = "intent://invite/" + challengeId + "#Intent;scheme=dohada;package=app.dohada.beta;end;";
+      
+      const appStoreUrl = "https://apps.apple.com/app/do-hada";
+      const playStoreUrl = "https://play.google.com/store/apps/details?id=app.dohada.beta";
+
+      // 스토어 버튼 링크 설정
+      const storeLink = document.getElementById('store-link');
+      if (isIOS) {
+        storeLink.href = appStoreUrl;
+      } else {
+        storeLink.href = playStoreUrl;
+      }
+
+      function openApp() {
+        if (isAndroid) {
+          window.location.href = androidDeeplink;
+        } else {
+          window.location.href = iosDeeplink;
+        }
+      }
+
+      // 진입 시 자동 열기 실행 (카톡이 아닐 때만)
+      if (!isKakaoTalk) {
+        openApp();
+      }
+
+      // 2.5초 뒤에도 반응이 없으면 액션 가이드 UI 노출
+      setTimeout(function() {
+        document.getElementById('loading-state').style.display = 'none';
+        document.getElementById('action-state').style.display = 'block';
+      }, 2500);
+    }
+  </script>
+</body>
+</html>
