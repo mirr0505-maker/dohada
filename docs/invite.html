@@ -231,6 +231,8 @@
       const isAndroid = /android/i.test(userAgent);
       const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !window.MSStream;
       const isKakaoTalk = /KAKAOTALK/i.test(userAgent);
+      // 🚀 iOS 크롬 브라우저 감지 (CriOS 키워드 사용)
+      const isIOSChrome = isIOS && /CriOS/i.test(userAgent);
 
       // 카카오톡 인앱 브라우저 우회
       if (isKakaoTalk) {
@@ -260,16 +262,25 @@
         }
       }
 
-      // 진입 시 자동 열기 실행 (카톡이 아닐 때만)
-      if (!isKakaoTalk) {
-        openApp();
-      }
-
-      // 2.5초 뒤에도 반응이 없으면 액션 가이드 UI 노출
-      setTimeout(function() {
+      // 🚀 iOS 크롬 대응 분기 처리
+      // iOS 크롬의 경우 사용자 액션 없이 스크립트로 location.href를 커스텀 스키마로 변경 시 
+      // 브라우저가 이를 검색어로 오인하여 구글 검색으로 리다이렉션시키는 현상이 있습니다.
+      // 따라서 iOS 크롬 환경인 경우 자동 실행을 생략하고 바로 수동 실행 UI를 띄워 사용자가 직접 누르도록 유도합니다.
+      if (isIOSChrome) {
         document.getElementById('loading-state').style.display = 'none';
         document.getElementById('action-state').style.display = 'block';
-      }, 2500);
+      } else {
+        // 진입 시 자동 열기 실행 (카톡이 아닐 때만)
+        if (!isKakaoTalk) {
+          openApp();
+        }
+
+        // 2.5초 뒤에도 반응이 없으면 액션 가이드 UI 노출
+        setTimeout(function() {
+          document.getElementById('loading-state').style.display = 'none';
+          document.getElementById('action-state').style.display = 'block';
+        }, 2500);
+      }
     }
   </script>
 </body>
