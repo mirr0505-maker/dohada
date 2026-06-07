@@ -437,6 +437,117 @@ function Step3Duration({
   );
 }
 
+// ─── 🚀 100일 범위 내 커스텀 달력 오버레이 컴포넌트 ───
+const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
+const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
+
+function SimpleCalendarModal({
+  visible, onClose, onSelectDate, selectedDateStr
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onSelectDate: (d: string) => void;
+  selectedDateStr: string;
+}) {
+  const [viewDate, setViewDate] = useState(new Date());
+  const today = useMemo(() => new Date(), []);
+  const maxDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 100);
+    return d;
+  }, []);
+
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+
+  const daysInMonth = getDaysInMonth(year, month);
+  const firstDay = getFirstDayOfMonth(year, month);
+
+  const prevMonth = () => {
+    setViewDate(new Date(year, month - 1, 1));
+  };
+  const nextMonth = () => {
+    setViewDate(new Date(year, month + 1, 1));
+  };
+
+  const calendarCells = useMemo(() => {
+    const cells: (Date | null)[] = [];
+    for (let i = 0; i < firstDay; i++) {
+      cells.push(null);
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      cells.push(new Date(year, month, d));
+    }
+    return cells;
+  }, [year, month, daysInMonth, firstDay]);
+
+  if (!visible) return null;
+
+  return (
+    <View style={styles.modalOverlay}>
+      <View style={styles.calendarCard}>
+        <View style={styles.calHeader}>
+          <Pressable onPress={prevMonth} hitSlop={12}>
+            <Text style={styles.calNavBtn}>◀ 이전 달</Text>
+          </Pressable>
+          <Text style={styles.calTitle}>{year}년 {month + 1}월</Text>
+          <Pressable onPress={nextMonth} hitSlop={12}>
+            <Text style={styles.calNavBtn}>다음 달 ▶</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.weekRow}>
+          {['일', '월', '화', '수', '목', '금', '토'].map(w => (
+            <Text key={w} style={styles.weekText}>{w}</Text>
+          ))}
+        </View>
+
+        <View style={styles.daysGrid}>
+          {calendarCells.map((date, idx) => {
+            if (!date) return <View key={`empty-${idx}`} style={styles.dayCellEmpty} />;
+            
+            const dateStr = date.toISOString().slice(0, 10);
+            const active = selectedDateStr === dateStr;
+            
+            const isBeforeToday = dateStr < today.toISOString().slice(0, 10);
+            const isAfterMax = dateStr > maxDate.toISOString().slice(0, 10);
+            const disabled = isBeforeToday || isAfterMax;
+
+            return (
+              <Pressable
+                key={dateStr}
+                disabled={disabled}
+                style={[
+                  styles.dayCell,
+                  active && styles.dayCellActive,
+                  disabled && styles.dayCellDisabled
+                ]}
+                onPress={() => {
+                  haptic.tap();
+                  onSelectDate(dateStr);
+                  onClose();
+                }}
+              >
+                <Text style={[
+                  styles.dayText,
+                  active && styles.dayTextActive,
+                  disabled && styles.dayTextDisabled
+                ]}>
+                  {date.getDate()}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <Pressable style={styles.calCloseBtn} onPress={onClose} hitSlop={8}>
+          <Text style={styles.calCloseBtnText}>닫기</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 // ─── Step 4: 인증 빈도 ───
 function Step4Frequency({
   value, setValue, durationDays, startDate, setStartDate,
@@ -447,6 +558,8 @@ function Step4Frequency({
   startDate: string;
   setStartDate: (s: string) => void;
 }) {
+  const [calendarOpen, setCalendarOpen] = useState(false);
+
   const options = useMemo(() => {
     if (durationDays === 1) {
       return [
@@ -456,23 +569,30 @@ function Step4Frequency({
     return FREQUENCIES;
   }, [durationDays]);
 
-  // 오늘부터 향후 7일간의 날짜 옵션 생성
+  // 오늘부터 향후 3일간의 날짜 옵션 생성
   const dateOptions = useMemo(() => {
     const arr = [];
-    const days = ['일', '월', '화', '수', '목', '금', '토'];
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 3; i++) {
       const d = new Date();
       d.setDate(d.getDate() + i);
       const dateStr = d.toISOString().slice(0, 10);
       let label = `${d.getMonth() + 1}/${d.getDate()}`;
-      let suffix = '';
-      if (i === 0) suffix = '오늘';
-      else if (i === 1) suffix = '내일';
-      else suffix = `${days[d.getDay()]}요일`;
+      let suffix = i === 0 ? '오늘' : i === 1 ? '내일' : '모레';
       arr.push({ dateStr, label, suffix });
     }
     return arr;
   }, []);
+
+  const isCustomDate = useMemo(() => {
+    return !dateOptions.some(opt => opt.dateStr === startDate);
+  }, [dateOptions, startDate]);
+
+  const customLabel = useMemo(() => {
+    if (!isCustomDate) return '달력 선택 📅';
+    const d = new Date(startDate);
+    const days = ['일', '월', '화', '수', '목', '금', '토'];
+    return `${d.getMonth() + 1}/${d.getDate()} (${days[d.getDay()]}) 📅`;
+  }, [isCustomDate, startDate]);
 
   useEffect(() => {
     if (durationDays === 1 && value !== 'daily') {
@@ -503,7 +623,7 @@ function Step4Frequency({
       {/* 🚀 당일 챌린지일 경우, 언제 도전할지 날짜 선택 UI 추가 */}
       {durationDays === 1 && (
         <View style={{ marginTop: 24, gap: 12 }}>
-          <Text style={styles.subSectionTitle}>📅 당일 도전 날짜를 선택해 주세요</Text>
+          <Text style={styles.subSectionTitle}>📅 당일 도전 날짜를 선택해 주세요 (최대 100일 뒤까지)</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -529,9 +649,33 @@ function Step4Frequency({
                 </Pressable>
               );
             })}
+
+            {/* 달력 직접 선택 카드 */}
+            <Pressable
+              style={[styles.dateCard, { width: 120 }, isCustomDate && styles.dateCardActive]}
+              onPress={() => {
+                haptic.tap();
+                setCalendarOpen(true);
+              }}
+            >
+              <Text style={[styles.dateCardLabel, isCustomDate && styles.dateCardLabelActive, { fontSize: 13 }]}>
+                {customLabel}
+              </Text>
+              <Text style={[styles.dateCardSuffix, isCustomDate && styles.dateCardSuffixActive]}>
+                {isCustomDate ? '선택된 날짜' : '날짜 예약하기'}
+              </Text>
+            </Pressable>
           </ScrollView>
         </View>
       )}
+
+      {/* 커스텀 100일 달력 모달 */}
+      <SimpleCalendarModal
+        visible={calendarOpen}
+        onClose={() => setCalendarOpen(false)}
+        selectedDateStr={startDate}
+        onSelectDate={(dateStr) => setStartDate(dateStr)}
+      />
     </View>
   );
 }
@@ -912,6 +1056,107 @@ const styles = StyleSheet.create({
   },
   dateCardSuffixActive: {
     color: colors.accent,
+    fontFamily: fontFamily.medium,
+  },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+  },
+  calendarCard: {
+    width: 320,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: colors.primary100,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  calHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  calNavBtn: {
+    fontSize: 14,
+    color: colors.accent,
+    fontFamily: fontFamily.medium,
+  },
+  calTitle: {
+    fontSize: fontSize.base,
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: 'bold',
+  },
+  weekRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.primary100,
+    paddingBottom: 6,
+  },
+  weekText: {
+    width: 36,
+    textAlign: 'center',
+    fontSize: 12,
+    color: colors.primary500,
+    fontFamily: fontFamily.medium,
+  },
+  daysGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    gap: 4,
+  },
+  dayCell: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.md,
+  },
+  dayCellEmpty: {
+    width: 36,
+    height: 36,
+  },
+  dayCellActive: {
+    backgroundColor: colors.accent,
+  },
+  dayCellDisabled: {
+    opacity: 0.15,
+  },
+  dayText: {
+    fontSize: 13,
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: 'bold',
+  },
+  dayTextActive: {
+    color: colors.surface,
+  },
+  dayTextDisabled: {
+    color: colors.primary300,
+    fontWeight: 'normal',
+  },
+  calCloseBtn: {
+    marginTop: 16,
+    paddingVertical: 12,
+    backgroundColor: colors.primary50,
+    borderRadius: radius.lg,
+    alignItems: 'center',
+  },
+  calCloseBtnText: {
+    fontSize: fontSize.sm,
+    color: colors.primary,
     fontFamily: fontFamily.medium,
   },
 });
