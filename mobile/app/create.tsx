@@ -31,7 +31,7 @@ const SUGGESTIONS = [
 ];
 
 const DURATIONS = [
-  { label: '1일',  desc: '하루 공동 이벤트·마라톤', icon: '⏱️', days: 1 },
+  { label: '1일',  desc: '당일 하루 마무리',       icon: '⏱️', days: 1 },
   { label: '3일',  desc: '초단기 작심삼일 깨기', icon: '⚡', days: 3 },
   { label: '7일',  desc: '맛보기',           icon: '🌱', days: 7 },
   { label: '30일', desc: '습관 형성',         icon: '🌿', days: 30 },
@@ -99,11 +99,11 @@ export default function CreateChallenge() {
     if (submitting) return false;
     if (step === 1) return title.trim().length >= 2;
     if (step === 2) return categoryId != null;
-    if (step === 3) return durationDays > 0;
-    if (step === 4) return Boolean(frequency);
-    if (step === 5) return true;                     // 사진 자동 선택
-    if (step === 6) return Boolean(kind);
-    if (step === 7) return true;                     // 내기 없이 자동
+    if (step === 3) return Boolean(kind);            // 방 타입 (3단계)
+    if (step === 4) return durationDays > 0;         // 기간 (4단계)
+    if (step === 5) return Boolean(frequency);       // 빈도 (5단계)
+    if (step === 6) return true;                     // 사진 자동 선택 (6단계)
+    if (step === 7) return true;                     // 내기 없이 자동 (7단계)
     return false;
   }, [step, title, categoryId, durationDays, frequency, kind, submitting]);
 
@@ -220,16 +220,16 @@ export default function CreateChallenge() {
             />
           )}
           {step === 3 && (
-            <Step3Duration value={durationDays} setValue={setDurationDays} />
+            <Step6RoomType value={kind} setValue={setKind} durationDays={durationDays} />
           )}
           {step === 4 && (
-            <Step4Frequency value={frequency} setValue={setFrequency} />
+            <Step3Duration value={durationDays} setValue={setDurationDays} kind={kind} />
           )}
           {step === 5 && (
-            <Step5ProofType value={proofType} setValue={setProofType} />
+            <Step4Frequency value={frequency} setValue={setFrequency} durationDays={durationDays} />
           )}
           {step === 6 && (
-            <Step6RoomType value={kind} setValue={setKind} durationDays={durationDays} />
+            <Step5ProofType value={proofType} setValue={setProofType} />
           )}
           {step === 7 && (
             <Step7Bet />
@@ -268,10 +268,10 @@ export default function CreateChallenge() {
 const STEP_META: Record<number, { label: string; question: string; hint: string }> = {
   1: { label: 'CHALLENGE TITLE', question: '어떤 도전을\n해보고 싶어요?', hint: '짧고 명확한 문장이 좋아요.' },
   2: { label: 'CATEGORY',        question: '어떤 분야의\n도전인가요?',   hint: '대분류를 먼저 고르면 세부 분야가 나타나요.' },
-  3: { label: 'DURATION',        question: '얼마 동안\n도전할까요?',     hint: '길수록 어렵지만 박제 가치가 커져요.' },
-  4: { label: 'FREQUENCY',       question: '얼마나 자주\n인증할까요?',   hint: '인증 빈도가 챌린지 강도를 결정해요.' },
-  5: { label: 'PROOF TYPE',      question: '어떻게\n인증할까요?',        hint: '사진 인증과 앱 스크린샷 둘 다 가능해요.' },
-  6: { label: 'ROOM TYPE',       question: '누구와 함께\n도전할까요?',   hint: '방 타입에 따라 둘러보기 노출이 달라져요.' },
+  3: { label: 'ROOM TYPE',       question: '누구와 함께\n도전할까요?',   hint: '방 타입에 따라 둘러보기 노출이 달라져요.' },
+  4: { label: 'DURATION',        question: '얼마 동안\n도전할까요?',     hint: '길수록 어렵지만 박제 가치가 커져요.' },
+  5: { label: 'FREQUENCY',       question: '얼마나 자주\n인증할까요?',   hint: '인증 빈도가 챌린지 강도를 결정해요.' },
+  6: { label: 'PROOF TYPE',      question: '어떻게\n인증할까요?',        hint: '사진 인증과 앱 스크린샷 둘 다 가능해요.' },
   7: { label: 'BETTING',         question: '내기를\n걸어볼까요?',        hint: '내기는 Phase 2 에서 만나요.' },
 };
 
@@ -375,21 +375,51 @@ function Step2Category({
 }
 
 // ─── Step 3: 기간 ───
-function Step3Duration({ value, setValue }: { value: number; setValue: (n: number) => void }) {
+function Step3Duration({
+  value, setValue, kind,
+}: {
+  value: number;
+  setValue: (n: number) => void;
+  kind: ChallengeKind;
+}) {
   return (
     <View style={{ gap: 12 }}>
       {DURATIONS.map(d => {
         const active = value === d.days;
+        const isDisabled = d.days === 1 && (kind === 'solo' || kind === 'cheered');
         return (
           <Pressable
             key={d.days}
-            style={[styles.option, active && styles.optionActive]}
-            onPress={() => setValue(d.days)}
+            disabled={isDisabled}
+            style={[
+              styles.option,
+              active && styles.optionActive,
+              isDisabled && styles.optionDisabled,
+            ]}
+            onPress={() => {
+              if (isDisabled) return;
+              setValue(d.days);
+            }}
           >
             <Text style={styles.optionIcon}>{d.icon}</Text>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.optionTitle, active && styles.optionTitleActive]}>{d.label}</Text>
-              <Text style={styles.optionDesc}>{d.desc}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={[
+                  styles.optionTitle,
+                  active && styles.optionTitleActive,
+                  isDisabled && { color: colors.primary300 }
+                ]}>
+                  {d.label}
+                </Text>
+                {isDisabled && (
+                  <Text style={{ fontSize: 11, color: colors.primary500, fontFamily: fontFamily.medium }}>
+                    (개인 방 선택 불가 🔒)
+                  </Text>
+                )}
+              </View>
+              <Text style={styles.optionDesc}>
+                {isDisabled ? '1일 도전은 다같이 도전/누구나 합류 방에서만 가능해요.' : d.desc}
+              </Text>
             </View>
             {active && <Text style={styles.optionCheck}>✓</Text>}
           </Pressable>
@@ -401,11 +431,30 @@ function Step3Duration({ value, setValue }: { value: number; setValue: (n: numbe
 
 // ─── Step 4: 인증 빈도 ───
 function Step4Frequency({
-  value, setValue,
-}: { value: CreateChallengeFrequency; setValue: (v: CreateChallengeFrequency) => void }) {
+  value, setValue, durationDays,
+}: {
+  value: CreateChallengeFrequency;
+  setValue: (v: CreateChallengeFrequency) => void;
+  durationDays: number;
+}) {
+  const options = useMemo(() => {
+    if (durationDays === 1) {
+      return [
+        { value: 'daily' as CreateChallengeFrequency, label: '당일', desc: '하루 동안 한 번 인증', icon: '⏱️' },
+      ];
+    }
+    return FREQUENCIES;
+  }, [durationDays]);
+
+  useEffect(() => {
+    if (durationDays === 1 && value !== 'daily') {
+      setValue('daily');
+    }
+  }, [durationDays, value]);
+
   return (
     <View style={{ gap: 12 }}>
-      {FREQUENCIES.map(f => {
+      {options.map(f => {
         const active = value === f.value;
         return (
           <Pressable
