@@ -24,6 +24,16 @@
             "CFBundleURLSchemes": [
               "com.googleusercontent.apps.858061929352-220pfp0gj4ofhoi7ljeb1b1fu8pibppi"
             ]
+          },
+          {
+            "CFBundleURLSchemes": [
+              "dohada"
+            ]
+          },
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.858061929352-220pfp0gj4ofhoi7ljeb1b1fu8pibppi"
+            ]
           }
         ]
       }
@@ -37,6 +47,8 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ]
@@ -98,6 +110,12 @@
         "projectId": "e77c544e-6603-475c-ba1d-e6250bcea4fc"
       }
     },
-    "owner": "mirr0505"
+    "owner": "mirr0505",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/e77c544e-6603-475c-ba1d-e6250bcea4fc"
+    }
   }
 }
