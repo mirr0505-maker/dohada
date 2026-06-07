@@ -22,6 +22,7 @@ import {
 } from '@/lib/db';
 import { uploadProofImage } from '@/lib/upload';
 import { scheduleDailyReminder, cancelDailyReminder } from '@/lib/notifications';
+import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 
 export default function ProfileScreen() {
@@ -35,6 +36,29 @@ export default function ProfileScreen() {
   const [categories, setCategories] = useState<DbCategory[]>([]);
   const [editingInterests, setEditingInterests] = useState(false);
   const myUserId = session?.user?.id;
+
+  // 🚀 로컬 알림 시간 상태 및 초기화
+  const [reminderHour, setReminderHour] = useState(20);
+  const [reminderMinute, setReminderMinute] = useState(0);
+  const [timePickerOpen, setTimePickerOpen] = useState(false);
+
+  useEffect(() => {
+    const restoreTime = async () => {
+      try {
+        const stored = await SecureStore.getItemAsync('daily_reminder_time');
+        if (stored) {
+          const [h, m] = stored.split(':').map(Number);
+          if (!isNaN(h) && !isNaN(m)) {
+            setReminderHour(h);
+            setReminderMinute(m);
+          }
+        }
+      } catch (e) {
+        console.warn('[ProfileScreen] 알림 시간 복원 실패', e);
+      }
+    };
+    restoreTime();
+  }, []);
 
   useEffect(() => {
     if (session === null) router.replace('/login');
@@ -93,8 +117,22 @@ export default function ProfileScreen() {
       await updateNotificationPrefs(myUserId, { [key]: value });
       // daily 토글은 로컬 알림 schedule/cancel 도 동기화
       if (key === 'daily_enabled') {
-        if (value) await scheduleDailyReminder(20, 0);
-        else await cancelDailyReminder();
+        await SecureStore.setItemAsync('daily_enabled', value ? 'true' : 'false');
+        if (value) {
+          const stored = await SecureStore.getItemAsync('daily_reminder_time');
+          let h = 20;
+          let m = 0;
+          if (stored) {
+            const [sh, sm] = stored.split(':').map(Number);
+            if (!isNaN(sh) && !isNaN(sm)) {
+              h = sh;
+              m = sm;
+            }
+          }
+          await scheduleDailyReminder(h, m);
+        } else {
+          await cancelDailyReminder();
+        }
       }
     } catch (e: any) {
       setPrefs(prefs);   // 롤백
@@ -214,10 +252,21 @@ export default function ProfileScreen() {
               <Divider />
               <ToggleRow
                 label="매일 안부"
-                desc="저녁 8시 1회 로컬 알림"
+                desc="지정한 시간에 하루 1회 로컬 알림"
                 value={prefs.daily_enabled}
                 onChange={(v) => togglePref('daily_enabled', v)}
-              />
+              >
+                {prefs.daily_enabled && (
+                  <Pressable
+                    style={styles.timeBtn}
+                    onPress={() => { haptic.tap(); setTimePickerOpen(true); }}
+                  >
+                    <Text style={styles.timeBtnText}>
+                      {formatReminderTime(reminderHour, reminderMinute)}
+                    </Text>
+                  </Pressable>
+                )}
+              </ToggleRow>
             </View>
             <Text style={styles.notifNote}>
               💛 밤 10시~아침 8시는 자동으로 조용해요.{'\n'}하루 최대 5건까지만 보내요.
@@ -298,6 +347,26 @@ export default function ProfileScreen() {
         interests={interests}
         onClose={() => setEditingInterests(false)}
         onChanged={(next) => setInterests(next)}
+      />
+
+      <TimePickerModal
+        visible={timePickerOpen}
+        currentHour={reminderHour}
+        currentMinute={reminderMinute}
+        onClose={() => setTimePickerOpen(false)}
+        onSaved={async (h, m) => {
+          try {
+            await SecureStore.setItemAsync('daily_reminder_time', `${h}:${m}`);
+            setReminderHour(h);
+            setReminderMinute(m);
+            await scheduleDailyReminder(h, m);
+            haptic.success();
+          } catch (e: any) {
+            Alert.alert('알림 설정 실패', e?.message ?? String(e));
+          } finally {
+            setTimePickerOpen(false);
+          }
+        }}
       />
     </Screen>
   );
@@ -466,21 +535,151 @@ function NicknameEditModal({
   );
 }
 
+function formatReminderTime(h: number, m: number): string {
+  const ampm = h >= 12 ? '오후' : '오전';
+  const displayHour = h % 12 === 0 ? 12 : h % 12;
+  const displayMin = String(m).padStart(2, '0');
+  return `${ampm} ${String(displayHour).padStart(2, '0')}:${displayMin}`;
+}
+
+// ─── 시간 선택 모달 ──────────────────────
+function TimePickerModal({
+  visible, currentHour, currentMinute, onClose, onSaved,
+}: {
+  visible: boolean;
+  currentHour: number;
+  currentMinute: number;
+  onClose: () => void;
+  onSaved: (hour: number, minute: number) => void;
+}) {
+  const [ampm, setAmpm] = useState<'AM' | 'PM'>(currentHour >= 12 ? 'PM' : 'AM');
+  const [hour, setHour] = useState(currentHour % 12 === 0 ? 12 : currentHour % 12);
+  const [minute, setMinute] = useState(currentMinute);
+
+  useEffect(() => {
+    if (visible) {
+      setAmpm(currentHour >= 12 ? 'PM' : 'AM');
+      setHour(currentHour % 12 === 0 ? 12 : currentHour % 12);
+      setMinute(currentMinute);
+    }
+  }, [visible, currentHour, currentMinute]);
+
+  const handleSave = () => {
+    let finalHour = hour % 12;
+    if (ampm === 'PM') finalHour += 12;
+    onSaved(finalHour, minute);
+  };
+
+  const adjustHour = (delta: number) => {
+    haptic.tap();
+    setHour(prev => {
+      let next = prev + delta;
+      if (next > 12) return 1;
+      if (next < 1) return 12;
+      return next;
+    });
+  };
+
+  const adjustMinute = (delta: number) => {
+    haptic.tap();
+    setMinute(prev => {
+      let next = prev + delta;
+      if (next >= 60) return 0;
+      if (next < 0) return 50;
+      return next;
+    });
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <View style={styles.pickerCard} onStartShouldSetResponder={() => true}>
+          <Text style={styles.pickerTitle}>🔔 알림 시간 설정</Text>
+          
+          <View style={styles.pickerRow}>
+            {/* AM/PM */}
+            <View style={styles.column}>
+              <Pressable 
+                style={[styles.pickerBtn, ampm === 'AM' && styles.pickerBtnActive]}
+                onPress={() => { haptic.tap(); setAmpm('AM'); }}
+              >
+                <Text style={[styles.pickerBtnText, ampm === 'AM' && styles.pickerBtnTextActive]}>오전</Text>
+              </Pressable>
+              <Pressable 
+                style={[styles.pickerBtn, ampm === 'PM' && styles.pickerBtnActive]}
+                onPress={() => { haptic.tap(); setAmpm('PM'); }}
+              >
+                <Text style={[styles.pickerBtnText, ampm === 'PM' && styles.pickerBtnTextActive]}>오후</Text>
+              </Pressable>
+            </View>
+
+            {/* Hour */}
+            <View style={styles.spinnerColumn}>
+              <Pressable style={styles.arrowBtn} onPress={() => adjustHour(1)}>
+                <Text style={styles.arrowText}>▲</Text>
+              </Pressable>
+              <View style={styles.valueWrap}>
+                <Text style={styles.valueText}>{String(hour).padStart(2, '0')}</Text>
+                <Text style={styles.valueUnit}>시</Text>
+              </View>
+              <Pressable style={styles.arrowBtn} onPress={() => adjustHour(-1)}>
+                <Text style={styles.arrowText}>▼</Text>
+              </Pressable>
+            </View>
+
+            {/* Minute */}
+            <View style={styles.spinnerColumn}>
+              <Pressable style={styles.arrowBtn} onPress={() => adjustMinute(10)}>
+                <Text style={styles.arrowText}>▲</Text>
+              </Pressable>
+              <View style={styles.valueWrap}>
+                <Text style={styles.valueText}>{String(minute).padStart(2, '0')}</Text>
+                <Text style={styles.valueUnit}>분</Text>
+              </View>
+              <Pressable style={styles.arrowBtn} onPress={() => adjustMinute(-10)}>
+                <Text style={styles.arrowText}>▼</Text>
+              </Pressable>
+            </View>
+          </View>
+
+          <View style={styles.pickerActions}>
+            <Pressable style={styles.pickerCancelBtn} onPress={onClose}>
+              <Text style={styles.pickerCancelText}>취소</Text>
+            </Pressable>
+            <Pressable style={styles.pickerSaveBtn} onPress={handleSave}>
+              <Text style={styles.pickerSaveText}>설정 완료</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Pressable>
+    </Modal>
+  );
+}
+
 function ToggleRow({
-  label, desc, value, onChange,
-}: { label: string; desc: string; value: boolean; onChange: (v: boolean) => void }) {
+  label, desc, value, onChange, children,
+}: { 
+  label: string; 
+  desc: string; 
+  value: boolean; 
+  onChange: (v: boolean) => void;
+  children?: React.ReactNode;
+}) {
   return (
     <View style={styles.toggleRow}>
       <View style={{ flex: 1 }}>
         <Text style={styles.toggleLabel}>{label}</Text>
         <Text style={styles.toggleDesc}>{desc}</Text>
       </View>
-      <Switch
-        value={value}
-        onValueChange={onChange}
-        trackColor={{ false: colors.primary100, true: colors.accent }}
-        thumbColor={colors.surface}
-      />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        {children}
+        <Switch
+          value={value}
+          onValueChange={onChange}
+          trackColor={{ false: colors.primary100, true: colors.accent }}
+          thumbColor={colors.surface}
+        />
+      </View>
     </View>
   );
 }
@@ -800,5 +999,133 @@ const styles = StyleSheet.create({
   roadmapDivider: {
     height: 1,
     backgroundColor: colors.primary100,
+  },
+  timeBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: colors.accent50,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.accent100,
+  },
+  timeBtnText: {
+    fontSize: fontSize.sm,
+    color: colors.accent700,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  pickerCard: {
+    width: '100%',
+    maxWidth: 320,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: 24,
+    alignItems: 'center',
+    gap: 20,
+    ...shadow.md,
+  },
+  pickerTitle: {
+    fontSize: fontSize.base,
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  pickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: 8,
+    gap: 12,
+  },
+  column: {
+    gap: 8,
+    justifyContent: 'center',
+  },
+  spinnerColumn: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  pickerBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary100,
+    alignItems: 'center',
+    width: 60,
+  },
+  pickerBtnActive: {
+    backgroundColor: colors.accent,
+  },
+  pickerBtnText: {
+    fontSize: fontSize.sm,
+    color: colors.primary700,
+    fontFamily: fontFamily.medium,
+  },
+  pickerBtnTextActive: {
+    color: colors.surface,
+    fontFamily: fontFamily.bold,
+  },
+  arrowBtn: {
+    padding: 8,
+  },
+  arrowText: {
+    fontSize: 14,
+    color: colors.primary300,
+  },
+  valueWrap: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'center',
+    width: 64,
+  },
+  valueText: {
+    fontSize: 28,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
+  },
+  valueUnit: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    marginLeft: 2,
+  },
+  pickerActions: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+    marginTop: 8,
+  },
+  pickerCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: radius.lg,
+    backgroundColor: colors.primary100,
+    alignItems: 'center',
+  },
+  pickerCancelText: {
+    fontSize: fontSize.base,
+    color: colors.primary700,
+    fontFamily: fontFamily.medium,
+  },
+  pickerSaveBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: radius.lg,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+  },
+  pickerSaveText: {
+    fontSize: fontSize.base,
+    color: colors.surface,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
   },
 });

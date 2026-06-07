@@ -29,6 +29,31 @@ import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import type { CompletionStoryCard, OpenChallengeCard } from '@/lib/types';
 
+// ─── 🚀 오늘 나의 도전용 헬퍼 및 메타 ─────────────────
+const KIND_META: Record<string, { label: string; bg: string; text: string }> = {
+  solo: { label: '🤫 나혼자', bg: colors.primary50, text: colors.primary500 },
+  cheered_creator: { label: '🙋 응원받기', bg: colors.accent50, text: colors.accent700 },
+  cheered_participant: { label: '🙋 응원하기', bg: colors.accent50, text: colors.accent700 },
+  closed: { label: '🤝 다함께', bg: '#E0F2FE', text: '#0369A1' },
+  open: { label: '🌍 누구나', bg: '#DCFCE7', text: '#15803D' },
+};
+
+function getChallengeDDay(startStr: string, endStr: string) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (today < startStr) return '시작 대기';
+  if (today > endStr) return '도전 종료';
+  
+  const t = new Date(today + 'T00:00:00');
+  const s = new Date(startStr + 'T00:00:00');
+  const e = new Date(endStr + 'T00:00:00');
+  
+  const total = Math.round((e.getTime() - s.getTime()) / 86_400_000) + 1;
+  const current = Math.round((t.getTime() - s.getTime()) / 86_400_000) + 1;
+  const dday = Math.round((e.getTime() - t.getTime()) / 86_400_000);
+  
+  return `D-${dday} (${current}/${total}일)`;
+}
+
 export default function HomeScreen() {
   const session = useSession();
   const [myChs, setMyChs]                   = useState<MyChallengeDetail[]>([]);
@@ -39,7 +64,7 @@ export default function HomeScreen() {
   const [loading, setLoading]               = useState(true);
   const [refreshing, setRefreshing]         = useState(false);
   const [error, setError]                   = useState<string | null>(null);
-
+  
   const myUserId = session?.user?.id;
 
   const handleJoinChallenge = async (challengeId: string) => {
@@ -141,29 +166,63 @@ export default function HomeScreen() {
           {/* [구조 1] 오늘, 나의 도전 섹션 */}
           <Text style={styles.sectionLabel}>오늘, 나의 도전</Text>
           {totalCount > 0 ? (
-            <View style={styles.myQuickCheckins}>
-              {myChs.map(c => (
-                <View key={c.id} style={styles.quickCheckinRow}>
-                  <Pressable
-                    style={styles.quickCheckinNamePress}
-                    onPress={() => { haptic.tap(); router.push(`/room/${c.id}` as any); }}
-                  >
-                    <Text style={styles.quickCheckinName} numberOfLines={1}>{c.title}</Text>
-                  </Pressable>
-                  {c.is_today_checked ? (
-                    <View style={styles.quickCheckinDoneBadge}>
-                      <Text style={styles.quickCheckinDoneText}>✓ 인증 완료</Text>
-                    </View>
-                  ) : (
+            <View style={styles.myChallengeList}>
+              {myChs.map(c => {
+                const ddayText = getChallengeDDay(c.start_date, c.end_date);
+                let km = KIND_META[c.kind] ?? KIND_META.solo;
+                if (c.kind === 'cheered') {
+                  km = c.creator_id === myUserId ? KIND_META.cheered_creator : KIND_META.cheered_participant;
+                }
+                return (
+                  <View key={c.id} style={styles.myChallengeCard}>
                     <Pressable
-                      style={styles.quickCheckinBtn}
+                      style={styles.myChallengeInfo}
                       onPress={() => { haptic.tap(); router.push(`/room/${c.id}` as any); }}
                     >
-                      <Text style={styles.quickCheckinBtnText}>인증하기</Text>
+                      <Text style={styles.myChallengeTitle} numberOfLines={1}>{c.title}</Text>
+                      <View style={styles.myChallengeMetaRow}>
+                        {/* 1. 개설/참여 역할 뱃지 */}
+                        <View style={[
+                          styles.metaBadge, 
+                          { backgroundColor: c.creator_id === myUserId ? colors.accent50 : colors.primary50 }
+                        ]}>
+                          <Text style={[
+                            styles.metaBadgeText, 
+                            { color: c.creator_id === myUserId ? colors.accent700 : colors.primary500 }
+                          ]}>
+                            {c.creator_id === myUserId ? '👑 개설' : '👥 참여'}
+                          </Text>
+                        </View>
+
+                        {/* 2. 기존 방 종류 뱃지 */}
+                        <View style={[styles.metaBadge, { backgroundColor: km.bg }]}>
+                          <Text style={[styles.metaBadgeText, { color: km.text }]}>{km.label}</Text>
+                        </View>
+                        <View style={styles.metaBadge}>
+                          <Text style={styles.metaBadgeText}>{ddayText}</Text>
+                        </View>
+                        {c.kind !== 'solo' && (
+                          <View style={styles.metaBadge}>
+                            <Text style={styles.metaBadgeText}>👥 동료 {c.today_check_count}/{c.member_count} 완료</Text>
+                          </View>
+                        )}
+                      </View>
                     </Pressable>
-                  )}
-                </View>
-              ))}
+                    {c.is_today_checked ? (
+                      <View style={styles.quickCheckedBadge}>
+                        <Text style={styles.quickCheckedText}>✓ 완료</Text>
+                      </View>
+                    ) : (
+                      <Pressable
+                        style={styles.quickCheckinBtn}
+                        onPress={() => { haptic.tap(); router.push(`/room/${c.id}` as any); }}
+                      >
+                        <Text style={styles.quickCheckinBtnText}>인증</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                );
+              })}
             </View>
           ) : (
             /* 빈 상태 카드 — 본인 도전 0개 */
@@ -453,39 +512,58 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs, color: colors.accent700,
     fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
   },
-  myQuickCheckins: {
-    marginHorizontal: 20,
-    marginTop: 8,
-    marginBottom: 8,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.primary100,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    gap: 12,
+  myChallengeList: {
+    marginHorizontal: 16,
+    marginTop: 4,
+    gap: 10,
   },
-  quickCheckinRow: {
+  myChallengeCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 4,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: 16,
+    ...shadow.sm,
+    borderWidth: 1,
+    borderColor: colors.primary50,
   },
-  quickCheckinNamePress: {
+  myChallengeInfo: {
     flex: 1,
     marginRight: 12,
+    gap: 6,
   },
-  quickCheckinName: {
-    fontSize: fontSize.sm,
+  myChallengeTitle: {
+    fontSize: fontSize.base,
     color: colors.primary,
-    fontFamily: fontFamily.medium,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    letterSpacing: -0.2,
+  },
+  myChallengeMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  metaBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: colors.primary50,
+    borderRadius: radius.pill,
+  },
+  metaBadgeText: {
+    fontSize: 10,
+    color: colors.primary500,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
   },
   quickCheckinBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     backgroundColor: colors.accent,
     borderRadius: radius.pill,
+    ...shadow.sm,
   },
   quickCheckinBtnText: {
     fontSize: fontSize.xs,
@@ -493,16 +571,17 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },
-  quickCheckinDoneBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: colors.primary100,
+  quickCheckedBadge: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: colors.primary50,
     borderRadius: radius.pill,
   },
-  quickCheckinDoneText: {
+  quickCheckedText: {
     fontSize: fontSize.xs,
     color: colors.primary500,
-    fontFamily: fontFamily.medium,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
   },
 
   // 섹션 라벨

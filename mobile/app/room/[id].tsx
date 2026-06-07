@@ -271,6 +271,25 @@ export default function ChallengeRoom() {
     [members, myUserId],
   );
   const isMember = Boolean(me);
+
+  // 🚀 기능명: 도전 포기한 멤버 진입 제한
+  // 설명: 포기한 챌린지방에 진입 시도 시, Alert를 띄우고 기록 탭으로 강제 이동시킵니다.
+  useEffect(() => {
+    console.log('[DEBUG] room state:', {
+      myUserId,
+      meExists: !!me,
+      meGaveUpAt: me?.gave_up_at,
+      challengeExists: !!challenge
+    });
+    if (me?.gave_up_at) {
+      Alert.alert(
+        '도전 포기',
+        '포기한 챌린지방에는 진입할 수 없습니다.',
+        [{ text: '확인', onPress: () => router.replace('/(tabs)/record') }],
+        { cancelable: false }
+      );
+    }
+  }, [me, challenge]);
   const todayChecked = me?.today_checked ?? false;
   const isCreator = challenge?.creator_id === myUserId;
   // cheered 방은 creator 만 인증/기록 가능, 나머지 멤버는 응원만

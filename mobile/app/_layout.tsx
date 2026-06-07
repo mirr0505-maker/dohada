@@ -8,9 +8,10 @@ import * as Notifications from 'expo-notifications';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { initSentry } from '@/lib/sentry';
-import { scheduleDailyReminder } from '@/lib/notifications';
+import { scheduleDailyReminder, cancelDailyReminder } from '@/lib/notifications';
 import { registerExpoPushToken, ensureNotificationPrefs } from '@/lib/push';
 import { useSession } from '@/lib/session';
+import * as SecureStore from 'expo-secure-store';
 
 // Sentry — module load 시점에 한 번
 initSentry();
@@ -29,9 +30,32 @@ export default function RootLayout() {
     if (fontsLoaded || fontError) SplashScreen.hideAsync();
   }, [fontsLoaded, fontError]);
 
-  // 매일 저녁 8시 로컬 알림 (권한 거부 시 noop)
+  // 🚀 로컬 알림 초기화 및 복원 (사용자가 설정한 시간 기준)
   useEffect(() => {
-    scheduleDailyReminder(20, 0).catch(() => {});
+    const initReminder = async () => {
+      try {
+        const enabledStr = await SecureStore.getItemAsync('daily_enabled');
+        const isEnabled = enabledStr !== 'false'; // 없으면 기본값 true로 취급
+        if (isEnabled) {
+          const storedTime = await SecureStore.getItemAsync('daily_reminder_time');
+          let hour = 20;
+          let minute = 0;
+          if (storedTime) {
+            const [h, m] = storedTime.split(':').map(Number);
+            if (!isNaN(h) && !isNaN(m)) {
+              hour = h;
+              minute = m;
+            }
+          }
+          await scheduleDailyReminder(hour, minute);
+        } else {
+          await cancelDailyReminder();
+        }
+      } catch (e) {
+        console.warn('[RootLayout] 로컬 알림 초기화 실패', e);
+      }
+    };
+    initReminder();
   }, []);
 
   // 로그인 후 Expo Push Token 등록 + notification_prefs row ensure

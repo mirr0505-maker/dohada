@@ -96,6 +96,18 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'trophy' : 'trophy-outline'} size={TAB_ICON_SIZE} color={color} />
           ),
+          // 🚀 알림 뱃지 데모 (조용한 알림 Dot)
+          tabBarBadge: '',
+          tabBarBadgeStyle: {
+            backgroundColor: colors.accent,
+            width: 6,
+            height: 6,
+            borderRadius: 3,
+            minWidth: 6,
+            fontSize: 0,
+            lineHeight: 0,
+            marginTop: Platform.OS === 'ios' ? 2 : 0,
+          },
         }}
       />
       {/* discover / profile 은 v2.5 에서 탭 X — 라우트는 직접 접근 가능 유지 */}

@@ -31,6 +31,7 @@ const SUGGESTIONS = [
 ];
 
 const DURATIONS = [
+  { label: '1일',  desc: '하루 공동 이벤트·마라톤', icon: '⏱️', days: 1 },
   { label: '3일',  desc: '초단기 작심삼일 깨기', icon: '⚡', days: 3 },
   { label: '7일',  desc: '맛보기',           icon: '🌱', days: 7 },
   { label: '30일', desc: '습관 형성',         icon: '🌿', days: 30 },
@@ -80,6 +81,13 @@ export default function CreateChallenge() {
   // bet 은 'none' 고정.
 
   const [submitting, setSubmitting] = useState(false);
+
+  // 🚀 1일 도전일 경우 방 타입을 자동으로 'together (closed)' 로 보정
+  useEffect(() => {
+    if (durationDays === 1 && (kind === 'solo' || kind === 'cheered')) {
+      setKind('closed');
+    }
+  }, [durationDays, kind]);
 
   // 카테고리 트리 (1회 fetch + 캐시)
   const [tree, setTree] = useState<{ categories: DbCategory[]; subcategories: DbSubcategory[] } | null>(null);
@@ -221,7 +229,7 @@ export default function CreateChallenge() {
             <Step5ProofType value={proofType} setValue={setProofType} />
           )}
           {step === 6 && (
-            <Step6RoomType value={kind} setValue={setKind} />
+            <Step6RoomType value={kind} setValue={setKind} durationDays={durationDays} />
           )}
           {step === 7 && (
             <Step7Bet />
@@ -453,22 +461,46 @@ function Step5ProofType({
 
 // ─── Step 6: 방 타입 ───
 function Step6RoomType({
-  value, setValue,
-}: { value: ChallengeKind; setValue: (v: ChallengeKind) => void }) {
+  value, setValue, durationDays,
+}: { value: ChallengeKind; setValue: (v: ChallengeKind) => void; durationDays: number }) {
   return (
     <View style={{ gap: 12 }}>
       {ROOM_TYPES.map(r => {
         const active = value === r.value;
+        const isDisabled = durationDays === 1 && (r.value === 'solo' || r.value === 'cheered');
         return (
           <Pressable
             key={r.value}
-            style={[styles.option, active && styles.optionActive]}
-            onPress={() => setValue(r.value)}
+            disabled={isDisabled}
+            style={[
+              styles.option,
+              active && styles.optionActive,
+              isDisabled && styles.optionDisabled,
+            ]}
+            onPress={() => {
+              if (isDisabled) return;
+              setValue(r.value);
+            }}
           >
             <Text style={styles.optionIcon}>{r.icon}</Text>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.optionTitle, active && styles.optionTitleActive]}>{r.label}</Text>
-              <Text style={styles.optionDesc}>{r.desc}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={[
+                  styles.optionTitle,
+                  active && styles.optionTitleActive,
+                  isDisabled && { color: colors.primary300 }
+                ]}>
+                  {r.label}
+                </Text>
+                {isDisabled && (
+                  <Text style={{ fontSize: 11, color: colors.primary500, fontFamily: fontFamily.medium }}>
+                    (1일 도전 불가 🔒)
+                  </Text>
+                )}
+              </View>
+              <Text style={styles.optionDesc}>
+                {isDisabled ? '1일 도전은 다같이 도전하는 방에서만 가능해요.' : r.desc}
+              </Text>
             </View>
             {active && <Text style={styles.optionCheck}>✓</Text>}
           </Pressable>

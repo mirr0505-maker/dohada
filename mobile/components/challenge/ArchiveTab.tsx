@@ -12,7 +12,7 @@ import type { DbChallenge, ProofWithRelations } from '@/lib/types';
 
 // 박제 자산화 4단계 — 베타 노출용. 가격은 "추후 결정" (책 단계는 베타 보류).
 const ARCHIVE_TIERS = [
-  { emoji: '📜', label: '디지털 인증서 (PDF)', price: '무료', note: '완주 즉시 발급' },
+  { emoji: '📜', label: '디지털 인증서 (PDF)', price: '무료', note: '정식 출시 예정' },
   { emoji: '✉️', label: '종이 인증서 · 우편', price: '추후 결정', note: '인쇄·우편 발송' },
   { emoji: '📖', label: '포토북',           price: '추후 결정', note: '30일 분량 사진 모음' },
   { emoji: '👕', label: '굿즈 (티셔츠·키링)', price: '추후 결정', note: '완주 기념' },

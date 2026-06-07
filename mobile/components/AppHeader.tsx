@@ -47,6 +47,8 @@ export function AppHeader() {
           onPress={() => { haptic.tap(); setModalVisible(true); }}
         >
           <Ionicons name="notifications-outline" size={20} color={colors.primary} />
+          {/* 🚀 알림 뱃지 데모 (조용한 알림 Dot) */}
+          <View style={styles.badgeDot} />
         </Pressable>
         <Pressable
           onPress={() => { haptic.tap(); router.push('/(tabs)/profile' as any); }}
@@ -160,6 +162,16 @@ const styles = StyleSheet.create({
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: colors.primary50,
     alignItems: 'center', justifyContent: 'center',
+    position: 'relative', // 🚀 뱃지 도트 얹기 위해 포지션 추가
+  },
+  badgeDot: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.accent,
   },
   headerAvatar: {
     width: 36, height: 36, borderRadius: 18,
