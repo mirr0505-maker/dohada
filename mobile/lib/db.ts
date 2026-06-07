@@ -866,16 +866,17 @@ export async function createChallenge(args: {
   subcategoryId?: number | null;    // v2: 소분류 (없으면 null)
   frequency?: CreateChallengeFrequency; // v2: 인증 빈도 (기본 daily)
   proofType?: CreateChallengeProofType; // v2.2: 사진(카메라) or 스크린샷(보관함)
+  startDate?: string;               // 🚀 신규 추가: YYYY-MM-DD 포맷
 }): Promise<DbChallenge> {
-  const today = new Date();
-  const end = new Date();
+  const start = args.startDate ? new Date(args.startDate) : new Date();
+  const end = new Date(start);
   end.setDate(end.getDate() + args.durationDays - 1);
 
   const { data, error } = await supabase.rpc('create_challenge', {
     p_title:          args.title.trim(),
     p_description:    args.description?.trim() || null,
     p_kind:           args.kind,
-    p_start_date:     today.toISOString().slice(0, 10),
+    p_start_date:     start.toISOString().slice(0, 10),
     p_end_date:       end.toISOString().slice(0, 10),
     p_category_id:    args.categoryId    ?? null,
     p_subcategory_id: args.subcategoryId ?? null,

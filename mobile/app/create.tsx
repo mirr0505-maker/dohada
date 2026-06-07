@@ -78,6 +78,7 @@ export default function CreateChallenge() {
   const [frequency, setFrequency] = useState<CreateChallengeFrequency>('daily');
   const [proofType, setProofType] = useState<CreateChallengeProofType>('photo');   // v2.2
   const [kind, setKind] = useState<ChallengeKind>('solo');
+  const [startDate, setStartDate] = useState<string>(new Date().toISOString().slice(0, 10)); // 🚀 당일 챌린지용 시작일 추가
   // bet 은 'none' 고정.
 
   const [submitting, setSubmitting] = useState(false);
@@ -152,6 +153,7 @@ export default function CreateChallenge() {
         categoryId,
         subcategoryId,
         frequency,
+        startDate, // 🚀 신규 추가
       });
       haptic.success();
       // 응원자를 초대해야 의미 있는 방 = closed (함께 도전) + cheered (응원받기)
@@ -165,7 +167,7 @@ export default function CreateChallenge() {
     } finally {
       setSubmitting(false);
     }
-  }, [session, title, kind, durationDays, categoryId, subcategoryId, frequency, proofType]);
+  }, [session, title, kind, durationDays, categoryId, subcategoryId, frequency, proofType, startDate]);
 
   const stepMeta = STEP_META[step];
 
@@ -226,7 +228,13 @@ export default function CreateChallenge() {
             <Step3Duration value={durationDays} setValue={setDurationDays} kind={kind} />
           )}
           {step === 5 && (
-            <Step4Frequency value={frequency} setValue={setFrequency} durationDays={durationDays} />
+            <Step4Frequency
+              value={frequency}
+              setValue={setFrequency}
+              durationDays={durationDays}
+              startDate={startDate}
+              setStartDate={setStartDate}
+            />
           )}
           {step === 6 && (
             <Step5ProofType value={proofType} setValue={setProofType} />
@@ -431,11 +439,13 @@ function Step3Duration({
 
 // ─── Step 4: 인증 빈도 ───
 function Step4Frequency({
-  value, setValue, durationDays,
+  value, setValue, durationDays, startDate, setStartDate,
 }: {
   value: CreateChallengeFrequency;
   setValue: (v: CreateChallengeFrequency) => void;
   durationDays: number;
+  startDate: string;
+  setStartDate: (s: string) => void;
 }) {
   const options = useMemo(() => {
     if (durationDays === 1) {
@@ -445,6 +455,24 @@ function Step4Frequency({
     }
     return FREQUENCIES;
   }, [durationDays]);
+
+  // 오늘부터 향후 7일간의 날짜 옵션 생성
+  const dateOptions = useMemo(() => {
+    const arr = [];
+    const days = ['일', '월', '화', '수', '목', '금', '토'];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() + i);
+      const dateStr = d.toISOString().slice(0, 10);
+      let label = `${d.getMonth() + 1}/${d.getDate()}`;
+      let suffix = '';
+      if (i === 0) suffix = '오늘';
+      else if (i === 1) suffix = '내일';
+      else suffix = `${days[d.getDay()]}요일`;
+      arr.push({ dateStr, label, suffix });
+    }
+    return arr;
+  }, []);
 
   useEffect(() => {
     if (durationDays === 1 && value !== 'daily') {
@@ -471,6 +499,39 @@ function Step4Frequency({
           </Pressable>
         );
       })}
+
+      {/* 🚀 당일 챌린지일 경우, 언제 도전할지 날짜 선택 UI 추가 */}
+      {durationDays === 1 && (
+        <View style={{ marginTop: 24, gap: 12 }}>
+          <Text style={styles.subSectionTitle}>📅 당일 도전 날짜를 선택해 주세요</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.dateScroll}
+          >
+            {dateOptions.map(opt => {
+              const active = startDate === opt.dateStr;
+              return (
+                <Pressable
+                  key={opt.dateStr}
+                  style={[styles.dateCard, active && styles.dateCardActive]}
+                  onPress={() => {
+                    haptic.tap();
+                    setStartDate(opt.dateStr);
+                  }}
+                >
+                  <Text style={[styles.dateCardLabel, active && styles.dateCardLabelActive]}>
+                    {opt.label}
+                  </Text>
+                  <Text style={[styles.dateCardSuffix, active && styles.dateCardSuffixActive]}>
+                    {opt.suffix}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
     </View>
   );
 }
@@ -815,5 +876,42 @@ const styles = StyleSheet.create({
     color: colors.surface,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
+  },
+  dateScroll: {
+    paddingVertical: 4,
+    gap: 8,
+  },
+  dateCard: {
+    width: 76,
+    paddingVertical: 12,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.primary100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  dateCardActive: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accent50,
+  },
+  dateCardLabel: {
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  dateCardLabelActive: {
+    color: colors.accent700,
+  },
+  dateCardSuffix: {
+    fontSize: 10,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+  },
+  dateCardSuffixActive: {
+    color: colors.accent,
+    fontFamily: fontFamily.medium,
   },
 });
