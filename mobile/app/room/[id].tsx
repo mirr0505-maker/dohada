@@ -443,7 +443,7 @@ export default function ChallengeRoom() {
           </View>
           <Text style={styles.subtitle}>{roomKindLabel(challenge.kind, members.length)}</Text>
         </View>
-        {challenge.kind === 'closed' || challenge.kind === 'cheered' ? (
+        {challenge.kind !== 'solo' ? (
           <Pressable onPress={onShareInvite} hitSlop={12}>
             <Text style={styles.share}>초대</Text>
           </Pressable>
