@@ -3,8 +3,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, TextInput, Pressable, StyleSheet, FlatList, KeyboardAvoidingView,
-  Platform, Alert, Image,
+  Platform, Alert, Image, Keyboard
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { fetchChatMessages, sendChatMessage, type ChatMessageWithAuthor } from '@/lib/db';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
@@ -21,7 +22,21 @@ export function ChatTab({ challengeId, myUserId, isMember }: Props) {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [isNoticeExpanded, setIsNoticeExpanded] = useState(false);
+  
   const listRef = useRef<FlatList<ChatMessageWithAuthor>>(null);
+  
+  const notices = useMemo(() => messages.filter(m => m.is_notice), [messages]);
+  const chatMessages = useMemo(() => messages.filter(m => !m.is_notice), [messages]);
+  const latestNotice = useMemo(() => notices[notices.length - 1], [notices]);
+  
+  const insets = useSafeAreaInsets();
+  
+  // 🚀 대화 탭은 하단 SafeArea가 해제된 레이아웃이므로 iOS 오프셋을 0으로 교정
+  const keyboardOffset = useMemo(() => {
+    return Platform.OS === 'ios' ? 0 : 20;
+  }, []);
 
   const load = useCallback(async () => {
     if (!challengeId) return;
@@ -37,7 +52,9 @@ export function ChatTab({ challengeId, myUserId, isMember }: Props) {
 
   useEffect(() => { load(); }, [load]);
 
-  // Realtime — chat_messages INSERT 구독 (본인/타인 무관, author join 필요해서 재조회)
+  // Realtime — chat_messages INSERT 구독.
+  // 🚀 P2-18 보정: 전체 load() 대신 새 row 1건 + author 정보만 단건 조회 후 prepend/append.
+  // (100명 챌린지의 활발한 채팅에서 INSERT 마다 100건 재조회되던 부하 해소.)
   useEffect(() => {
     if (!challengeId) return;
     const channel = supabase
@@ -45,11 +62,38 @@ export function ChatTab({ challengeId, myUserId, isMember }: Props) {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `challenge_id=eq.${challengeId}` },
-        () => { load(); },
+        async (payload) => {
+          const newRow = payload.new as { id: string; user_id: string; content: string; created_at: string; is_notice?: boolean; challenge_id: string };
+          // 본인 메시지는 optimistic 삽입이 이미 처리. 중복 방지.
+          if (newRow.user_id === myUserId) return;
+          // 작성자 정보 fetch (단건)
+          const { data: authorRow } = await supabase
+            .from('users')
+            .select('id, nickname, avatar_url')
+            .eq('id', newRow.user_id)
+            .maybeSingle();
+          setMessages(prev => {
+            // 이미 동일 id 가 있으면 noop
+            if (prev.some(m => m.id === newRow.id)) return prev;
+            return [...prev, {
+              id: newRow.id,
+              challenge_id: newRow.challenge_id,
+              user_id: newRow.user_id,
+              content: newRow.content,
+              created_at: newRow.created_at,
+              is_notice: !!newRow.is_notice,
+              author: {
+                id: authorRow?.id ?? newRow.user_id,
+                nickname: authorRow?.nickname ?? '',
+                avatar_url: authorRow?.avatar_url ?? null,
+              },
+            }];
+          });
+        },
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [challengeId, load]);
+  }, [challengeId, myUserId]);
 
   const onSend = useCallback(async () => {
     if (!myUserId || !isMember || sending) return;
@@ -85,9 +129,31 @@ export function ChatTab({ challengeId, myUserId, isMember }: Props) {
 
   // 메시지 추가될 때 맨 아래로 스크롤
   useEffect(() => {
-    if (messages.length === 0) return;
+    if (chatMessages.length === 0) return;
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
-  }, [messages.length]);
+  }, [chatMessages.length]);
+
+  // 🚀 키보드가 활성화될 때 스크롤을 맨 아래로 강제 이동하고 상태 동기화
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSubscription = Keyboard.addListener(showEvent, () => {
+      setIsKeyboardVisible(true);
+      setTimeout(() => {
+        listRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    });
+
+    const hideSubscription = Keyboard.addListener(hideEvent, () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -100,12 +166,53 @@ export function ChatTab({ challengeId, myUserId, isMember }: Props) {
   return (
     <KeyboardAvoidingView
       style={styles.wrap}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+      behavior="height"
+      keyboardVerticalOffset={keyboardOffset}
     >
+      {latestNotice && (
+        <View style={styles.noticeContainer}>
+          {!isNoticeExpanded ? (
+            <Pressable style={styles.noticeHeader} onPress={() => { haptic.tap(); setIsNoticeExpanded(true); }}>
+              <Text style={styles.noticeIcon}>📢</Text>
+              <Text style={styles.noticeSummary} numberOfLines={1}>
+                {latestNotice.content}
+              </Text>
+              <Text style={styles.arrowIcon}>▼</Text>
+            </Pressable>
+          ) : (
+            <View style={styles.noticeContent}>
+              <Pressable style={styles.noticeHeader} onPress={() => { haptic.tap(); setIsNoticeExpanded(false); }}>
+                <Text style={styles.noticeIcon}>📢</Text>
+                <Text style={styles.noticeTitle}>공지사항 모아보기</Text>
+                <Text style={styles.arrowIcon}>▲</Text>
+              </Pressable>
+              
+              <View style={styles.noticeDivider} />
+              
+              <FlatList
+                data={[...notices].reverse()}
+                keyExtractor={n => n.id}
+                style={styles.noticeScroll}
+                contentContainerStyle={styles.noticeScrollList}
+                renderItem={({ item: n }) => (
+                  <View style={styles.noticeItem}>
+                    <View style={styles.noticeItemHeader}>
+                      <Text style={styles.noticeItemNick}>{n.author?.nickname || '개설자'}</Text>
+                      <Text style={styles.noticeItemDate}>{formatNoticeDate(n.created_at)}</Text>
+                    </View>
+                    <Text style={styles.noticeItemText}>{n.content}</Text>
+                  </View>
+                )}
+                nestedScrollEnabled
+              />
+            </View>
+          )}
+        </View>
+      )}
+
       <FlatList
         ref={listRef}
-        data={messages}
+        data={chatMessages}
         keyExtractor={m => m.id}
         contentContainerStyle={styles.list}
         renderItem={({ item }) => {
@@ -148,7 +255,14 @@ export function ChatTab({ challengeId, myUserId, isMember }: Props) {
       />
 
       {isMember ? (
-        <View style={styles.inputBar}>
+        <View style={[
+          styles.inputBar,
+          {
+            paddingBottom: (Platform.OS === 'ios' && !isKeyboardVisible && insets.bottom > 0)
+              ? insets.bottom
+              : 8
+          }
+        ]}>
           <TextInput
             value={input}
             onChangeText={setInput}
@@ -183,11 +297,99 @@ function formatTime(iso: string): string {
   return `${hh}:${mm}`;
 }
 
+function formatNoticeDate(iso: string): string {
+  const d = new Date(iso);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${mm}/${dd} ${hh}:${min}`;
+}
+
 const styles = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 40 },
+  noticeContainer: {
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.primary100,
+  },
+  noticeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  noticeIcon: {
+    fontSize: 16,
+  },
+  noticeSummary: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    fontFamily: fontFamily.medium,
+    color: colors.primary700,
+  },
+  noticeTitle: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
+  },
+  arrowIcon: {
+    fontSize: 10,
+    color: colors.primary300,
+    fontFamily: fontFamily.regular,
+  },
+  noticeContent: {
+    backgroundColor: colors.primary50,
+  },
+  noticeDivider: {
+    height: 1,
+    backgroundColor: colors.primary100,
+    marginHorizontal: 16,
+  },
+  noticeScroll: {
+    maxHeight: 180,
+  },
+  noticeScrollList: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 16,
+    gap: 12,
+  },
+  noticeItem: {
+    backgroundColor: colors.surface,
+    padding: 12,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.primary100,
+  },
+  noticeItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  noticeItemNick: {
+    fontSize: fontSize.xs,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    color: colors.primary700,
+  },
+  noticeItemDate: {
+    fontSize: 10,
+    fontFamily: fontFamily.regular,
+    color: colors.primary300,
+  },
+  noticeItemText: {
+    fontSize: fontSize.sm,
+    fontFamily: fontFamily.regular,
+    color: colors.primary,
+    lineHeight: 18,
+  },
   loading: { fontSize: fontSize.sm, color: colors.primary500, fontFamily: fontFamily.regular },
-  list: { padding: 16, gap: 12, flexGrow: 1 },
+  list: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 28, gap: 12, flexGrow: 1 },
   row: {
     flexDirection: 'row',
     alignItems: 'flex-end',

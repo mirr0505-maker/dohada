@@ -192,6 +192,17 @@
       <span class="logo">Do : 하다</span>
     </div>
 
+    <!-- 🚀 챌린지 초대 상세 카드 (실시간 로드 후 노출) -->
+    <div id="invite-detail-card" style="display: none; margin-bottom: 24px; padding: 20px; background: rgba(255, 107, 53, 0.05); border-radius: 20px; border: 1px solid rgba(255, 107, 53, 0.15); text-align: left; animation: fadeIn 0.4s ease-out;">
+      <h3 id="challenge-title" style="font-size: 16px; font-weight: 700; margin: 0 0 10px 0; color: #FF6B35; word-break: keep-all;">🔥 챌린지 초대장</h3>
+      
+      <!-- 초대 메시지가 있을 때만 노출 -->
+      <div id="invitation-msg-box" style="display: none; background: rgba(255, 255, 255, 0.95); border-radius: 12px; padding: 14px; margin-top: 8px; border-left: 4px solid #FF6B35; box-shadow: 0 8px 16px rgba(0,0,0,0.02);">
+        <p style="font-size: 11px; font-weight: 700; color: #78716C; margin: 0 0 6px 0; letter-spacing: 0.5px;">📨 개설자의 초대 편지</p>
+        <p id="invitation-msg-text" style="font-size: 13.5px; color: #1C1917; margin: 0; line-height: 1.5; font-weight: 500; word-break: keep-all; white-space: pre-wrap;"></p>
+      </div>
+    </div>
+
     <!-- 로딩 상태 (진입 직후) -->
     <div id="loading-state">
       <div class="spinner"></div>
@@ -227,6 +238,41 @@
       document.getElementById('main-container').style.display = 'none';
       document.getElementById('error-state').style.display = 'block';
     } else {
+      // 🚀 Supabase API를 통한 챌린지 상세 동적 로드
+      // ANON KEY 는 공개 키 — RLS 가 데이터 노출을 가드하므로 클라이언트 박힘은 의도된 설계.
+      // 단, GitHub Pages 등에서 호스팅되는 본 페이지는 origin 제한 없이 모든 RLS-허용 SELECT 가능.
+      // (정식 출시 시 Supabase Dashboard > Auth > URL Configuration 에서 허용 origin 제한 권장)
+      const supabaseUrl = "https://bpffxeddkuekefphsolz.supabase.co";
+      const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJwZmZ4ZWRka3Vla2VmcGhzb2x6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3NjgxNDIsImV4cCI6MjA5NTM0NDE0Mn0.2eEVy9Sqx4kmcMSwbWp3QvuH0YkOb_8LltcONdyPces";
+
+      async function fetchChallengeDetails() {
+        try {
+          const res = await fetch(`${supabaseUrl}/rest/v1/challenges?id=eq.${challengeId}&select=title,invitation_message`, {
+            headers: {
+              'apikey': supabaseAnonKey,
+              'Authorization': `Bearer ${supabaseAnonKey}`
+            }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data[0]) {
+              const ch = data[0];
+              document.getElementById('challenge-title').innerText = `🔥 ${ch.title}`;
+              
+              if (ch.invitation_message && ch.invitation_message.trim() !== '') {
+                document.getElementById('invitation-msg-text').innerText = ch.invitation_message;
+                document.getElementById('invitation-msg-box').style.display = 'block';
+              }
+              document.getElementById('invite-detail-card').style.display = 'block';
+            }
+          }
+        } catch (e) {
+          console.error("Failed to load challenge details:", e);
+        }
+      }
+
+      fetchChallengeDetails();
+
       const userAgent = navigator.userAgent || navigator.vendor || window.opera;
       const isAndroid = /android/i.test(userAgent);
       const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !window.MSStream;

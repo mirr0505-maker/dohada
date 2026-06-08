@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
+import { AppState } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { initSentry } from '@/lib/sentry';
@@ -31,11 +32,14 @@ export default function RootLayout() {
   }, [fontsLoaded, fontError]);
 
   // 🚀 로컬 알림 초기화 및 복원 (사용자가 설정한 시간 기준)
+  //    P2-19: 기본값을 OFF 로 전환 — Apple 4.5.4 / Google Play 정책 대비.
+  //    명시적으로 사용자가 daily_enabled='true' 로 설정해야 알림 스케줄링.
+  //    기존 사용자(없으면)는 OFF 로 시작 → 프로필에서 켜는 흐름.
   useEffect(() => {
     const initReminder = async () => {
       try {
         const enabledStr = await SecureStore.getItemAsync('daily_enabled');
-        const isEnabled = enabledStr !== 'false'; // 없으면 기본값 true로 취급
+        const isEnabled = enabledStr === 'true';   // 없으면 false (기본 OFF)
         if (isEnabled) {
           const storedTime = await SecureStore.getItemAsync('daily_reminder_time');
           let hour = 20;
@@ -67,9 +71,39 @@ export default function RootLayout() {
     ensureNotificationPrefs(uid).catch(() => {});
   }, [session?.user?.id]);
 
+  // 🚀 앱이 활성화될 때 및 백그라운드 복귀 시 뱃지 초기화 및 알림 카드 클리어
+  useEffect(() => {
+    const clearBadges = async () => {
+      try {
+        await Notifications.setBadgeCountAsync(0);
+        await Notifications.dismissAllNotificationsAsync();
+      } catch (e) {
+        console.warn('[RootLayout] 뱃지 및 알림 리셋 실패', e);
+      }
+    };
+
+    // 1. 초기 마운트 시 실행
+    clearBadges();
+
+    // 2. 앱 상태가 active 로 전환될 때마다 실행
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        clearBadges();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
   // 푸시 알림 탭 시 해당 챌린지/인증/기록 화면으로 이동
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener((resp) => {
+      // 알림 터치 시에도 뱃지/알림 리셋
+      Notifications.setBadgeCountAsync(0).catch(() => {});
+      Notifications.dismissAllNotificationsAsync().catch(() => {});
+
       const data = resp.notification.request.content.data as
         { kind?: string; challenge_id?: string; proof_id?: string; log_id?: string };
       if (!data) return;

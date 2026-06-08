@@ -1,5 +1,5 @@
 // 🚀 챌린지 방 — 인증 피드 (Supabase 실데이터 + Realtime)
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, Pressable, FlatList, StyleSheet, Share, Alert,
   Image, RefreshControl,
@@ -19,6 +19,8 @@ import { LogTab } from '@/components/challenge/LogTab';
 import { StatusTab } from '@/components/challenge/StatusTab';
 import { ArchiveTab } from '@/components/challenge/ArchiveTab';
 import { MemberSheet } from '@/components/challenge/MemberSheet';
+import { InviteConfirmModal } from '@/components/challenge/InviteConfirmModal';
+import { InviteLetterModal } from '@/components/challenge/InviteLetterModal';
 import { ImpactModal } from '@/components/challenge/ImpactModal';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
@@ -48,7 +50,7 @@ function roomKindLabel(kind: ChallengeKind, memberCount: number): string {
 }
 
 export default function ChallengeRoom() {
-  const { id, fromCreate } = useLocalSearchParams<{ id: string; fromCreate?: string }>();
+  const { id, fromCreate, tab } = useLocalSearchParams<{ id: string; fromCreate?: string; tab?: string }>();
   const session = useSession();
 
   const [challenge, setChallenge] = useState<DbChallenge | null>(null);
@@ -60,10 +62,12 @@ export default function ChallengeRoom() {
   const [createPromptShown, setCreatePromptShown] = useState(false);
   const [completeRedirected, setCompleteRedirected] = useState(false);
   const [activeProofId, setActiveProofId] = useState<string | null>(null);    // 댓글 sheet 대상
-  const [activeTab, setActiveTab] = useState<RoomTab>('proof');               // v4 5탭 활성 탭
+  const [activeTab, setActiveTab] = useState<RoomTab>((tab === 'chat' || tab === 'log' || tab === 'status' || tab === 'archive') ? tab : 'proof');               // v4 5탭 활성 탭
   const [logComposerOpen, setLogComposerOpen] = useState(false);              // 기록 탭 FAB → LogTab 컴포저
   const [memberSheetOpen, setMemberSheetOpen] = useState(false);              // 헤더 avatars → 멤버 시트
   const [impactModalOpen, setImpactModalOpen] = useState(false);              // info-bar 💚 → 함께 만든 변화 팝업
+  const [inviteConfirmOpen, setInviteConfirmOpen] = useState(false);          // 🚀 초대 메시지 첨부 확인 모달 열림 여부
+  const [inviteLetterOpen, setInviteLetterOpen] = useState(false);            // 🚀 초대 편지글 모달 열림 여부
 
   const myUserId = session?.user?.id;
 
@@ -229,23 +233,38 @@ export default function ChallengeRoom() {
     }
   }, [myUserId, proofs]);
 
-  const onShareInvite = useCallback(async () => {
+  const executeShare = useCallback(async (attachedMessage: string | null) => {
     if (!challenge) return;
-    try {
-      // 카카오톡 등 외부 메신저에서 항상 클릭이 가능한 HTTPS 중계 게이트웨이 링크 사용
-      const link = `https://bpffxeddkuekefphsolz.supabase.co/functions/v1/invite?id=${challenge.id}`;
-      // 응원받기 방은 도전자 1명 + 응원자 N명 — 메시지 톤 분기
-      const intro = challenge.kind === 'cheered'
-        ? `"${challenge.title}" 챌린지를 시작합니다.\n와서 응원해주세요! 💛`
-        : `"${challenge.title}" 챌린지에 함께해요!`;
-      await Share.share({
-        message:
-          `${intro}\n\n` +
-          `📱 아래 링크를 눌러 챌린지에 합류하세요:\n${link}`,
-      });
-    } catch (e) {
-      Alert.alert('공유 실패', String(e));
-    }
+    // iOS 등 모달 닫히는 애니메이션 완료 후 공유창을 안정적으로 띄우기 위해 300ms 딜레이 적용
+    setTimeout(async () => {
+      try {
+        const link = `https://bpffxeddkuekefphsolz.supabase.co/functions/v1/invite?id=${challenge.id}`;
+        
+        let messageText = '';
+        if (attachedMessage && attachedMessage.trim() !== '') {
+          messageText = `📨 초대의 말:\n"${attachedMessage}"\n\n`;
+        }
+
+        // 응원받기 방은 도전자 1명 + 응원자 N명 — 메시지 톤 분기
+        const intro = challenge.kind === 'cheered'
+          ? `"${challenge.title}" 챌린지를 시작합니다.\n와서 응원해주세요! 💛`
+          : `"${challenge.title}" 챌린지에 함께해요!`;
+          
+        await Share.share({
+          message:
+            `${messageText}` +
+            `${intro}\n\n` +
+            `📱 아래 링크를 눌러 챌린지에 합류하세요:\n${link}`,
+        });
+      } catch (e) {
+        Alert.alert('공유 실패', String(e));
+      }
+    }, 300);
+  }, [challenge]);
+
+  const onShareInvite = useCallback(() => {
+    if (!challenge) return;
+    setInviteConfirmOpen(true);
   }, [challenge]);
 
   // 챌린지 만든 직후(create.tsx 가 ?fromCreate=1 로 보냄) → 카톡 초대 안내 1회 모달
@@ -273,23 +292,41 @@ export default function ChallengeRoom() {
   const isMember = Boolean(me);
 
   // 🚀 기능명: 도전 포기한 멤버 진입 제한
-  // 설명: 포기한 챌린지방에 진입 시도 시, Alert를 띄우고 기록 탭으로 강제 이동시킵니다.
+  // 설명: 포기한 챌린지방에 진입 시도 시, Alert 를 띄우고 기록 탭으로 강제 이동.
+  // useFocusEffect/Realtime 재로드로 동일 alert 반복 표시되지 않도록 ref 가드.
+  const enterAlertShownRef = useRef(false);
   useEffect(() => {
-    console.log('[DEBUG] room state:', {
-      myUserId,
-      meExists: !!me,
-      meGaveUpAt: me?.gave_up_at,
-      challengeExists: !!challenge
-    });
+    if (enterAlertShownRef.current) return;
     if (me?.gave_up_at) {
+      enterAlertShownRef.current = true;
       Alert.alert(
         '도전 포기',
         '포기한 챌린지방에는 진입할 수 없습니다.',
         [{ text: '확인', onPress: () => router.replace('/(tabs)/record') }],
         { cancelable: false }
       );
+    } else if (challenge?.gave_up_at) {
+      enterAlertShownRef.current = true;
+      Alert.alert(
+        '도전 종료',
+        '개설자가 포기 선택하였습니다. 확인을 누르시면 내 챌린지에서 제거됩니다',
+        [
+          {
+            text: '확인',
+            onPress: () => {
+              giveUpMembership({ challengeId: challenge.id, userId: myUserId! })
+                .then(() => {
+                  haptic.warning();
+                  router.replace('/(tabs)/home');
+                })
+                .catch(e => Alert.alert('제거 실패', e?.message ?? String(e)));
+            }
+          }
+        ],
+        { cancelable: false }
+      );
     }
-  }, [me, challenge]);
+  }, [me, challenge, myUserId]);
   const todayChecked = me?.today_checked ?? false;
   const isCreator = challenge?.creator_id === myUserId;
   // cheered 방은 creator 만 인증/기록 가능, 나머지 멤버는 응원만
@@ -346,6 +383,27 @@ export default function ChallengeRoom() {
   // ─── 잠시 멈춤 / 재개 / 도전 포기 ─────────────────────
   const onTogglePause = useCallback(() => {
     if (!challenge || !myUserId) return;
+
+    if (isCheeredCheerOnly) {
+      Alert.alert(
+        '응원 그만하기',
+        '이 챌린지의 응원을 그만둘까요?\n내 목록에서 챌린지가 사라집니다.',
+        [
+          { text: '취소', style: 'cancel' },
+          {
+            text: '그만하기',
+            style: 'destructive',
+            onPress: () => {
+              giveUpMembership({ challengeId: challenge.id, userId: myUserId })
+                .then(() => { haptic.warning(); router.back(); })
+                .catch(e => Alert.alert('그만하기 실패', e?.message ?? String(e)));
+            },
+          },
+        ],
+      );
+      return;
+    }
+
     if (isPaused) {
       resumeMembership({ challengeId: challenge.id, userId: myUserId })
         .then(() => { haptic.success(); load(); })
@@ -393,7 +451,7 @@ export default function ChallengeRoom() {
         ],
       );
     }
-  }, [challenge, myUserId, isPaused, load]);
+  }, [challenge, myUserId, isPaused, load, isCheeredCheerOnly]);
 
   // ─── 렌더 ────────────────────────────────────────────
   if (loading) {
@@ -425,7 +483,10 @@ export default function ChallengeRoom() {
   const todayCheckedCount = members.filter(m => m.today_checked).length;
 
   return (
-    <Screen backgroundColor={colors.background}>
+    <Screen
+      backgroundColor={colors.background}
+      edges={activeTab === 'chat' ? ['top'] : ['top', 'bottom']}
+    >
       {/* ─── 헤더 — 챌린지명 라인에 stacked avatars (탭=멤버 시트) ─── */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
@@ -441,7 +502,19 @@ export default function ChallengeRoom() {
               <StackedAvatars members={members} />
             </Pressable>
           </View>
-          <Text style={styles.subtitle}>{roomKindLabel(challenge.kind, members.length)}</Text>
+          <View style={styles.headerSubtitleRow}>
+            <Text style={styles.subtitle}>{roomKindLabel(challenge.kind, members.length)}</Text>
+            {/* 🚀 개설자 전체 메시지 발송 버튼 */}
+            {isCreator && challenge.kind !== 'solo' && (
+              <Pressable
+                onPress={() => { haptic.tap(); setInviteLetterOpen(true); }}
+                style={styles.headerLetterBtn}
+                hitSlop={8}
+              >
+                <Text style={styles.headerLetterBtnText}>발송메시지</Text>
+              </Pressable>
+            )}
+          </View>
         </View>
         {challenge.kind !== 'solo' ? (
           <Pressable onPress={onShareInvite} hitSlop={12}>
@@ -465,7 +538,9 @@ export default function ChallengeRoom() {
           <Text style={styles.ddayBig}>D-{daysLeft}</Text>
           {isMember && (
             <Pressable onPress={onTogglePause} hitSlop={6}>
-              <Text style={styles.pauseInline}>{isPaused ? '▶ 재개' : '⏸ 멈춤'}</Text>
+              <Text style={styles.pauseInline}>
+                {isCheeredCheerOnly ? '🏃 그만하기' : (isPaused ? '▶ 재개' : '⏸ 멈춤')}
+              </Text>
             </Pressable>
           )}
         </View>
@@ -643,6 +718,24 @@ export default function ChallengeRoom() {
         onClose={() => setMemberSheetOpen(false)}
         members={members}
         myUserId={myUserId}
+        creatorId={challenge.creator_id}
+      />
+
+      <InviteLetterModal
+        visible={inviteLetterOpen}
+        onClose={() => setInviteLetterOpen(false)}
+        challengeId={challenge.id}
+        onRefresh={load}
+      />
+
+      <InviteConfirmModal
+        visible={inviteConfirmOpen}
+        onClose={() => setInviteConfirmOpen(false)}
+        invitationMessage={challenge.invitation_message ?? null}
+        challengeId={challenge.id}
+        myUserId={myUserId}
+        creatorId={challenge.creator_id}
+        onShare={executeShare}
       />
 
       <ImpactModal
@@ -804,6 +897,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  headerLetterBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: colors.accent50,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
+  headerLetterBtnText: {
+    fontSize: 10,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    color: colors.accent,
+  },
   stackedRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -843,12 +950,19 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
+    flex: 1,
+    marginRight: 8,
   },
   subtitle: {
     fontSize: fontSize.xs,
     color: colors.primary500,
     fontFamily: fontFamily.regular,
-    marginTop: 2,
+  },
+  headerSubtitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
   },
   share: {
     fontSize: fontSize.base,

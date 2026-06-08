@@ -20,15 +20,18 @@ export async function clearPendingInvite() {
   await SecureStore.deleteItemAsync(PENDING_KEY);
 }
 
-// 챌린지 가입. 이미 멤버면 무시 (unique 위반).
-export async function joinChallenge(challengeId: string, userId: string): Promise<void> {
+// 챌린지 가입 결과 — 신규 가입 / 이미 멤버 분기 (invite 화면에서 안내 메시지 분기용).
+export type JoinResult = 'newly_joined' | 'already_member';
+
+export async function joinChallenge(challengeId: string, userId: string): Promise<JoinResult> {
   const { error } = await supabase
     .from('challenge_members')
     .insert({ challenge_id: challengeId, user_id: userId });
 
   if (error) {
-    // 23505 = unique_violation: 이미 멤버 → noop
-    if ((error as { code?: string }).code === '23505') return;
+    // 23505 = unique_violation: 이미 멤버
+    if ((error as { code?: string }).code === '23505') return 'already_member';
     throw error;
   }
+  return 'newly_joined';
 }

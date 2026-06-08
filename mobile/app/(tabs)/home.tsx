@@ -7,7 +7,7 @@
 //   - 맨 아래 🌙 "오늘은 여기까지예요" 끝 마커 (무한 스크롤 차단)
 //
 // 도전 인연 정의 (베타 v2.5) = 현재 같은 챌린지의 멤버 (×횟수 누적은 Phase 2)
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   View, Text, Pressable, ScrollView, StyleSheet, RefreshControl, Image, Alert,
 } from 'react-native';
@@ -19,7 +19,7 @@ import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/
 import { useSession } from '@/lib/session';
 import {
   fetchMyChallengesWithDetails, fetchOpenChallenges, fetchInterestingOpenChallenges,
-  fetchPublicCompletionStories, fetchFellowProofs,
+  fetchPublicCompletionStories, fetchFellowProofs, giveUpMembership,
   type MyChallengeDetail, type InterestingChallenge,
   type FellowProof,
 } from '@/lib/db';
@@ -28,6 +28,7 @@ import { ChallengeCardSkeleton } from '@/components/Skeleton';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import type { CompletionStoryCard, OpenChallengeCard } from '@/lib/types';
+import { getChallengeDDay } from '@/lib/format';
 
 // ─── 🚀 오늘 나의 도전용 헬퍼 및 메타 ─────────────────
 const KIND_META: Record<string, { label: string; bg: string; text: string }> = {
@@ -37,22 +38,6 @@ const KIND_META: Record<string, { label: string; bg: string; text: string }> = {
   closed: { label: '🤝 다함께', bg: '#E0F2FE', text: '#0369A1' },
   open: { label: '🌍 누구나', bg: '#DCFCE7', text: '#15803D' },
 };
-
-function getChallengeDDay(startStr: string, endStr: string) {
-  const today = new Date().toISOString().slice(0, 10);
-  if (today < startStr) return '시작 대기';
-  if (today > endStr) return '도전 종료';
-  
-  const t = new Date(today + 'T00:00:00');
-  const s = new Date(startStr + 'T00:00:00');
-  const e = new Date(endStr + 'T00:00:00');
-  
-  const total = Math.round((e.getTime() - s.getTime()) / 86_400_000) + 1;
-  const current = Math.round((t.getTime() - s.getTime()) / 86_400_000) + 1;
-  const dday = Math.round((e.getTime() - t.getTime()) / 86_400_000);
-  
-  return `D-${dday} (${current}/${total}일)`;
-}
 
 export default function HomeScreen() {
   const session = useSession();
@@ -66,9 +51,35 @@ export default function HomeScreen() {
   const [error, setError]                   = useState<string | null>(null);
   
   const myUserId = session?.user?.id;
+  // 🚀 같은 세션에서 한 챌린지에 대해 포기 Alert 중복 표시 차단 (P1-12 안전망).
+  // P0-2 정책 추가로 challenges.gave_up_at 갱신이 정상 동작하면 자연 해소되지만,
+  // 사용자가 alert "확인" 누르기 전 useFocusEffect 가 다시 load 를 트리거하는 경쟁 상황 방지.
+  const abandonedAlertShownRef = useRef<Set<string>>(new Set());
 
   const handleJoinChallenge = async (challengeId: string) => {
     if (!myUserId) return;
+
+    // 🚀 더블 가드: 이미 가입된 챌린지인지 체크
+    const isAlreadyMember = myChs.some(c => c.id === challengeId);
+    if (isAlreadyMember) {
+      haptic.warning();
+      Alert.alert(
+        '참여 중인 도전',
+        '이미 참여 중인 챌린지입니다. 챌린지방으로 이동하시겠습니까?',
+        [
+          { text: '취소', style: 'cancel' },
+          {
+            text: '이동',
+            onPress: () => {
+              haptic.tap();
+              router.push(`/room/${challengeId}` as any);
+            }
+          }
+        ]
+      );
+      return;
+    }
+
     Alert.alert(
       '도전 합류',
       '정말 개설자와 함께 도전하시겠습니까?',
@@ -106,12 +117,49 @@ export default function HomeScreen() {
         fetchOpenChallenges(myUserId),
       ]);
       setMyChs(mine);
+      
+      // 🚀 개설자(방장)가 포기한 챌린지 감지 시 제거 얼럿 노출
+      //    같은 세션에 같은 챌린지 alert 가 다시 뜨지 않도록 ref 가드.
+      const abandoned = mine.find(
+        c => c.gave_up_at !== null && !abandonedAlertShownRef.current.has(c.id)
+      );
+      if (abandoned) {
+        abandonedAlertShownRef.current.add(abandoned.id);
+        Alert.alert(
+          '도전 종료',
+          '개설자가 포기 선택하였습니다. 확인을 누르시면 내 챌린지에서 제거됩니다',
+          [
+            {
+              text: '확인',
+              onPress: async () => {
+                try {
+                  setLoading(true);
+                  await giveUpMembership({ challengeId: abandoned.id, userId: myUserId });
+                  haptic.warning();
+                  // 포기 후 목록 리로드
+                  const updatedMine = await fetchMyChallengesWithDetails(myUserId);
+                  setMyChs(updatedMine);
+                } catch (err: any) {
+                  Alert.alert('제거 실패', err?.message ?? String(err));
+                } finally {
+                  setLoading(false);
+                }
+              }
+            }
+          ],
+          { cancelable: false }
+        );
+      }
+
       setCompletions(recentDone);
       // 오늘 인증한 동료만 (당일 날짜 매칭)
       const today = new Date().toISOString().slice(0, 10);
       setTodayProofs(fellows.filter(p => p.created_at.slice(0, 10) === today).slice(0, 5));
-      setInteresting(interesting);
-      setOpenChs(opens);
+      
+      // 🚀 클라이언트 단 더블 가드 필터링: 이미 가입하고 포기 안 한 내 챌린지 제외
+      const myActiveChIds = new Set(mine.filter(c => c.gave_up_at === null).map(c => c.id));
+      setInteresting(interesting.filter(c => !myActiveChIds.has(c.id)));
+      setOpenChs(opens.filter(c => !myActiveChIds.has(c.id)));
     } catch (e: any) {
       reportError(e, { where: 'home/load' });
       setError(e?.message ?? '불러오지 못했어요.');

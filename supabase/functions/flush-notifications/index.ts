@@ -10,9 +10,15 @@
 //   2. 즉시 — chat / comment / log_comment 은 scheduled_for = now(). 즉시 처리.
 //   3. 조용한 시간 (22-8 KST) — 그 시간에 fall 한 알림은 8시 정각 묶음으로 미룸.
 //   4. 일별 상한 — 사용자당 24h 내 5건. 초과는 다음날로 미룸.
+//      (P1-8 보정: 그룹화된 묶음은 N건이라도 발송 1건으로 카운트)
+//
+// 인증 (P1-7 보강):
+//   FLUSH_NOTIFICATIONS_SECRET 환경 변수와 Authorization 헤더 (Bearer ...) 일치 필수.
+//   미일치 시 401. cron 호출 시 헤더에 동일 secret 포함시키도록 대시보드에서 설정.
 //
 // 환경변수 (supabase secrets):
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY  (자동 주입)
+//   FLUSH_NOTIFICATIONS_SECRET              (수동 설정 필요)
 
 // @ts-nocheck — Deno 글로벌
 
@@ -22,7 +28,19 @@ const EPN_ENDPOINT = 'https://exp.host/--/api/v2/push/send';
 const KST_OFFSET_MIN = 9 * 60;
 const DAILY_CAP = 5;
 
-Deno.serve(async (_req) => {
+Deno.serve(async (req) => {
+  // 🚀 P1-7: Authorization 검증 — secret 미일치 시 401
+  const expected = Deno.env.get('FLUSH_NOTIFICATIONS_SECRET');
+  if (!expected) {
+    console.error('[flush] FLUSH_NOTIFICATIONS_SECRET not configured');
+    return new Response(JSON.stringify({ error: 'server misconfigured' }), { status: 500 });
+  }
+  const authHeader = req.headers.get('authorization') ?? '';
+  const presented = authHeader.replace(/^Bearer\s+/i, '').trim();
+  if (presented !== expected) {
+    return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 });
+  }
+
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -62,12 +80,15 @@ Deno.serve(async (_req) => {
   }
 
   // 3. user 별 prefs / device_tokens / 일별 카운트 일괄 fetch
+  //    🚀 P1-8: 카운팅을 "그룹 단위" 로 — cheer_batch/log_like_batch 같은 묶음은
+  //    N row 라도 push 1건. 같은 (user_id, kind, proof_id|log_id) 가 같은 발송이므로
+  //    distinct 집계로 보정.
   const userIds = [...new Set(pending.map(p => p.user_id))];
   const [prefsRes, tokensRes, dailyRes] = await Promise.all([
     supabase.from('notification_prefs').select('*').in('user_id', userIds),
     supabase.from('device_tokens').select('*').in('user_id', userIds),
     supabase.from('notification_queue')
-      .select('user_id', { count: 'exact', head: false })
+      .select('user_id, kind, proof_id, log_id')
       .in('user_id', userIds)
       .gte('sent_at', startOfTodayUtcIso(nowKst))
       .not('sent_at', 'is', null),
@@ -80,8 +101,16 @@ Deno.serve(async (_req) => {
     arr.push(t.expo_token);
     tokensByUser.set(t.user_id, arr);
   }
+  // 그룹 키로 dedupe — 같은 batch 발송 그룹은 1회만 카운트.
+  // 개별 알림(chat/comment/log_comment/creator_notice) 은 row 별로 1회 push 이므로 그대로 카운트.
   const sentTodayByUser = new Map<string, number>();
-  for (const row of (dailyRes.data ?? [])) {
+  const seenBatchGroups = new Set<string>();
+  for (const row of (dailyRes.data ?? []) as any[]) {
+    if (row.kind === 'cheer_batch' || row.kind === 'log_like_batch') {
+      const groupKey = `${row.user_id}|${row.kind}|${row.proof_id ?? row.log_id ?? ''}`;
+      if (seenBatchGroups.has(groupKey)) continue;
+      seenBatchGroups.add(groupKey);
+    }
     sentTodayByUser.set(row.user_id, (sentTodayByUser.get(row.user_id) ?? 0) + 1);
   }
 
@@ -139,6 +168,7 @@ Deno.serve(async (_req) => {
         title,
         body,
         sound: null,                                   // 무음 (진동만)
+        badge: 1,                                      // 🚀 뱃지 강제 마킹 (홈화면 앱 로고 숫자 표시 활성화)
         data: {
           kind: head.kind,
           challenge_id: head.challenge_id,
@@ -187,6 +217,9 @@ function checkPref(kind: string, prefs: any): boolean {
 }
 
 function composeMessage(kind: string, rows: any[]): { title: string; body: string } {
+  if (kind === 'creator_notice') {
+    return { title: '📢 개설자 공지', body: rows[0].preview ?? '새로운 공지 메시지가 도착했습니다.' };
+  }
   if (kind === 'cheer_batch') {
     const n = rows.length;
     return { title: 'Do : 하다 💛', body: `지난 1시간 동안 동료 ${n}명이 응원해줬어요` };

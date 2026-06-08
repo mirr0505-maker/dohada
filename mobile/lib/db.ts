@@ -1,6 +1,7 @@
 // 🚀 Supabase 자주 쓰는 쿼리 helpers
 // RLS 가 알아서 가드해주니까 여기선 단순 fetch/insert/delete.
 import { supabase } from './supabase';
+import { getKstTodayRange } from './format';
 import type {
   ChallengeWithCount, ChallengeKind, MemberWithToday, ProofWithRelations, DbChallenge,
   CommentWithAuthor, CheerType,
@@ -24,15 +25,18 @@ export type FellowProof = {
   avatar_url: string | null;
 };
 
+// TODO (Phase 2 — P2-16): 현재 limit*3 fetch 후 client filter 는 N+M 비효율.
+// 활동량 (피어 챌린지 다수, 인증 빈도 높음) 증가 시 부각될 부하. 멤버 챌린지 ID 사전 필터링 RPC 로 대체 예정.
 export async function fetchFellowProofs(myUserId: string, limit = 10): Promise<FellowProof[]> {
   const { data, error } = await supabase
     .from('proofs')
     .select(`
       id, photo_url, caption, created_at, challenge_id, user_id,
       users (nickname, avatar_url),
-      challenges (title, creator_id)
+      challenges!inner (title, creator_id, gave_up_at)
     `)
     .neq('user_id', myUserId)
+    .is('challenges.gave_up_at', null)
     .order('created_at', { ascending: false })
     .limit(limit * 3); // 넉넉히 가져온 뒤 필터링 진행
   if (error) throw error;
@@ -77,17 +81,17 @@ export async function fetchMyChallenges(myUserId?: string): Promise<ChallengeWit
     .order('created_at', { ascending: false });
   if (error) throw error;
 
-  const today = new Date().toISOString().slice(0, 10);
+  const { startUtc: todayStartUtc, endUtc: todayEndUtc } = getKstTodayRange();
   const oneDayAgo = new Date(Date.now() - 86_400_000).toISOString();
 
-  // 3. 오늘 본인의 인증 데이터 가져오기
+  // 3. 오늘 본인의 인증 데이터 가져오기 (KST 기준)
   const { data: todayProofs } = await supabase
     .from('proofs')
     .select('challenge_id')
     .in('challenge_id', ids)
     .eq('user_id', myUserId)
-    .gte('created_at', today + 'T00:00:00')
-    .lt('created_at', today + 'T23:59:59');
+    .gte('created_at', todayStartUtc)
+    .lt('created_at', todayEndUtc);
   const myTodayProofSet = new Set<string>();
   for (const p of (todayProofs ?? []) as any[]) {
     myTodayProofSet.add(p.challenge_id);
@@ -161,6 +165,7 @@ export async function fetchMyChallenges(myUserId?: string): Promise<ChallengeWit
       my_streak: streak,
       has_new_chat: c.kind !== 'solo' && hasNewChatSet.has(c.id),
       has_new_log: c.kind !== 'solo' && hasNewLogSet.has(c.id),
+      gave_up_at: c.gave_up_at ?? null,
     };
   });
 }
@@ -204,15 +209,15 @@ export async function fetchMyChallengesWithDetails(myUserId: string): Promise<My
 
   const filtered = challenges as any[];
   const challengeIds = filtered.map(c => c.id);
-  const today = new Date().toISOString().slice(0, 10);
+  const { startUtc: todayStartUtc, endUtc: todayEndUtc } = getKstTodayRange();
 
-  // 3. 오늘 인증한 멤버 수 (챌린지별) 및 본인의 오늘 인증 여부 판별
+  // 3. 오늘 인증한 멤버 수 (챌린지별) 및 본인의 오늘 인증 여부 판별 (KST 기준)
   const { data: todayProofs } = await supabase
     .from('proofs')
     .select('challenge_id, user_id')
     .in('challenge_id', challengeIds)
-    .gte('created_at', today + 'T00:00:00')
-    .lt('created_at', today + 'T23:59:59');
+    .gte('created_at', todayStartUtc)
+    .lt('created_at', todayEndUtc);
   const todayCountMap = new Map<string, number>();
   const myTodayProofSet = new Set<string>();
   for (const p of (todayProofs ?? []) as any[]) {
@@ -266,6 +271,7 @@ export async function fetchMyChallengesWithDetails(myUserId: string): Promise<My
     my_cheers_count: myCheersMap.get(c.id) ?? 0,
     top_members: topMembersMap.get(c.id) ?? [],
     is_today_checked: myTodayProofSet.has(c.id),
+    gave_up_at: c.gave_up_at ?? null,
   }));
 }
 
@@ -326,35 +332,33 @@ export async function fetchInterestingOpenChallenges(
   const interestIds = new Set(interests.map(i => i.category_id));
   if (interestIds.size === 0) return [];
 
-  // 2. 본인이 멤버인 챌린지 ID (제외용)
-  const { data: myMemberChs } = await supabase
-    .from('challenge_members')
-    .select('challenge_id')
-    .eq('user_id', userId)
-    .is('gave_up_at', null);
-  const memberChallengeIds = new Set(
-    ((myMemberChs ?? []) as any[]).map(r => r.challenge_id),
-  );
-
-  // 3. open 챌린지 중 관심 매칭 + 본인 미참여
+  // 2. open 챌린지 중 관심 매칭 + 본인 미참여
   const { data: opens, error } = await supabase
     .from('challenges')
     .select(`
       *,
-      challenge_members(count),
+      challenge_members(user_id, gave_up_at),
       creator:creator_id(nickname),
       category:category_id(emoji, name, is_impact),
       subcategory:subcategory_id(name),
       challenge_votes(user_id, vote_type)
     `)
     .eq('kind', 'open')
+    .is('gave_up_at', null)
     .in('category_id', Array.from(interestIds))
     .order('created_at', { ascending: false })
     .limit(limit * 3);   // 본인 챌린지 제외 후 limit 만큼 확보
   if (error) throw error;
 
   return (opens ?? [])
-    .filter((c: any) => !memberChallengeIds.has(c.id) && c.creator_id !== userId)
+    .filter((c: any) => {
+      // 본인이 개설한 방 제외
+      if (c.creator_id === userId) return false;
+      // 본인이 이미 가입하고 포기 안 한 방 제외
+      const members = c.challenge_members ?? [];
+      const isJoined = members.some((m: any) => m.user_id === userId && m.gave_up_at === null);
+      return !isJoined;
+    })
     .slice(0, limit)
     .map((c: any) => {
       const votesByType: any = { creative: 0, hard: 0, touching: 0, fresh: 0 };
@@ -363,6 +367,7 @@ export async function fetchInterestingOpenChallenges(
         votesByType[v.vote_type] = (votesByType[v.vote_type] ?? 0) + 1;
         if (v.user_id === userId) myVotes.push(v.vote_type as ChallengeVoteType);
       }
+      const activeMembers = (c.challenge_members ?? []).filter((m: any) => m.gave_up_at === null);
       return {
         id: c.id,
         creator_id: c.creator_id,
@@ -372,7 +377,7 @@ export async function fetchInterestingOpenChallenges(
         start_date: c.start_date,
         end_date: c.end_date,
         created_at: c.created_at,
-        member_count: c.challenge_members?.[0]?.count ?? 0,
+        member_count: activeMembers.length,
         creator: { nickname: c.creator?.nickname ?? '도전자' },
         category: c.category
           ? { emoji: c.category.emoji, name: c.category.name, is_impact: !!c.category.is_impact }
@@ -383,6 +388,7 @@ export async function fetchInterestingOpenChallenges(
         matched_category: c.category
           ? { emoji: c.category.emoji, name: c.category.name }
           : null,
+        gave_up_at: c.gave_up_at ?? null,
       };
     });
 }
@@ -394,13 +400,14 @@ export async function fetchOpenChallenges(myUserId: string | undefined): Promise
     .from('challenges')
     .select(`
       *,
-      challenge_members(count),
+      challenge_members(user_id, gave_up_at),
       creator:creator_id(nickname),
       category:category_id(emoji, name, is_impact),
       subcategory:subcategory_id(name),
       challenge_votes(user_id, vote_type)
     `)
     .eq('kind', 'open')
+    .is('gave_up_at', null)
     .order('created_at', { ascending: false })
     .limit(50);
 
@@ -412,7 +419,17 @@ export async function fetchOpenChallenges(myUserId: string | undefined): Promise
 
   if (error) throw error;
 
-  return (data ?? []).map((c: any) => {
+  const rawList = data ?? [];
+  // 2. 이미 참여 중인 방은 필터링하여 제외 (대소문자/타입 싱크 등 완벽 보장)
+  const filteredList = myUserId
+    ? rawList.filter((c: any) => {
+        const members = c.challenge_members ?? [];
+        const isJoined = members.some((m: any) => m.user_id === myUserId && m.gave_up_at === null);
+        return !isJoined;
+      })
+    : rawList;
+
+  return filteredList.map((c: any) => {
     const votes: { user_id: string; vote_type: ChallengeVoteType }[] = c.challenge_votes ?? [];
     const votesByType: ChallengeVoteCounts = { creative: 0, hard: 0, touching: 0, fresh: 0 };
     const myVotes: ChallengeVoteType[] = [];
@@ -421,6 +438,7 @@ export async function fetchOpenChallenges(myUserId: string | undefined): Promise
       votesByType[t] = (votesByType[t] ?? 0) + 1;
       if (v.user_id === myUserId) myVotes.push(t);
     }
+    const activeMembers = (c.challenge_members ?? []).filter((m: any) => m.gave_up_at === null);
     return {
       id: c.id,
       creator_id: c.creator_id,
@@ -430,7 +448,7 @@ export async function fetchOpenChallenges(myUserId: string | undefined): Promise
       start_date: c.start_date,
       end_date: c.end_date,
       created_at: c.created_at,
-      member_count: c.challenge_members?.[0]?.count ?? 0,
+      member_count: activeMembers.length,
       creator: { nickname: c.creator?.nickname ?? '도전자' },
       category: c.category
         ? { emoji: c.category.emoji, name: c.category.name, is_impact: !!c.category.is_impact }
@@ -438,6 +456,7 @@ export async function fetchOpenChallenges(myUserId: string | undefined): Promise
       subcategory: c.subcategory ? { name: c.subcategory.name } : null,
       votes_by_type: votesByType,
       my_votes: myVotes,
+      gave_up_at: c.gave_up_at ?? null,
     };
   });
 }
@@ -745,13 +764,14 @@ export type ChatMessageWithAuthor = {
   user_id: string;
   content: string;
   created_at: string;
+  is_notice?: boolean;
   author: { id: string; nickname: string; avatar_url: string | null };
 };
 
 export async function fetchChatMessages(challengeId: string, limit = 100): Promise<ChatMessageWithAuthor[]> {
   const { data, error } = await supabase
     .from('chat_messages')
-    .select('id, challenge_id, user_id, content, created_at, users:user_id(id, nickname, avatar_url)')
+    .select('id, challenge_id, user_id, content, created_at, is_notice, users:user_id(id, nickname, avatar_url)')
     .eq('challenge_id', challengeId)
     .order('created_at', { ascending: true })
     .limit(limit);
@@ -762,6 +782,7 @@ export async function fetchChatMessages(challengeId: string, limit = 100): Promi
     user_id: m.user_id,
     content: m.content,
     created_at: m.created_at,
+    is_notice: !!m.is_notice,
     author: {
       id: m.users?.id ?? m.user_id,
       nickname: m.users?.nickname ?? '',
@@ -784,6 +805,30 @@ export async function sendChatMessage(args: {
     content: trimmed,
   });
   if (error) throw error;
+}
+
+// ─── 초대 수락용 단건 챌린지 상세 조회 ──────────────────
+// closed/cheered 챌린지도 비멤버가 메타를 안전하게 볼 수 있도록 security definer RPC 경유.
+// (직접 SELECT 시 RLS challenges_member_read 가 비멤버를 막아 invite 페이지가 깨졌었음.)
+export type InviteInfo = {
+  id: string;
+  title: string;
+  kind: 'closed' | 'open' | 'cheered';   // solo 는 RPC 가 거부
+  start_date: string;
+  end_date: string;
+  invitation_message: string | null;
+  member_count: number;
+  creator_nickname: string;
+  category: { emoji: string; name: string } | null;
+};
+
+export async function fetchChallengeDetailForInvite(challengeId: string): Promise<InviteInfo> {
+  const { data, error } = await supabase.rpc('get_invite_info', {
+    p_challenge_id: challengeId,
+  });
+  if (error) throw error;
+  if (!data) throw new Error('초대 정보를 불러오지 못했습니다.');
+  return data as InviteInfo;
 }
 
 // ─── 챌린지 방 1개 + 멤버 + 인증 피드 (room/[id]) ──────
@@ -914,21 +959,66 @@ export async function resumeMembership(args: {
 }
 
 // 도전 포기 (soft delete) — 본인 화면 hide, 데이터는 보존 (Phase 2 박제 재활용)
-// select() 로 update 된 row 받아 0 rows 면 명시 에러 (RLS / 멤버십 누락 디버그용)
+// 개설자 포기 시: notify_creator_gave_up RPC 한 번으로 challenges.gave_up_at +
+//                 멤버 전원 종료 알림 큐 적재를 원자적으로 처리 (security definer).
+// 그 후 본인 challenge_members.gave_up_at 도 갱신 (0012 정책).
 export async function giveUpMembership(args: {
   challengeId: string;
   userId: string;
 }): Promise<void> {
+  // 1. 개설자 여부 확인 — RPC 가 어차피 검증하지만 분기 판단 위해 미리 조회
+  const { data: chData, error: chErr } = await supabase
+    .from('challenges')
+    .select('creator_id')
+    .eq('id', args.challengeId)
+    .single();
+  if (chErr) throw chErr;
+
+  // 2. 개설자 본인이 포기 → 챌린지 종료 RPC 호출
+  //    (security definer 로 challenges.gave_up_at 갱신 + 멤버 전원 알림 큐 적재)
+  if (chData && chData.creator_id === args.userId) {
+    const { error: rpcErr } = await supabase.rpc('notify_creator_gave_up', {
+      p_challenge_id: args.challengeId,
+    });
+    if (rpcErr) throw rpcErr;
+  }
+
+  // 3. 본인 멤버십 포기 처리 (개설자·일반 멤버 공통)
   const { error, data } = await supabase
     .from('challenge_members')
     .update({ gave_up_at: new Date().toISOString() })
     .match({ challenge_id: args.challengeId, user_id: args.userId })
     .select();
-  console.log('[giveUpMembership]', { error: error?.message, len: data?.length });
   if (error) throw error;
   if (!data || data.length === 0) {
     throw new Error('포기가 반영되지 않았어요. (RLS 또는 멤버십 누락 가능성)');
   }
+}
+
+// 🚀 기능명: 초대장 메시지 업데이트
+// 설명: 개설자(방장)가 작성한 커스텀 초대장 문구를 challenges 테이블에 저장합니다.
+export async function updateInvitationMessage(args: {
+  challengeId: string;
+  message: string | null;
+}): Promise<void> {
+  const { error } = await supabase
+    .from('challenges')
+    .update({ invitation_message: args.message })
+    .eq('id', args.challengeId);
+  if (error) throw error;
+}
+
+// 🚀 기능명: 전체 알림(공지) 메시지 발송
+// 설명: 개설자가 챌린지 룸의 모든 멤버에게 알림(공지)을 발송하는 RPC를 호출합니다.
+export async function sendCreatorNotice(args: {
+  challengeId: string;
+  message: string;
+}): Promise<void> {
+  const { error } = await supabase.rpc('send_creator_notice', {
+    p_challenge_id: args.challengeId,
+    p_message: args.message.trim(),
+  });
+  if (error) throw error;
 }
 
 // ─── 내 프로필 (닉네임 + 아바타 수정) ─────────────────
