@@ -518,6 +518,15 @@ export default function ChallengeRoom() {
 
   // ─── 헤더 통계 (v4 함께 만든 변화) ───────────────────
   const totalProofs = proofs.length;
+  // 종료 방 — 초대·멈춤은 회색 비활성 + 안내 (탭·열람은 회고용으로 유지)
+  const finished = isFinished(challenge);
+  const onFinishedNotice = () => {
+    haptic.tap();
+    Alert.alert(
+      '이미 종료된 도전이에요',
+      '종료된 방은 초대·멈춤을 사용할 수 없어요.\n남긴 인증과 기록은 박제에 영구 보존됩니다.',
+    );
+  };
   const daysLeft = progress ? Math.max(0, progress.totalDays - progress.passedDays) : 0;
   const todayCheckedCount = members.filter(m => m.today_checked).length;
 
@@ -567,8 +576,13 @@ export default function ChallengeRoom() {
           </View>
         </View>
         {challenge.kind !== 'solo' ? (
-          <Pressable onPress={onShareInvite} hitSlop={12}>
-            <Text style={styles.share}>초대</Text>
+          <Pressable
+            onPress={finished ? onFinishedNotice : onShareInvite}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel={finished ? '초대 — 종료된 도전이라 사용 불가' : '동료 초대'}
+          >
+            <Text style={[styles.share, finished && styles.shareDisabled]}>초대</Text>
           </Pressable>
         ) : (
           <View style={{ width: 32 }} />
@@ -587,8 +601,8 @@ export default function ChallengeRoom() {
           </Pressable>
           <Text style={styles.ddayBig}>D-{daysLeft}</Text>
           {isMember && (
-            <Pressable onPress={onTogglePause} hitSlop={6}>
-              <Text style={styles.pauseInline}>
+            <Pressable onPress={finished ? onFinishedNotice : onTogglePause} hitSlop={6}>
+              <Text style={[styles.pauseInline, finished && styles.pauseInlineDisabled]}>
                 {isCheeredCheerOnly ? '🏃 그만하기' : (isPaused ? '▶ 재개' : '⏸ 멈춤')}
               </Text>
             </Pressable>
@@ -1041,6 +1055,9 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
     paddingHorizontal: 8,
   },
+  shareDisabled: {
+    color: colors.primary300,   // 종료 방 — 회색 비활성 톤
+  },
 
   statsRow: {
     flexDirection: 'row',
@@ -1261,6 +1278,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     backgroundColor: colors.primary50,
     borderRadius: radius.pill,
+  },
+  pauseInlineDisabled: {
+    color: colors.primary300,   // 종료 방 — 회색 비활성 톤
   },
   progressTrack: {
     height: 6,
