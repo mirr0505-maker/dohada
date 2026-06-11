@@ -56,6 +56,7 @@
 - 온보딩: 스플래시([`mobile/app/index.tsx`](mobile/app/index.tsx)) 세션 자동 홈 진입 + 건너뛰기, [`mobile/components/OnbView.tsx`](mobile/components/OnbView.tsx) 좌우 Fling 스와이프
 - 완주 celebration: [`mobile/app/complete/[id].tsx`](mobile/app/complete/[id].tsx) — Reanimated entering (성취 순간에만 모션)
 - **종료 방 쓰기 잠금 (마무리 인사 7일 유예)**: 기준 = 종료일 24시(KST)부터 7일, solo 는 즉시 잠금. 유예 중엔 대화·댓글·기록·응원 모두 가능(대화 탭에 "N일 남았어요" 배너), 지나면 **응원·좋아요 포함 전면 읽기 전용** (열람·탭 이동은 유지). 판정 = `getFarewellState` ([`mobile/lib/stats.ts`](mobile/lib/stats.ts)) 단일 소스 + DB 는 0030 RESTRICTIVE 정책 6개. 종료 방 초대·멈춤은 회색 비활성, 초대 링크 신규 합류 차단 (`joinChallenge`)
+- **에러 수집 (Sentry 미사용)**: [`mobile/lib/sentry.ts`](mobile/lib/sentry.ts) — DSN 없으면 Supabase `client_errors` 테이블(0031)로 자체 수집 (전역 JS 에러 핸들러 + `reportError` 10곳, 세션당 20건 상한·중복 제거). 조회는 SQL Editor: `select * from client_errors order by created_at desc;` DSN 을 .env 에 넣으면 자동으로 Sentry 모드 전환
 
 ### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.
