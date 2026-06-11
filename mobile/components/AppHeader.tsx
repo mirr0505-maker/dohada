@@ -91,6 +91,8 @@ export function AppHeader() {
           style={styles.headerIcon}
           onPress={() => { haptic.tap(); openBell(); }}
           hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={bellDot ? '알림함 — 새 알림 있음' : '알림함'}
         >
           <Ionicons name="notifications-outline" size={20} color={colors.primary} />
           {/* 🚀 조용한 알림 Dot — 마지막 확인 이후 새 알림이 있을 때만 (숫자 X, 점 하나) */}
@@ -99,6 +101,8 @@ export function AppHeader() {
         <Pressable
           onPress={() => { haptic.tap(); router.push('/(tabs)/profile' as any); }}
           hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel="내 정보"
         >
           {avatarUrl ? (
             <Image source={{ uri: avatarUrl }} style={styles.headerAvatar} />

@@ -528,7 +528,12 @@ export default function ChallengeRoom() {
     >
       {/* ─── 헤더 — 챌린지명 라인에 stacked avatars (탭=멤버 시트) ─── */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="뒤로가기"
+        >
           <Text style={styles.back}>←</Text>
         </Pressable>
         <View style={{ flex: 1, marginHorizontal: 8 }}>
@@ -541,6 +546,8 @@ export default function ChallengeRoom() {
             <Pressable
               onPress={() => { haptic.tap(); setMemberSheetOpen(true); }}
               hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel={`멤버 ${members.length}명 보기`}
             >
               <StackedAvatars members={members} />
             </Pressable>
@@ -843,11 +850,11 @@ function TabPlaceholder({
   );
 }
 
-const CHEER_OPTIONS: { type: CheerType; emoji: string }[] = [
-  { type: 'fire',   emoji: '🔥' },
-  { type: 'clap',   emoji: '👏' },
-  { type: 'muscle', emoji: '💪' },
-  { type: 'heart',  emoji: '❤️' },
+const CHEER_OPTIONS: { type: CheerType; emoji: string; label: string }[] = [
+  { type: 'fire',   emoji: '🔥', label: '불꽃 응원' },
+  { type: 'clap',   emoji: '👏', label: '박수 응원' },
+  { type: 'muscle', emoji: '💪', label: '힘내 응원' },
+  { type: 'heart',  emoji: '❤️', label: '하트 응원' },
 ];
 
 function ProofCard({
@@ -881,7 +888,7 @@ function ProofCard({
 
       {/* 4가지 응원 chips — type 별 독립 카운트 */}
       <View style={styles.cheerRow}>
-        {CHEER_OPTIONS.map(({ type, emoji }) => {
+        {CHEER_OPTIONS.map(({ type, emoji, label }) => {
           const count = proof.cheers_by_type[type] ?? 0;
           const active = proof.my_cheers.includes(type);
           return (
@@ -890,6 +897,8 @@ function ProofCard({
               style={[styles.cheerChip, active && styles.cheerChipActive]}
               onPress={() => onCheer(type)}
               hitSlop={4}
+              accessibilityRole="button"
+              accessibilityLabel={`${label}${count > 0 ? ` ${count}개` : ''}${active ? ', 내가 보냄' : ''}`}
             >
               <Text style={styles.cheerChipEmoji}>{emoji}</Text>
               {count > 0 ? (
@@ -909,7 +918,13 @@ function ProofCard({
         </Pressable>
       </View>
 
-      <Pressable style={styles.commentRow} onPress={onComments} hitSlop={6}>
+      <Pressable
+        style={styles.commentRow}
+        onPress={onComments}
+        hitSlop={6}
+        accessibilityRole="button"
+        accessibilityLabel={`댓글 ${proof.comment_count}개 보기`}
+      >
         <Text style={styles.cheerIcon}>💬</Text>
         <Text style={styles.cheerCount}>댓글 {proof.comment_count}</Text>
       </Pressable>

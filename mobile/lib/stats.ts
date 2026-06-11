@@ -45,18 +45,19 @@ export function computeProgress(challenge: DbChallenge): {
 export function computeStreak(myProofs: ProofWithRelations[]): number {
   if (myProofs.length === 0) return 0;
 
-  // 인증한 날짜 (YYYY-MM-DD) set
-  const dates = new Set(myProofs.map(p => p.created_at.slice(0, 10)));
+  // 인증한 날짜 (YYYY-MM-DD, KST) set
+  const dates = new Set(myProofs.map(p => toKstDateStr(p.created_at)));
 
   let streak = 0;
-  const cursor = new Date();
+  let cursorMs = Date.now();
+  const dayMs = 86_400_000;
   // 오늘 인증 안 했으면 어제부터 카운트
-  if (!dates.has(cursor.toISOString().slice(0, 10))) {
-    cursor.setDate(cursor.getDate() - 1);
+  if (!dates.has(toKstDateStr(new Date(cursorMs).toISOString()))) {
+    cursorMs -= dayMs;
   }
-  while (dates.has(cursor.toISOString().slice(0, 10))) {
+  while (dates.has(toKstDateStr(new Date(cursorMs).toISOString()))) {
     streak += 1;
-    cursor.setDate(cursor.getDate() - 1);
+    cursorMs -= dayMs;
   }
   return streak;
 }

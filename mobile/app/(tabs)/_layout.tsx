@@ -6,6 +6,7 @@ import React, { useEffect, useState } from 'react';
 import { Tabs, router } from 'expo-router';
 import { Text, View, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { colors, fontFamily, fontSize, fontWeight, shadow } from '@/lib/tokens';
 import { haptic } from '@/lib/haptics';
@@ -15,6 +16,10 @@ const TAB_ICON_SIZE = 24;
 const DONE_SEEN_KEY = 'done_stories_seen_at';   // 해냈어요 탭 마지막 확인 시각 (디바이스 로컬)
 
 export default function TabsLayout() {
+  // 🚀 Android edge-to-edge 대응 — 제스처 내비 기기에서 시스템 바와 겹치지 않게 인셋 반영
+  const insets = useSafeAreaInsets();
+  const androidBottomPad = Math.max(insets.bottom, 8);
+
   // 🚀 해냈어요 dot — 마지막 확인 이후 새 공개 완주 이야기가 있을 때만 (가짜 dot 금지)
   const [doneDotVisible, setDoneDotVisible] = useState(false);
 
@@ -52,9 +57,9 @@ export default function TabsLayout() {
           backgroundColor: colors.surface,
           borderTopColor: colors.primary100,
           borderTopWidth: 1,
-          height: Platform.OS === 'ios' ? 84 : 64,
+          height: Platform.OS === 'ios' ? 84 : 56 + androidBottomPad,
           paddingTop: 8,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 8,
+          paddingBottom: Platform.OS === 'ios' ? 28 : androidBottomPad,
         },
       }}
     >
@@ -80,6 +85,7 @@ export default function TabsLayout() {
         name="create-tab"
         options={{
           title: '',
+          tabBarAccessibilityLabel: '챌린지 만들기',
           tabBarIcon: () => (
             <View style={{
               width: 52,

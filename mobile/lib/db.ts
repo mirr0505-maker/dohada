@@ -146,18 +146,22 @@ export async function fetchMyChallenges(myUserId?: string): Promise<ChallengeWit
     hasNewLogSet.add(l.challenge_id);
   }
 
+  // 스트릭 일자 비교는 KST 기준 (UTC slice 는 오전 9시까지 어제로 판정되는 오차)
+  const KST_MS = 9 * 60 * 60 * 1000;
+  const kstDayOf = (ms: number) => new Date(ms + KST_MS).toISOString().slice(0, 10);
+
   return (data ?? []).map((c: any) => {
     // Streak 계산
     const myDates = proofsMap.get(c.id) ?? [];
-    const datesSet = new Set(myDates.map(d => d.slice(0, 10)));
+    const datesSet = new Set(myDates.map(d => kstDayOf(new Date(d).getTime())));
     let streak = 0;
-    const cursor = new Date();
-    if (!datesSet.has(cursor.toISOString().slice(0, 10))) {
-      cursor.setDate(cursor.getDate() - 1);
+    let cursorMs = Date.now();
+    if (!datesSet.has(kstDayOf(cursorMs))) {
+      cursorMs -= 86_400_000;
     }
-    while (datesSet.has(cursor.toISOString().slice(0, 10))) {
+    while (datesSet.has(kstDayOf(cursorMs))) {
       streak += 1;
-      cursor.setDate(cursor.getDate() - 1);
+      cursorMs -= 86_400_000;
     }
 
     return {
