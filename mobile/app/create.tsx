@@ -1,6 +1,5 @@
-// 🚀 챌린지 만들기 — v4 7단계 마법사 (MVP_SCOPE v2 §3.2)
-// 1: 제목  2: 카테고리  3: 기간  4: 빈도  5: 인증 방식 (사진)
-// 6: 방 타입  7: 내기 (Phase 2)
+// 🚀 챌린지 만들기 — 5단계 마법사 (7→5 압축: 죽은 단계 제거, 결정 1개 = 화면 1개 유지)
+// 1: 제목  2: 카테고리  3: 방 타입  4: 기간+빈도  5: 인증 방식 (+ 내기 Phase 2 한 줄 티저)
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, TextInput, StyleSheet, ScrollView, Pressable,
@@ -19,7 +18,7 @@ import { haptic } from '@/lib/haptics';
 import { supabase } from '@/lib/supabase';
 import type { ChallengeKind } from '@/lib/types';
 
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 5;
 
 const SUGGESTIONS = [
   '📚 100일 책 읽기',
@@ -59,13 +58,6 @@ const ROOM_TYPES: { value: ChallengeKind; label: string; desc: string; icon: str
   { value: 'open',    label: '누구나 합류',    desc: '둘러보기 공개 · 아무나 참여',          icon: '🌍' },
 ];
 
-const BETS = [
-  { label: '내기 없이',    desc: '부담 없이, 즐겁게',        icon: '😌', enabled: true },
-  { label: '1인당 1만원',  desc: 'Phase 2 출시 예정',         icon: '💸', enabled: false },
-  { label: '1인당 5만원',  desc: 'Phase 2 출시 예정',         icon: '🔥', enabled: false },
-  { label: '1인당 10만원', desc: 'Phase 2 출시 예정',         icon: '💎', enabled: false },
-];
-
 export default function CreateChallenge() {
   const session = useSession();
   const [step, setStep] = useState(1);
@@ -100,11 +92,9 @@ export default function CreateChallenge() {
     if (submitting) return false;
     if (step === 1) return title.trim().length >= 2;
     if (step === 2) return categoryId != null;
-    if (step === 3) return Boolean(kind);            // 방 타입 (3단계)
-    if (step === 4) return durationDays > 0;         // 기간 (4단계)
-    if (step === 5) return Boolean(frequency);       // 빈도 (5단계)
-    if (step === 6) return true;                     // 사진 자동 선택 (6단계)
-    if (step === 7) return true;                     // 내기 없이 자동 (7단계)
+    if (step === 3) return Boolean(kind);                              // 방 타입
+    if (step === 4) return durationDays > 0 && Boolean(frequency);     // 기간 + 빈도 (병합)
+    if (step === 5) return true;                                       // 인증 방식 (기본 photo)
     return false;
   }, [step, title, categoryId, durationDays, frequency, kind, submitting]);
 
@@ -225,22 +215,26 @@ export default function CreateChallenge() {
             <Step6RoomType value={kind} setValue={setKind} durationDays={durationDays} />
           )}
           {step === 4 && (
-            <Step3Duration value={durationDays} setValue={setDurationDays} kind={kind} />
+            <View style={{ gap: 12 }}>
+              <Step3Duration value={durationDays} setValue={setDurationDays} kind={kind} />
+              <Text style={[styles.subSectionTitle, { marginTop: 16 }]}>⏰ 얼마나 자주 인증할까요?</Text>
+              <Step4Frequency
+                value={frequency}
+                setValue={setFrequency}
+                durationDays={durationDays}
+                startDate={startDate}
+                setStartDate={setStartDate}
+              />
+            </View>
           )}
           {step === 5 && (
-            <Step4Frequency
-              value={frequency}
-              setValue={setFrequency}
-              durationDays={durationDays}
-              startDate={startDate}
-              setStartDate={setStartDate}
-            />
-          )}
-          {step === 6 && (
-            <Step5ProofType value={proofType} setValue={setProofType} />
-          )}
-          {step === 7 && (
-            <Step7Bet />
+            <View style={{ gap: 12 }}>
+              <Step5ProofType value={proofType} setValue={setProofType} />
+              {/* 내기 (Phase 2) — 별도 단계 대신 한 줄 티저 */}
+              <Text style={styles.smallNote}>
+                💰 보석금 내기 걸기는 결제·정산 안정화 후 Phase 2 에서 열려요.
+              </Text>
+            </View>
           )}
         </ScrollView>
 
@@ -274,13 +268,11 @@ export default function CreateChallenge() {
 
 // ─── 각 step 메타 ───
 const STEP_META: Record<number, { label: string; question: string; hint: string }> = {
-  1: { label: 'CHALLENGE TITLE', question: '어떤 도전을\n해보고 싶어요?', hint: '짧고 명확한 문장이 좋아요.' },
-  2: { label: 'CATEGORY',        question: '어떤 분야의\n도전인가요?',   hint: '대분류를 먼저 고르면 세부 분야가 나타나요.' },
-  3: { label: 'ROOM TYPE',       question: '누구와 함께\n도전할까요?',   hint: '방 타입에 따라 둘러보기 노출이 달라져요.' },
-  4: { label: 'DURATION',        question: '얼마 동안\n도전할까요?',     hint: '길수록 어렵지만 박제 가치가 커져요.' },
-  5: { label: 'FREQUENCY',       question: '얼마나 자주\n인증할까요?',   hint: '인증 빈도가 챌린지 강도를 결정해요.' },
-  6: { label: 'PROOF TYPE',      question: '어떻게\n인증할까요?',        hint: '사진 인증과 앱 스크린샷 둘 다 가능해요.' },
-  7: { label: 'BETTING',         question: '내기를\n걸어볼까요?',        hint: '내기는 Phase 2 에서 만나요.' },
+  1: { label: 'CHALLENGE TITLE',      question: '어떤 도전을\n해보고 싶어요?',       hint: '짧고 명확한 문장이 좋아요.' },
+  2: { label: 'CATEGORY',             question: '어떤 분야의\n도전인가요?',         hint: '대분류를 먼저 고르면 세부 분야가 나타나요.' },
+  3: { label: 'ROOM TYPE',            question: '누구와 함께\n도전할까요?',         hint: '방 타입에 따라 둘러보기 노출이 달라져요.' },
+  4: { label: 'DURATION & FREQUENCY', question: '얼마 동안, 얼마나 자주\n도전할까요?', hint: '길수록 박제 가치가 커지고, 빈도가 강도를 결정해요.' },
+  5: { label: 'PROOF TYPE',           question: '어떻게\n인증할까요?',              hint: '사진 인증과 앱 스크린샷 둘 다 가능해요.' },
 };
 
 // ─── Step 1: 제목 ───
@@ -760,49 +752,6 @@ function Step6RoomType({
           </Pressable>
         );
       })}
-    </View>
-  );
-}
-
-// ─── Step 7: 내기 (Phase 2 placeholder) ───
-function Step7Bet() {
-  const handleBetPress = (enabled: boolean) => {
-    if (!enabled) {
-      haptic.tap();
-      Alert.alert(
-        '준비 중인 기능 🔒',
-        '🔥 보석금을 걸고 하는 강력한 동기부여 페널티 내기 기능이 곧 준비됩니다!\n\n베타 기간 동안은 내기 없이 안전하게 테스트가 진행됩니다.'
-      );
-    }
-  };
-
-  return (
-    <View style={{ gap: 12 }}>
-      {BETS.map((b, idx) => {
-        const active = idx === 0;
-        return (
-          <Pressable
-            key={b.label}
-            style={[
-              styles.option,
-              active && styles.optionActive,
-              !b.enabled && styles.optionDisabled,
-            ]}
-            onPress={() => handleBetPress(b.enabled)}
-          >
-            <Text style={styles.optionIcon}>{b.icon}</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.optionTitle, active && styles.optionTitleActive]}>{b.label}</Text>
-              <Text style={styles.optionDesc}>{b.desc}</Text>
-            </View>
-            {active && <Text style={styles.optionCheck}>✓</Text>}
-            {!b.enabled && <Text style={{ fontSize: 16, color: colors.primary300 }}>🔒</Text>}
-          </Pressable>
-        );
-      })}
-      <Text style={styles.smallNote}>
-        * 내기 기능은 결제·정산 안정화 후 Phase 2 에서 열려요.
-      </Text>
     </View>
   );
 }

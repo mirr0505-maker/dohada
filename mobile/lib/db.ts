@@ -369,7 +369,8 @@ export async function removeInterest(interestId: string): Promise<void> {
   if (error) throw error;
 }
 
-// 본인 명시 관심 카테고리 IDs 매칭 (자동 추론 X — 사용자 의도 명확).
+// 관심 매칭 2-티어: 1순위 = 명시 등록(user_interests, 사용자 의도) / 2순위 = 자동 추론(내 챌린지 분류).
+// 같은 티어 안에서는 최신순 — 인기·참여수 가중치는 쓰지 않음 (줄세우기 금지 정체성).
 // 본인이 이미 멤버이거나 만든 챌린지는 제외 — "발견" 의도.
 export type InterestingChallenge = OpenChallengeCard & {
   matched_category: { emoji: string; name: string } | null;
@@ -379,9 +380,23 @@ export async function fetchInterestingOpenChallenges(
   userId: string,
   limit = 6,
 ): Promise<InterestingChallenge[]> {
-  // 1. 명시 관심 카테고리 IDs
+  // 1-a. 명시 관심 카테고리 IDs (1순위)
   const interests = await fetchMyInterests(userId);
-  const interestIds = new Set(interests.map(i => i.category_id));
+  const explicitIds = new Set(interests.map(i => i.category_id));
+
+  // 1-b. 자동 추론 (2순위) — 내가 활동 중(포기 X)인 챌린지들의 카테고리
+  const { data: myMemberships } = await supabase
+    .from('challenge_members')
+    .select('challenges(category_id)')
+    .eq('user_id', userId)
+    .is('gave_up_at', null);
+  const inferredIds = new Set<number>();
+  for (const m of (myMemberships ?? []) as any[]) {
+    const cid = m.challenges?.category_id;
+    if (cid != null && !explicitIds.has(cid)) inferredIds.add(cid);
+  }
+
+  const interestIds = new Set([...explicitIds, ...inferredIds]);
   if (interestIds.size === 0) return [];
 
   // 2. open 챌린지 중 관심 매칭 + 본인 미참여
@@ -410,6 +425,12 @@ export async function fetchInterestingOpenChallenges(
       const members = c.challenge_members ?? [];
       const isJoined = members.some((m: any) => m.user_id === userId && m.gave_up_at === null);
       return !isJoined;
+    })
+    // 2-티어 정렬: 명시 관심 매칭 먼저, 추론 매칭 뒤로 (안정 정렬이라 티어 내 최신순 유지)
+    .sort((a: any, b: any) => {
+      const tierA = explicitIds.has(a.category_id) ? 0 : 1;
+      const tierB = explicitIds.has(b.category_id) ? 0 : 1;
+      return tierA - tierB;
     })
     .slice(0, limit)
     .map((c: any) => {

@@ -152,9 +152,14 @@ export default function HomeScreen() {
       }
 
       setCompletions(recentDone);
-      // 오늘 인증한 동료만 (당일 날짜 매칭)
-      const today = new Date().toISOString().slice(0, 10);
-      setTodayProofs(fellows.filter(p => p.created_at.slice(0, 10) === today).slice(0, 5));
+      // 오늘 인증한 동료만 (KST 당일 범위 매칭)
+      const { startUtc, endUtc } = getKstTodayRange();
+      const dayStartMs = Date.parse(startUtc);
+      const dayEndMs = Date.parse(endUtc);
+      setTodayProofs(fellows.filter(p => {
+        const t = Date.parse(p.created_at);
+        return t >= dayStartMs && t < dayEndMs;
+      }).slice(0, 5));
       
       // 🚀 클라이언트 단 더블 가드 필터링: 이미 가입하고 포기 안 한 내 챌린지 제외
       const myActiveChIds = new Set(mine.filter(c => c.gave_up_at === null).map(c => c.id));
@@ -185,6 +190,14 @@ export default function HomeScreen() {
   const todayStr = getKstTodayRange().kstDateStr;
   const activeChs   = myChs.filter(c => todayStr <= c.end_date);
   const finishedChs = myChs.filter(c => todayStr >  c.end_date);
+
+  // 🚀 홈 노출 상한 — 참여 방이 많아도 홈 스크롤 폭증 방지 (전체는 내도전 탭에서)
+  const HOME_ACTIVE_LIMIT = 5;
+  const HOME_FINISHED_LIMIT = 3;
+  const visibleActiveChs = [...activeChs]
+    .sort((a, b) => Number(a.is_today_checked) - Number(b.is_today_checked))   // 미인증 먼저 (오늘 할 일 우선)
+    .slice(0, HOME_ACTIVE_LIMIT);
+  const visibleFinishedChs = finishedChs.slice(0, HOME_FINISHED_LIMIT);
 
   // 🚀 미인증 챌린지 (인증 의무 있는 것만 — cheered 응원자는 제외)
   const uncheckedChs = activeChs.filter(c =>
@@ -234,7 +247,7 @@ export default function HomeScreen() {
           <Text style={styles.sectionLabel}>오늘, 나의 도전</Text>
           {activeChs.length > 0 ? (
             <View style={styles.myChallengeList}>
-              {activeChs.map(c => {
+              {visibleActiveChs.map(c => {
                 const ddayText = getChallengeDDay(c.start_date, c.end_date);
                 let km = KIND_META[c.kind] ?? KIND_META.solo;
                 if (c.kind === 'cheered') {
@@ -290,6 +303,15 @@ export default function HomeScreen() {
                   </View>
                 );
               })}
+              {/* 상한 초과분은 내도전 탭으로 — 홈 스크롤 폭증 방지 */}
+              {activeChs.length > HOME_ACTIVE_LIMIT && (
+                <Pressable
+                  style={styles.moreLink}
+                  onPress={() => { haptic.tap(); router.push('/(tabs)/my-challenges' as any); }}
+                >
+                  <Text style={styles.moreLinkText}>내 도전 {activeChs.length}개 모두 보기 →</Text>
+                </Pressable>
+              )}
             </View>
           ) : (
             /* 빈 상태 카드 — 본인 도전 0개 */
@@ -313,7 +335,7 @@ export default function HomeScreen() {
             <>
               <Text style={[styles.sectionLabel, { marginTop: 24 }]}>🏆 끝낸 도전</Text>
               <View style={styles.myChallengeList}>
-                {finishedChs.map(c => (
+                {visibleFinishedChs.map(c => (
                   <Pressable
                     key={c.id}
                     style={[styles.myChallengeCard, { opacity: 0.85 }]}
@@ -332,6 +354,14 @@ export default function HomeScreen() {
                     <Text style={styles.quickCheckedText}>박제 →</Text>
                   </Pressable>
                 ))}
+                {finishedChs.length > HOME_FINISHED_LIMIT && (
+                  <Pressable
+                    style={styles.moreLink}
+                    onPress={() => { haptic.tap(); router.push('/(tabs)/my-challenges' as any); }}
+                  >
+                    <Text style={styles.moreLinkText}>끝낸 도전 {finishedChs.length}개 모두 보기 →</Text>
+                  </Pressable>
+                )}
               </View>
             </>
           )}
@@ -1046,6 +1076,20 @@ const styles = StyleSheet.create({
   endLine2: {
     fontSize: fontSize.xs, color: colors.primary500,
     fontFamily: fontFamily.regular,
+  },
+
+  // 홈 섹션 상한 초과 시 "모두 보기" 링크
+  moreLink: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    backgroundColor: colors.primary50,
+    borderRadius: radius.lg,
+  },
+  moreLinkText: {
+    fontSize: fontSize.sm,
+    color: colors.primary700,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.semibold,
   },
 
   // 🚀 미인증 챌린지 선택 모달
