@@ -1,12 +1,14 @@
 // 🚀 기록 댓글 시트 — log 1건의 댓글 목록 + 입력
 // CommentsSheet (인증 댓글) 패턴 그대로, 테이블만 log_comments.
 // solo 방은 LogTab 에서 부르지 않음 (분류별 제한).
+//
+// 키보드 가림 fix: fullscreen modal + Keyboard 리스너 + 동적 inputBar paddingBottom (ChatTab 패턴).
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Modal, View, Text, Pressable, TextInput, FlatList, StyleSheet,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Image,
+  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Image, Keyboard,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import {
   fetchLogComments, addLogComment, updateLogComment, deleteLogComment,
@@ -29,6 +31,17 @@ export function LogCommentsSheet({ logId, myUserId, onClose, onCountChange }: Pr
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);   // 수정 모드 (v2.2)
+  const [isKbVisible, setIsKbVisible] = useState(false);
+  const insets = useSafeAreaInsets();
+
+  // 키보드 표시/숨김 추적 — inputBar paddingBottom 동적 조절
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const s1 = Keyboard.addListener(showEvt, () => setIsKbVisible(true));
+    const s2 = Keyboard.addListener(hideEvt, () => setIsKbVisible(false));
+    return () => { s1.remove(); s2.remove(); };
+  }, []);
 
   const load = useCallback(async (lid: string) => {
     try {
@@ -50,8 +63,9 @@ export function LogCommentsSheet({ logId, myUserId, onClose, onCountChange }: Pr
   // Realtime: 다른 사람 댓글 즉시 반영
   useEffect(() => {
     if (!logId) return;
+    // 인스턴스별 유니크 채널 이름 — 동일 토픽 이중 구독 충돌 방지 (ChatTab 패턴)
     const channel = supabase
-      .channel(`log_comments:${logId}`)
+      .channel(`log_comments:${logId}:${Math.random().toString(36).slice(2, 8)}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'log_comments', filter: `log_id=eq.${logId}` },
@@ -137,10 +151,10 @@ export function LogCommentsSheet({ logId, myUserId, onClose, onCountChange }: Pr
     <Modal
       visible={logId !== null}
       animationType="slide"
-      presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      {/* SafeAreaView 가 Modal 안에서 inset 못 잡는 케이스 → View + paddingTop 직접 적용 */}
+      <View style={[styles.safe, { paddingTop: insets.top }]}>
         <View style={styles.header}>
           <View style={{ width: 44 }} />
           <Text style={styles.title}>기록 댓글</Text>
@@ -151,7 +165,8 @@ export function LogCommentsSheet({ logId, myUserId, onClose, onCountChange }: Pr
 
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={0}
         >
           {loading ? (
             <View style={styles.center}><ActivityIndicator color={colors.accent} /></View>
@@ -186,7 +201,14 @@ export function LogCommentsSheet({ logId, myUserId, onClose, onCountChange }: Pr
               </Pressable>
             </View>
           )}
-          <View style={styles.inputBar}>
+          <View style={[
+            styles.inputBar,
+            {
+              paddingBottom: (Platform.OS === 'ios' && !isKbVisible && insets.bottom > 0)
+                ? insets.bottom
+                : 8
+            }
+          ]}>
             <TextInput
               value={text}
               onChangeText={setText}
@@ -211,7 +233,7 @@ export function LogCommentsSheet({ logId, myUserId, onClose, onCountChange }: Pr
             </Pressable>
           </View>
         </KeyboardAvoidingView>
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 }
@@ -292,7 +314,7 @@ const styles = StyleSheet.create({
   },
   time: {
     fontSize: fontSize.xs,
-    color: colors.primary300,
+    color: colors.primary500,
     fontFamily: fontFamily.regular,
   },
   content: {
@@ -303,7 +325,7 @@ const styles = StyleSheet.create({
   },
   deleteHint: {
     fontSize: fontSize.xs,
-    color: colors.primary300,
+    color: colors.primary500,
     fontFamily: fontFamily.regular,
     marginTop: 2,
   },

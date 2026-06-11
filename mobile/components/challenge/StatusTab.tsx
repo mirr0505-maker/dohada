@@ -45,6 +45,25 @@ export function StatusTab({ challenge, members, proofs, myUserId }: Props) {
       data={sorted}
       keyExtractor={r => r.member.id}
       contentContainerStyle={styles.list}
+      ListHeaderComponent={
+        <View style={styles.infoCard}>
+          <View style={styles.infoCardHeader}>
+            <Text style={styles.infoKindTag}>
+              {challenge.kind === 'solo' ? '🤫 나혼자' : challenge.kind === 'cheered' ? '🙋 응원받기' : '🌍 누구나'}
+            </Text>
+            <Text style={styles.infoPeriod}>
+              🗓️ {formatDate(challenge.start_date)} ~ {formatDate(challenge.end_date)}
+            </Text>
+          </View>
+          <Text style={styles.infoTitle}>{challenge.title}</Text>
+          {challenge.invitation_message && challenge.invitation_message.trim() !== '' ? (
+            <View style={styles.infoMessageWrap}>
+              <Text style={styles.infoMessageLabel}>📨 초대 편지글</Text>
+              <Text style={styles.infoMessageText}>{challenge.invitation_message}</Text>
+            </View>
+          ) : null}
+        </View>
+      }
       renderItem={({ item }) => (
         <StatusCard
           row={item}
@@ -60,6 +79,11 @@ export function StatusTab({ challenge, members, proofs, myUserId }: Props) {
       }
     />
   );
+}
+
+function formatDate(dateStr: string): string {
+  if (!dateStr) return '';
+  return dateStr.replace(/-/g, '.');
 }
 
 function StatusCard({
@@ -210,5 +234,63 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: fontSize.base, color: colors.primary500,
     fontFamily: fontFamily.regular, textAlign: 'center',
+  },
+  infoCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: 16,
+    marginBottom: 16,
+    gap: 10,
+    ...shadow.sm,
+  },
+  infoCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  infoKindTag: {
+    fontSize: fontSize.xs,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    color: colors.accent,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: colors.accent50,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
+  infoPeriod: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+  },
+  infoTitle: {
+    fontSize: fontSize.lg,
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    lineHeight: 24,
+  },
+  infoMessageWrap: {
+    marginTop: 6,
+    padding: 10,
+    backgroundColor: colors.primary50,
+    borderRadius: radius.lg,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.accent,
+  },
+  infoMessageLabel: {
+    fontSize: fontSize.xs,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
+    marginBottom: 4,
+  },
+  infoMessageText: {
+    fontSize: fontSize.sm,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+    lineHeight: 18,
   },
 });

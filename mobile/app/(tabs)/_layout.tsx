@@ -2,16 +2,40 @@
 // 탭: 홈 (피드) / 내도전 / + (가운데 큰 버튼) / 기록 / 해냈어요
 // + 탭은 listener 로 /create 모달 트리거.
 // profile 탭 제거 — MY 는 우상단 아바타로 일원화 (AppHeader).
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Tabs, router } from 'expo-router';
 import { Text, View, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
 import { colors, fontFamily, fontSize, fontWeight, shadow } from '@/lib/tokens';
 import { haptic } from '@/lib/haptics';
+import { fetchLatestPublicStoryAt } from '@/lib/db';
 
 const TAB_ICON_SIZE = 24;
+const DONE_SEEN_KEY = 'done_stories_seen_at';   // 해냈어요 탭 마지막 확인 시각 (디바이스 로컬)
 
 export default function TabsLayout() {
+  // 🚀 해냈어요 dot — 마지막 확인 이후 새 공개 완주 이야기가 있을 때만 (가짜 dot 금지)
+  const [doneDotVisible, setDoneDotVisible] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const latest = await fetchLatestPublicStoryAt();
+        if (!latest) return;
+        const seen = await SecureStore.getItemAsync(DONE_SEEN_KEY);
+        if (!seen || Date.parse(latest) > Date.parse(seen)) setDoneDotVisible(true);
+      } catch {
+        // 조회 실패 시 dot 표시 안 함 (가짜 알림 방지 우선)
+      }
+    })();
+  }, []);
+
+  const markDoneSeen = () => {
+    setDoneDotVisible(false);
+    SecureStore.setItemAsync(DONE_SEEN_KEY, new Date().toISOString()).catch(() => {});
+  };
+
   return (
     <Tabs
       screenOptions={{
@@ -96,8 +120,8 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'trophy' : 'trophy-outline'} size={TAB_ICON_SIZE} color={color} />
           ),
-          // 🚀 알림 뱃지 데모 (조용한 알림 Dot)
-          tabBarBadge: '',
+          // 🚀 조용한 알림 Dot — 새 공개 완주 이야기가 있을 때만 (탭하면 해제)
+          tabBarBadge: doneDotVisible ? '' : undefined,
           tabBarBadgeStyle: {
             backgroundColor: colors.accent,
             width: 6,
@@ -108,6 +132,9 @@ export default function TabsLayout() {
             lineHeight: 0,
             marginTop: Platform.OS === 'ios' ? 2 : 0,
           },
+        }}
+        listeners={{
+          tabPress: markDoneSeen,
         }}
       />
       {/* discover / profile 은 v2.5 에서 탭 X — 라우트는 직접 접근 가능 유지 */}

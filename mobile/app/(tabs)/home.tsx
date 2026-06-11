@@ -28,7 +28,7 @@ import { ChallengeCardSkeleton } from '@/components/Skeleton';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import type { CompletionStoryCard, OpenChallengeCard } from '@/lib/types';
-import { getChallengeDDay } from '@/lib/format';
+import { getChallengeDDay, getKstTodayRange } from '@/lib/format';
 
 // ─── 🚀 오늘 나의 도전용 헬퍼 및 메타 ─────────────────
 const KIND_META: Record<string, { label: string; bg: string; text: string }> = {
@@ -181,6 +181,11 @@ export default function HomeScreen() {
   const totalCount = myChs.length;
   const cheeredRooms = myChs.filter(c => c.kind === 'cheered' && c.creator_id !== myUserId);
 
+  // 🚀 P-⑤: 진행 중 vs 종료된 챌린지 분리 (KST 자정 기준).
+  const todayStr = getKstTodayRange().kstDateStr;
+  const activeChs   = myChs.filter(c => todayStr <= c.end_date);
+  const finishedChs = myChs.filter(c => todayStr >  c.end_date);
+
   // 오늘 인증 액션 — 미인증 챌린지 1개면 즉시, 여러개면 내도전 탭
   const onCheckinAction = () => {
     haptic.tap();
@@ -211,11 +216,11 @@ export default function HomeScreen() {
           }
           showsVerticalScrollIndicator={false}
         >
-          {/* [구조 1] 오늘, 나의 도전 섹션 */}
+          {/* [구조 1] 오늘, 나의 도전 섹션 — 진행 중만 노출 */}
           <Text style={styles.sectionLabel}>오늘, 나의 도전</Text>
-          {totalCount > 0 ? (
+          {activeChs.length > 0 ? (
             <View style={styles.myChallengeList}>
-              {myChs.map(c => {
+              {activeChs.map(c => {
                 const ddayText = getChallengeDDay(c.start_date, c.end_date);
                 let km = KIND_META[c.kind] ?? KIND_META.solo;
                 if (c.kind === 'cheered') {
@@ -231,11 +236,11 @@ export default function HomeScreen() {
                       <View style={styles.myChallengeMetaRow}>
                         {/* 1. 개설/참여 역할 뱃지 */}
                         <View style={[
-                          styles.metaBadge, 
+                          styles.metaBadge,
                           { backgroundColor: c.creator_id === myUserId ? colors.accent50 : colors.primary50 }
                         ]}>
                           <Text style={[
-                            styles.metaBadgeText, 
+                            styles.metaBadgeText,
                             { color: c.creator_id === myUserId ? colors.accent700 : colors.primary500 }
                           ]}>
                             {c.creator_id === myUserId ? '👑 개설' : '👥 참여'}
@@ -287,6 +292,34 @@ export default function HomeScreen() {
                 <Text style={styles.emptyCtaText}>+ 첫 도전 선언하기</Text>
               </View>
             </Pressable>
+          )}
+
+          {/* 🚀 P-⑤ 종료된 도전 분리 섹션 — 박제·회고용 */}
+          {finishedChs.length > 0 && (
+            <>
+              <Text style={[styles.sectionLabel, { marginTop: 24 }]}>🏆 끝낸 도전</Text>
+              <View style={styles.myChallengeList}>
+                {finishedChs.map(c => (
+                  <Pressable
+                    key={c.id}
+                    style={[styles.myChallengeCard, { opacity: 0.85 }]}
+                    onPress={() => { haptic.tap(); router.push(`/room/${c.id}?tab=archive` as any); }}
+                  >
+                    <View style={styles.myChallengeInfo}>
+                      <Text style={styles.myChallengeTitle} numberOfLines={1}>{c.title}</Text>
+                      <View style={styles.myChallengeMetaRow}>
+                        <View style={[styles.metaBadge, { backgroundColor: colors.primary100 }]}>
+                          <Text style={[styles.metaBadgeText, { color: colors.primary700 }]}>
+                            🏁 종료 · {c.start_date.slice(5)}~{c.end_date.slice(5)}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                    <Text style={styles.quickCheckedText}>박제 →</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </>
           )}
 
           {/* [구조 2] 오늘, 도전 인연들의 하루 섹션 */}
@@ -791,7 +824,7 @@ const styles = StyleSheet.create({
   },
   quietSubText: {
     fontSize: 11,
-    color: colors.primary300,
+    color: colors.primary500,
     fontFamily: fontFamily.regular,
   },
 
@@ -961,7 +994,7 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.bold, fontWeight: fontWeight.semibold,
   },
   endLine2: {
-    fontSize: fontSize.xs, color: colors.primary300,
+    fontSize: fontSize.xs, color: colors.primary500,
     fontFamily: fontFamily.regular,
   },
 });

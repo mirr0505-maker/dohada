@@ -6,7 +6,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, Pressable, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
-import { computeProgress } from '@/lib/stats';
+import { computeProgress, isCompleted, isFinished } from '@/lib/stats';
 import { haptic } from '@/lib/haptics';
 import type { DbChallenge, ProofWithRelations } from '@/lib/types';
 
@@ -23,14 +23,26 @@ type Props = {
   proofs: ProofWithRelations[];
   totalCheers: number;
   totalLogs: number;
+  myUserId: string | undefined;
 };
 
-export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs }: Props) {
-  const today = new Date().toISOString().slice(0, 10);
-  const isFinished = today > challenge.end_date;
-  const progress = useMemo(() => computeProgress(challenge), [challenge]);
+export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs, myUserId }: Props) {
+  // 🚀 P-③: isFinished 만 보던 분기를 성공/실패로 세분화.
+  //   진행 중     → 박제 안내 placeholder
+  //   실패한 종료 → 인증 타임라인은 그대로 노출 (회고), "완주 이야기 공유" X + 격려 메시지
+  //   완주       → 박제 카드 + "완주 이야기 공유" 버튼
+  // 완주 판정·통계 주체 — cheered 방은 도전 주체가 개설자 1명 (응원자는 인증 의무 없음).
+  // 응원자 본인 인증 기준으로 판정하면 항상 "실패" 톤이 되므로 도전자(개설자) 기준 사용.
+  const subjectUserId = challenge.kind === 'cheered' ? challenge.creator_id : myUserId;
+  const subjectProofs = useMemo(
+    () => proofs.filter(p => p.user_id === subjectUserId),
+    [proofs, subjectUserId],
+  );
+  const finished  = isFinished(challenge);
+  const completed = isCompleted(challenge, subjectProofs);
+  const progress  = useMemo(() => computeProgress(challenge), [challenge]);
 
-  if (!isFinished) {
+  if (!finished) {
     return (
       <FlatList
         data={[]}
@@ -74,7 +86,7 @@ export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs }: Props)
       contentContainerStyle={styles.archiveBody}
       ListHeaderComponent={
         <View style={styles.hero}>
-          <Text style={styles.heroTrophy}>🏆</Text>
+          <Text style={styles.heroTrophy}>{completed ? '🏆' : '🏁'}</Text>
           <Text style={styles.heroTitle}>{challenge.title}</Text>
           <Text style={styles.heroMeta}>
             {challenge.start_date} ~ {challenge.end_date}
@@ -82,10 +94,10 @@ export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs }: Props)
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Text style={styles.statNum}>{progress.totalDays}</Text>
-              <Text style={styles.statLabel}>일 완주</Text>
+              <Text style={styles.statLabel}>{completed ? '일 완주' : '일 도전'}</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statNum}>{proofs.length}</Text>
+              <Text style={styles.statNum}>{subjectProofs.length}</Text>
               <Text style={styles.statLabel}>인증샷</Text>
             </View>
             <View style={styles.statItem}>
@@ -97,23 +109,39 @@ export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs }: Props)
               <Text style={styles.statLabel}>기록</Text>
             </View>
           </View>
-          <Text style={styles.heroMessage}>
-            도전, 그냥 하다.{'\n'}더 나은 나, 더 나은 세상.
-          </Text>
 
-          {/* v2.5 — 완주 이야기 공유 (해냈어요 진입점) */}
-          <Pressable
-            style={styles.shareBtn}
-            onPress={() => {
-              haptic.tap();
-              router.push(`/done/new?challengeId=${challenge.id}` as any);
-            }}
-          >
-            <Text style={styles.shareBtnText}>✍️ 완주 이야기 공유하기</Text>
-          </Pressable>
-          <Text style={styles.shareBtnHint}>
-            줄세우기 X · 서로에게 용기를 주는 증언
-          </Text>
+          {completed ? (
+            <>
+              <Text style={styles.heroMessage}>
+                도전, 그냥 하다.{'\n'}더 나은 나, 더 나은 세상.
+              </Text>
+              {/* 완주 이야기 작성은 도전 주체만 — cheered 방 응원자는 축하 톤만 보고 작성 X */}
+              {myUserId === subjectUserId && (
+                <>
+                  <Pressable
+                    style={styles.shareBtn}
+                    onPress={() => {
+                      haptic.tap();
+                      router.push(`/done/new?challengeId=${challenge.id}` as any);
+                    }}
+                  >
+                    <Text style={styles.shareBtnText}>✍️ 완주 이야기 공유하기</Text>
+                  </Pressable>
+                  <Text style={styles.shareBtnHint}>
+                    줄세우기 X · 서로에게 용기를 주는 증언
+                  </Text>
+                </>
+              )}
+            </>
+          ) : (
+            <View style={styles.failBox}>
+              <Text style={styles.failTitle}>도전이 종료되었어요</Text>
+              <Text style={styles.failDesc}>
+                완주 기준에 못 닿았지만, 시작한 것 자체가 한 걸음이에요.{'\n'}
+                남긴 인증·기록은 그대로 박제됩니다.
+              </Text>
+            </View>
+          )}
 
           <ArchiveTiersCard />
 
@@ -210,7 +238,7 @@ const styles = StyleSheet.create({
   },
   previewFootnote: {
     fontSize: fontSize.xs,
-    color: colors.primary300,
+    color: colors.primary500,
     fontFamily: fontFamily.regular,
     marginTop: 8,
     lineHeight: 16,
@@ -257,13 +285,13 @@ const styles = StyleSheet.create({
   },
   tierPrice: {
     fontSize: fontSize.sm,
-    color: colors.primary300,
+    color: colors.primary500,
     fontFamily: fontFamily.medium,
     fontWeight: fontWeight.medium,
   },
   tiersFootnote: {
     fontSize: fontSize.xs,
-    color: colors.primary300,
+    color: colors.primary500,
     fontFamily: fontFamily.regular,
     marginTop: 12,
     lineHeight: 16,
@@ -293,6 +321,32 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.regular,
     marginTop: 6,
     textAlign: 'center',
+  },
+
+  // 실패 분기 박스 (P-③)
+  failBox: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: colors.primary50,
+    borderRadius: radius.lg,
+    width: '100%',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.primary100,
+  },
+  failTitle: {
+    fontSize: fontSize.base,
+    color: colors.primary700,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    marginBottom: 6,
+  },
+  failDesc: {
+    fontSize: fontSize.sm,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 
   // 완주 후

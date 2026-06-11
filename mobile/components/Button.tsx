@@ -1,6 +1,6 @@
 // 🚀 공통 버튼 — prototype HTML 의 .btn 시리즈 변환
 import React from 'react';
-import { Pressable, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import { Pressable, Text, StyleSheet, ViewStyle, TextStyle, ActivityIndicator } from 'react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 
 type Variant = 'primary' | 'secondary' | 'outline' | 'ghost';
@@ -13,6 +13,7 @@ type Props = {
   size?: Size;
   block?: boolean;       // 가로 가득 채움
   disabled?: boolean;
+  loading?: boolean;     // 비동기 작업 중 — 스피너 표시 + 중복 탭 차단
   leftIcon?: React.ReactNode;
   style?: ViewStyle;
 };
@@ -24,9 +25,11 @@ export function Button({
   size = 'lg',
   block = false,
   disabled = false,
+  loading = false,
   leftIcon,
   style,
 }: Props) {
+  const isDisabled = disabled || loading;
   const containerStyle: ViewStyle = {
     ...styles.base,
     ...sizeMap[size].container,
@@ -42,14 +45,20 @@ export function Button({
 
   return (
     <Pressable
-      onPress={disabled ? undefined : onPress}
+      onPress={isDisabled ? undefined : onPress}
       style={({ pressed }) => [
         containerStyle,
-        pressed && !disabled ? { opacity: 0.85 } : null,
+        pressed && !isDisabled ? { opacity: 0.85 } : null,
       ]}
     >
-      {leftIcon}
-      <Text style={labelStyle}>{label}</Text>
+      {loading ? (
+        <ActivityIndicator size="small" color={labelStyle.color as string} />
+      ) : (
+        <>
+          {leftIcon}
+          <Text style={labelStyle}>{label}</Text>
+        </>
+      )}
     </Pressable>
   );
 }
@@ -61,6 +70,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     borderRadius: radius.lg,
+    minHeight: 44,   // Apple HIG 최소 터치 타깃 (44pt)
   },
 });
 

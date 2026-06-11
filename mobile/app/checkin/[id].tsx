@@ -15,6 +15,7 @@ import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { uploadProofImage } from '@/lib/upload';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { haptic } from '@/lib/haptics';
+import { getKstTodayRange } from '@/lib/format';
 import type { ChallengeKind } from '@/lib/types';
 
 export default function CheckinScreen() {
@@ -29,11 +30,21 @@ export default function CheckinScreen() {
   const [challengeKind, setChallengeKind] = useState<ChallengeKind | null>(null);   // 인증 완료 메시지 분류별 분기
 
   // 진입 시 challenge.kind 한 번 fetch — 분류별 톤
+  // + 종료된 챌린지 인증 차단 (DB 0024 RLS 와 이중 방어 — raw 에러 대신 친절한 안내)
   useEffect(() => {
     if (!id || !isSupabaseConfigured) return;
-    supabase.from('challenges').select('kind').eq('id', id).single()
+    supabase.from('challenges').select('kind, end_date').eq('id', id).single()
       .then(({ data }) => {
-        if (data?.kind) setChallengeKind(data.kind as ChallengeKind);
+        if (!data) return;
+        if (data.kind) setChallengeKind(data.kind as ChallengeKind);
+        if (data.end_date && getKstTodayRange().kstDateStr > data.end_date) {
+          Alert.alert(
+            '도전 종료',
+            '이미 종료된 도전이에요.\n남긴 인증은 챌린지방 박제 탭에서 볼 수 있어요.',
+            [{ text: '확인', onPress: () => router.back() }],
+            { cancelable: false },
+          );
+        }
       });
   }, [id]);
 
@@ -293,7 +304,7 @@ const styles = StyleSheet.create({
   },
   retake: { paddingVertical: 12, alignItems: 'center' },
   retakeText: {
-    color: colors.primary300,
+    color: colors.primary500,
     fontSize: fontSize.base,
     fontFamily: fontFamily.medium,
   },
@@ -310,7 +321,7 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.medium,
   },
   libHint: {
-    color: colors.primary300,
+    color: colors.primary500,
     fontSize: fontSize.xs,
     fontFamily: fontFamily.regular,
   },
@@ -344,7 +355,7 @@ const styles = StyleSheet.create({
   },
   permDesc: {
     fontSize: fontSize.sm,
-    color: colors.primary300,
+    color: colors.primary500,
     fontFamily: fontFamily.regular,
     textAlign: 'center',
     lineHeight: 20,

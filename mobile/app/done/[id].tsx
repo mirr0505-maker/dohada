@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.medium, fontWeight: fontWeight.medium,
   },
   courageHint: {
-    fontSize: fontSize.xs, color: colors.primary300,
+    fontSize: fontSize.xs, color: colors.primary500,
     fontFamily: fontFamily.regular,
   },
 

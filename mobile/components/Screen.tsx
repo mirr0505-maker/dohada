@@ -1,7 +1,7 @@
 // 🚀 공통 화면 래퍼 — SafeArea + background 컬러 처리
 import React from 'react';
 import { View, StyleSheet, ViewStyle, StatusBar } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets, Edge } from 'react-native-safe-area-context';
 import { colors } from '@/lib/tokens';
 
 type Props = {
@@ -12,6 +12,7 @@ type Props = {
   // 상태바 컬러: 'dark' = 검은 글씨 (밝은 배경), 'light' = 흰 글씨 (어두운 배경)
   statusBarStyle?: 'dark' | 'light';
   style?: ViewStyle;
+  edges?: Edge[];
 };
 
 export function Screen({
@@ -20,6 +21,7 @@ export function Screen({
   backgroundColor = colors.background,
   statusBarStyle = 'dark',
   style,
+  edges = ['top', 'bottom'],
 }: Props) {
   const insets = useSafeAreaInsets();
 
@@ -37,7 +39,7 @@ export function Screen({
   }
 
   return (
-    <SafeAreaView style={[styles.full, { backgroundColor }, style]} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.full, { backgroundColor }, style]} edges={edges}>
       <StatusBar
         barStyle={statusBarStyle === 'dark' ? 'dark-content' : 'light-content'}
         backgroundColor={backgroundColor}

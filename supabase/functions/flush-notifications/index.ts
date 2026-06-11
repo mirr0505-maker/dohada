@@ -8,7 +8,7 @@
 //   1. 묶음 + 지연 — cheer_batch / log_like_batch 은 scheduled_for 가 1시간 미래.
 //      이 시간이 되면 같은 (user_id, kind, proof_id|log_id) 그룹을 한 건으로 합쳐 발송.
 //   2. 즉시 — chat / comment / log_comment 은 scheduled_for = now(). 즉시 처리.
-//   3. 조용한 시간 (22-8 KST) — 그 시간에 fall 한 알림은 8시 정각 묶음으로 미룸.
+//   3. 조용한 시간 (22-6 KST) — 그 시간에 fall 한 알림은 아침 6시 정각 묶음으로 미룸.
 //   4. 일별 상한 — 사용자당 24h 내 5건. 초과는 다음날로 미룸.
 //      (P1-8 보정: 그룹화된 묶음은 N건이라도 발송 1건으로 카운트)
 //
@@ -49,9 +49,9 @@ Deno.serve(async (req) => {
   const nowUtc = new Date();
   const nowKst = new Date(nowUtc.getTime() + KST_OFFSET_MIN * 60_000);
   const kstHour = nowKst.getUTCHours();   // KST 시 (now+9 가 UTCHours 가 됨)
-  const isQuiet = kstHour >= 22 || kstHour < 8;
-  // 8시 정각엔 quiet 끝 묶음 발송 OK. 22시는 진입 시각.
-  // → quiet 인 동안에는 모든 알림을 8시로 reschedule.
+  const isQuiet = kstHour >= 22 || kstHour < 6;
+  // 6시 정각엔 quiet 끝 묶음 발송 OK. 22시는 진입 시각.
+  // → quiet 인 동안에는 모든 알림을 아침 6시로 reschedule.
 
   // 1. scheduled_for <= now & sent_at IS NULL 가져옴
   const { data: pending, error: pErr } = await supabase
@@ -70,11 +70,11 @@ Deno.serve(async (req) => {
 
   // 2. 조용시간이면 모두 다음 8시 KST 로 reschedule
   if (isQuiet) {
-    const next8 = nextKst8AM(nowKst);
-    const next8Utc = new Date(next8.getTime() - KST_OFFSET_MIN * 60_000);
+    const next6 = nextKst6AM(nowKst);
+    const next6Utc = new Date(next6.getTime() - KST_OFFSET_MIN * 60_000);
     await supabase
       .from('notification_queue')
-      .update({ scheduled_for: next8Utc.toISOString() })
+      .update({ scheduled_for: next6Utc.toISOString() })
       .in('id', pending.map(p => p.id));
     return new Response(JSON.stringify({ rescheduled: pending.length, reason: 'quiet_hours' }), { status: 200 });
   }
@@ -148,9 +148,9 @@ Deno.serve(async (req) => {
     // 일별 상한
     const left = dailyLeft.get(head.user_id) ?? 0;
     if (left <= 0) {
-      // 다음날 8시로 reschedule (in-app badge 만)
+      // 다음날 아침 6시로 reschedule (in-app badge 만)
       await supabase.from('notification_queue').update({
-        scheduled_for: tomorrowKst8Iso(nowKst),
+        scheduled_for: tomorrowKst6Iso(nowKst),
       }).in('id', rows.map(r => r.id));
       continue;
     }
@@ -213,6 +213,7 @@ function checkPref(kind: string, prefs: any): boolean {
   if (kind === 'chat') return prefs.chat_enabled !== false;
   if (kind === 'comment' || kind === 'log_comment') return prefs.comment_enabled !== false;
   if (kind === 'cheer_batch' || kind === 'log_like_batch') return prefs.cheer_batch_enabled !== false;
+  if (kind === 'proof' || kind === 'log') return prefs.proof_log_enabled !== false;   // 0027 토글
   return true;
 }
 
@@ -233,26 +234,28 @@ function composeMessage(kind: string, rows: any[]): { title: string; body: strin
   if (kind === 'chat')        return { title: '새 대화', body: head.preview ?? '동료가 메시지를 남겼어요' };
   if (kind === 'comment')     return { title: '인증에 댓글', body: head.preview ?? '동료가 댓글을 남겼어요' };
   if (kind === 'log_comment') return { title: '기록에 댓글', body: head.preview ?? '동료가 댓글을 남겼어요' };
+  if (kind === 'proof')       return { title: '📸 동료 인증', body: head.preview ?? '동료가 오늘 인증을 남겼어요' };
+  if (kind === 'log')         return { title: '🎥 새 기록', body: head.preview ?? '동료가 새 기록을 남겼어요' };
   return { title: 'Do : 하다', body: head.preview ?? '' };
 }
 
-function nextKst8AM(nowKst: Date): Date {
-  // nowKst 가 22-24 또는 0-8 이면 다음 8시 KST 반환
+function nextKst6AM(nowKst: Date): Date {
+  // nowKst 가 22-24 또는 0-6 이면 다음 아침 6시 KST 반환
   const k = new Date(nowKst.getTime());
   k.setUTCMinutes(0, 0, 0);
-  if (k.getUTCHours() < 8) {
-    k.setUTCHours(8);
+  if (k.getUTCHours() < 6) {
+    k.setUTCHours(6);
   } else {
     k.setUTCDate(k.getUTCDate() + 1);
-    k.setUTCHours(8);
+    k.setUTCHours(6);
   }
   return k;   // 이 값 자체는 UTC 시각이 아니라 'KST 를 UTC 처럼 다룬' 값
 }
 
-function tomorrowKst8Iso(nowKst: Date): string {
+function tomorrowKst6Iso(nowKst: Date): string {
   const k = new Date(nowKst.getTime());
   k.setUTCDate(k.getUTCDate() + 1);
-  k.setUTCHours(8, 0, 0, 0);
+  k.setUTCHours(6, 0, 0, 0);
   const utc = new Date(k.getTime() - KST_OFFSET_MIN * 60_000);
   return utc.toISOString();
 }

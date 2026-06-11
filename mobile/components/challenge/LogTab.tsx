@@ -53,8 +53,9 @@ export function LogTab({
   // Realtime
   useEffect(() => {
     if (!challengeId) return;
+    // 인스턴스별 유니크 채널 이름 — 같은 방 두 mount 시 동일 토픽 충돌 방지 (ChatTab 패턴)
     const channel = supabase
-      .channel(`logs:${challengeId}`)
+      .channel(`logs:${challengeId}:${Math.random().toString(36).slice(2, 8)}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'logs', filter: `challenge_id=eq.${challengeId}` },
@@ -548,7 +549,7 @@ const styles = StyleSheet.create({
   },
   counter: {
     fontSize: fontSize.xs,
-    color: colors.primary300,
+    color: colors.primary500,
     textAlign: 'right',
     paddingBottom: 16,
   },

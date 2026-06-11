@@ -1,11 +1,15 @@
 // 🚀 댓글 시트 — 인증 1건의 댓글 목록 + 입력
 // room/[id].tsx 가 sheet 열기 상태를 관리하고, proofId 와 onClose 만 넘김.
+//
+// 키보드 가림 이슈 (베타 발견):
+//   AS-IS pageSheet + KeyboardAvoidingView(padding) → iOS pageSheet 안에서 RN 의 KAV 가 정상 동작 안 함 (known issue).
+//   TO-BE fullscreen modal + ChatTab 검증 패턴(Keyboard 리스너 + 동적 inputBar paddingBottom).
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Modal, View, Text, Pressable, TextInput, FlatList, StyleSheet,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Image,
+  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Image, Keyboard,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { fetchComments, addComment, deleteComment } from '@/lib/db';
 import { supabase } from '@/lib/supabase';
@@ -26,6 +30,17 @@ export function CommentsSheet({ proofId, myUserId, onClose, onCountChange }: Pro
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [isKbVisible, setIsKbVisible] = useState(false);
+  const insets = useSafeAreaInsets();
+
+  // 키보드 표시/숨김 추적 — inputBar paddingBottom 동적 조절용
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const s1 = Keyboard.addListener(showEvt, () => setIsKbVisible(true));
+    const s2 = Keyboard.addListener(hideEvt, () => setIsKbVisible(false));
+    return () => { s1.remove(); s2.remove(); };
+  }, []);
 
   const load = useCallback(async (pid: string) => {
     try {
@@ -47,8 +62,9 @@ export function CommentsSheet({ proofId, myUserId, onClose, onCountChange }: Pro
   // Realtime: 다른 사람 댓글 즉시 반영
   useEffect(() => {
     if (!proofId) return;
+    // 인스턴스별 유니크 채널 이름 — 동일 토픽 이중 구독 충돌 방지 (ChatTab 패턴)
     const channel = supabase
-      .channel(`comments:${proofId}`)
+      .channel(`comments:${proofId}:${Math.random().toString(36).slice(2, 8)}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'comments', filter: `proof_id=eq.${proofId}` },
@@ -108,11 +124,11 @@ export function CommentsSheet({ proofId, myUserId, onClose, onCountChange }: Pro
     <Modal
       visible={proofId !== null}
       animationType="slide"
-      presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-        {/* 헤더 */}
+      {/* SafeAreaView 가 Modal 안에서 inset 못 잡는 케이스 → View + paddingTop 직접 적용 */}
+      <View style={[styles.safe, { paddingTop: insets.top }]}>
+        {/* 헤더 — 상태바 아래에 안전하게 노출 */}
         <View style={styles.header}>
           <View style={{ width: 44 }} />
           <Text style={styles.title}>댓글</Text>
@@ -123,8 +139,8 @@ export function CommentsSheet({ proofId, myUserId, onClose, onCountChange }: Pro
 
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={0}
         >
           {/* 댓글 목록 */}
           {loading ? (
@@ -152,8 +168,15 @@ export function CommentsSheet({ proofId, myUserId, onClose, onCountChange }: Pro
             />
           )}
 
-          {/* 입력 */}
-          <View style={styles.inputBar}>
+          {/* 입력 — 키보드 표시 시 8px, 숨김 시 home indicator 영역 확보 */}
+          <View style={[
+            styles.inputBar,
+            {
+              paddingBottom: (Platform.OS === 'ios' && !isKbVisible && insets.bottom > 0)
+                ? insets.bottom
+                : 8
+            }
+          ]}>
             <TextInput
               value={text}
               onChangeText={setText}
@@ -176,7 +199,7 @@ export function CommentsSheet({ proofId, myUserId, onClose, onCountChange }: Pro
             </Pressable>
           </View>
         </KeyboardAvoidingView>
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 }
@@ -261,7 +284,7 @@ const styles = StyleSheet.create({
   },
   time: {
     fontSize: fontSize.xs,
-    color: colors.primary300,
+    color: colors.primary500,
     fontFamily: fontFamily.regular,
   },
   content: {
@@ -272,7 +295,7 @@ const styles = StyleSheet.create({
   },
   deleteHint: {
     fontSize: fontSize.xs,
-    color: colors.primary300,
+    color: colors.primary500,
     fontFamily: fontFamily.regular,
     marginTop: 2,
   },

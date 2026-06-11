@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.regular, marginTop: 1,
   },
   time: {
-    fontSize: fontSize.xs, color: colors.primary300,
+    fontSize: fontSize.xs, color: colors.primary500,
     fontFamily: fontFamily.regular,
   },
 

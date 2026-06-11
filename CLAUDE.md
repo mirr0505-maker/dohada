@@ -37,6 +37,15 @@
 - DB: [`supabase/migrations/0016_completion_stories.sql`](supabase/migrations/0016_completion_stories.sql) — 완주 이야기 + 공개 범위 + 반응
 - 박제 → 해냈어요 진입점: [`mobile/components/challenge/ArchiveTab.tsx`](mobile/components/challenge/ArchiveTab.tsx) "완주 이야기 공유" 버튼 + 4단계 상품 잠금 노출 (가격 "추후 결정")
 
+### 신규 코드 위치 (v2.6 — 알림 시스템 통일 + 안정화)
+**알림 정책 3줄**: ① 알림 발생 → 푸시 + 헤더 벨 dot (둘 다 `notification_queue` 동일 소스) ② 22시~익일 06시 푸시 보류 → 06시 일괄 발송 (알림함엔 즉시 보임) ③ 푸시 탭 → 홈 + 알림함 자동 오픈 → 행 탭 시 해당 탭 딥링크.
+- 알림함 (벨): [`mobile/components/AppHeader.tsx`](mobile/components/AppHeader.tsx) — kind 별 라벨·미리보기, dot = 마지막 확인(`bell_seen_at`) 이후 새 알림만. **가짜 dot 금지 원칙** (해냈어요 탭 dot 도 실데이터)
+- 알림 조회·딥링크: `fetchMyNotifications` ([`mobile/lib/db.ts`](mobile/lib/db.ts)) + `notificationRoute` ([`mobile/lib/push.ts`](mobile/lib/push.ts))
+- 푸시 탭 진입: [`mobile/app/_layout.tsx`](mobile/app/_layout.tsx) — `useLastNotificationResponse` + 세션 복원 대기 + 콜드 스타트 시 홈 replace → `홈?bell=<ts>`. 챌린지방은 `?tab=` param 변경에도 탭 전환 반응
+- 발송 파이프라인: DB 트리거 (0009·0019·0022·**0026 인증/기록**) → `notification_queue` → [`supabase/functions/flush-notifications/`](supabase/functions/flush-notifications/) cron (조용시간 22~06시·일 5건 상한·응원 1시간 묶음·무음). 알림함 RLS 는 0025, "동료 인증·기록" 토글은 0027
+- 솔로 방 = 알림 0건 (모든 트리거 수신자가 "본인 제외 멤버" — solo 는 멤버 1명이라 구조적 보장)
+- 완주 판정: [`mobile/lib/stats.ts`](mobile/lib/stats.ts) — KST 기준 + frequency(daily/weekly3/weekly1) 목표 인증 수. cheered 방의 완주 판정·박제는 도전자(개설자) 기준. 완주 화면 1회 노출 키 = `complete_seen_<챌린지>_<유저>` (SecureStore 키는 영숫자·`.`·`-`·`_` 만 허용 — `:` 금지)
+
 ### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.
 - 인증 완료 Alert / 카톡 초대 / 생성 후 Alert / 챌린지방 헤더 부제 / FAB 라벨 — 모두 분류별 분기 완료

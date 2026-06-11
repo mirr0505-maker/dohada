@@ -1,15 +1,33 @@
 // 🚀 통합 헤더 — 4개 하단 탭 (홈/내챌린지/둘러보기/내정보) 공통
 // 로고 + 닉네임 + 알람 + 아바타 (탭 → 내정보)
 // 닉네임/아바타는 매 화면 진입 시 fetchMyProfile 로 동기화 (수정 시 즉시 반영).
-import React, { useCallback, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Alert, Image, Modal, Switch } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+// 벨 = 알림함: 폰 푸시와 동일 소스(notification_queue). dot 은 마지막 확인 이후 새 알림이 있을 때만.
+// 푸시 탭 시 _layout 이 /(tabs)/home?bell=<ts> 로 보내면 알림함이 자동으로 열림.
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, Text, Pressable, StyleSheet, Image, Modal, ScrollView } from 'react-native';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
-import { fetchMyProfile } from '@/lib/db';
+import { fetchMyProfile, fetchMyNotifications, type MyNotification } from '@/lib/db';
+import { notificationRoute } from '@/lib/push';
 import { haptic } from '@/lib/haptics';
 import { BrandMark } from '@/components/BrandMark';
+
+const BELL_SEEN_KEY = 'bell_seen_at';   // 알림함 마지막 확인 시각 (디바이스 로컬)
+
+// 알림 kind → 행 제목
+const KIND_LABEL: Record<string, string> = {
+  chat: '💬 새 대화',
+  comment: '💬 인증 댓글',
+  log_comment: '📝 기록 댓글',
+  cheer_batch: '💛 응원',
+  log_like_batch: '💚 기록 좋아요',
+  creator_notice: '📢 개설자 공지',
+  proof: '📸 동료 인증',
+  log: '🎥 새 기록',
+};
 
 export function AppHeader() {
   const session = useSession();
@@ -17,18 +35,45 @@ export function AppHeader() {
   const [nickname, setNickname] = useState<string>('도전자');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
-  // 🚀 알림 가짜 설정 모달 상태
+  // 🚀 알림함 모달 + dot
   const [modalVisible, setModalVisible] = useState(false);
+  const [notifs, setNotifs] = useState<MyNotification[]>([]);
+  const [bellDot, setBellDot] = useState(false);
 
-  // 매 화면 진입 시 갱신 — 닉네임/아바타 수정 후 다른 탭 갔다 오면 동기화
+  // 매 화면 진입 시 갱신 — 닉네임/아바타 동기화 + 알림함/dot 갱신
   useFocusEffect(
     useCallback(() => {
       if (!myUserId || myUserId === 'dev') return;
       fetchMyProfile(myUserId)
         .then(p => { setNickname(p.nickname); setAvatarUrl(p.avatar_url); })
         .catch(() => {});
+      fetchMyNotifications(myUserId)
+        .then(async list => {
+          setNotifs(list);
+          try {
+            const seen = await SecureStore.getItemAsync(BELL_SEEN_KEY);
+            const newest = list[0]?.created_at;
+            setBellDot(Boolean(newest && (!seen || Date.parse(newest) > Date.parse(seen))));
+          } catch {
+            setBellDot(false);   // 확인 실패 시 dot 표시 안 함 (가짜 알림 방지 우선)
+          }
+        })
+        .catch(() => {});
     }, [myUserId]),
   );
+
+  // 알림함 열기 — 여는 순간 "확인"으로 기록하고 dot 해제
+  const openBell = useCallback(() => {
+    setModalVisible(true);
+    setBellDot(false);
+    SecureStore.setItemAsync(BELL_SEEN_KEY, new Date().toISOString()).catch(() => {});
+  }, []);
+
+  // 🚀 푸시 탭 진입: _layout 이 ?bell=<timestamp> 를 붙여 홈으로 보냄 → 알림함 자동 오픈
+  const { bell } = useLocalSearchParams<{ bell?: string }>();
+  useEffect(() => {
+    if (bell) openBell();
+  }, [bell, openBell]);
 
   return (
     <View style={styles.header}>
@@ -44,11 +89,12 @@ export function AppHeader() {
       <View style={styles.rightGroup}>
         <Pressable
           style={styles.headerIcon}
-          onPress={() => { haptic.tap(); setModalVisible(true); }}
+          onPress={() => { haptic.tap(); openBell(); }}
+          hitSlop={6}
         >
           <Ionicons name="notifications-outline" size={20} color={colors.primary} />
-          {/* 🚀 알림 뱃지 데모 (조용한 알림 Dot) */}
-          <View style={styles.badgeDot} />
+          {/* 🚀 조용한 알림 Dot — 마지막 확인 이후 새 알림이 있을 때만 (숫자 X, 점 하나) */}
+          {bellDot && <View style={styles.badgeDot} />}
         </Pressable>
         <Pressable
           onPress={() => { haptic.tap(); router.push('/(tabs)/profile' as any); }}
@@ -64,7 +110,7 @@ export function AppHeader() {
         </Pressable>
       </View>
 
-      {/* 🚀 알림 설정 모달 (Phase 2 티저 및 앱 심사 대응) */}
+      {/* 🚀 알림함 모달 — 푸시와 동일한 알림 목록. 행 탭 → 해당 내용(탭)으로 딥링크 */}
       <Modal
         visible={modalVisible}
         animationType="fade"
@@ -73,43 +119,45 @@ export function AppHeader() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-              <Text style={styles.modalTitle}>🔔 알림 설정</Text>
-              <Text style={{ fontSize: 13, color: colors.primary500, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold }}>Phase 2 예정 🔒</Text>
-            </View>
-            
-            <View style={[styles.settingRow, { opacity: 0.5 }]}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.settingLabel}>인증 응원 묶음 알림</Text>
-                <Text style={styles.settingDesc}>동료들의 응원을 1시간 단위로 묶어서 받습니다.</Text>
-              </View>
-              <Switch
-                value={false}
-                disabled={true}
-                trackColor={{ false: colors.primary100, true: colors.accent }}
-                thumbColor={colors.primary300}
-              />
-            </View>
+            <Text style={styles.modalTitle}>🔔 알림</Text>
 
-            <View style={[styles.settingRow, { opacity: 0.5 }]}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.settingLabel}>방 내 새 대화 무음 알림</Text>
-                <Text style={styles.settingDesc}>도전 인연들의 실시간 채팅/댓글을 무음으로 받습니다.</Text>
-              </View>
-              <Switch
-                value={false}
-                disabled={true}
-                trackColor={{ false: colors.primary100, true: colors.accent }}
-                thumbColor={colors.primary300}
-              />
-            </View>
+            {notifs.length === 0 ? (
+              <Text style={styles.newsEmpty}>
+                아직 알림이 없어요.{'\n'}오늘도 조용히, 각자의 한 걸음.
+              </Text>
+            ) : (
+              <ScrollView style={{ maxHeight: 380 }} contentContainerStyle={{ gap: 8 }}>
+                {notifs.map(n => (
+                  <Pressable
+                    key={n.id}
+                    style={styles.newsRow}
+                    onPress={() => {
+                      if (!n.challenge_id) return;
+                      haptic.tap();
+                      setModalVisible(false);
+                      router.push(notificationRoute(n.kind, n.challenge_id) as any);
+                    }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.newsTitle} numberOfLines={1}>
+                        {KIND_LABEL[n.kind] ?? '🔔 알림'}{n.count > 1 ? ` ${n.count}건` : ''}
+                      </Text>
+                      <Text style={styles.newsTags} numberOfLines={1}>
+                        {n.count > 1
+                          ? (n.kind === 'cheer_batch' ? `동료 ${n.count}명이 응원해줬어요` : `동료 ${n.count}명이 좋아요를 남겼어요`)
+                          : (n.preview ?? '')}
+                      </Text>
+                    </View>
+                    <Text style={styles.newsTime}>{formatNotifTime(n.created_at)}</Text>
+                    <Text style={styles.newsArrow}>→</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
 
             <View style={styles.modalInfoBox}>
               <Text style={styles.modalInfoText}>
-                Do : 하다의 알림은 도파민 자극을 방지하기 위해 묶음 전송, 즉시 무음 전송, 밤 10시 이후 보류, 하루 상한 5건 규정을 엄격하게 준수합니다.
-              </Text>
-              <Text style={[styles.modalInfoText, { marginTop: 6, color: colors.accent700, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold }]}>
-                * 현재 베타 테스트 중으로, 실제 푸시 알림 전송은 Phase 2 정식 출시와 함께 연결됩니다.
+                조용한 알림 원칙 — 숫자 대신 점 하나. 밤 10시~아침 6시의 푸시는 아침 6시에 모아 보내드려요.
               </Text>
             </View>
 
@@ -126,6 +174,16 @@ export function AppHeader() {
 
     </View>
   );
+}
+
+// 알림 시각 — 오늘이면 HH:mm, 이전이면 M/D
+function formatNotifTime(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) {
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  }
+  return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
 const styles = StyleSheet.create({
@@ -208,25 +266,45 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
     marginBottom: 8,
   },
-  settingRow: {
+  newsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    paddingVertical: 4,
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: colors.primary50,
+    borderRadius: radius.md,
   },
-  settingLabel: {
+  newsTitle: {
     fontSize: fontSize.base,
     color: colors.primary,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },
-  settingDesc: {
+  newsTags: {
     fontSize: fontSize.xs,
     color: colors.primary500,
     fontFamily: fontFamily.regular,
     marginTop: 2,
-    paddingRight: 8,
+  },
+  newsTime: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+  },
+  newsArrow: {
+    fontSize: fontSize.lg,
+    color: colors.accent,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  newsEmpty: {
+    fontSize: fontSize.base,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+    textAlign: 'center',
+    lineHeight: 22,
+    paddingVertical: 12,
   },
   modalInfoBox: {
     backgroundColor: colors.primary50,

@@ -18,8 +18,11 @@ import { fetchNotificationPrefs, updateNotificationPrefs, type NotificationPrefs
 import {
   fetchMyProfile, updateMyNickname, updateMyAvatar,
   fetchMyInterests, addInterest, removeInterest, fetchCategoryTree,
+  fetchMyChallenges,
   type MyInterest, type DbCategory,
 } from '@/lib/db';
+import type { ChallengeWithCount } from '@/lib/types';
+import { getKstTodayRange } from '@/lib/format';
 import { uploadProofImage } from '@/lib/upload';
 import { scheduleDailyReminder, cancelDailyReminder } from '@/lib/notifications';
 import * as SecureStore from 'expo-secure-store';
@@ -35,6 +38,8 @@ export default function ProfileScreen() {
   const [interests, setInterests] = useState<MyInterest[]>([]);
   const [categories, setCategories] = useState<DbCategory[]>([]);
   const [editingInterests, setEditingInterests] = useState(false);
+  // 🚀 P-⑤ 내 완주 영구 보관함
+  const [finishedChs, setFinishedChs] = useState<ChallengeWithCount[]>([]);
   const myUserId = session?.user?.id;
 
   // 🚀 로컬 알림 시간 상태 및 초기화
@@ -64,7 +69,7 @@ export default function ProfileScreen() {
     if (session === null) router.replace('/login');
   }, [session]);
 
-  // 알림 prefs + 프로필 + 관심 분야 + 카테고리 트리 로드
+  // 알림 prefs + 프로필 + 관심 분야 + 카테고리 트리 + 내 완주 보관함 로드
   useEffect(() => {
     if (!myUserId || myUserId === 'dev') return;
     fetchNotificationPrefs(myUserId).then(setPrefs).catch(() => {});
@@ -74,6 +79,11 @@ export default function ProfileScreen() {
     }).catch(() => {});
     fetchMyInterests(myUserId).then(setInterests).catch(() => {});
     fetchCategoryTree().then(t => setCategories(t.categories)).catch(() => {});
+    // 🚀 P-⑤: 내 완주 영구 보관함 — 종료된 챌린지만 추출 (KST 자정 기준)
+    fetchMyChallenges(myUserId).then(all => {
+      const today = getKstTodayRange().kstDateStr;
+      setFinishedChs(all.filter(c => today > c.end_date));
+    }).catch(() => {});
   }, [myUserId]);
 
   // 보관함에서 아바타 사진 선택 → R2 업로드 → DB → state
@@ -251,6 +261,13 @@ export default function ProfileScreen() {
               />
               <Divider />
               <ToggleRow
+                label="동료 인증·기록"
+                desc="동료가 인증/기록을 올렸을 때 (즉시)"
+                value={prefs.proof_log_enabled}
+                onChange={(v) => togglePref('proof_log_enabled', v)}
+              />
+              <Divider />
+              <ToggleRow
                 label="매일 안부"
                 desc="지정한 시간에 하루 1회 로컬 알림"
                 value={prefs.daily_enabled}
@@ -271,6 +288,52 @@ export default function ProfileScreen() {
             <Text style={styles.notifNote}>
               💛 밤 10시~아침 8시는 자동으로 조용해요.{'\n'}하루 최대 5건까지만 보내요.
             </Text>
+          </View>
+        )}
+
+        {/* 🚀 P-⑤: 내 완주 영구 보관함 — 종료된 챌린지만 시간 역순 */}
+        {finishedChs.length > 0 && (
+          <View style={{ marginTop: 24, paddingHorizontal: 20 }}>
+            <Text style={{
+              fontSize: 16, fontWeight: '700', color: colors.primary,
+              marginBottom: 12, fontFamily: 'Pretendard-Bold',
+            }}>
+              🏆 내 완주 보관함 · {finishedChs.length}개
+            </Text>
+            <Text style={{
+              fontSize: 12, color: colors.primary500, fontFamily: 'Pretendard-Regular',
+              marginBottom: 12,
+            }}>
+              종료된 모든 도전은 영구히 박제됩니다 · 탭하여 박제 보기
+            </Text>
+            <View style={{ gap: 8 }}>
+              {finishedChs.map(c => (
+                <Pressable
+                  key={c.id}
+                  onPress={() => { haptic.tap(); router.push(`/room/${c.id}?tab=archive` as any); }}
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderRadius: 12,
+                    padding: 14,
+                    borderWidth: 1,
+                    borderColor: colors.primary100,
+                  }}
+                >
+                  <Text style={{
+                    fontSize: 14, fontWeight: '600', color: colors.primary,
+                    fontFamily: 'Pretendard-Bold',
+                  }} numberOfLines={1}>
+                    🏁 {c.title}
+                  </Text>
+                  <Text style={{
+                    fontSize: 11, color: colors.primary500, marginTop: 4,
+                    fontFamily: 'Pretendard-Regular',
+                  }}>
+                    {c.start_date} ~ {c.end_date} · 박제 보기 →
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
           </View>
         )}
 
@@ -821,7 +884,7 @@ const styles = StyleSheet.create({
   },
   tagline: {
     fontSize: fontSize.xs,
-    color: colors.primary300,
+    color: colors.primary500,
     fontFamily: fontFamily.regular,
   },
 
@@ -1078,7 +1141,7 @@ const styles = StyleSheet.create({
   },
   arrowText: {
     fontSize: 14,
-    color: colors.primary300,
+    color: colors.primary500,
   },
   valueWrap: {
     flexDirection: 'row',

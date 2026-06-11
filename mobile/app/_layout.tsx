@@ -1,6 +1,6 @@
 // 🚀 Root Stack — 전체 라우트의 진입점
-import { useEffect } from 'react';
-import { Stack, router } from 'expo-router';
+import { useEffect, useRef } from 'react';
+import { Stack, router, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
@@ -97,24 +97,49 @@ export default function RootLayout() {
     };
   }, []);
 
-  // 푸시 알림 탭 시 해당 챌린지/인증/기록 화면으로 이동
+  // 푸시 알림 탭 → 홈의 "알림함(벨)" 자동 오픈
+  //
+  // 정책 (베타 단순화): 푸시를 누르면 항상 홈 + 알림함이 열린다.
+  //   - 왜 푸시가 왔는지 알림함 목록에서 확인 → 행을 탭하면 해당 내용(대화/인증/기록 탭)으로 이동.
+  //   - 앱이 꺼져 있던 콜드 스타트: 세션 복원을 기다렸다가(자동 로그인) 홈으로 replace.
+  //     미로그인이면 딥링크 생략 — 로그인 흐름이 우선 (로그인 후 벨 dot 이 알려줌).
+  //   - useLastNotificationResponse: 워밍 탭 + 콜드 스타트 모두 수신. identifier 로 중복 처리 방지.
+  //   - 300ms 지연: background→foreground 전환 직후 navigation stack 안정화 대기.
+  const lastNotificationResponse = Notifications.useLastNotificationResponse();
+  const handledNotificationIdRef = useRef<string | null>(null);
+  const pathname = usePathname();
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
+  const navReady = fontsLoaded || !!fontError;   // Stack 이 렌더된 후에만 navigate 가능
   useEffect(() => {
-    const sub = Notifications.addNotificationResponseReceivedListener((resp) => {
-      // 알림 터치 시에도 뱃지/알림 리셋
-      Notifications.setBadgeCountAsync(0).catch(() => {});
-      Notifications.dismissAllNotificationsAsync().catch(() => {});
+    if (!lastNotificationResponse || !navReady) return;
+    if (session === undefined) return;             // 세션 복원 대기 (콜드 스타트 자동 로그인)
+    const respId = lastNotificationResponse.notification.request.identifier;
+    if (handledNotificationIdRef.current === respId) return;   // 동일 응답 중복 처리 방지
+    handledNotificationIdRef.current = respId;
 
-      const data = resp.notification.request.content.data as
-        { kind?: string; challenge_id?: string; proof_id?: string; log_id?: string };
-      if (!data) return;
-      const cid = data.challenge_id;
-      if (cid) {
-        // 인증/응원/댓글/대화/기록 모두 챌린지 방으로 이동 (구체 탭은 사용자가 선택)
-        router.push(`/room/${cid}` as any);
+    // 알림 터치 시에도 뱃지/알림 리셋
+    Notifications.setBadgeCountAsync(0).catch(() => {});
+    Notifications.dismissAllNotificationsAsync().catch(() => {});
+
+    if (session === null) return;                  // 미로그인 — 로그인 화면 흐름 우선
+
+    // bell 파라미터는 매번 달라야 AppHeader 가 재오픈 — timestamp 사용
+    const target = `/(tabs)/home?bell=${Date.now()}`;
+    setTimeout(() => {
+      try {
+        // 콜드 스타트로 아직 온보딩/로그인 라우트라면 홈으로 replace (뒤로가기에 온보딩 안 남게)
+        const PRE_MAIN = ['/', '/onb1', '/onb2', '/onb3', '/onb4', '/login', '/welcome'];
+        if (PRE_MAIN.includes(pathnameRef.current)) {
+          router.replace(target as any);
+        } else {
+          router.navigate(target as any);
+        }
+      } catch (e) {
+        console.warn('[RootLayout] 푸시 navigation 실패', e);
       }
-    });
-    return () => sub.remove();
-  }, []);
+    }, 300);
+  }, [lastNotificationResponse, navReady, session]);
 
   // 폰트 로딩 전엔 네이티브 splash 화면 그대로 둠
   if (!fontsLoaded && !fontError) return null;

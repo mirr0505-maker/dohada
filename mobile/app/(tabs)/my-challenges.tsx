@@ -15,6 +15,7 @@ import { ChallengeCardSkeleton } from '@/components/Skeleton';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import type { ChallengeWithCount } from '@/lib/types';
+import { getKstTodayRange } from '@/lib/format';
 
 export default function MyChallengesScreen() {
   const session = useSession();
@@ -70,31 +71,59 @@ export default function MyChallengesScreen() {
       ) : error ? (
         <ErrorState message={error} onRetry={() => { setLoading(true); load(); }} />
       ) : (
-        <FlatList
-          data={challenges}
-          keyExtractor={c => c.id}
-          contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
-          }
-          renderItem={({ item }) => <Card challenge={item} />}
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>🌱</Text>
-              <Text style={styles.emptyText}>
-                참여 중인 챌린지가 없어요.{'\n'}하단 + 로 첫 챌린지를 만들어볼까요?
-              </Text>
-            </View>
-          }
-        />
+        (() => {
+          // 🚀 P-⑤: 진행 중 vs 종료 분리 (KST 자정 기준)
+          const todayStr = getKstTodayRange().kstDateStr;
+          const active   = challenges.filter(c => todayStr <= c.end_date);
+          const finished = challenges.filter(c => todayStr >  c.end_date);
+          return (
+            <FlatList
+              data={active}
+              keyExtractor={c => c.id}
+              contentContainerStyle={styles.list}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
+              }
+              renderItem={({ item }) => <Card challenge={item} />}
+              ListEmptyComponent={
+                <View style={styles.empty}>
+                  <Text style={styles.emptyEmoji}>🌱</Text>
+                  <Text style={styles.emptyText}>
+                    참여 중인 챌린지가 없어요.{'\n'}하단 + 로 첫 챌린지를 만들어볼까요?
+                  </Text>
+                </View>
+              }
+              ListFooterComponent={
+                finished.length > 0 ? (
+                  <View style={{ marginTop: 24, gap: 12 }}>
+                    <Text style={{
+                      fontSize: fontSize.base,
+                      color: colors.primary,
+                      fontFamily: fontFamily.bold,
+                      fontWeight: fontWeight.bold,
+                      paddingHorizontal: 4,
+                    }}>
+                      🏆 끝낸 도전
+                    </Text>
+                    {finished.map(item => (
+                      <View key={item.id} style={{ opacity: 0.85 }}>
+                        <Card challenge={item} finished />
+                      </View>
+                    ))}
+                  </View>
+                ) : null
+              }
+            />
+          );
+        })()
       )}
     </Screen>
   );
 }
 
-function Card({ challenge }: { challenge: ChallengeWithCount }) {
+function Card({ challenge, finished = false }: { challenge: ChallengeWithCount; finished?: boolean }) {
   const { daysLeft, progress, dayN, totalDays } = computeProgress(challenge.start_date, challenge.end_date);
-  
+
   // 🚀 날짜 포맷 예쁘게 변환 (YYYY-MM-DD -> YYYY.MM.DD)
   const formatDt = (d: string) => d.replace(/-/g, '.');
 
@@ -103,7 +132,8 @@ function Card({ challenge }: { challenge: ChallengeWithCount }) {
       style={styles.card}
       onPress={() => {
         haptic.tap();
-        router.push(`/room/${challenge.id}`);
+        // 종료된 도전 카드는 박제 탭으로 직행 (홈 "끝낸 도전" 카드와 동일 동선)
+        router.push(finished ? `/room/${challenge.id}?tab=archive` as any : `/room/${challenge.id}`);
       }}
     >
       {/* 🚀 1. 알림 배지 줄 (본인 외 다른 사람이 올린 새 대화 / 새 기록이 있는 경우에만 표시) */}
@@ -126,20 +156,29 @@ function Card({ challenge }: { challenge: ChallengeWithCount }) {
       <View style={styles.cardHeader}>
         <Text style={styles.cardTitle} numberOfLines={1}>{challenge.title}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          {/* 🚀 오늘 인증 상태 배지 */}
-          {challenge.is_today_checked ? (
-            <View style={[styles.checkinBadge, styles.checkedBadge]}>
-              <Text style={[styles.checkinBadgeText, styles.checkedBadgeText]}>✓ 오늘 인증 완료</Text>
+          {finished ? (
+            // 🚀 종료된 도전 — 진행 중 톤(오늘 인증/D-day) 대신 종료 배지
+            <View style={[styles.checkinBadge, styles.finishedBadge]}>
+              <Text style={[styles.checkinBadgeText, styles.finishedBadgeText]}>🏁 종료 · 박제 보기</Text>
             </View>
           ) : (
-            <View style={[styles.checkinBadge, styles.uncheckedBadge]}>
-              <Text style={[styles.checkinBadgeText, styles.uncheckedBadgeText]}>📝 오늘 인증 전</Text>
-            </View>
+            <>
+              {/* 🚀 오늘 인증 상태 배지 */}
+              {challenge.is_today_checked ? (
+                <View style={[styles.checkinBadge, styles.checkedBadge]}>
+                  <Text style={[styles.checkinBadgeText, styles.checkedBadgeText]}>✓ 오늘 인증 완료</Text>
+                </View>
+              ) : (
+                <View style={[styles.checkinBadge, styles.uncheckedBadge]}>
+                  <Text style={[styles.checkinBadgeText, styles.uncheckedBadgeText]}>📝 오늘 인증 전</Text>
+                </View>
+              )}
+              {/* 🚀 D-day 배지 */}
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>D-{daysLeft}</Text>
+              </View>
+            </>
           )}
-          {/* 🚀 D-day 배지 */}
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>D-{daysLeft}</Text>
-          </View>
         </View>
       </View>
 
@@ -174,10 +213,9 @@ function Card({ challenge }: { challenge: ChallengeWithCount }) {
 function computeProgress(start: string, end: string) {
   const startDate = new Date(start + 'T00:00:00');
   const endDate = new Date(end + 'T00:00:00');
-  
-  const now = new Date();
-  const todayStr = now.toISOString().slice(0, 10);
-  const todayDate = new Date(todayStr + 'T00:00:00');
+
+  // KST 기준 오늘 — UTC 기준이면 오전 9시까지 어제로 판정됨
+  const todayDate = new Date(getKstTodayRange().kstDateStr + 'T00:00:00');
 
   const totalDays = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / 86_400_000) + 1);
   const elapsed = Math.max(0, Math.round((todayDate.getTime() - startDate.getTime()) / 86_400_000));
@@ -318,6 +356,9 @@ const styles = StyleSheet.create({
   uncheckedBadge: {
     backgroundColor: 'rgba(255, 107, 53, 0.08)', // 🚀 accent 컬러 연한 배경
   },
+  finishedBadge: {
+    backgroundColor: colors.primary100,   // 종료 카드 — 차분한 회색 톤
+  },
   checkinBadgeText: {
     fontSize: fontSize.xs,
     fontFamily: fontFamily.bold,
@@ -328,6 +369,9 @@ const styles = StyleSheet.create({
   },
   uncheckedBadgeText: {
     color: colors.accent,
+  },
+  finishedBadgeText: {
+    color: colors.primary700,
   },
   empty: {
     flex: 1,

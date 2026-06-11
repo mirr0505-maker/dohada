@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
   },
   emptyMessageText: {
     fontSize: fontSize.sm,
-    color: colors.primary300,
+    color: colors.primary500,
     fontFamily: fontFamily.medium,
   },
   buttonRow: {

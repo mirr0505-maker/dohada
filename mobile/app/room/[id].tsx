@@ -24,7 +24,8 @@ import { InviteLetterModal } from '@/components/challenge/InviteLetterModal';
 import { ImpactModal } from '@/components/challenge/ImpactModal';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
-import { computeProgress, computeStreak, isCompleted } from '@/lib/stats';
+import { computeProgress, computeStreak, isCompleted, isFinished } from '@/lib/stats';
+import * as SecureStore from 'expo-secure-store';
 import { joinChallenge } from '@/lib/invite';
 import { formatCheerCount } from '@/lib/format';
 import type {
@@ -56,6 +57,7 @@ export default function ChallengeRoom() {
   const [challenge, setChallenge] = useState<DbChallenge | null>(null);
   const [members, setMembers] = useState<MemberWithToday[]>([]);
   const [proofs, setProofs] = useState<ProofWithRelations[]>([]);
+  const [totalLogs, setTotalLogs] = useState(0);   // 박제 통계·ImpactModal 용 기록 수
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,6 +77,13 @@ export default function ChallengeRoom() {
     if (session === null) router.replace('/login');
   }, [session]);
 
+  // 알림함/딥링크에서 ?tab= 으로 진입·재진입 시 탭 동기화 (mount 후 param 변경에도 반응)
+  useEffect(() => {
+    if (tab === 'chat' || tab === 'proof' || tab === 'log' || tab === 'status' || tab === 'archive') {
+      setActiveTab(tab);
+    }
+  }, [tab]);
+
   const load = useCallback(async () => {
     if (!id || !myUserId) return;
     try {
@@ -83,6 +92,7 @@ export default function ChallengeRoom() {
       setChallenge(data.challenge);
       setMembers(data.members);
       setProofs(data.proofs);
+      setTotalLogs(data.totalLogs);
     } catch (e: any) {
       reportError(e, { where: 'room/fetchRoomData', challengeId: id });
       setError(e?.message ?? '챌린지를 불러오지 못했어요.');
@@ -103,8 +113,9 @@ export default function ChallengeRoom() {
   useEffect(() => {
     if (!id || !myUserId) return;
 
+    // 인스턴스별 유니크 채널 이름 — 같은 방 두 mount 시 동일 토픽 충돌 방지 (ChatTab 패턴)
     const channel = supabase
-      .channel(`room:${id}`)
+      .channel(`room:${id}:${Math.random().toString(36).slice(2, 8)}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'proofs', filter: `challenge_id=eq.${id}` },
@@ -305,7 +316,8 @@ export default function ChallengeRoom() {
         [{ text: '확인', onPress: () => router.replace('/(tabs)/record') }],
         { cancelable: false }
       );
-    } else if (challenge?.gave_up_at) {
+    } else if (challenge?.gave_up_at && !isFinished(challenge)) {
+      // 종료일이 지난 방은 개설자가 포기했어도 제거 유도 X — 멤버의 박제 접근 보존 (박제=영구 원칙)
       enterAlertShownRef.current = true;
       Alert.alert(
         '도전 종료',
@@ -354,6 +366,14 @@ export default function ChallengeRoom() {
     [proofs, myUserId],
   );
   const streak = useMemo(() => computeStreak(myProofs), [myProofs]);
+  // 헤더 🏆/🏁 배지용 완주 판정 주체 — cheered 방은 도전 주체가 개설자 1명이므로
+  // 응원자 본인 인증이 아니라 개설자(도전자) 인증 기준으로 판정.
+  const badgeProofs = useMemo(
+    () => challenge?.kind === 'cheered'
+      ? proofs.filter(p => p.user_id === challenge.creator_id)
+      : myProofs,
+    [challenge, proofs, myProofs],
+  );
   const progress = useMemo(
     () => (challenge ? computeProgress(challenge) : null),
     [challenge],
@@ -371,14 +391,34 @@ export default function ChallengeRoom() {
     return today <= me.paused_until;
   }, [me]);
 
-  // 완주 자동 감지 → complete 화면으로 1회 redirect
+  // 완주 자동 감지 → complete 화면으로 디바이스당 1회 redirect.
+  // (이미 한 번 봤다면 챌린지방 자유 진입 — 박제·기록·공유 모두 접근 가능)
+  const completeCheckRunningRef = useRef(false);   // 비동기 검사 중 deps 변동 시 중복 redirect 방지
   useEffect(() => {
-    if (!challenge || completeRedirected) return;
-    if (isCompleted(challenge, myProofs)) {
-      setCompleteRedirected(true);
-      router.replace(`/complete/${challenge.id}` as any);
-    }
-  }, [challenge, myProofs, completeRedirected]);
+    if (!challenge || !myUserId || completeRedirected) return;
+    if (!isCompleted(challenge, myProofs)) return;
+    if (completeCheckRunningRef.current) return;
+    completeCheckRunningRef.current = true;
+
+    // SecureStore 키는 영숫자·`.`·`-`·`_` 만 허용 — `:` 사용 시 get/set 모두 throw 됨
+    const key = `complete_seen_${challenge.id}_${myUserId}`;
+    (async () => {
+      try {
+        const seen = await SecureStore.getItemAsync(key);
+        if (seen === 'true') {
+          setCompleteRedirected(true);   // 다시 안 띄움 — 챌린지방 자유 사용
+          return;
+        }
+        await SecureStore.setItemAsync(key, 'true');
+        setCompleteRedirected(true);
+        router.replace(`/complete/${challenge.id}` as any);
+      } catch {
+        // SecureStore 실패 시엔 redirect 하지 않음 — "봤다" 기록이 안 남는 상태에서
+        // redirect 하면 방 진입 때마다 완주 화면으로 튕기는 트랩이 되기 때문.
+        setCompleteRedirected(true);
+      }
+    })();
+  }, [challenge, myProofs, completeRedirected, myUserId]);
 
   // ─── 잠시 멈춤 / 재개 / 도전 포기 ─────────────────────
   const onTogglePause = useCallback(() => {
@@ -478,7 +518,6 @@ export default function ChallengeRoom() {
 
   // ─── 헤더 통계 (v4 함께 만든 변화) ───────────────────
   const totalProofs = proofs.length;
-  const totalLogs = 0;                       // Step 4 의 logs 도입 후 fetch 로 채움
   const daysLeft = progress ? Math.max(0, progress.totalDays - progress.passedDays) : 0;
   const todayCheckedCount = members.filter(m => m.today_checked).length;
 
@@ -494,7 +533,11 @@ export default function ChallengeRoom() {
         </Pressable>
         <View style={{ flex: 1, marginHorizontal: 8 }}>
           <View style={styles.headerTitleRow}>
-            <Text style={styles.title} numberOfLines={1}>{challenge.title}</Text>
+            <Text style={styles.title} numberOfLines={1}>
+              {/* 🚀 완주 / 종료 배지 (P-② 재진입 허용 후 시각 표지) — cheered 는 도전자 기준 */}
+              {isCompleted(challenge, badgeProofs) ? '🏆 ' : isFinished(challenge) ? '🏁 ' : ''}
+              {challenge.title}
+            </Text>
             <Pressable
               onPress={() => { haptic.tap(); setMemberSheetOpen(true); }}
               hitSlop={6}
@@ -634,6 +677,7 @@ export default function ChallengeRoom() {
           proofs={proofs}
           totalCheers={totalCheers}
           totalLogs={totalLogs}
+          myUserId={myUserId}
         />
       )}
 
@@ -673,6 +717,17 @@ export default function ChallengeRoom() {
           );
         }
         if (activeTab !== 'proof') return null;
+        // 🚀 P-④: 종료된 챌린지엔 새 인증 차단. 박제 탭으로 안내.
+        if (isFinished(challenge)) {
+          return (
+            <Pressable
+              style={[styles.fab, styles.fabDone]}
+              onPress={() => { haptic.tap(); setActiveTab('archive'); }}
+            >
+              <Text style={styles.fabLabel}>🏁 도전 종료 · 박제 보기</Text>
+            </Pressable>
+          );
+        }
         if (isPaused) {
           return (
             <Pressable

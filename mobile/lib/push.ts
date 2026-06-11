@@ -11,8 +11,17 @@ export type NotificationPrefs = {
   chat_enabled: boolean;
   comment_enabled: boolean;
   cheer_batch_enabled: boolean;
+  proof_log_enabled: boolean;   // 동료 인증·기록 업로드 알림 (0027)
   daily_enabled: boolean;
 };
+
+// 🚀 알림 kind → 챌린지방 딥링크 (헤더 알림함 행 탭 시 사용)
+//   대화·공지 → 대화 탭 / 기록·기록 댓글·좋아요 → 기록 탭 / 인증·인증 댓글·응원 → 인증 탭
+export function notificationRoute(kind: string | undefined, challengeId: string): string {
+  if (kind === 'chat' || kind === 'creator_notice') return `/room/${challengeId}?tab=chat`;
+  if (kind === 'log' || kind === 'log_comment' || kind === 'log_like_batch') return `/room/${challengeId}?tab=log`;
+  return `/room/${challengeId}?tab=proof`;   // proof · comment · cheer_batch
+}
 
 // 디바이스의 Expo Push Token 을 받아 device_tokens 에 upsert
 export async function registerExpoPushToken(userId: string): Promise<void> {
@@ -63,7 +72,7 @@ export async function ensureNotificationPrefs(userId: string): Promise<void> {
 export async function fetchNotificationPrefs(userId: string): Promise<NotificationPrefs> {
   const { data, error } = await supabase
     .from('notification_prefs')
-    .select('chat_enabled, comment_enabled, cheer_batch_enabled, daily_enabled')
+    .select('chat_enabled, comment_enabled, cheer_batch_enabled, proof_log_enabled, daily_enabled')
     .eq('user_id', userId)
     .maybeSingle();
   if (error) throw error;
@@ -71,6 +80,7 @@ export async function fetchNotificationPrefs(userId: string): Promise<Notificati
     chat_enabled:        data?.chat_enabled        ?? true,
     comment_enabled:     data?.comment_enabled     ?? true,
     cheer_batch_enabled: data?.cheer_batch_enabled ?? true,
+    proof_log_enabled:   data?.proof_log_enabled   ?? true,
     daily_enabled:       data?.daily_enabled       ?? true,
   };
 }

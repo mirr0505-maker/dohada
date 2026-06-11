@@ -518,7 +518,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   optional: {
-    fontSize: fontSize.xs, color: colors.primary300,
+    fontSize: fontSize.xs, color: colors.primary500,
     fontFamily: fontFamily.regular, fontWeight: fontWeight.regular,
   },
 
@@ -557,7 +557,7 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.bold, fontWeight: fontWeight.semibold,
   },
   fieldOpt: {
-    fontSize: 11, color: colors.primary300,
+    fontSize: 11, color: colors.primary500,
     fontFamily: fontFamily.regular,
   },
   fieldInput: {

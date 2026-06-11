@@ -16,6 +16,12 @@ export type DbUser = {
 //   open    — 누구나 합류, 둘러보기 공개
 export type ChallengeKind = 'closed' | 'solo' | 'open' | 'cheered';
 
+// 인증 빈도 — 0007 마이그레이션 challenges.frequency 컬럼.
+//   daily   : 매일 1회
+//   weekly3 : 주 3회
+//   weekly1 : 주 1회
+export type ChallengeFrequency = 'daily' | 'weekly3' | 'weekly1';
+
 export type DbChallenge = {
   id: string;
   creator_id: string;
@@ -25,6 +31,9 @@ export type DbChallenge = {
   start_date: string;   // YYYY-MM-DD
   end_date: string;
   created_at: string;
+  frequency?: ChallengeFrequency;     // 0007: 인증 빈도 (기본 daily)
+  invitation_message?: string | null; // 🚀 초대 메시지: 개설자가 동료들을 초대할 때 보낼 커스텀 소환장 메시지
+  gave_up_at: string | null; // 🚀 개설자가 챌린지 포기한 시각 (비활성화 판단용)
 };
 
 export type DbProof = {

@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     fontSize: fontSize.xs,
-    color: colors.primary300,
+    color: colors.primary500,
     fontFamily: fontFamily.regular,
     textAlign: 'center',
   },

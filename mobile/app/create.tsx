@@ -868,7 +868,7 @@ const styles = StyleSheet.create({
   },
   counterSmall: {
     fontSize: fontSize.xs,
-    color: colors.primary300,
+    color: colors.primary500,
     textAlign: 'right',
   },
   subSectionTitle: {

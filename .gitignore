@@ -38,8 +38,8 @@ Thumbs.db
 # 로그
 *.log
 
-# Supabase 로컬
-supabase/.temp/
+# Supabase 로컬 (mobile/ 안에서 CLI 실행 시 생기는 임시 폴더 포함)
+**/supabase/.temp/
 
 # 임시 파일 및 크래시 로그
 *.vsix

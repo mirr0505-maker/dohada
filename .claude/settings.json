@@ -74,7 +74,9 @@
       "Bash(ls e:/dohada/mobile -la 2>nul | head -50)",
       "Bash(eas build *)",
       "Bash(gh search *)",
-      "Bash(eas submit *)"
+      "Bash(eas submit *)",
+      "Bash(npx eas-cli *)",
+      "Bash(npx supabase *)"
     ],
     "additionalDirectories": [
       "E:\\dohada"

@@ -54,45 +54,61 @@ export function ChatTab({ challengeId, myUserId, isMember }: Props) {
 
   // Realtime — chat_messages INSERT 구독.
   // 🚀 P2-18 보정: 전체 load() 대신 새 row 1건 + author 정보만 단건 조회 후 prepend/append.
-  // (100명 챌린지의 활발한 채팅에서 INSERT 마다 100건 재조회되던 부하 해소.)
+  // 베타 발견 (푸시 알림 진입 → 대화 탭 충돌) 방어:
+  //   - 채널 이름에 unique suffix 부여 → 동일 방에 두 인스턴스 mount 되어도 채널 충돌 X
+  //   - Realtime callback 에 try/catch — 예외가 native bridge 까지 올라가 crash 되는 것 방지
+  //   - unmount 후 setMessages 호출 차단 (isMounted ref)
   useEffect(() => {
     if (!challengeId) return;
+    let mounted = true;
+    // 인스턴스별 유니크 채널 이름 — 같은 방 두 mount 시 충돌 방지
+    const channelName = `chat:${challengeId}:${Math.random().toString(36).slice(2, 8)}`;
     const channel = supabase
-      .channel(`chat:${challengeId}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `challenge_id=eq.${challengeId}` },
         async (payload) => {
-          const newRow = payload.new as { id: string; user_id: string; content: string; created_at: string; is_notice?: boolean; challenge_id: string };
-          // 본인 메시지는 optimistic 삽입이 이미 처리. 중복 방지.
-          if (newRow.user_id === myUserId) return;
-          // 작성자 정보 fetch (단건)
-          const { data: authorRow } = await supabase
-            .from('users')
-            .select('id, nickname, avatar_url')
-            .eq('id', newRow.user_id)
-            .maybeSingle();
-          setMessages(prev => {
-            // 이미 동일 id 가 있으면 noop
-            if (prev.some(m => m.id === newRow.id)) return prev;
-            return [...prev, {
-              id: newRow.id,
-              challenge_id: newRow.challenge_id,
-              user_id: newRow.user_id,
-              content: newRow.content,
-              created_at: newRow.created_at,
-              is_notice: !!newRow.is_notice,
-              author: {
-                id: authorRow?.id ?? newRow.user_id,
-                nickname: authorRow?.nickname ?? '',
-                avatar_url: authorRow?.avatar_url ?? null,
-              },
-            }];
-          });
+          try {
+            const newRow = payload.new as {
+              id?: string; user_id?: string; content?: string;
+              created_at?: string; is_notice?: boolean; challenge_id?: string;
+            };
+            if (!newRow?.id || !newRow.user_id) return;        // malformed payload 방어
+            if (newRow.user_id === myUserId) return;            // 본인 메시지는 optimistic
+            // 작성자 정보 fetch (단건)
+            const { data: authorRow } = await supabase
+              .from('users')
+              .select('id, nickname, avatar_url')
+              .eq('id', newRow.user_id)
+              .maybeSingle();
+            if (!mounted) return;                               // unmount 후 setState 차단
+            setMessages(prev => {
+              if (prev.some(m => m.id === newRow.id)) return prev;   // 중복 방지
+              return [...prev, {
+                id: newRow.id!,
+                challenge_id: newRow.challenge_id ?? challengeId,
+                user_id: newRow.user_id!,
+                content: newRow.content ?? '',
+                created_at: newRow.created_at ?? new Date().toISOString(),
+                is_notice: !!newRow.is_notice,
+                author: {
+                  id: authorRow?.id ?? newRow.user_id!,
+                  nickname: authorRow?.nickname ?? '',
+                  avatar_url: authorRow?.avatar_url ?? null,
+                },
+              }];
+            });
+          } catch (e) {
+            console.warn('[ChatTab] realtime callback error', e);
+          }
         },
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      mounted = false;
+      try { supabase.removeChannel(channel); } catch {}
+    };
   }, [challengeId, myUserId]);
 
   const onSend = useCallback(async () => {
@@ -339,7 +355,7 @@ const styles = StyleSheet.create({
   },
   arrowIcon: {
     fontSize: 10,
-    color: colors.primary300,
+    color: colors.primary500,
     fontFamily: fontFamily.regular,
   },
   noticeContent: {
@@ -380,7 +396,7 @@ const styles = StyleSheet.create({
   noticeItemDate: {
     fontSize: 10,
     fontFamily: fontFamily.regular,
-    color: colors.primary300,
+    color: colors.primary500,
   },
   noticeItemText: {
     fontSize: fontSize.sm,
@@ -438,7 +454,7 @@ const styles = StyleSheet.create({
   },
   time: {
     fontSize: 10,
-    color: colors.primary300,
+    color: colors.primary500,
     fontFamily: fontFamily.regular,
     marginTop: 2,
     marginLeft: 4,

@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
   },
   metaQuiet: {
     fontSize: fontSize.xs,
-    color: colors.primary300,
+    color: colors.primary500,
     fontFamily: fontFamily.regular,
   },
   track: {

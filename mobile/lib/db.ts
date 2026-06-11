@@ -25,9 +25,19 @@ export type FellowProof = {
   avatar_url: string | null;
 };
 
-// TODO (Phase 2 — P2-16): 현재 limit*3 fetch 후 client filter 는 N+M 비효율.
-// 활동량 (피어 챌린지 다수, 인증 빈도 높음) 증가 시 부각될 부하. 멤버 챌린지 ID 사전 필터링 RPC 로 대체 예정.
+// "도전 인연 = 현재 같은 챌린지의 멤버" (v2.5) — 내가 멤버인 챌린지의 동료 인증만.
+// (기존 creator_id !== myUserId 필터는 "내가 개설한 방의 동료 인증" 을 통째로 누락시키던 버그)
 export async function fetchFellowProofs(myUserId: string, limit = 10): Promise<FellowProof[]> {
+  // 0. 내가 멤버(포기 X)인 챌린지 ID 먼저 추림 — open 챌린지 RLS 로 남의 방 인증이 섞이는 것 방지
+  const { data: memberships, error: mErr } = await supabase
+    .from('challenge_members')
+    .select('challenge_id')
+    .eq('user_id', myUserId)
+    .is('gave_up_at', null);
+  if (mErr) throw mErr;
+  const ids = (memberships ?? []).map((m: any) => m.challenge_id);
+  if (!ids.length) return [];
+
   const { data, error } = await supabase
     .from('proofs')
     .select(`
@@ -35,15 +45,14 @@ export async function fetchFellowProofs(myUserId: string, limit = 10): Promise<F
       users (nickname, avatar_url),
       challenges!inner (title, creator_id, gave_up_at)
     `)
+    .in('challenge_id', ids)
     .neq('user_id', myUserId)
     .is('challenges.gave_up_at', null)
     .order('created_at', { ascending: false })
-    .limit(limit * 3); // 넉넉히 가져온 뒤 필터링 진행
+    .limit(limit);
   if (error) throw error;
 
-  const filtered = (data ?? []).filter((p: any) => p.challenges?.creator_id !== myUserId);
-
-  return filtered.slice(0, limit).map((p: any) => ({
+  return (data ?? []).map((p: any) => ({
     id: p.id,
     photo_url: p.photo_url,
     caption: p.caption,
@@ -168,6 +177,45 @@ export async function fetchMyChallenges(myUserId?: string): Promise<ChallengeWit
       gave_up_at: c.gave_up_at ?? null,
     };
   });
+}
+
+// ─── 알림함 (AppHeader 벨) ──────────────────────────────
+// 푸시와 "동일한 소스" — notification_queue 본인 행 (0025 RLS select).
+// 폰 푸시가 나가는 모든 이벤트(대화/댓글/응원/기록반응/공지)가 여기에 그대로 보임.
+// cheer/log_like 는 푸시와 동일하게 (kind, 대상) 그룹당 1건 + count 로 묶어서 반환.
+export type MyNotification = {
+  id: string;
+  kind: string;             // chat | comment | log_comment | cheer_batch | log_like_batch | creator_notice
+  challenge_id: string | null;
+  proof_id: string | null;
+  log_id: string | null;
+  preview: string | null;
+  created_at: string;
+  count: number;            // 묶음 알림의 누적 건수 (즉시 알림은 1)
+};
+
+export async function fetchMyNotifications(myUserId: string, limit = 20): Promise<MyNotification[]> {
+  if (!myUserId) return [];
+  const { data, error } = await supabase
+    .from('notification_queue')
+    .select('id, kind, challenge_id, proof_id, log_id, preview, created_at')
+    .eq('user_id', myUserId)
+    .order('created_at', { ascending: false })
+    .limit(limit * 3);   // 묶음 그룹화 후에도 limit 채우도록 넉넉히
+  if (error) throw error;
+
+  const grouped: MyNotification[] = [];
+  const batchIndex = new Map<string, number>();   // (kind|대상) → grouped 인덱스
+  for (const n of (data ?? []) as any[]) {
+    if (n.kind === 'cheer_batch' || n.kind === 'log_like_batch') {
+      const key = `${n.kind}|${n.proof_id ?? n.log_id ?? ''}`;
+      const i = batchIndex.get(key);
+      if (i != null) { grouped[i].count += 1; continue; }
+      batchIndex.set(key, grouped.length);
+    }
+    grouped.push({ ...n, count: 1 });
+  }
+  return grouped.slice(0, limit);
 }
 
 // ─── 홈 v2.3 — 분류별 카드용 상세 데이터 ─────────────────
@@ -833,7 +881,7 @@ export async function fetchChallengeDetailForInvite(challengeId: string): Promis
 
 // ─── 챌린지 방 1개 + 멤버 + 인증 피드 (room/[id]) ──────
 export async function fetchRoomData(challengeId: string, myUserId: string) {
-  const [resChallenge, resMembers, resProofs] = await Promise.all([
+  const [resChallenge, resMembers, resProofs, resLogCount] = await Promise.all([
     supabase.from('challenges').select('*').eq('id', challengeId).single(),
     supabase
       .from('challenge_members')
@@ -845,13 +893,21 @@ export async function fetchRoomData(challengeId: string, myUserId: string) {
       .select('*, users:user_id(*), cheers(user_id, cheer_type), comments(count)')
       .eq('challenge_id', challengeId)
       .order('created_at', { ascending: false }),
+    // 기록(Vlog) 총 개수 — 박제 통계·ImpactModal 용 (행 데이터 없이 count 만)
+    supabase
+      .from('logs')
+      .select('id', { count: 'exact', head: true })
+      .eq('challenge_id', challengeId),
   ]);
 
   if (resChallenge.error) throw resChallenge.error;
   if (resMembers.error) throw resMembers.error;
   if (resProofs.error) throw resProofs.error;
 
-  const today = new Date().toISOString().slice(0, 10);
+  // 오늘 인증 여부는 KST 기준 (UTC prefix 비교는 KST 00~09시에 어긋남)
+  const { startUtc, endUtc } = getKstTodayRange();
+  const todayStartMs = Date.parse(startUtc);
+  const todayEndMs = Date.parse(endUtc);
   const proofsRaw = resProofs.data ?? [];
 
   const members: MemberWithToday[] = (resMembers.data ?? [])
@@ -861,9 +917,11 @@ export async function fetchRoomData(challengeId: string, myUserId: string) {
       paused_until: m.paused_until ?? null,
       gave_up_at:   m.gave_up_at   ?? null,
       joined_at: m.joined_at,
-      today_checked: proofsRaw.some(
-        (p: any) => p.user_id === m.users.id && (p.created_at as string).startsWith(today),
-      ),
+      today_checked: proofsRaw.some((p: any) => {
+        if (p.user_id !== m.users.id) return false;
+        const t = Date.parse(p.created_at);
+        return t >= todayStartMs && t < todayEndMs;
+      }),
     }));
 
   const proofs: ProofWithRelations[] = proofsRaw.map((p: any) => {
@@ -891,7 +949,12 @@ export async function fetchRoomData(challengeId: string, myUserId: string) {
     };
   });
 
-  return { challenge: resChallenge.data as DbChallenge, members, proofs };
+  return {
+    challenge: resChallenge.data as DbChallenge,
+    members,
+    proofs,
+    totalLogs: resLogCount.count ?? 0,
+  };
 }
 
 // ─── 챌린지 만들기 (create) ────────────────────────────
@@ -1191,6 +1254,19 @@ export async function fetchPublicCompletionStories(args: {
     .range(offset, offset + limit - 1);
   if (error) throw error;
   return (data ?? []) as unknown as CompletionStoryCard[];
+}
+
+// 해냈어요 탭 dot — 가장 최근 공개 완주 이야기 작성 시각 (1건만)
+export async function fetchLatestPublicStoryAt(): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('completion_stories')
+    .select('created_at')
+    .eq('visibility', 'public')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.created_at ?? null;
 }
 
 // 상세 — id 로 한 건 (RLS 가 공개/인연/본인 분기)
