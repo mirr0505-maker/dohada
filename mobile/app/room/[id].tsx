@@ -24,7 +24,7 @@ import { InviteLetterModal } from '@/components/challenge/InviteLetterModal';
 import { ImpactModal } from '@/components/challenge/ImpactModal';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
-import { computeProgress, computeStreak, isCompleted, isFinished } from '@/lib/stats';
+import { computeProgress, computeStreak, isCompleted, isFinished, getFarewellState } from '@/lib/stats';
 import * as SecureStore from 'expo-secure-store';
 import { joinChallenge } from '@/lib/invite';
 import { formatCheerCount } from '@/lib/format';
@@ -527,6 +527,16 @@ export default function ChallengeRoom() {
       '종료된 방은 초대·멈춤을 사용할 수 없어요.\n남긴 인증과 기록은 박제에 영구 보존됩니다.',
     );
   };
+  // 🚀 마무리 인사 유예 (종료일 24시 KST + 7일, solo 는 즉시) — 지나면 대화·댓글·기록·응원 전면 잠금
+  const farewell = getFarewellState(challenge);
+  const writeLocked = farewell.finished && !farewell.canWrite;
+  const onLockedNotice = () => {
+    haptic.tap();
+    Alert.alert(
+      '박제된 도전이에요',
+      '마무리 기간이 끝나 대화·응원·기록은 보존만 됩니다.',
+    );
+  };
   const daysLeft = progress ? Math.max(0, progress.totalDays - progress.passedDays) : 0;
   const todayCheckedCount = members.filter(m => m.today_checked).length;
 
@@ -651,7 +661,8 @@ export default function ChallengeRoom() {
           renderItem={({ item }) => (
             <ProofCard
               proof={item}
-              onCheer={(type) => onCheer(item.id, type)}
+              locked={writeLocked}
+              onCheer={(type) => (writeLocked ? onLockedNotice() : onCheer(item.id, type))}
               onComments={() => { haptic.tap(); setActiveProofId(item.id); }}
             />
           )}
@@ -671,6 +682,8 @@ export default function ChallengeRoom() {
           challengeId={challenge.id}
           myUserId={myUserId}
           isMember={isMember}
+          farewellDaysLeft={farewell.farewellDaysLeft}
+          writeLocked={writeLocked}
         />
       )}
       {activeTab === 'log' && (
@@ -682,6 +695,7 @@ export default function ChallengeRoom() {
           canComment={challenge.kind !== 'solo'}
           composerOpen={logComposerOpen}
           onComposerClose={() => setLogComposerOpen(false)}
+          writeLocked={writeLocked}
         />
       )}
       {activeTab === 'status' && (
@@ -728,6 +742,7 @@ export default function ChallengeRoom() {
           );
         }
         if (activeTab === 'log') {
+          if (writeLocked) return null;   // 박제 후엔 새 기록 작성 X
           return (
             <Pressable
               style={styles.fab}
@@ -778,6 +793,7 @@ export default function ChallengeRoom() {
 
       <CommentsSheet
         proofId={activeProofId}
+        writeLocked={writeLocked}
         myUserId={myUserId}
         onClose={() => setActiveProofId(null)}
         onCountChange={(pid, delta) => {
@@ -872,11 +888,12 @@ const CHEER_OPTIONS: { type: CheerType; emoji: string; label: string }[] = [
 ];
 
 function ProofCard({
-  proof, onCheer, onComments,
+  proof, onCheer, onComments, locked = false,
 }: {
   proof: ProofWithRelations;
   onCheer: (type: CheerType) => void;
   onComments: () => void;
+  locked?: boolean;   // 박제(쓰기 잠금) — 응원 칩 회색 처리
 }) {
   return (
     <View style={styles.proofCard}>
@@ -900,8 +917,8 @@ function ProofCard({
         <Text style={styles.proofCaption}>{proof.caption}</Text>
       ) : null}
 
-      {/* 4가지 응원 chips — type 별 독립 카운트 */}
-      <View style={styles.cheerRow}>
+      {/* 4가지 응원 chips — type 별 독립 카운트 (박제 후엔 회색·카운트만 보존) */}
+      <View style={[styles.cheerRow, locked && { opacity: 0.55 }]}>
         {CHEER_OPTIONS.map(({ type, emoji, label }) => {
           const count = proof.cheers_by_type[type] ?? 0;
           const active = proof.my_cheers.includes(type);

@@ -23,9 +23,10 @@ type Props = {
   onClose: () => void;
   // 댓글 수 변동 시 부모에게 알려서 인증 카드 N 갱신
   onCountChange?: (proofId: string, delta: 1 | -1) => void;
+  writeLocked?: boolean;         // 박제 — 새 댓글 작성 잠금 (열람은 가능)
 };
 
-export function CommentsSheet({ proofId, myUserId, onClose, onCountChange }: Props) {
+export function CommentsSheet({ proofId, myUserId, onClose, onCountChange, writeLocked = false }: Props) {
   const [items, setItems] = useState<CommentWithAuthor[]>([]);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
@@ -168,7 +169,12 @@ export function CommentsSheet({ proofId, myUserId, onClose, onCountChange }: Pro
             />
           )}
 
-          {/* 입력 — 키보드 표시 시 8px, 숨김 시 home indicator 영역 확보 */}
+          {/* 입력 — 키보드 표시 시 8px, 숨김 시 home indicator 영역 확보. 박제 후엔 잠금 안내 */}
+          {writeLocked ? (
+            <View style={styles.lockedBar}>
+              <Text style={styles.lockedText}>🏁 박제된 도전이에요 — 댓글은 보존만 됩니다.</Text>
+            </View>
+          ) : (
           <View style={[
             styles.inputBar,
             {
@@ -198,6 +204,7 @@ export function CommentsSheet({ proofId, myUserId, onClose, onCountChange }: Pro
               <Text style={styles.sendText}>{sending ? '…' : '전송'}</Text>
             </Pressable>
           </View>
+          )}
         </KeyboardAvoidingView>
       </View>
     </Modal>
@@ -322,6 +329,18 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.primary100,
     backgroundColor: colors.surface,
+  },
+  lockedBar: {
+    paddingVertical: 14,
+    alignItems: 'center',
+    backgroundColor: colors.primary50,
+    borderTopWidth: 1,
+    borderTopColor: colors.primary100,
+  },
+  lockedText: {
+    fontSize: fontSize.sm,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
   },
   input: {
     flex: 1,

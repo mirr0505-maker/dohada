@@ -23,9 +23,10 @@ type Props = {
   myUserId: string | undefined;
   onClose: () => void;
   onCountChange?: (logId: string, delta: 1 | -1) => void;
+  writeLocked?: boolean;         // 박제 — 새 댓글 작성 잠금 (열람은 가능)
 };
 
-export function LogCommentsSheet({ logId, myUserId, onClose, onCountChange }: Props) {
+export function LogCommentsSheet({ logId, myUserId, onClose, onCountChange, writeLocked = false }: Props) {
   const [items, setItems] = useState<LogCommentWithAuthor[]>([]);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
@@ -193,6 +194,13 @@ export function LogCommentsSheet({ logId, myUserId, onClose, onCountChange }: Pr
             />
           )}
 
+          {writeLocked ? (
+            /* 박제 — 새 댓글 작성 잠금 */
+            <View style={styles.lockedBar}>
+              <Text style={styles.lockedText}>🏁 박제된 도전이에요 — 댓글은 보존만 됩니다.</Text>
+            </View>
+          ) : (
+          <>
           {editingCommentId && (
             <View style={styles.editingBar}>
               <Text style={styles.editingText}>수정 중</Text>
@@ -232,6 +240,8 @@ export function LogCommentsSheet({ logId, myUserId, onClose, onCountChange }: Pr
               </Text>
             </Pressable>
           </View>
+          </>
+          )}
         </KeyboardAvoidingView>
       </View>
     </Modal>
@@ -371,6 +381,18 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.primary100,
     backgroundColor: colors.surface,
+  },
+  lockedBar: {
+    paddingVertical: 14,
+    alignItems: 'center',
+    backgroundColor: colors.primary50,
+    borderTopWidth: 1,
+    borderTopColor: colors.primary100,
+  },
+  lockedText: {
+    fontSize: fontSize.sm,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
   },
   input: {
     flex: 1,

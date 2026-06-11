@@ -25,11 +25,12 @@ type Props = {
   canComment: boolean;               // solo 방은 false — 기록 댓글 숨김
   composerOpen: boolean;             // 기록 모달 — 부모(room) FAB 가 트리거
   onComposerClose: () => void;
+  writeLocked?: boolean;             // 박제 — 좋아요·수정·댓글 작성 잠금
 };
 
 export function LogTab({
   challengeId, challengeStartDate, myUserId, isMember, canComment,
-  composerOpen, onComposerClose,
+  composerOpen, onComposerClose, writeLocked = false,
 }: Props) {
   const [logs, setLogs] = useState<LogWithAuthor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,6 +100,11 @@ export function LogTab({
 
   const onLike = useCallback(async (logId: string) => {
     if (!myUserId) return;
+    if (writeLocked) {
+      haptic.tap();
+      Alert.alert('박제된 도전이에요', '마무리 기간이 끝나 반응은 보존만 됩니다.');
+      return;
+    }
     const target = logs.find(l => l.id === logId);
     if (!target) return;
     haptic.tap();
@@ -122,7 +128,7 @@ export function LogTab({
       ));
       Alert.alert('좋아요 실패', e?.message ?? String(e));
     }
-  }, [logs, myUserId]);
+  }, [logs, myUserId, writeLocked]);
 
   return (
     <View style={styles.wrap}>
@@ -135,7 +141,7 @@ export function LogTab({
             log={item}
             startDate={challengeStartDate}
             canComment={canComment}
-            isMine={item.user_id === myUserId}
+            isMine={!writeLocked && item.user_id === myUserId}   /* 박제 후엔 수정/삭제 메뉴 잠금 */
             onLike={() => onLike(item.id)}
             onComment={() => { haptic.tap(); setActiveLogId(item.id); }}
             onEdit={() => { haptic.tap(); setEditingLog(item); }}
@@ -186,6 +192,7 @@ export function LogTab({
 
       <LogCommentsSheet
         logId={activeLogId}
+        writeLocked={writeLocked}
         myUserId={myUserId}
         onClose={() => setActiveLogId(null)}
         onCountChange={(lid, delta) => {

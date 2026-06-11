@@ -95,3 +95,25 @@ export function isFinished(challenge: DbChallenge): boolean {
   const today = getKstTodayRange().kstDateStr;
   return today > challenge.end_date;
 }
+
+// 🚀 마무리 인사 유예 — 종료일 24시(KST)부터 7일간 대화·댓글·기록 작성 허용, 이후 완전 박제(읽기 전용).
+//    solo 방은 인사 나눌 동료가 없으므로 유예 없이 종료 즉시 잠금. (DB 측은 0030 RESTRICTIVE 정책이 동일 기준)
+export const FAREWELL_DAYS = 7;
+
+export function getFarewellState(challenge: DbChallenge): {
+  finished: boolean;          // 종료 여부
+  canWrite: boolean;          // 대화·댓글·기록 작성 가능 여부
+  farewellDaysLeft: number;   // 유예 잔여일 (유예 중일 때만 1~7)
+} {
+  if (!isFinished(challenge)) return { finished: false, canWrite: true, farewellDaysLeft: 0 };
+  if (challenge.kind === 'solo') return { finished: true, canWrite: false, farewellDaysLeft: 0 };
+
+  // 종료 후 경과일 — 종료 다음날(= 종료일 24시 이후 첫날) = 1
+  const today = new Date(getKstTodayRange().kstDateStr + 'T00:00:00');
+  const end = new Date(challenge.end_date + 'T00:00:00');
+  const daysAfterEnd = Math.round((today.getTime() - end.getTime()) / 86_400_000);
+
+  const left = FAREWELL_DAYS - daysAfterEnd + 1;   // 종료 다음날 = 7일 남음 … 7일째 = 1일 남음
+  if (left > 0) return { finished: true, canWrite: true, farewellDaysLeft: left };
+  return { finished: true, canWrite: false, farewellDaysLeft: 0 };
+}

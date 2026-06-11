@@ -15,9 +15,11 @@ type Props = {
   challengeId: string;
   myUserId: string | undefined;
   isMember: boolean;
+  farewellDaysLeft?: number;   // 마무리 인사 유예 잔여일 (유예 중일 때만 1~7)
+  writeLocked?: boolean;       // 박제 — 쓰기 전면 잠금
 };
 
-export function ChatTab({ challengeId, myUserId, isMember }: Props) {
+export function ChatTab({ challengeId, myUserId, isMember, farewellDaysLeft = 0, writeLocked = false }: Props) {
   const [messages, setMessages] = useState<ChatMessageWithAuthor[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -270,7 +272,21 @@ export function ChatTab({ challengeId, myUserId, isMember }: Props) {
         }
       />
 
-      {isMember ? (
+      {writeLocked ? (
+        /* 박제 — 마무리 기간 종료 후 읽기 전용 */
+        <View style={styles.guestBar}>
+          <Text style={styles.guestText}>🏁 박제된 도전이에요 — 대화는 보존만 됩니다.</Text>
+        </View>
+      ) : isMember ? (
+        <>
+        {farewellDaysLeft > 0 && (
+          /* 마무리 인사 유예 — 잔여일 안내 */
+          <View style={styles.farewellBar}>
+            <Text style={styles.farewellText}>
+              🏁 도전 종료 — 마무리 인사 기간이 {farewellDaysLeft}일 남았어요
+            </Text>
+          </View>
+        )}
         <View style={[
           styles.inputBar,
           {
@@ -297,6 +313,7 @@ export function ChatTab({ challengeId, myUserId, isMember }: Props) {
             <Text style={styles.sendBtnText}>전송</Text>
           </Pressable>
         </View>
+        </>
       ) : (
         <View style={styles.guestBar}>
           <Text style={styles.guestText}>대화는 참여 멤버만 작성할 수 있어요.</Text>
@@ -515,6 +532,19 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary50,
     borderTopWidth: 1,
     borderTopColor: colors.primary100,
+  },
+  farewellBar: {
+    paddingVertical: 8,
+    alignItems: 'center',
+    backgroundColor: colors.accent50,
+    borderTopWidth: 1,
+    borderTopColor: colors.accent100,
+  },
+  farewellText: {
+    fontSize: fontSize.xs,
+    color: colors.accent700,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
   },
   guestText: {
     fontSize: fontSize.sm,
