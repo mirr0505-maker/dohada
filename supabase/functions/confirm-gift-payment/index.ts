@@ -1,12 +1,13 @@
-// 🚀 confirm-gift-payment — 결제 승인 대조 + 기프티콘 발급 (응원 한잔 핵심 경로)
+// 🚀 confirm-gift-payment — 결제 승인 대조 (응원 한잔 핵심 경로)
 //
 // 호출: 결제창 성공 후 supabase.functions.invoke('confirm-gift-payment', { body: { orderId, paymentKey } })
 //   - Stage 1: paymentKey = 'MOCKPAY:<orderId>:<amount>' (mock PG)
 //   - Stage 2~3: 토스페이먼츠 승인 API 로 교체 (providers.ts 구현체만 교체)
 //
-// 흐름: created ─(PG 승인 + 금액 대조)→ paid ─(발급)→ issued
+// 흐름: created ─(PG 승인 + 금액 대조)→ paid → [수신자 알림: 0033 트리거]
+//   - 발급은 여기서 하지 않는다 — 수신자가 "받기" 선택하는 시점(claim-gift)에 발급
+//     (기프티콘 유효기간 + 기부 선택분 발급 낭비 방지)
 //   - 대조 실패: PG 취소 + pay_failed (돈을 받지 않은 상태 보장)
-//   - 발급 실패: PG 취소 + issue_failed → auto_refund (돈만 받은 상태 즉시 해소)
 //   - 모든 전이는 giftStateMachine 검증 통과 필수.
 
 // @ts-nocheck — Deno 글로벌
@@ -14,16 +15,15 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { paymentMatchesOrder } from '../_shared/payments/verifyPayment.ts';
 import { canTransition } from '../_shared/payments/giftStateMachine.ts';
-import { createMockPgClient, createMockGifticonClient } from '../_shared/payments/providers.ts';
+import { createMockPgClient } from '../_shared/payments/providers.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Stage 1 주입 지점 — 실서비스 전환 시 이 두 줄만 교체
+// Stage 1 주입 지점 — 실서비스 전환 시 이 한 줄만 교체
 const pg = createMockPgClient();
-const gifticon = createMockGifticonClient();
 
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -92,18 +92,7 @@ Deno.serve(async (req) => {
     return json(400, { error: verdict.reason });
   }
 
-  // 3. 승인 확정
+  // 3. 승인 확정 — 수신자 알림은 0033 트리거가 발송. 발급은 수신자의 "받기" 선택 시(claim-gift).
   await transition('created', 'paid', { pg_payment_key: paymentKey });
-
-  // 4. 기프티콘 발급 — 실패 시 자동 환불 (paid 잔류 = 최악 상태, 반드시 해소)
-  try {
-    const { voucherRef } = await gifticon.issue(order.product_tier, order.recipient_id);
-    await transition('paid', 'issued', { voucher_ref: voucherRef });
-    return json(200, { status: 'issued', voucherRef });
-  } catch (_issueErr) {
-    await transition('paid', 'issue_failed', { fail_reason: 'gifticon_issue_failed' });
-    await pg.cancel(paymentKey, 'gifticon_issue_failed');
-    await transition('issue_failed', 'auto_refund');
-    return json(502, { status: 'auto_refund', error: 'gifticon_issue_failed' });
-  }
+  return json(200, { status: 'paid' });
 });

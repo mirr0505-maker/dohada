@@ -21,8 +21,13 @@ export type NotificationPrefs = {
 export function notificationRoute(
   kind: string | undefined,
   challengeId: string,
-  target?: { proofId?: string | null; logId?: string | null },
+  target?: { proofId?: string | null; logId?: string | null; giftOrderId?: string | null },
 ): string {
+  // ☕ 응원 한잔 — 수령/상세 화면으로 직행 (주문 ID 없으면 방 인증 탭 폴백)
+  if (kind === 'gift' || kind === 'gift_received' || kind === 'gift_donated' || kind === 'gift_refund') {
+    if (target?.giftOrderId) return `/gift/${target.giftOrderId}`;
+    return `/room/${challengeId}?tab=proof`;
+  }
   if (kind === 'chat' || kind === 'creator_notice') return `/room/${challengeId}?tab=chat`;
   if (kind === 'log' || kind === 'log_comment' || kind === 'log_like_batch') {
     if (!target?.logId) return `/room/${challengeId}?tab=log`;

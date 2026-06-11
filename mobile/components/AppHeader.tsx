@@ -27,6 +27,10 @@ const KIND_LABEL: Record<string, string> = {
   creator_notice: '📢 개설자 공지',
   proof: '📸 동료 인증',
   log: '🎥 새 기록',
+  gift: '☕ 한잔 도착',
+  gift_received: '☕ 한잔 받음',
+  gift_donated: '💚 한잔 기부',
+  gift_refund: '↩️ 한잔 환불',
 };
 
 export function AppHeader() {
@@ -140,8 +144,8 @@ export function AppHeader() {
                       if (!n.challenge_id) return;
                       haptic.tap();
                       setModalVisible(false);
-                      // 행 탭 → 해당 인증/기록 카드로 스크롤 포커스, 댓글 알림은 댓글 시트까지 자동 오픈
-                      router.push(notificationRoute(n.kind, n.challenge_id, { proofId: n.proof_id, logId: n.log_id }) as any);
+                      // 행 탭 → 해당 인증/기록 카드로 스크롤 포커스, 댓글 알림은 댓글 시트까지 자동 오픈, 한잔은 수령 화면
+                      router.push(notificationRoute(n.kind, n.challenge_id, { proofId: n.proof_id, logId: n.log_id, giftOrderId: n.gift_order_id }) as any);
                     }}
                   >
                     <View style={{ flex: 1 }}>

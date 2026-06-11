@@ -20,6 +20,7 @@ import { StatusTab } from '@/components/challenge/StatusTab';
 import { ArchiveTab } from '@/components/challenge/ArchiveTab';
 import { MemberSheet } from '@/components/challenge/MemberSheet';
 import { InviteConfirmModal } from '@/components/challenge/InviteConfirmModal';
+import { GiftSheet } from '@/components/challenge/GiftSheet';
 import { InviteLetterModal } from '@/components/challenge/InviteLetterModal';
 import { ImpactModal } from '@/components/challenge/ImpactModal';
 import { reportError } from '@/lib/sentry';
@@ -75,6 +76,7 @@ export default function ChallengeRoom() {
   const [impactModalOpen, setImpactModalOpen] = useState(false);              // info-bar 💚 → 함께 만든 변화 팝업
   const [inviteConfirmOpen, setInviteConfirmOpen] = useState(false);          // 🚀 초대 메시지 첨부 확인 모달 열림 여부
   const [inviteLetterOpen, setInviteLetterOpen] = useState(false);            // 🚀 초대 편지글 모달 열림 여부
+  const [giftTarget, setGiftTarget] = useState<{ id: string; nickname: string } | null>(null);   // ☕ 응원 한잔 대상
 
   const myUserId = session?.user?.id;
 
@@ -695,6 +697,13 @@ export default function ChallengeRoom() {
               locked={writeLocked}
               onCheer={(type) => (writeLocked ? onLockedNotice() : onCheer(item.id, type))}
               onComments={() => { haptic.tap(); setActiveProofId(item.id); }}
+              // ☕ 응원 한잔 — Stage 4 베타 오픈 전까지 개발 빌드 전용 (__DEV__).
+              // 동료의 인증에만 노출 (솔로 방·본인 인증·종료 방 제외 — 서버 정책과 동일 잣대)
+              onGift={
+                __DEV__ && challenge.kind !== 'solo' && isMember && !finished && item.user_id !== myUserId
+                  ? () => { haptic.tap(); setGiftTarget({ id: item.user_id, nickname: item.author?.nickname ?? '동료' }); }
+                  : null
+              }
             />
           )}
           ListEmptyComponent={
@@ -870,6 +879,17 @@ export default function ChallengeRoom() {
         proofs={totalProofs}
         cheers={totalCheers}
         logs={totalLogs}
+        challengeId={challenge.id}
+      />
+
+      {/* ☕ 응원 한잔 보내기 시트 (개발 빌드 전용 진입 — onGift 게이트) */}
+      <GiftSheet
+        visible={giftTarget !== null}
+        onClose={() => setGiftTarget(null)}
+        challengeId={challenge.id}
+        recipientId={giftTarget?.id ?? ''}
+        recipientNickname={giftTarget?.nickname ?? '동료'}
+        myUserId={myUserId}
       />
     </Screen>
   );
@@ -921,12 +941,13 @@ const CHEER_OPTIONS: { type: CheerType; emoji: string; label: string }[] = [
 ];
 
 function ProofCard({
-  proof, onCheer, onComments, locked = false,
+  proof, onCheer, onComments, locked = false, onGift = null,
 }: {
   proof: ProofWithRelations;
   onCheer: (type: CheerType) => void;
   onComments: () => void;
   locked?: boolean;   // 박제(쓰기 잠금) — 응원 칩 회색 처리
+  onGift?: (() => void) | null;   // ☕ 응원 한잔 — null 이면 기존 Phase 2 자리표시 유지
 }) {
   return (
     <View style={styles.proofCard}>
@@ -973,13 +994,25 @@ function ProofCard({
             </Pressable>
           );
         })}
-        <Pressable
-          style={styles.giftBtn}
-          onPress={() => Alert.alert('선물', '🎁 선물 응원은 Phase 2 에서 만나요.')}
-          hitSlop={4}
-        >
-          <Text style={styles.giftBtnText}>🎁 선물</Text>
-        </Pressable>
+        {onGift ? (
+          <Pressable
+            style={styles.giftBtn}
+            onPress={onGift}
+            hitSlop={4}
+            accessibilityRole="button"
+            accessibilityLabel="응원 한잔 보내기"
+          >
+            <Text style={styles.giftBtnText}>☕ 한잔</Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            style={styles.giftBtn}
+            onPress={() => Alert.alert('선물', '🎁 선물 응원은 Phase 2 에서 만나요.')}
+            hitSlop={4}
+          >
+            <Text style={styles.giftBtnText}>🎁 선물</Text>
+          </Pressable>
+        )}
       </View>
 
       <Pressable

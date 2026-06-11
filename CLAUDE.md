@@ -67,6 +67,7 @@
 - DB: [`supabase/migrations/0032_identity_gift_orders.sql`](supabase/migrations/0032_identity_gift_orders.sql) — `user_verifications`(본인만 조회) + `gift_orders` + `is_adult_verified`/`challenge_bet_allowed`
 - 테스트: 루트 [`__tests__/`](__tests__/) — `npm test` (Node 내장 러너, 의존성 0). **결제 로직 수정 시 반드시 함께 갱신·실행** (자동 테스트 의무 영역)
 - 내기(bet) 주문 오픈·실서비스 전환은 법률 자문 게이트 후 providers.ts 구현체 교체로만
+- **응원 한잔 UI (Stage 1.5)**: 보내기 = [`mobile/components/challenge/GiftSheet.tsx`](mobile/components/challenge/GiftSheet.tsx) (티어→본인인증→mock결제), 수령 = `mobile/app/gift/[id].tsx` (받기/기부 2택 → 발신자 피드백 알림), 클라 함수 = [`mobile/lib/payments.ts`](mobile/lib/payments.ts). 인증 카드 ☕ 버튼은 **`__DEV__` 전용** (Stage 4 베타 오픈 시 해제). 수령 선택 시 발급 (claim-gift), 알림 kind 4종 + 기부 집계는 0033
 
 ### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.

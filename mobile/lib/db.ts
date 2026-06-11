@@ -194,6 +194,7 @@ export type MyNotification = {
   challenge_title: string | null;   // 알림함 행에 "어느 챌린지인지" 표시용
   proof_id: string | null;
   log_id: string | null;
+  gift_order_id: string | null;     // ☕ 응원 한잔 — 수령/상세 화면 딥링크용
   preview: string | null;
   created_at: string;
   count: number;            // 묶음 알림의 누적 건수 (즉시 알림은 1)
@@ -203,7 +204,7 @@ export async function fetchMyNotifications(myUserId: string, limit = 20): Promis
   if (!myUserId) return [];
   const { data, error } = await supabase
     .from('notification_queue')
-    .select('id, kind, challenge_id, proof_id, log_id, preview, created_at, challenge:challenge_id(title)')
+    .select('id, kind, challenge_id, proof_id, log_id, gift_order_id, preview, created_at, challenge:challenge_id(title)')
     .eq('user_id', myUserId)
     .order('created_at', { ascending: false })
     .limit(limit * 3);   // 묶음 그룹화 후에도 limit 채우도록 넉넉히
@@ -225,6 +226,7 @@ export async function fetchMyNotifications(myUserId: string, limit = 20): Promis
       challenge_title: n.challenge?.title ?? null,
       proof_id: n.proof_id,
       log_id: n.log_id,
+      gift_order_id: n.gift_order_id ?? null,
       preview: n.preview,
       created_at: n.created_at,
       count: 1,

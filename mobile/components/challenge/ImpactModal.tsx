@@ -1,8 +1,9 @@
 // 🚀 챌린지방 info-bar 의 💚 버튼 탭 → 함께 만든 변화 팝업
-// 4 stats: 함께 N일 / N번 인증 / N번 응원 / N개 기록.
-import React from 'react';
+// 4 stats: 함께 N일 / N번 인증 / N번 응원 / N개 기록. + 기부 허브: 기부로 돌린 한잔 (있을 때만)
+import React, { useEffect, useState } from 'react';
 import { View, Text, Modal, Pressable, StyleSheet } from 'react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
+import { fetchChallengeDonationCount } from '@/lib/payments';
 
 type Props = {
   visible: boolean;
@@ -11,9 +12,17 @@ type Props = {
   proofs: number;        // 총 인증 횟수
   cheers: number;        // 총 응원 횟수
   logs: number;          // 총 기록 개수
+  challengeId?: string;  // 있으면 기부 한잔 집계 표시 (열릴 때만 조회)
 };
 
-export function ImpactModal({ visible, onClose, days, proofs, cheers, logs }: Props) {
+export function ImpactModal({ visible, onClose, days, proofs, cheers, logs, challengeId }: Props) {
+  // ☕→💚 기부로 돌린 한잔 수 — 방 단위 합계 (개인 식별 없음, 비교 압박 금지 원칙)
+  const [donatedCups, setDonatedCups] = useState(0);
+  useEffect(() => {
+    if (!visible || !challengeId) return;
+    fetchChallengeDonationCount(challengeId).then(setDonatedCups).catch(() => {});
+  }, [visible, challengeId]);
+
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
@@ -25,6 +34,13 @@ export function ImpactModal({ visible, onClose, days, proofs, cheers, logs }: Pr
             <Stat num={cheers} label="번 응원" />
             <Stat num={logs} label="개 기록" />
           </View>
+          {donatedCups > 0 && (
+            <View style={styles.donationRow}>
+              <Text style={styles.donationText}>
+                ☕ 이 방에서 기부로 돌린 한잔 {donatedCups}잔 — 누군가의 한잔이 됐어요
+              </Text>
+            </View>
+          )}
           <Pressable style={styles.closeBtn} onPress={onClose} hitSlop={6}>
             <Text style={styles.closeText}>닫기</Text>
           </Pressable>
@@ -87,6 +103,20 @@ const styles = StyleSheet.create({
     color: colors.primary500,
     fontFamily: fontFamily.regular,
     marginTop: 4,
+  },
+  donationRow: {
+    backgroundColor: colors.accent50,
+    borderRadius: radius.md,
+    padding: 12,
+    marginBottom: 4,
+  },
+  donationText: {
+    fontSize: fontSize.xs,
+    color: colors.accent700,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
+    textAlign: 'center',
+    lineHeight: 18,
   },
   closeBtn: {
     alignItems: 'center',
