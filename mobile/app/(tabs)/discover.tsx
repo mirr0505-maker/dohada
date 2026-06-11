@@ -1,9 +1,9 @@
 // 🚀 둘러보기 — v4 disc-card + 4가지 평가 (✨😱🥹💫) + 사회공헌 배너
 // MVP 큐레이션: "지금 핫한" 단일 (가입자 폭증 — 베타엔 단순 created_at desc).
 // 명사/브랜드/공익 뱃지는 Phase 2 (운영 큐레이션).
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
-  View, Text, Pressable, FlatList, StyleSheet, RefreshControl, Alert,
+  View, Text, Pressable, FlatList, StyleSheet, RefreshControl, Alert, ScrollView,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Screen } from '@/components/Screen';
@@ -32,6 +32,21 @@ export default function DiscoverScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 🚀 카테고리 필터 — 로드된 챌린지에 존재하는 카테고리만 칩으로 (null = 전체)
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+
+  const categories = useMemo(() => {
+    const map = new Map<string, string>();   // name → emoji
+    for (const c of items) {
+      if (c.category) map.set(c.category.name, c.category.emoji);
+    }
+    return Array.from(map, ([name, emoji]) => ({ name, emoji }));
+  }, [items]);
+
+  const filteredItems = useMemo(
+    () => (categoryFilter ? items.filter(c => c.category?.name === categoryFilter) : items),
+    [items, categoryFilter],
+  );
 
   React.useEffect(() => {
     if (session === null) router.replace('/login');
@@ -100,13 +115,44 @@ export default function DiscoverScreen() {
         <Text style={styles.subTitle}>둘러보기</Text>
       </View>
 
-      {/* MVP 큐레이션 안내 (필터는 Phase 1.5) */}
+      {/* MVP 큐레이션 안내 */}
       <View style={styles.curationInfo}>
         <Text style={styles.curationEmoji}>🔥</Text>
         <Text style={styles.curationText}>
           <Text style={styles.curationStrong}>지금 핫한</Text> · 최근 만들어진 공개 챌린지
         </Text>
       </View>
+
+      {/* 🚀 카테고리 필터 칩 — 챌린지가 있는 분류만 노출 */}
+      {!loading && !error && categories.length > 1 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterRow}
+          contentContainerStyle={styles.filterRowInner}
+        >
+          <Pressable
+            style={[styles.filterChip, !categoryFilter && styles.filterChipActive]}
+            onPress={() => { haptic.tap(); setCategoryFilter(null); }}
+          >
+            <Text style={[styles.filterChipText, !categoryFilter && styles.filterChipTextActive]}>전체</Text>
+          </Pressable>
+          {categories.map(cat => {
+            const active = categoryFilter === cat.name;
+            return (
+              <Pressable
+                key={cat.name}
+                style={[styles.filterChip, active && styles.filterChipActive]}
+                onPress={() => { haptic.tap(); setCategoryFilter(active ? null : cat.name); }}
+              >
+                <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                  {cat.emoji} {cat.name}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      )}
 
       {loading ? (
         <View style={styles.list}>
@@ -118,7 +164,7 @@ export default function DiscoverScreen() {
         <ErrorState message={error} onRetry={() => { setLoading(true); load(); }} />
       ) : (
         <FlatList
-          data={items}
+          data={filteredItems}
           keyExtractor={c => c.id}
           contentContainerStyle={styles.list}
           refreshControl={
@@ -131,8 +177,9 @@ export default function DiscoverScreen() {
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>🌍</Text>
               <Text style={styles.emptyText}>
-                아직 공개 챌린지가 없어요.{'\n'}
-                하단 + 로 첫 공개 챌린지를 만들어볼까요?
+                {categoryFilter
+                  ? `${categoryFilter} 분류의 공개 챌린지가 없어요.`
+                  : '아직 공개 챌린지가 없어요.\n하단 + 로 첫 공개 챌린지를 만들어볼까요?'}
               </Text>
             </View>
           }
@@ -294,6 +341,40 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.regular,
   },
   curationStrong: {
+    color: colors.accent700,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+
+  // 🚀 카테고리 필터 칩
+  filterRow: {
+    maxHeight: 44,
+    marginBottom: 8,
+  },
+  filterRowInner: {
+    paddingHorizontal: 24,
+    gap: 8,
+    alignItems: 'center',
+  },
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary50,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  filterChipActive: {
+    backgroundColor: colors.accent50,
+    borderColor: colors.accent,
+  },
+  filterChipText: {
+    fontSize: fontSize.sm,
+    color: colors.primary500,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
+  },
+  filterChipTextActive: {
     color: colors.accent700,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,

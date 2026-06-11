@@ -5,7 +5,7 @@
 //   - 시스템 통계 4칸 (조작 불가)
 //   - 작성한 옵션 필드만 노출 (빈 항목은 표시 X)
 //   - "나도 [카테고리] 도전 시작하기" CTA → 신규 유입 루프
-//   - 반응 ("용기 받았어요") 은 Phase 1.5 placeholder (베타엔 안내 Alert)
+//   - 반응 ("용기 받았어요") — 단일 종류, 사용자당 1회 토글 (0029. 본인 글엔 RLS 거부)
 //   - 본인 글이면 우상단 메뉴 → 삭제
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -16,7 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
-import { fetchCompletionStory, deleteCompletionStory } from '@/lib/db';
+import { fetchCompletionStory, deleteCompletionStory, toggleStoryCourage } from '@/lib/db';
+import { formatCheerCount } from '@/lib/format';
 import { haptic } from '@/lib/haptics';
 import type { CompletionStoryCard } from '@/lib/types';
 
@@ -38,25 +39,30 @@ export default function CompletionStoryDetailScreen() {
   const [story, setStory] = useState<CompletionStoryCard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // 🚀 용기 받았어요 — 낙관적 토글용 로컬 상태
+  const [courageCount, setCourageCount] = useState(0);
+  const [couraged, setCouraged] = useState(false);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id || session === undefined) return;   // 세션 복원 후 couraged_by_me 정확히 계산
     (async () => {
       try {
         setError(null);
-        const s = await fetchCompletionStory(id);
+        const s = await fetchCompletionStory(id, session?.user?.id);
         if (!s) {
           setError('이야기를 찾을 수 없거나 열람 권한이 없어요.');
           return;
         }
         setStory(s);
+        setCourageCount(s.courage_count);
+        setCouraged(s.couraged_by_me);
       } catch (e: any) {
         setError(e?.message ?? '불러오지 못했어요.');
       } finally {
         setLoading(false);
       }
     })();
-  }, [id]);
+  }, [id, session]);
 
   const isMine = story?.user_id === myUserId;
 
@@ -86,14 +92,27 @@ export default function CompletionStoryDetailScreen() {
     );
   }, [story]);
 
-  // "용기 받았어요" — 베타엔 Phase 1.5 placeholder
-  const onCourage = useCallback(() => {
+  // "용기 받았어요" — 토글 (낙관적 업데이트 + 실패 시 롤백)
+  const onCourage = useCallback(async () => {
+    if (!story || !myUserId) return;
+    if (isMine) {
+      haptic.tap();
+      Alert.alert('내 이야기예요', '용기는 동료의 이야기에 보내주세요 🤝');
+      return;
+    }
     haptic.tap();
-    Alert.alert(
-      '용기 받았어요',
-      '반응을 보낼 수 있는 기능은 Phase 1.5 에서 열려요.\n지금은 이야기로만 응원해주세요.',
-    );
-  }, []);
+    const next = !couraged;
+    setCouraged(next);
+    setCourageCount(c => Math.max(0, c + (next ? 1 : -1)));
+    try {
+      await toggleStoryCourage({ storyId: story.id, userId: myUserId, currentlyReacted: !next });
+    } catch (e: any) {
+      // 롤백
+      setCouraged(!next);
+      setCourageCount(c => Math.max(0, c + (next ? -1 : 1)));
+      Alert.alert('반응 실패', e?.message ?? String(e));
+    }
+  }, [story, myUserId, isMine, couraged]);
 
   // "나도 도전 시작하기" — 신규 유입 루프
   const onStartSimilar = useCallback(() => {
@@ -186,13 +205,23 @@ export default function CompletionStoryDetailScreen() {
           })}
         </View>
 
-        {/* 용기 받았어요 (Phase 1.5 placeholder) */}
+        {/* 용기 받았어요 — 단일 반응, 사용자당 1회 토글 */}
         <View style={styles.courageRow}>
-          <Pressable style={styles.courageBtn} onPress={onCourage} hitSlop={6}>
-            <Text style={styles.courageBtnText}>🤝 용기 받았어요</Text>
+          <Pressable
+            style={[styles.courageBtn, couraged && styles.courageBtnActive]}
+            onPress={onCourage}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel={`용기 받았어요${courageCount > 0 ? `, ${courageCount}명` : ''}${couraged ? ', 내가 보냄' : ''}`}
+          >
+            <Text style={[styles.courageBtnText, couraged && styles.courageBtnTextActive]}>
+              🤝 용기 받았어요{courageCount > 0 ? ` ${formatCheerCount(courageCount)}` : ''}
+            </Text>
           </Pressable>
           <Text style={styles.courageHint}>
-            반응은 Phase 1.5 에 열려요
+            {courageCount > 0
+              ? `이 이야기로 ${formatCheerCount(courageCount)}명이 용기를 얻었어요`
+              : '서로에게 용기를 주는 증언'}
           </Text>
         </View>
 
@@ -316,7 +345,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
-  // 용기 받았어요 (placeholder)
+  // 용기 받았어요
   courageRow: {
     marginTop: 28, paddingHorizontal: 20,
     alignItems: 'center', gap: 6,
@@ -325,10 +354,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18, paddingVertical: 10,
     backgroundColor: colors.primary50,
     borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  courageBtnActive: {
+    backgroundColor: colors.accent50,
+    borderColor: colors.accent,
   },
   courageBtnText: {
     fontSize: fontSize.sm, color: colors.primary500,
     fontFamily: fontFamily.medium, fontWeight: fontWeight.medium,
+  },
+  courageBtnTextActive: {
+    color: colors.accent700,
+    fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
   },
   courageHint: {
     fontSize: fontSize.xs, color: colors.primary500,

@@ -1,6 +1,8 @@
 // 🚀 온보딩 공통 뷰 — onb1~4 가 동일 구조라 step 만 받아서 렌더
+// 좌우 스와이프(Fling)로도 이전/다음 이동 가능 (버튼과 동일 동작)
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { Gesture, GestureDetector, Directions } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Screen } from '@/components/Screen';
@@ -50,12 +52,23 @@ export function OnbView({ step }: Props) {
   const idx = step - 1;
   const slide = SLIDES[idx];
   const insets = useSafeAreaInsets();
-  
+
   // 기기 안전 영역(status bar/notch) 높이를 고려하여 상단 여백을 동적으로 조절
   const topOffset = insets.top > 0 ? insets.top + 8 : 16;
 
+  const goNext = () => (step === 4 ? router.replace('/login') : router.push(slide.next));
+  const goPrev = () => { if (step > 1) router.back(); };
+
+  // 좌우 스와이프 — runOnJS(true) 로 JS 콜백에서 바로 네비게이션
+  const swipe = Gesture.Race(
+    Gesture.Fling().direction(Directions.LEFT).runOnJS(true).onEnd(goNext),
+    Gesture.Fling().direction(Directions.RIGHT).runOnJS(true).onEnd(goPrev),
+  );
+
   return (
     <Screen backgroundColor={colors.background}>
+      <GestureDetector gesture={swipe}>
+      <View style={{ flex: 1 }}>
       {/* 좌상단: 정체성 마크 (모든 슬라이드 공통) */}
       <View style={[styles.brand, { top: topOffset }]}>
         <BrandMark size="md" color={colors.accent} />
@@ -95,11 +108,11 @@ export function OnbView({ step }: Props) {
           label={slide.nextLabel}
           size="xl"
           block
-          onPress={() =>
-            step === 4 ? router.replace('/login') : router.push(slide.next)
-          }
+          onPress={goNext}
         />
       </View>
+      </View>
+      </GestureDetector>
     </Screen>
   );
 }

@@ -9,7 +9,7 @@
 // 도전 인연 정의 (베타 v2.5) = 현재 같은 챌린지의 멤버 (×횟수 누적은 Phase 2)
 import React, { useCallback, useRef, useState } from 'react';
 import {
-  View, Text, Pressable, ScrollView, StyleSheet, RefreshControl, Image, Alert,
+  View, Text, Pressable, ScrollView, StyleSheet, RefreshControl, Image, Alert, Modal,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { joinChallenge } from '@/lib/invite';
@@ -186,15 +186,29 @@ export default function HomeScreen() {
   const activeChs   = myChs.filter(c => todayStr <= c.end_date);
   const finishedChs = myChs.filter(c => todayStr >  c.end_date);
 
-  // 오늘 인증 액션 — 미인증 챌린지 1개면 즉시, 여러개면 내도전 탭
+  // 🚀 미인증 챌린지 (인증 의무 있는 것만 — cheered 응원자는 제외)
+  const uncheckedChs = activeChs.filter(c =>
+    !c.is_today_checked &&
+    !(c.kind === 'cheered' && c.creator_id !== myUserId),
+  );
+  const [checkinPickerOpen, setCheckinPickerOpen] = useState(false);
+
+  // 오늘 인증 액션 — 0개면 완료 안내, 1개면 즉시 인증, 여러 개면 선택 모달
   const onCheckinAction = () => {
     haptic.tap();
     if (totalCount === 0) {
       router.push('/create' as any);
       return;
     }
-    // 베타 단순화: 내도전 탭으로 이동 → 사용자가 선택. (Phase 1.5 에 미인증 모달)
-    router.push('/(tabs)/my-challenges' as any);
+    if (uncheckedChs.length === 0) {
+      Alert.alert('오늘 인증 완료 🎉', '오늘 몫의 인증을 모두 마쳤어요.\n내일 또 만나요!');
+      return;
+    }
+    if (uncheckedChs.length === 1) {
+      router.push(`/checkin/${uncheckedChs[0].id}` as any);
+      return;
+    }
+    setCheckinPickerOpen(true);
   };
 
   return (
@@ -405,6 +419,42 @@ export default function HomeScreen() {
           </View>
         </ScrollView>
       )}
+
+      {/* 🚀 미인증 챌린지 선택 모달 — 인증할 도전이 여러 개일 때 */}
+      <Modal
+        visible={checkinPickerOpen}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setCheckinPickerOpen(false)}
+      >
+        <Pressable style={styles.pickerOverlay} onPress={() => setCheckinPickerOpen(false)}>
+          <Pressable style={styles.pickerCard} onPress={() => {}}>
+            <Text style={styles.pickerTitle}>📸 어떤 도전을 인증할까요?</Text>
+            <View style={{ gap: 8 }}>
+              {uncheckedChs.map(c => (
+                <Pressable
+                  key={c.id}
+                  style={styles.pickerRow}
+                  onPress={() => {
+                    haptic.tap();
+                    setCheckinPickerOpen(false);
+                    router.push(`/checkin/${c.id}` as any);
+                  }}
+                >
+                  <Text style={styles.pickerRowTitle} numberOfLines={1}>{c.title}</Text>
+                  <Text style={styles.pickerRowArrow}>→</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Pressable
+              style={styles.pickerCancel}
+              onPress={() => { haptic.tap(); setCheckinPickerOpen(false); }}
+            >
+              <Text style={styles.pickerCancelText}>다음에 할게요</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Screen>
   );
 }
@@ -996,5 +1046,61 @@ const styles = StyleSheet.create({
   endLine2: {
     fontSize: fontSize.xs, color: colors.primary500,
     fontFamily: fontFamily.regular,
+  },
+
+  // 🚀 미인증 챌린지 선택 모달
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  pickerCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: 20,
+    gap: 14,
+    ...shadow.lg,
+  },
+  pickerTitle: {
+    fontSize: fontSize.lg,
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    textAlign: 'center',
+  },
+  pickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    backgroundColor: colors.primary50,
+    borderRadius: radius.md,
+  },
+  pickerRowTitle: {
+    flex: 1,
+    fontSize: fontSize.base,
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.semibold,
+  },
+  pickerRowArrow: {
+    fontSize: fontSize.lg,
+    color: colors.accent,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  pickerCancel: {
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  pickerCancelText: {
+    fontSize: fontSize.sm,
+    color: colors.primary500,
+    fontFamily: fontFamily.medium,
   },
 });

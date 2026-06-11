@@ -3,7 +3,7 @@
 // 정체성: "줄세우지 않고, 서로에게 용기를"
 //   - 정렬 = 최신순만 (랭킹 X, 완주 일수 자랑 X)
 //   - 카드엔 시스템 통계 미니 + 첫 작성 필드 발췌
-//   - "용기 받은 N명" 카운트는 Phase 1.5 (베타엔 placeholder)
+//   - "용기 받은 N명" 실카운트 (0029 completion_story_reactions)
 //   - 카드 탭 → /done/[id] 상세 (거기서 "나도 도전 시작하기" CTA)
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -15,6 +15,7 @@ import { Screen } from '@/components/Screen';
 import { AppHeader } from '@/components/AppHeader';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { fetchPublicCompletionStories } from '@/lib/db';
+import { formatCheerCount } from '@/lib/format';
 import { ErrorState } from '@/components/ErrorState';
 import { haptic } from '@/lib/haptics';
 import { reportError } from '@/lib/sentry';
@@ -147,9 +148,13 @@ function StoryCard({ story }: { story: CompletionStoryCard }) {
         <Image source={{ uri: story.photo_urls[0] }} style={styles.photoPreview} />
       )}
 
-      {/* 푸터: 용기 받았어요 placeholder + 보러 가기 */}
+      {/* 푸터: 용기 받은 N명 (0명이면 기본 카피) + 보러 가기 */}
       <View style={styles.cardFooter}>
-        <Text style={styles.courageHint}>🤝 다음 사람에게 용기가 되는 이야기</Text>
+        <Text style={styles.courageHint}>
+          {story.courage_count > 0
+            ? `🤝 ${formatCheerCount(story.courage_count)}명이 용기를 얻었어요`
+            : '🤝 다음 사람에게 용기가 되는 이야기'}
+        </Text>
         <Text style={styles.go}>읽으러 →</Text>
       </View>
     </Pressable>

@@ -152,4 +152,7 @@ export type CompletionStoryCard = DbCompletionStory & {
     title: string;
     category: { emoji: string; name: string } | null;
   };
+  // 🚀 용기 받았어요 반응 (0029) — 단일 종류, 사용자당 1회
+  courage_count: number;
+  couraged_by_me: boolean;
 };

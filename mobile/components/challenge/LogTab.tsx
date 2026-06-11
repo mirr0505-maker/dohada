@@ -1,6 +1,6 @@
 // 🚀 챌린지방 - 기록 탭 (Vlog 형태)
 // v4: "📝 인상깊은 순간을 기록해요" 버튼 + 카드 피드. 인증과 별개의 추억성 콘텐츠.
-// MVP: 텍스트만 (제목 + 본문). 이미지/댓글은 Phase 1.5.
+// 제목 + 본문 + 사진(선택, R2 업로드) + 좋아요/댓글.
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, TextInput, Pressable, StyleSheet, FlatList, Modal,
@@ -315,7 +315,7 @@ function LogComposer({
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],   // v18 호환 — MediaTypeOptions 는 deprecated
         quality: 0.85,
         exif: false,
       });

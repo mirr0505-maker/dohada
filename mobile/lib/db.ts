@@ -1241,8 +1241,9 @@ export async function createCompletionStory(args: {
 export async function fetchPublicCompletionStories(args: {
   limit?: number;
   offset?: number;
+  myUserId?: string;     // 전달 시 couraged_by_me 계산
 } = {}): Promise<CompletionStoryCard[]> {
-  const { limit = 20, offset = 0 } = args;
+  const { limit = 20, offset = 0, myUserId } = args;
   const { data, error } = await supabase
     .from('completion_stories')
     .select(`
@@ -1251,13 +1252,46 @@ export async function fetchPublicCompletionStories(args: {
       challenge:challenge_id (
         title,
         category:category_id (emoji, name)
-      )
+      ),
+      reactions:completion_story_reactions (user_id)
     `)
     .eq('visibility', 'public')
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
   if (error) throw error;
-  return (data ?? []) as unknown as CompletionStoryCard[];
+  return (data ?? []).map((row: any) => mapStoryReactions(row, myUserId));
+}
+
+// 용기 받았어요 집계 — reactions 배열을 count + 내 반응 여부로 변환
+function mapStoryReactions(row: any, myUserId?: string): CompletionStoryCard {
+  const reactions: { user_id: string }[] = row.reactions ?? [];
+  const { reactions: _drop, ...rest } = row;
+  return {
+    ...rest,
+    courage_count: reactions.length,
+    couraged_by_me: myUserId ? reactions.some(r => r.user_id === myUserId) : false,
+  } as CompletionStoryCard;
+}
+
+// 용기 받았어요 토글 — 사용자당 이야기당 1회 (본인 이야기는 RLS 가 거부)
+export async function toggleStoryCourage(args: {
+  storyId: string;
+  userId: string;
+  currentlyReacted: boolean;
+}): Promise<void> {
+  if (args.currentlyReacted) {
+    const { error } = await supabase
+      .from('completion_story_reactions')
+      .delete()
+      .eq('story_id', args.storyId)
+      .eq('user_id', args.userId);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase
+      .from('completion_story_reactions')
+      .insert({ story_id: args.storyId, user_id: args.userId });
+    if (error) throw error;
+  }
 }
 
 // 해냈어요 탭 dot — 가장 최근 공개 완주 이야기 작성 시각 (1건만)
@@ -1274,7 +1308,7 @@ export async function fetchLatestPublicStoryAt(): Promise<string | null> {
 }
 
 // 상세 — id 로 한 건 (RLS 가 공개/인연/본인 분기)
-export async function fetchCompletionStory(id: string): Promise<CompletionStoryCard | null> {
+export async function fetchCompletionStory(id: string, myUserId?: string): Promise<CompletionStoryCard | null> {
   const { data, error } = await supabase
     .from('completion_stories')
     .select(`
@@ -1283,12 +1317,14 @@ export async function fetchCompletionStory(id: string): Promise<CompletionStoryC
       challenge:challenge_id (
         title,
         category:category_id (emoji, name)
-      )
+      ),
+      reactions:completion_story_reactions (user_id)
     `)
     .eq('id', id)
     .maybeSingle();
   if (error) throw error;
-  return (data ?? null) as unknown as CompletionStoryCard | null;
+  if (!data) return null;
+  return mapStoryReactions(data, myUserId);
 }
 
 // 박제 탭에서 "이미 작성?" 체크용 — 본인 + 챌린지 한 건

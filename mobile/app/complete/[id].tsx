@@ -1,7 +1,8 @@
-// 🚀 완주 화면 — 챌린지 종료일이 지났고 매일 인증한 경우 1회 표시
-// MVP: 인증서 / 포토북은 X. 단순한 축하 화면 + 공유 + 홈으로.
+// 🚀 완주 화면 — 챌린지 종료일이 지났고 목표 인증을 채운 경우 1회 표시
+// MVP: 인증서 / 포토북은 X. 축하 화면 (celebration 모션) + 공유 + 홈으로.
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Share, Alert, ActivityIndicator } from 'react-native';
+import Animated, { ZoomIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
@@ -61,18 +62,21 @@ export default function CompleteScreen() {
   return (
     <Screen fullScreen backgroundColor={colors.accent} statusBarStyle="light">
       <View style={styles.center}>
-        <Text style={styles.trophy}>🏆</Text>
-        <Text style={styles.title}>완주!</Text>
-        <Text style={styles.challengeName}>"{title}"</Text>
-        <Text style={styles.days}>{totalDays}일을 끝까지 해냈어요</Text>
+        {/* 🚀 celebration — 핵심 성취 순간에만 모션 집중 (조용한 SNS 원칙과 충돌 X) */}
+        <Animated.Text entering={ZoomIn.springify().delay(100)} style={styles.trophy}>🏆</Animated.Text>
+        <Animated.Text entering={FadeInDown.springify().delay(300)} style={styles.title}>완주!</Animated.Text>
+        <Animated.Text entering={FadeInDown.springify().delay(420)} style={styles.challengeName}>"{title}"</Animated.Text>
+        <Animated.Text entering={FadeInDown.springify().delay(540)} style={styles.days}>
+          {totalDays}일을 끝까지 해냈어요
+        </Animated.Text>
 
-        <View style={styles.sloganBox}>
+        <Animated.View entering={FadeInUp.springify().delay(700)} style={styles.sloganBox}>
           <Text style={styles.slogan}>더 나은 나, 더 나은 세상</Text>
           <Text style={styles.sloganSub}>나의 도전이 나와 세상을 바꿨다</Text>
-        </View>
+        </Animated.View>
       </View>
 
-      <View style={styles.bottom}>
+      <Animated.View entering={FadeInUp.delay(900)} style={styles.bottom}>
         <Button label="기록 공유하기" size="xl" block onPress={onShare} />
         <Button
           label="홈으로"
@@ -81,7 +85,7 @@ export default function CompleteScreen() {
           block
           onPress={() => router.replace('/home')}
         />
-      </View>
+      </Animated.View>
     </Screen>
   );
 }
