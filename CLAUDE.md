@@ -60,6 +60,14 @@
 - **종료 방 쓰기 잠금 (마무리 인사 7일 유예)**: 기준 = 종료일 24시(KST)부터 7일, solo 는 즉시 잠금. 유예 중엔 대화·댓글·기록·응원 모두 가능(대화 탭에 "N일 남았어요" 배너), 지나면 **응원·좋아요 포함 전면 읽기 전용** (열람·탭 이동은 유지). 판정 = `getFarewellState` ([`mobile/lib/stats.ts`](mobile/lib/stats.ts)) 단일 소스 + DB 는 0030 RESTRICTIVE 정책 6개. 종료 방 초대·멈춤은 회색 비활성, 초대 링크 신규 합류 차단 (`joinChallenge`)
 - **에러 수집 (Sentry 미사용)**: [`mobile/lib/sentry.ts`](mobile/lib/sentry.ts) — DSN 없으면 Supabase `client_errors` 테이블(0031)로 자체 수집 (전역 JS 에러 핸들러 + `reportError` 10곳, 세션당 20건 상한·중복 제거). 조회는 SQL Editor: `select * from client_errors order by created_at desc;` DSN 을 .env 에 넣으면 자동으로 Sentry 모드 전환
 
+### 신규 코드 위치 (Phase 2 Stage 1 — 핀테크 골격, 2026-06-11, 실돈 0원)
+**단일 진실원천: [`PHASE2_FINTECH_PLAN.md`](PHASE2_FINTECH_PLAN.md) (v0.4)** — 응원 한잔/내기 한잔/기부 허브.
+- 결제 순수 로직: [`supabase/functions/_shared/payments/`](supabase/functions/_shared/payments/) — catalog(금액 단일소스)·giftStateMachine·orderPolicy·verifyPayment·betSettlement·providers(PG/기프티콘/본인인증 mock, 주입 구조)
+- Edge Functions: `verify-identity` / `create-gift-order` / `confirm-gift-payment` — gift_orders 쓰기는 이 경로 전용 (RLS 에 클라 쓰기 정책 없음)
+- DB: [`supabase/migrations/0032_identity_gift_orders.sql`](supabase/migrations/0032_identity_gift_orders.sql) — `user_verifications`(본인만 조회) + `gift_orders` + `is_adult_verified`/`challenge_bet_allowed`
+- 테스트: 루트 [`__tests__/`](__tests__/) — `npm test` (Node 내장 러너, 의존성 0). **결제 로직 수정 시 반드시 함께 갱신·실행** (자동 테스트 의무 영역)
+- 내기(bet) 주문 오픈·실서비스 전환은 법률 자문 게이트 후 providers.ts 구현체 교체로만
+
 ### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.
 - 인증 완료 Alert / 카톡 초대 / 생성 후 Alert / 챌린지방 헤더 부제 / FAB 라벨 — 모두 분류별 분기 완료
