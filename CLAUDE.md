@@ -45,6 +45,7 @@
 - 발송 파이프라인: DB 트리거 (0009·0019·0022·**0026 인증/기록**) → `notification_queue` → [`supabase/functions/flush-notifications/`](supabase/functions/flush-notifications/) cron (조용시간 22~06시·일 5건 상한·응원 1시간 묶음·무음). 알림함 RLS 는 0025, "동료 인증·기록" 토글은 0027
 - 솔로 방 = 알림 0건 (모든 트리거 수신자가 "본인 제외 멤버" — solo 는 멤버 1명이라 구조적 보장)
 - 완주 판정: [`mobile/lib/stats.ts`](mobile/lib/stats.ts) — KST 기준 + frequency(daily/weekly3/weekly1) 목표 인증 수. cheered 방의 완주 판정·박제는 도전자(개설자) 기준. 완주 화면 1회 노출 키 = `complete_seen_<챌린지>_<유저>` (SecureStore 키는 영숫자·`.`·`-`·`_` 만 허용 — `:` 금지)
+- **출시 직전 백로그** (2026-06-11 결정): 기록 단일 라우트(`/log/[id]`) 또는 `?tab=log&logId=` 스크롤 포커스 — 정식 출시 직전에 재검토. 그 전까지 기록 카드 → 챌린지방 기록 탭 동선 유지 (5탭 컨텍스트 보존 사상)
 
 ### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.
