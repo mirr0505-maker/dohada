@@ -45,7 +45,9 @@
 - 발송 파이프라인: DB 트리거 (0009·0019·0022·**0026 인증/기록**) → `notification_queue` → [`supabase/functions/flush-notifications/`](supabase/functions/flush-notifications/) cron (조용시간 22~06시·일 5건 상한·응원 1시간 묶음·무음). 알림함 RLS 는 0025, "동료 인증·기록" 토글은 0027
 - 솔로 방 = 알림 0건 (모든 트리거 수신자가 "본인 제외 멤버" — solo 는 멤버 1명이라 구조적 보장)
 - 완주 판정: [`mobile/lib/stats.ts`](mobile/lib/stats.ts) — KST 기준 + frequency(daily/weekly3/weekly1) 목표 인증 수. cheered 방의 완주 판정·박제는 도전자(개설자) 기준. 완주 화면 1회 노출 키 = `complete_seen_<챌린지>_<유저>` (SecureStore 키는 영숫자·`.`·`-`·`_` 만 허용 — `:` 금지)
-- **출시 직전 백로그** (2026-06-11 결정): 기록 단일 라우트(`/log/[id]`) 또는 `?tab=log&logId=` 스크롤 포커스 — 정식 출시 직전에 재검토. 그 전까지 기록 카드 → 챌린지방 기록 탭 동선 유지 (5탭 컨텍스트 보존 사상)
+- **출시 직전 백로그** (2026-06-11 결정):
+  - 기록 단일 라우트(`/log/[id]`) 또는 `?tab=log&logId=` 스크롤 포커스 — 정식 출시 직전에 재검토. 그 전까지 기록 카드 → 챌린지방 기록 탭 동선 유지 (5탭 컨텍스트 보존 사상)
+  - **Sentry DSN 연결** — 베타는 Supabase `client_errors` 자체 수집으로 운영. 정식 출시 전에 sentry.io 프로젝트 생성 → `.env` 에 `EXPO_PUBLIC_SENTRY_DSN` 추가 (코드는 DSN 만 넣으면 자동 전환). 이유: 네이티브 레벨 크래시(JS 밖)는 자체 수집이 못 잡음
 
 ### 신규 코드 위치 (v2.7 — Phase 1.5 일괄 오픈, 2026-06-11)
 - 용기 받았어요 반응: [`supabase/migrations/0029_story_courage_reactions.sql`](supabase/migrations/0029_story_courage_reactions.sql) (사용자당 1회·본인 글 RLS 거부) + `toggleStoryCourage`/`mapStoryReactions` ([`mobile/lib/db.ts`](mobile/lib/db.ts)) + [`mobile/app/done/[id].tsx`](mobile/app/done/[id].tsx) 토글 UI
