@@ -1,7 +1,7 @@
 // 🚀 챌린지방 - 기록 탭 (Vlog 형태)
 // v4: "📝 인상깊은 순간을 기록해요" 버튼 + 카드 피드. 인증과 별개의 추억성 콘텐츠.
 // 제목 + 본문 + 사진(선택, R2 업로드) + 좋아요/댓글.
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, TextInput, Pressable, StyleSheet, FlatList, Modal,
   KeyboardAvoidingView, Platform, Alert, Image,
@@ -26,11 +26,14 @@ type Props = {
   composerOpen: boolean;             // 기록 모달 — 부모(room) FAB 가 트리거
   onComposerClose: () => void;
   writeLocked?: boolean;             // 박제 — 좋아요·수정·댓글 작성 잠금
+  focusLogId?: string | null;        // 알림 딥링크 — 해당 기록 카드로 스크롤 포커스
+  focusComments?: boolean;           // 알림 딥링크 — 댓글 시트까지 자동 오픈 (log_comment)
 };
 
 export function LogTab({
   challengeId, challengeStartDate, myUserId, isMember, canComment,
   composerOpen, onComposerClose, writeLocked = false,
+  focusLogId = null, focusComments = false,
 }: Props) {
   const [logs, setLogs] = useState<LogWithAuthor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,6 +53,22 @@ export function LogTab({
   }, [challengeId, myUserId]);
 
   useEffect(() => { load(); }, [load]);
+
+  // 🚀 알림 딥링크 정밀 포커스 — focusLogId 의 기록 카드로 스크롤, 댓글 알림이면 댓글 시트 자동 오픈
+  const listRef = useRef<FlatList<LogWithAuthor>>(null);
+  const focusedLogRef = useRef<string | null>(null);   // 같은 param 으로 재로드 시 반복 스크롤 방지
+  useEffect(() => {
+    if (!focusLogId || logs.length === 0) return;
+    if (focusedLogRef.current === focusLogId) return;
+    const index = logs.findIndex(l => l.id === focusLogId);
+    if (index < 0) return;
+    focusedLogRef.current = focusLogId;
+    // FlatList 가 카드 높이를 측정할 시간을 준 뒤 스크롤 (직후 호출은 빈번히 실패)
+    setTimeout(() => {
+      listRef.current?.scrollToIndex({ index, viewPosition: 0.2, animated: true });
+    }, 300);
+    if (focusComments) setActiveLogId(focusLogId);
+  }, [focusLogId, focusComments, logs]);
 
   // Realtime
   useEffect(() => {
@@ -133,9 +152,17 @@ export function LogTab({
   return (
     <View style={styles.wrap}>
       <FlatList
+        ref={listRef}
         data={logs}
         keyExtractor={l => l.id}
         contentContainerStyle={styles.list}
+        onScrollToIndexFailed={(info) => {
+          // 카드 높이가 가변이라 측정 전엔 scrollToIndex 가 실패할 수 있음 — 근사 위치로 이동 후 재시도
+          listRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: false });
+          setTimeout(() => {
+            listRef.current?.scrollToIndex({ index: info.index, viewPosition: 0.2, animated: true });
+          }, 350);
+        }}
         renderItem={({ item }) => (
           <LogCard
             log={item}

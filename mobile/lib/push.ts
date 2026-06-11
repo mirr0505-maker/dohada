@@ -17,10 +17,20 @@ export type NotificationPrefs = {
 
 // 🚀 알림 kind → 챌린지방 딥링크 (헤더 알림함 행 탭 시 사용)
 //   대화·공지 → 대화 탭 / 기록·기록 댓글·좋아요 → 기록 탭 / 인증·인증 댓글·응원 → 인증 탭
-export function notificationRoute(kind: string | undefined, challengeId: string): string {
+//   proofId/logId 가 있으면 해당 카드로 스크롤 포커스, 댓글 알림은 댓글 시트까지 자동 오픈
+export function notificationRoute(
+  kind: string | undefined,
+  challengeId: string,
+  target?: { proofId?: string | null; logId?: string | null },
+): string {
   if (kind === 'chat' || kind === 'creator_notice') return `/room/${challengeId}?tab=chat`;
-  if (kind === 'log' || kind === 'log_comment' || kind === 'log_like_batch') return `/room/${challengeId}?tab=log`;
-  return `/room/${challengeId}?tab=proof`;   // proof · comment · cheer_batch
+  if (kind === 'log' || kind === 'log_comment' || kind === 'log_like_batch') {
+    if (!target?.logId) return `/room/${challengeId}?tab=log`;
+    return `/room/${challengeId}?tab=log&logId=${target.logId}${kind === 'log_comment' ? '&comments=1' : ''}`;
+  }
+  // proof · comment · cheer_batch
+  if (!target?.proofId) return `/room/${challengeId}?tab=proof`;
+  return `/room/${challengeId}?tab=proof&proofId=${target.proofId}${kind === 'comment' ? '&comments=1' : ''}`;
 }
 
 // 디바이스의 Expo Push Token 을 받아 device_tokens 에 upsert

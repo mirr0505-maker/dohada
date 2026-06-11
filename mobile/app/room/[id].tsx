@@ -51,7 +51,12 @@ function roomKindLabel(kind: ChallengeKind, memberCount: number): string {
 }
 
 export default function ChallengeRoom() {
-  const { id, fromCreate, tab } = useLocalSearchParams<{ id: string; fromCreate?: string; tab?: string }>();
+  const { id, fromCreate, tab, proofId, logId, comments } = useLocalSearchParams<{
+    id: string; fromCreate?: string; tab?: string;
+    proofId?: string;    // 알림 딥링크 — 인증 탭에서 해당 카드로 스크롤 포커스
+    logId?: string;      // 알림 딥링크 — 기록 탭에서 해당 카드로 스크롤 포커스
+    comments?: string;   // '1' 이면 댓글 시트까지 자동 오픈 (comment / log_comment)
+  }>();
   const session = useSession();
 
   const [challenge, setChallenge] = useState<DbChallenge | null>(null);
@@ -83,6 +88,22 @@ export default function ChallengeRoom() {
       setActiveTab(tab);
     }
   }, [tab]);
+
+  // 🚀 알림 딥링크 정밀 포커스 — ?proofId= 진입 시 해당 인증 카드로 스크롤, &comments=1 이면 댓글 시트 자동 오픈
+  const proofListRef = useRef<FlatList<ProofWithRelations>>(null);
+  const focusedProofRef = useRef<string | null>(null);   // 같은 param 으로 재로드 시 반복 스크롤 방지
+  useEffect(() => {
+    if (!proofId || activeTab !== 'proof' || proofs.length === 0) return;
+    if (focusedProofRef.current === proofId) return;
+    const index = proofs.findIndex(p => p.id === proofId);
+    if (index < 0) return;
+    focusedProofRef.current = proofId;
+    // FlatList 가 카드 높이를 측정할 시간을 준 뒤 스크롤 (직후 호출은 빈번히 실패)
+    setTimeout(() => {
+      proofListRef.current?.scrollToIndex({ index, viewPosition: 0.2, animated: true });
+    }, 300);
+    if (comments === '1') setActiveProofId(proofId);
+  }, [proofId, comments, activeTab, proofs]);
 
   const load = useCallback(async () => {
     if (!id || !myUserId) return;
@@ -524,7 +545,7 @@ export default function ChallengeRoom() {
     haptic.tap();
     Alert.alert(
       '이미 종료된 도전이에요',
-      '종료된 방은 초대·멈춤을 사용할 수 없어요.\n남긴 인증과 기록은 박제에 영구 보존됩니다.',
+      '종료된 방은 초대·멈춤·메시지 발송을 사용할 수 없어요.\n남긴 인증과 기록은 박제에 영구 보존됩니다.',
     );
   };
   // 🚀 마무리 인사 유예 (종료일 24시 KST + 7일, solo 는 즉시) — 지나면 대화·댓글·기록·응원 전면 잠금
@@ -573,14 +594,16 @@ export default function ChallengeRoom() {
           </View>
           <View style={styles.headerSubtitleRow}>
             <Text style={styles.subtitle}>{roomKindLabel(challenge.kind, members.length)}</Text>
-            {/* 🚀 개설자 전체 메시지 발송 버튼 */}
+            {/* 🚀 개설자 전체 메시지 발송 버튼 — 종료 방은 초대·멈춤과 동일하게 회색 비활성 */}
             {isCreator && challenge.kind !== 'solo' && (
               <Pressable
-                onPress={() => { haptic.tap(); setInviteLetterOpen(true); }}
-                style={styles.headerLetterBtn}
+                onPress={finished ? onFinishedNotice : () => { haptic.tap(); setInviteLetterOpen(true); }}
+                style={[styles.headerLetterBtn, finished && styles.headerLetterBtnDisabled]}
                 hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={finished ? '발송메시지 — 종료된 도전이라 사용 불가' : '전체 메시지 발송'}
               >
-                <Text style={styles.headerLetterBtnText}>발송메시지</Text>
+                <Text style={[styles.headerLetterBtnText, finished && styles.headerLetterBtnTextDisabled]}>발송메시지</Text>
               </Pressable>
             )}
           </View>
@@ -648,9 +671,17 @@ export default function ChallengeRoom() {
       {/* ─── 탭별 컨텐츠 ─── */}
       {activeTab === 'proof' && (
         <FlatList
+          ref={proofListRef}
           data={proofs}
           keyExtractor={p => p.id}
           contentContainerStyle={styles.feed}
+          onScrollToIndexFailed={(info) => {
+            // 카드 높이가 가변이라 측정 전엔 scrollToIndex 가 실패할 수 있음 — 근사 위치로 이동 후 재시도
+            proofListRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: false });
+            setTimeout(() => {
+              proofListRef.current?.scrollToIndex({ index: info.index, viewPosition: 0.2, animated: true });
+            }, 350);
+          }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -696,6 +727,8 @@ export default function ChallengeRoom() {
           composerOpen={logComposerOpen}
           onComposerClose={() => setLogComposerOpen(false)}
           writeLocked={writeLocked}
+          focusLogId={typeof logId === 'string' ? logId : null}
+          focusComments={comments === '1'}
         />
       )}
       {activeTab === 'status' && (
@@ -1011,6 +1044,13 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
     color: colors.accent,
+  },
+  headerLetterBtnDisabled: {
+    backgroundColor: colors.primary50,
+    borderColor: colors.primary300,   // 종료 방 — 회색 비활성 톤
+  },
+  headerLetterBtnTextDisabled: {
+    color: colors.primary300,
   },
   stackedRow: {
     flexDirection: 'row',

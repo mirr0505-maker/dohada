@@ -191,6 +191,7 @@ export type MyNotification = {
   id: string;
   kind: string;             // chat | comment | log_comment | cheer_batch | log_like_batch | creator_notice
   challenge_id: string | null;
+  challenge_title: string | null;   // 알림함 행에 "어느 챌린지인지" 표시용
   proof_id: string | null;
   log_id: string | null;
   preview: string | null;
@@ -202,7 +203,7 @@ export async function fetchMyNotifications(myUserId: string, limit = 20): Promis
   if (!myUserId) return [];
   const { data, error } = await supabase
     .from('notification_queue')
-    .select('id, kind, challenge_id, proof_id, log_id, preview, created_at')
+    .select('id, kind, challenge_id, proof_id, log_id, preview, created_at, challenge:challenge_id(title)')
     .eq('user_id', myUserId)
     .order('created_at', { ascending: false })
     .limit(limit * 3);   // 묶음 그룹화 후에도 limit 채우도록 넉넉히
@@ -217,7 +218,17 @@ export async function fetchMyNotifications(myUserId: string, limit = 20): Promis
       if (i != null) { grouped[i].count += 1; continue; }
       batchIndex.set(key, grouped.length);
     }
-    grouped.push({ ...n, count: 1 });
+    grouped.push({
+      id: n.id,
+      kind: n.kind,
+      challenge_id: n.challenge_id,
+      challenge_title: n.challenge?.title ?? null,
+      proof_id: n.proof_id,
+      log_id: n.log_id,
+      preview: n.preview,
+      created_at: n.created_at,
+      count: 1,
+    });
   }
   return grouped.slice(0, limit);
 }

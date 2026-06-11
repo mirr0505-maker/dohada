@@ -4,7 +4,7 @@
 // 벨 = 알림함: 폰 푸시와 동일 소스(notification_queue). dot 은 마지막 확인 이후 새 알림이 있을 때만.
 // 푸시 탭 시 _layout 이 /(tabs)/home?bell=<ts> 로 보내면 알림함이 자동으로 열림.
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Image, Modal, ScrollView } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Image, Modal, ScrollView, useWindowDimensions } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
@@ -31,6 +31,7 @@ const KIND_LABEL: Record<string, string> = {
 
 export function AppHeader() {
   const session = useSession();
+  const { height: winHeight } = useWindowDimensions();   // 알림함 목록 높이 — 화면 비례
   const myUserId = session?.user?.id;
   const [nickname, setNickname] = useState<string>('도전자');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -130,7 +131,7 @@ export function AppHeader() {
                 아직 알림이 없어요.{'\n'}오늘도 조용히, 각자의 한 걸음.
               </Text>
             ) : (
-              <ScrollView style={{ maxHeight: 380 }} contentContainerStyle={{ gap: 8 }}>
+              <ScrollView style={{ maxHeight: Math.round(winHeight * 0.5) }} contentContainerStyle={{ gap: 8 }}>
                 {notifs.map(n => (
                   <Pressable
                     key={n.id}
@@ -139,14 +140,18 @@ export function AppHeader() {
                       if (!n.challenge_id) return;
                       haptic.tap();
                       setModalVisible(false);
-                      router.push(notificationRoute(n.kind, n.challenge_id) as any);
+                      // 행 탭 → 해당 인증/기록 카드로 스크롤 포커스, 댓글 알림은 댓글 시트까지 자동 오픈
+                      router.push(notificationRoute(n.kind, n.challenge_id, { proofId: n.proof_id, logId: n.log_id }) as any);
                     }}
                   >
                     <View style={{ flex: 1 }}>
                       <Text style={styles.newsTitle} numberOfLines={1}>
                         {KIND_LABEL[n.kind] ?? '🔔 알림'}{n.count > 1 ? ` ${n.count}건` : ''}
                       </Text>
-                      <Text style={styles.newsTags} numberOfLines={1}>
+                      {n.challenge_title ? (
+                        <Text style={styles.newsChallenge} numberOfLines={1}>📍 {n.challenge_title}</Text>
+                      ) : null}
+                      <Text style={styles.newsTags} numberOfLines={2}>
                         {n.count > 1
                           ? (n.kind === 'cheer_batch' ? `동료 ${n.count}명이 응원해줬어요` : `동료 ${n.count}명이 좋아요를 남겼어요`)
                           : (n.preview ?? '')}
@@ -256,7 +261,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: '100%',
-    maxWidth: 340,
+    maxWidth: 380,
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
     padding: 24,
@@ -285,11 +290,19 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },
+  newsChallenge: {
+    fontSize: fontSize.xs,
+    color: colors.accent700,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
+    marginTop: 2,
+  },
   newsTags: {
     fontSize: fontSize.xs,
     color: colors.primary500,
     fontFamily: fontFamily.regular,
     marginTop: 2,
+    lineHeight: 16,
   },
   newsTime: {
     fontSize: fontSize.xs,
