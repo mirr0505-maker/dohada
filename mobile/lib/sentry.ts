@@ -13,8 +13,8 @@ export function initSentry() {
     dsn: DSN,
     debug: __DEV__,
     enableAutoSessionTracking: true,
-    // 베타: 트래픽 적으니 100%. production 진입 시 0.2 정도로 낮춤.
-    tracesSampleRate: __DEV__ ? 1.0 : 0.5,
+    // 에러 수집만 사용 — 성능 추적(스팬)은 무료 플랜 한도만 소모해서 끔 (Sentry Developer 플랜 운영)
+    tracesSampleRate: 0,
   });
 }
 
