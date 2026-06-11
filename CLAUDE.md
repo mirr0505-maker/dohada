@@ -47,6 +47,15 @@
 - 완주 판정: [`mobile/lib/stats.ts`](mobile/lib/stats.ts) — KST 기준 + frequency(daily/weekly3/weekly1) 목표 인증 수. cheered 방의 완주 판정·박제는 도전자(개설자) 기준. 완주 화면 1회 노출 키 = `complete_seen_<챌린지>_<유저>` (SecureStore 키는 영숫자·`.`·`-`·`_` 만 허용 — `:` 금지)
 - **출시 직전 백로그** (2026-06-11 결정): 기록 단일 라우트(`/log/[id]`) 또는 `?tab=log&logId=` 스크롤 포커스 — 정식 출시 직전에 재검토. 그 전까지 기록 카드 → 챌린지방 기록 탭 동선 유지 (5탭 컨텍스트 보존 사상)
 
+### 신규 코드 위치 (v2.7 — Phase 1.5 일괄 오픈, 2026-06-11)
+- 용기 받았어요 반응: [`supabase/migrations/0029_story_courage_reactions.sql`](supabase/migrations/0029_story_courage_reactions.sql) (사용자당 1회·본인 글 RLS 거부) + `toggleStoryCourage`/`mapStoryReactions` ([`mobile/lib/db.ts`](mobile/lib/db.ts)) + [`mobile/app/done/[id].tsx`](mobile/app/done/[id].tsx) 토글 UI
+- 생성 마법사 **5단계** (7→5 압축): [`mobile/app/create.tsx`](mobile/app/create.tsx) — 제목→분류→방타입→기간+빈도→인증방식. 내기는 마지막 화면 한 줄 티저
+- 홈 노출 상한: [`mobile/app/(tabs)/home.tsx`](mobile/app/(tabs)/home.tsx) `HOME_ACTIVE_LIMIT=5`(미인증 우선)·`HOME_FINISHED_LIMIT=3` + 모두 보기 링크 + 미인증 선택 모달(`checkinPickerOpen`)
+- 관심 도전 2-티어: `fetchInterestingOpenChallenges` — 1순위 명시 관심 / 2순위 자동 추론, 티어 내 최신순 (인기 가중치 금지)
+- 둘러보기 카테고리 필터: [`mobile/app/(tabs)/discover.tsx`](mobile/app/(tabs)/discover.tsx) — 로드된 목록 기반 칩, 클라 필터
+- 온보딩: 스플래시([`mobile/app/index.tsx`](mobile/app/index.tsx)) 세션 자동 홈 진입 + 건너뛰기, [`mobile/components/OnbView.tsx`](mobile/components/OnbView.tsx) 좌우 Fling 스와이프
+- 완주 celebration: [`mobile/app/complete/[id].tsx`](mobile/app/complete/[id].tsx) — Reanimated entering (성취 순간에만 모션)
+
 ### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.
 - 인증 완료 Alert / 카톡 초대 / 생성 후 Alert / 챌린지방 헤더 부제 / FAB 라벨 — 모두 분류별 분기 완료

@@ -29,7 +29,7 @@ dohada/                                  # ⭐ 프로젝트 루트
 │  │  │   ├─ _layout.tsx
 │  │  │   ├─ home.tsx, my-challenges.tsx
 │  │  │   ├─ create-tab.tsx (listener), discover.tsx, profile.tsx
-│  │  ├─ create.tsx                      # 7단계 마법사 (v2)
+│  │  ├─ create.tsx                      # 5단계 마법사 (2026-06-11 압축)
 │  │  ├─ room/[id].tsx                   # 5탭 + 헤더 v4 (v2)
 │  │  ├─ checkin/[id].tsx
 │  │  ├─ invite/[id].tsx, complete/[id].tsx
