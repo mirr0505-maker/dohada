@@ -43,6 +43,10 @@ const ROOM_TABS: { key: RoomTab; emoji: string; label: string }[] = [
   { key: 'archive', emoji: '🏆', label: '박제' },
 ];
 
+// ☕ 응원 한잔 파일럿 — Stage 4 베타 오픈 전까지 지정 계정만 노출 (mock 결제를 일반 베타 사용자에게 숨김)
+// 테스트 계정 추가 시 이메일을 여기 넣고 OTA. 전체 오픈은 이 게이트 제거 (PHASE2_FINTECH_PLAN.md Stage 4)
+const GIFT_PILOT_EMAILS = ['mirr0505@gmail.com'];
+
 // 방 종류 메타 라벨 — 분류 용어 X, 사람 단위 톤
 function roomKindLabel(kind: ChallengeKind, memberCount: number): string {
   if (kind === 'solo') return '혼자만의 다짐';
@@ -79,6 +83,8 @@ export default function ChallengeRoom() {
   const [giftTarget, setGiftTarget] = useState<{ id: string; nickname: string } | null>(null);   // ☕ 응원 한잔 대상
 
   const myUserId = session?.user?.id;
+  // ☕ 파일럿 게이트 — 개발 모드이거나 지정 계정일 때만 한잔 버튼 노출
+  const isGiftPilot = __DEV__ || GIFT_PILOT_EMAILS.includes(session?.user?.email ?? '');
 
   useEffect(() => {
     if (session === null) router.replace('/login');
@@ -697,10 +703,10 @@ export default function ChallengeRoom() {
               locked={writeLocked}
               onCheer={(type) => (writeLocked ? onLockedNotice() : onCheer(item.id, type))}
               onComments={() => { haptic.tap(); setActiveProofId(item.id); }}
-              // ☕ 응원 한잔 — Stage 4 베타 오픈 전까지 개발 빌드 전용 (__DEV__).
+              // ☕ 응원 한잔 — Stage 4 베타 오픈 전까지 파일럿 계정 전용 (isGiftPilot).
               // 동료의 인증에만 노출 (솔로 방·본인 인증·종료 방 제외 — 서버 정책과 동일 잣대)
               onGift={
-                __DEV__ && challenge.kind !== 'solo' && isMember && !finished && item.user_id !== myUserId
+                isGiftPilot && challenge.kind !== 'solo' && isMember && !finished && item.user_id !== myUserId
                   ? () => { haptic.tap(); setGiftTarget({ id: item.user_id, nickname: item.author?.nickname ?? '동료' }); }
                   : null
               }
