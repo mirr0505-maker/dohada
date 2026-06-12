@@ -45,6 +45,7 @@
 - 발송 파이프라인: DB 트리거 (0009·0019·0022·**0026 인증/기록**) → `notification_queue` → [`supabase/functions/flush-notifications/`](supabase/functions/flush-notifications/) cron (조용시간 22~06시·일 5건 상한·응원 1시간 묶음·무음). 알림함 RLS 는 0025, "동료 인증·기록" 토글은 0027
 - 솔로 방 = 알림 0건 (모든 트리거 수신자가 "본인 제외 멤버" — solo 는 멤버 1명이라 구조적 보장)
 - 완주 판정: [`mobile/lib/stats.ts`](mobile/lib/stats.ts) — KST 기준 + frequency(daily/weekly3/weekly1) 목표 인증 수. cheered 방의 완주 판정·박제는 도전자(개설자) 기준. 완주 화면 1회 노출 키 = `complete_seen_<챌린지>_<유저>` (SecureStore 키는 영숫자·`.`·`-`·`_` 만 허용 — `:` 금지)
+- **다음 네이티브 빌드 시 활성화** (2026-06-12): `expo-image-manipulator` (사진 회전 굽기 + 1600px 리사이즈 + JPEG 압축) — 코드·의존성은 9e69108 에 반영 완료, 구 빌드는 가드 폴백으로 무동작. **다음 `eas build` (preview·production) 부터 자동 활성화 — 추가 작업 불필요, 빌드만 하면 됨**
 - **출시 직전 백로그** (2026-06-11 결정):
   - ~~기록 단일 라우트(`/log/[id]`) 또는 `?tab=log&logId=` 스크롤 포커스~~ → **알림 딥링크로 선반영 (2026-06-11)**: 알림함 행 탭 시 `?tab=proof&proofId=` / `?tab=log&logId=` 해당 카드 스크롤 포커스 + `&comments=1` 댓글 시트 자동 오픈 (`notificationRoute` · `room/[id].tsx` · `LogTab`). 알림함 행에 챌린지 제목 표시 (`fetchMyNotifications` embed). 홈/기록 탭의 기록 카드 → 챌린지방 기록 탭 동선은 기존 유지 (5탭 컨텍스트 보존 사상)
   - **Sentry DSN 연결** — 베타는 Supabase `client_errors` 자체 수집으로 운영. 정식 출시 전에 sentry.io 프로젝트 생성 → `.env` 에 `EXPO_PUBLIC_SENTRY_DSN` 추가 (코드는 DSN 만 넣으면 자동 전환). 이유: 네이티브 레벨 크래시(JS 밖)는 자체 수집이 못 잡음
