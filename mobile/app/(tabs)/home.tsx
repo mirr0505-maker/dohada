@@ -199,10 +199,12 @@ export default function HomeScreen() {
     .slice(0, HOME_ACTIVE_LIMIT);
   const visibleFinishedChs = finishedChs.slice(0, HOME_FINISHED_LIMIT);
 
-  // 🚀 미인증 챌린지 (인증 의무 있는 것만 — cheered 응원자는 제외)
+  // 🚀 미인증 챌린지 (인증 의무 있는 것만 — cheered 응원자·시작 전 모집 기간 방은 제외)
+  const kstTodayStr = getKstTodayRange().kstDateStr;
   const uncheckedChs = activeChs.filter(c =>
     !c.is_today_checked &&
-    !(c.kind === 'cheered' && c.creator_id !== myUserId),
+    !(c.kind === 'cheered' && c.creator_id !== myUserId) &&
+    c.start_date <= kstTodayStr,
   );
   const [checkinPickerOpen, setCheckinPickerOpen] = useState(false);
 

@@ -24,9 +24,10 @@ type Props = {
   totalCheers: number;
   totalLogs: number;
   myUserId: string | undefined;
+  subjectJoinedAt?: string | null;   // 완주 판정 주체의 합류 시각 — 늦합류자 비례 완주 (v2.8)
 };
 
-export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs, myUserId }: Props) {
+export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs, myUserId, subjectJoinedAt = null }: Props) {
   // 🚀 P-③: isFinished 만 보던 분기를 성공/실패로 세분화.
   //   진행 중     → 박제 안내 placeholder
   //   실패한 종료 → 인증 타임라인은 그대로 노출 (회고), "완주 이야기 공유" X + 격려 메시지
@@ -39,7 +40,7 @@ export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs, myUserId
     [proofs, subjectUserId],
   );
   const finished  = isFinished(challenge);
-  const completed = isCompleted(challenge, subjectProofs);
+  const completed = isCompleted(challenge, subjectProofs, subjectJoinedAt);
   const progress  = useMemo(() => computeProgress(challenge), [challenge]);
 
   if (!finished) {

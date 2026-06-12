@@ -28,7 +28,7 @@ import { haptic } from '@/lib/haptics';
 import { computeProgress, computeStreak, isCompleted, isFinished, getFarewellState } from '@/lib/stats';
 import * as SecureStore from 'expo-secure-store';
 import { joinChallenge } from '@/lib/invite';
-import { formatCheerCount } from '@/lib/format';
+import { formatCheerCount, getKstTodayRange } from '@/lib/format';
 import type {
   DbChallenge, MemberWithToday, ProofWithRelations, ChallengeKind,
 } from '@/lib/types';
@@ -285,15 +285,22 @@ export default function ChallengeRoom() {
           messageText = `📨 초대의 말:\n"${attachedMessage}"\n\n`;
         }
 
-        // 응원받기 방은 도전자 1명 + 응원자 N명 — 메시지 톤 분기
+        // 응원받기 방은 응원 요청 톤, 그 외는 함께 도전 톤
         const intro = challenge.kind === 'cheered'
           ? `"${challenge.title}" 챌린지를 시작합니다.\n와서 응원해주세요! 💛`
           : `"${challenge.title}" 챌린지에 함께해요!`;
-          
+
+        // 시작 전(모집 기간)이면 시작일을 초대글에 명시 — 합류자가 출발선을 알고 들어오게 (v2.8)
+        const kstTodayStr = getKstTodayRange().kstDateStr;
+        const startLine = kstTodayStr < challenge.start_date
+          ? `🗓️ ${challenge.start_date.replace(/-/g, '.')} 시작 — 그 전까지 함께할 동료를 모아요!\n\n`
+          : '';
+
         await Share.share({
           message:
             `${messageText}` +
             `${intro}\n\n` +
+            `${startLine}` +
             `📱 아래 링크를 눌러 챌린지에 합류하세요:\n${link}`,
         });
       } catch (e) {
@@ -403,6 +410,11 @@ export default function ChallengeRoom() {
       : myProofs,
     [challenge, proofs, myProofs],
   );
+  // 완주 판정 주체의 합류 시각 — 늦합류자는 합류일 기준 비례 완주 (v2.8)
+  const subjectJoinedAt = useMemo(() => {
+    const subjectId = challenge?.kind === 'cheered' ? challenge.creator_id : myUserId;
+    return members.find(m => m.id === subjectId)?.joined_at ?? null;
+  }, [challenge, members, myUserId]);
   const progress = useMemo(
     () => (challenge ? computeProgress(challenge) : null),
     [challenge],
@@ -425,7 +437,7 @@ export default function ChallengeRoom() {
   const completeCheckRunningRef = useRef(false);   // 비동기 검사 중 deps 변동 시 중복 redirect 방지
   useEffect(() => {
     if (!challenge || !myUserId || completeRedirected) return;
-    if (!isCompleted(challenge, myProofs)) return;
+    if (!isCompleted(challenge, myProofs, me?.joined_at)) return;
     if (completeCheckRunningRef.current) return;
     completeCheckRunningRef.current = true;
 
@@ -447,7 +459,7 @@ export default function ChallengeRoom() {
         setCompleteRedirected(true);
       }
     })();
-  }, [challenge, myProofs, completeRedirected, myUserId]);
+  }, [challenge, myProofs, completeRedirected, myUserId, me]);
 
   // ─── 잠시 멈춤 / 재개 / 도전 포기 ─────────────────────
   const onTogglePause = useCallback(() => {
@@ -568,6 +580,12 @@ export default function ChallengeRoom() {
   };
   const daysLeft = progress ? Math.max(0, progress.totalDays - progress.passedDays) : 0;
   const todayCheckedCount = members.filter(m => m.today_checked).length;
+  // 🚀 모집 기간 — 시작일 전이면 인증 대신 동료 모집 모드 (다함께·누구나 시작일 지정, v2.8)
+  const kstToday = getKstTodayRange().kstDateStr;
+  const notStarted = kstToday < challenge.start_date;
+  const daysToStart = notStarted
+    ? Math.max(1, Math.round((new Date(challenge.start_date + 'T00:00:00').getTime() - new Date(kstToday + 'T00:00:00').getTime()) / 86_400_000))
+    : 0;
 
   return (
     <Screen
@@ -588,7 +606,7 @@ export default function ChallengeRoom() {
           <View style={styles.headerTitleRow}>
             <Text style={styles.title} numberOfLines={1}>
               {/* 🚀 완주 / 종료 배지 (P-② 재진입 허용 후 시각 표지) — cheered 는 도전자 기준 */}
-              {isCompleted(challenge, badgeProofs) ? '🏆 ' : isFinished(challenge) ? '🏁 ' : ''}
+              {isCompleted(challenge, badgeProofs, subjectJoinedAt) ? '🏆 ' : isFinished(challenge) ? '🏁 ' : ''}
               {challenge.title}
             </Text>
             <Pressable
@@ -642,6 +660,8 @@ export default function ChallengeRoom() {
           </Pressable>
           {finished ? (
             <Text style={[styles.ddayBig, styles.ddayDone]}>종료</Text>
+          ) : notStarted ? (
+            <Text style={styles.ddayBig}>시작 D-{daysToStart}</Text>
           ) : (
             <Text style={styles.ddayBig}>D-{daysLeft}</Text>
           )}
@@ -766,6 +786,7 @@ export default function ChallengeRoom() {
           totalCheers={totalCheers}
           totalLogs={totalLogs}
           myUserId={myUserId}
+          subjectJoinedAt={subjectJoinedAt}
         />
       )}
 
@@ -814,6 +835,26 @@ export default function ChallengeRoom() {
               onPress={() => { haptic.tap(); setActiveTab('archive'); }}
             >
               <Text style={styles.fabLabel}>🏁 도전 종료 · 박제 보기</Text>
+            </Pressable>
+          );
+        }
+        // 🚀 모집 기간 — 시작 전엔 인증 대신 동료 초대 유도 (DB 도 0024 가 시작 전 인증 차단)
+        if (notStarted) {
+          return (
+            <Pressable
+              style={[styles.fab, styles.fabPaused]}
+              onPress={() => {
+                haptic.tap();
+                Alert.alert(
+                  '아직 시작 전이에요',
+                  `${formatKoreanDate(challenge.start_date)}부터 인증할 수 있어요.\n그동안 함께할 동료를 모아보세요!`,
+                  challenge.kind === 'solo'
+                    ? [{ text: '확인' }]
+                    : [{ text: '확인', style: 'cancel' }, { text: '카톡으로 초대', onPress: onShareInvite }],
+                );
+              }}
+            >
+              <Text style={styles.fabLabel}>🗓️ {daysToStart}일 뒤 시작 · 동료 모집 중</Text>
             </Pressable>
           );
         }
@@ -1038,6 +1079,12 @@ function ProofCard({
       </Pressable>
     </View>
   );
+}
+
+// YYYY-MM-DD → "M월 D일" (모집 기간 안내용)
+function formatKoreanDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  return `${d.getMonth() + 1}월 ${d.getDate()}일`;
 }
 
 function isMemberPaused(pausedUntil: string | null): boolean {

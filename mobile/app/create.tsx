@@ -222,6 +222,7 @@ export default function CreateChallenge() {
                 value={frequency}
                 setValue={setFrequency}
                 durationDays={durationDays}
+                kind={kind}
                 startDate={startDate}
                 setStartDate={setStartDate}
               />
@@ -542,11 +543,12 @@ function SimpleCalendarModal({
 
 // ─── Step 4: 인증 빈도 ───
 function Step4Frequency({
-  value, setValue, durationDays, startDate, setStartDate,
+  value, setValue, durationDays, kind, startDate, setStartDate,
 }: {
   value: CreateChallengeFrequency;
   setValue: (v: CreateChallengeFrequency) => void;
   durationDays: number;
+  kind: ChallengeKind;
   startDate: string;
   setStartDate: (s: string) => void;
 }) {
@@ -574,6 +576,28 @@ function Step4Frequency({
     }
     return arr;
   }, []);
+
+  // 🚀 다함께·누구나 방 시작일 (오늘~+7일) — 시작 전까지 동료 모집 기간 (v2.8 늦합류 피드백)
+  const isRecruitKind = kind === 'closed' || kind === 'open';
+  const recruitDateOptions = useMemo(() => {
+    const arr = [];
+    for (let i = 0; i <= 7; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() + i);
+      const dateStr = d.toISOString().slice(0, 10);
+      const label = `${d.getMonth() + 1}/${d.getDate()}`;
+      const suffix = i === 0 ? '오늘' : i === 1 ? '내일' : i === 2 ? '모레' : `${i}일 뒤`;
+      arr.push({ dateStr, label, suffix });
+    }
+    return arr;
+  }, []);
+
+  // 방 타입을 되돌렸을 때 미래 시작일이 남지 않게 정리 (당일 챌린지의 날짜 예약은 그대로 유지)
+  useEffect(() => {
+    if (durationDays > 1 && !isRecruitKind && startDate !== recruitDateOptions[0].dateStr) {
+      setStartDate(recruitDateOptions[0].dateStr);
+    }
+  }, [durationDays, isRecruitKind, startDate, recruitDateOptions, setStartDate]);
 
   const isCustomDate = useMemo(() => {
     return !dateOptions.some(opt => opt.dateStr === startDate);
@@ -611,6 +635,39 @@ function Step4Frequency({
           </Pressable>
         );
       })}
+
+      {/* 🚀 다함께·누구나 방 — 시작일 선택 (오늘~7일), 시작 전까지 동료 모집 기간 */}
+      {durationDays > 1 && isRecruitKind && (
+        <View style={{ marginTop: 24, gap: 12 }}>
+          <Text style={styles.subSectionTitle}>🗓️ 언제 시작할까요? (시작 전까지 동료를 모아요)</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.dateScroll}
+          >
+            {recruitDateOptions.map(opt => {
+              const active = startDate === opt.dateStr;
+              return (
+                <Pressable
+                  key={opt.dateStr}
+                  style={[styles.dateCard, active && styles.dateCardActive]}
+                  onPress={() => { haptic.tap(); setStartDate(opt.dateStr); }}
+                >
+                  <Text style={[styles.dateCardLabel, active && styles.dateCardLabelActive]}>
+                    {opt.label}
+                  </Text>
+                  <Text style={[styles.dateCardSuffix, active && styles.dateCardSuffixActive]}>
+                    {opt.suffix}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          <Text style={styles.smallNote}>
+            시작 후에 합류한 동료는 합류한 날부터 목표를 채우면 완주로 인정돼요.
+          </Text>
+        </View>
+      )}
 
       {/* 🚀 당일 챌린지일 경우, 언제 도전할지 날짜 선택 UI 추가 */}
       {durationDays === 1 && (

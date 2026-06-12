@@ -3,7 +3,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, FlatList, StyleSheet, Image } from 'react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
-import { computeProgress, computeStreak } from '@/lib/stats';
+import { computeStreak, memberPassedDays } from '@/lib/stats';
 import type { DbChallenge, MemberWithToday, ProofWithRelations } from '@/lib/types';
 
 type Props = {
@@ -14,20 +14,21 @@ type Props = {
 };
 
 export function StatusTab({ challenge, members, proofs, myUserId }: Props) {
-  const progress = useMemo(() => computeProgress(challenge), [challenge]);
 
-  // 멤버별 통계 (인증한 고유 날짜 수 / 진행일수)
+  // 멤버별 통계 (인증한 고유 날짜 수 / 본인 진행일수)
+  // 분모는 합류일 기준 — 시작 후 합류한 동료도 자기 출발선으로 공정하게 계산 (v2.8)
   const rows = useMemo(() => {
     return members.map(m => {
       const myProofs = proofs.filter(p => p.user_id === m.id);
       const uniqDays = new Set(myProofs.map(p => p.created_at.slice(0, 10))).size;
-      const denom = Math.max(1, progress.passedDays);
+      const myDays = memberPassedDays(challenge, m.joined_at);
+      const denom = Math.max(1, myDays);
       const rate = Math.min(100, Math.round((uniqDays / denom) * 100));
       const streak = computeStreak(myProofs);
       const todayChecked = m.today_checked;
-      return { member: m, uniqDays, rate, streak, todayChecked };
+      return { member: m, uniqDays, myDays, rate, streak, todayChecked };
     });
-  }, [members, proofs, progress.passedDays]);
+  }, [members, proofs, challenge]);
 
   // 시간의 흐름 정렬 — 가입 순 (members 가 이미 joined_at asc).
   // 본인만 맨 위로 옮김. 인증률 desc 정렬 X (비교 압박 회피, v3.5 조용한 SNS).
@@ -68,7 +69,6 @@ export function StatusTab({ challenge, members, proofs, myUserId }: Props) {
         <StatusCard
           row={item}
           isMine={item.member.id === myUserId}
-          totalDays={progress.passedDays}
         />
       )}
       ListEmptyComponent={
@@ -87,13 +87,12 @@ function formatDate(dateStr: string): string {
 }
 
 function StatusCard({
-  row, isMine, totalDays,
+  row, isMine,
 }: {
-  row: { member: MemberWithToday; uniqDays: number; rate: number; streak: number; todayChecked: boolean };
+  row: { member: MemberWithToday; uniqDays: number; myDays: number; rate: number; streak: number; todayChecked: boolean };
   isMine: boolean;
-  totalDays: number;
 }) {
-  const { member, uniqDays, rate, streak, todayChecked } = row;
+  const { member, uniqDays, myDays, rate, streak, todayChecked } = row;
   const gaveUp = !!member.gave_up_at;
   return (
     <View style={[styles.card, isMine && styles.cardMine, gaveUp && styles.cardGaveUp]}>
@@ -126,7 +125,7 @@ function StatusCard({
         <Text style={styles.subtext}>
           {gaveUp
             ? '도전을 포기했어요'
-            : `${uniqDays}/${totalDays}일${isMine && !todayChecked ? '  · 오늘 인증 전 ⚠️' : ''}`}
+            : `${uniqDays}/${myDays}일${isMine && !todayChecked ? '  · 오늘 인증 전 ⚠️' : ''}`}
         </Text>
         {!gaveUp && (
           <View style={styles.track}>

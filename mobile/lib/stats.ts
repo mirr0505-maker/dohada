@@ -62,19 +62,46 @@ export function computeStreak(myProofs: ProofWithRelations[]): number {
   return streak;
 }
 
+// 🚀 멤버별 목표 인증 수 — 시작 후 합류자는 "합류일~종료일" 구간 기준 비례 (v2.8 늦합류 완주)
+//    합류일이 시작일보다 빠르거나 없으면 챌린지 전체 기간 기준 (기존과 동일).
+export function memberTargetProofCount(challenge: DbChallenge, joinedAt?: string | null): number {
+  const joinedDate = joinedAt ? toKstDateStr(joinedAt) : null;
+  const effectiveStart = joinedDate && joinedDate > challenge.start_date
+    ? joinedDate
+    : challenge.start_date;
+  const start = new Date(effectiveStart + 'T00:00:00');
+  const end = new Date(challenge.end_date + 'T00:00:00');
+  const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1);
+  return targetProofCount(days, challenge.frequency ?? 'daily');
+}
+
+// 멤버별 경과일 — 늦합류자는 합류일부터 센다 (현황 탭 분모, 시작 전이면 0)
+export function memberPassedDays(challenge: DbChallenge, joinedAt?: string | null): number {
+  const joinedDate = joinedAt ? toKstDateStr(joinedAt) : null;
+  const effectiveStart = joinedDate && joinedDate > challenge.start_date
+    ? joinedDate
+    : challenge.start_date;
+  const start = new Date(effectiveStart + 'T00:00:00');
+  const end = new Date(challenge.end_date + 'T00:00:00');
+  const today = new Date(getKstTodayRange().kstDateStr + 'T00:00:00');
+  const cap = Math.min(end.getTime(), today.getTime());
+  return Math.max(0, Math.round((cap - start.getTime()) / 86_400_000) + 1);
+}
+
 // 완주 여부: 종료일이 지났고 frequency 기준 목표 인증 횟수를 채운 경우 true
 //   daily   : 모든 날 인증
 //   weekly3 : 총일수의 3/7 이상 (반올림 올림)
 //   weekly1 : 총일수의 1/7 이상 (반올림 올림)
+//   joinedAt 을 주면 늦합류자는 합류일 기준 비례 목표로 판정 (다함께·누구나 방)
 export function isCompleted(
   challenge: DbChallenge,
   myProofs: ProofWithRelations[],
+  joinedAt?: string | null,
 ): boolean {
   const today = getKstTodayRange().kstDateStr;
   if (today < challenge.end_date) return false; // 아직 진행 중
 
-  const { totalDays } = computeProgress(challenge);
-  const target = targetProofCount(totalDays, challenge.frequency ?? 'daily');
+  const target = memberTargetProofCount(challenge, joinedAt);
   // UTC slice 로 묶으면 KST 23시·다음날 01시 인증이 같은 날로 합쳐져 완주가 누락될 수 있음
   const uniqueDays = new Set(myProofs.map(p => toKstDateStr(p.created_at))).size;
   return uniqueDays >= target;
@@ -84,10 +111,11 @@ export function isCompleted(
 export function isFailed(
   challenge: DbChallenge,
   myProofs: ProofWithRelations[],
+  joinedAt?: string | null,
 ): boolean {
   const today = getKstTodayRange().kstDateStr;
   if (today < challenge.end_date) return false;
-  return !isCompleted(challenge, myProofs);
+  return !isCompleted(challenge, myProofs, joinedAt);
 }
 
 // 종료 여부: 진행 중인지 종료됐는지 (성공/실패 무관)

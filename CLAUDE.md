@@ -60,6 +60,14 @@
 - **종료 방 쓰기 잠금 (마무리 인사 7일 유예)**: 기준 = 종료일 24시(KST)부터 7일, solo 는 즉시 잠금. 유예 중엔 대화·댓글·기록·응원 모두 가능(대화 탭에 "N일 남았어요" 배너), 지나면 **응원·좋아요 포함 전면 읽기 전용** (열람·탭 이동은 유지). 판정 = `getFarewellState` ([`mobile/lib/stats.ts`](mobile/lib/stats.ts)) 단일 소스 + DB 는 0030 RESTRICTIVE 정책 6개. 종료 방 초대·멈춤은 회색 비활성, 초대 링크 신규 합류 차단 (`joinChallenge`)
 - **에러 수집 (Sentry 미사용)**: [`mobile/lib/sentry.ts`](mobile/lib/sentry.ts) — DSN 없으면 Supabase `client_errors` 테이블(0031)로 자체 수집 (전역 JS 에러 핸들러 + `reportError` 10곳, 세션당 20건 상한·중복 제거). 조회는 SQL Editor: `select * from client_errors order by created_at desc;` DSN 을 .env 에 넣으면 자동으로 Sentry 모드 전환
 
+### 신규 코드 위치 (v2.8 — 시작일·모집 기간 + 늦합류 비례 완주, 2026-06-12)
+- **시작일 선택**: [`mobile/app/create.tsx`](mobile/app/create.tsx) Step4 — 다함께(closed)·누구나(open) 방만 오늘~+7일 칩. 방 타입 변경 시 시작일 자동 리셋
+- **모집 기간** (시작일 전): 합류·대화 가능, 인증 불가 — FAB "🗓️ N일 뒤 시작 · 동료 모집 중" + info bar "시작 D-N" + 초대글에 시작일 자동 포함. DB 측 인증 차단은 기존 0024 `is_within_challenge_period` (start_date 조건 포함)가 담당
+- **늦합류 비례 완주**: [`mobile/lib/stats.ts`](mobile/lib/stats.ts) `memberTargetProofCount`/`memberPassedDays` — isCompleted/isFailed 에 `joinedAt` 옵션. 합류일 > 시작일이면 "합류일~종료일" 구간 기준 목표. 호출부: room 배지·완주 redirect·ArchiveTab(`subjectJoinedAt`)·StatusTab(멤버별 분모)
+- **관심 도전 라벨 정직화**: `matched_by: explicit | inferred` — 추론 매칭은 "내 도전과 같은 분야" 카피 (관심 미설정 사용자 혼란 방지)
+- **버전·OTA 표시**: [`mobile/app/(tabs)/profile.tsx`](mobile/app/(tabs)/profile.tsx) 하단 — `expo-updates` updateId 8자리 + 적용 시각 (베타 테스터 소통용)
+- **종료 방 UI**: 기록 탭에도 마무리 인사 배너, info bar D-N → 회색 "종료" + 진행 숫자 취소선
+
 ### 신규 코드 위치 (Phase 2 Stage 1 — 핀테크 골격, 2026-06-11, 실돈 0원)
 **단일 진실원천: [`PHASE2_FINTECH_PLAN.md`](PHASE2_FINTECH_PLAN.md) (v0.4)** — 응원 한잔/내기 한잔/기부 허브.
 - 결제 순수 로직: [`supabase/functions/_shared/payments/`](supabase/functions/_shared/payments/) — catalog(금액 단일소스)·giftStateMachine·orderPolicy·verifyPayment·betSettlement·providers(PG/기프티콘/본인인증 mock, 주입 구조)
