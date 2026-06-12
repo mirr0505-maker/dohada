@@ -290,7 +290,7 @@ function LogCard({
       </View>
 
       {log.photo_url ? (
-        <Image source={{ uri: log.photo_url }} style={styles.photo} resizeMode="cover" />
+        <LogPhoto uri={log.photo_url} style={styles.photo} />
       ) : null}
 
       <Text style={styles.title}>{log.title}</Text>
@@ -314,6 +314,22 @@ function LogCard({
       </View>
     </Pressable>
   );
+}
+
+// ─── 사진 — 원본 비율 그대로 표시 (잘림 방지) ──────────
+// 피드 레이아웃 안정성을 위해 세로 4:5 ~ 가로 16:9 사이로만 클램프.
+function LogPhoto({ uri, style }: { uri: string; style: object }) {
+  const [ratio, setRatio] = useState(16 / 10);
+  useEffect(() => {
+    let alive = true;
+    Image.getSize(
+      uri,
+      (w, h) => { if (alive && w > 0 && h > 0) setRatio(Math.min(16 / 9, Math.max(4 / 5, w / h))); },
+      () => {},   // 크기 조회 실패 시 기본 비율 유지
+    );
+    return () => { alive = false; };
+  }, [uri]);
+  return <Image source={{ uri }} style={[style, { aspectRatio: ratio }]} resizeMode="cover" />;
 }
 
 // ─── 작성 모달 ──────────────────────────
@@ -367,6 +383,30 @@ function LogComposer({
       if (uri) setPhotoUri(uri);
     } catch (e: any) {
       Alert.alert('사진 선택 실패', e?.message ?? String(e));
+    }
+  };
+
+  // 🚀 기록 중 바로 촬영 — 달리다 만난 풍광을 그 자리에서 담기 (베타 피드백)
+  const onTakePhoto = async () => {
+    haptic.tap();
+    try {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (perm.status === 'denied') {
+        Alert.alert(
+          '카메라 권한이 필요해요',
+          '설정 → Do:하다 → 카메라 에서 켜주세요.',
+        );
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        quality: 0.85,
+        exif: false,
+      });
+      if (result.canceled) return;
+      const uri = result.assets?.[0]?.uri;
+      if (uri) setPhotoUri(uri);
+    } catch (e: any) {
+      Alert.alert('촬영 실패', e?.message ?? String(e));
     }
   };
 
@@ -431,7 +471,7 @@ function LogComposer({
 
           {photoUri ? (
             <View style={styles.photoBox}>
-              <Image source={{ uri: photoUri }} style={styles.photoPreview} resizeMode="cover" />
+              <LogPhoto uri={photoUri} style={styles.photoPreview} />
               <Pressable
                 style={styles.photoRemove}
                 onPress={() => setPhotoUri(null)}
@@ -442,9 +482,14 @@ function LogComposer({
               </Pressable>
             </View>
           ) : (
-            <Pressable style={styles.photoAddBtn} onPress={onPickPhoto} disabled={saving}>
-              <Text style={styles.photoAddText}>📷 사진 추가 (선택)</Text>
-            </Pressable>
+            <View style={styles.photoBtnRow}>
+              <Pressable style={[styles.photoAddBtn, { flex: 1 }]} onPress={onTakePhoto} disabled={saving}>
+                <Text style={styles.photoAddText}>📷 사진 찍기</Text>
+              </Pressable>
+              <Pressable style={[styles.photoAddBtn, { flex: 1 }]} onPress={onPickPhoto} disabled={saving}>
+                <Text style={styles.photoAddText}>🖼️ 보관함에서</Text>
+              </Pressable>
+            </View>
           )}
 
           <TextInput
@@ -522,7 +567,7 @@ const styles = StyleSheet.create({
   },
   photo: {
     width: '100%',
-    aspectRatio: 16 / 10,
+    // aspectRatio 는 LogPhoto 가 원본 비율로 지정 (잘림 방지)
     borderRadius: radius.lg,
     backgroundColor: colors.primary100,
   },
@@ -609,12 +654,16 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     paddingBottom: 16,
   },
+  photoBtnRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
   photoAddBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    marginTop: 12,
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: radius.md,
@@ -636,7 +685,7 @@ const styles = StyleSheet.create({
   },
   photoPreview: {
     width: '100%',
-    aspectRatio: 16 / 10,
+    // aspectRatio 는 LogPhoto 가 원본 비율로 지정
     backgroundColor: colors.primary100,
   },
   photoRemove: {
