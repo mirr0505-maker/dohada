@@ -338,21 +338,12 @@ export default function ChallengeRoom() {
   );
   const isMember = Boolean(me);
 
-  // 🚀 기능명: 도전 포기한 멤버 진입 제한
-  // 설명: 포기한 챌린지방에 진입 시도 시, Alert 를 띄우고 기록 탭으로 강제 이동.
-  // useFocusEffect/Realtime 재로드로 동일 alert 반복 표시되지 않도록 ref 가드.
+  // 🚀 포기한 멤버 = 조용한 보관 + 전면 읽기 전용 (v2.8 — 0034 가 SELECT 만 허용)
+  // 진입 차단하던 기존 Alert 제거 — 열람·회고는 허용, 쓰기는 전면 잠금.
   const enterAlertShownRef = useRef(false);
   useEffect(() => {
     if (enterAlertShownRef.current) return;
-    if (me?.gave_up_at) {
-      enterAlertShownRef.current = true;
-      Alert.alert(
-        '도전 포기',
-        '포기한 챌린지방에는 진입할 수 없습니다.',
-        [{ text: '확인', onPress: () => router.replace('/(tabs)/record') }],
-        { cancelable: false }
-      );
-    } else if (challenge?.gave_up_at && !isFinished(challenge)) {
+    if (challenge?.gave_up_at && !isFinished(challenge) && !me?.gave_up_at) {
       // 종료일이 지난 방은 개설자가 포기했어도 제거 유도 X — 멤버의 박제 접근 보존 (박제=영구 원칙)
       enterAlertShownRef.current = true;
       Alert.alert(
@@ -570,14 +561,26 @@ export default function ChallengeRoom() {
   };
   // 🚀 마무리 인사 유예 (종료일 24시 KST + 7일, solo 는 즉시) — 지나면 대화·댓글·기록·응원 전면 잠금
   const farewell = getFarewellState(challenge);
-  const writeLocked = farewell.finished && !farewell.canWrite;
+  // 포기한 멤버는 즉시 전면 읽기 전용 (완주 유예보다 강한 잠금 — 서버는 0034 가 보장)
+  const iGaveUp = Boolean(me?.gave_up_at);
+  const writeLocked = iGaveUp || (farewell.finished && !farewell.canWrite);
   const onLockedNotice = () => {
     haptic.tap();
+    if (iGaveUp) {
+      Alert.alert(
+        '포기한 도전이에요',
+        '남긴 흔적은 열람만 가능해요.\n언제든 새 도전으로 다시 시작할 수 있어요.',
+      );
+      return;
+    }
     Alert.alert(
       '박제된 도전이에요',
       '마무리 기간이 끝나 대화·응원·기록은 보존만 됩니다.',
     );
   };
+  // 헤더 액션(초대·발송메시지·멈춤) 잠금 — 종료 방 + 포기 멤버 공통
+  const headerLocked = finished || iGaveUp;
+  const onHeaderLockedNotice = iGaveUp ? onLockedNotice : onFinishedNotice;
   const daysLeft = progress ? Math.max(0, progress.totalDays - progress.passedDays) : 0;
   const todayCheckedCount = members.filter(m => m.today_checked).length;
   // 🚀 모집 기간 — 시작일 전이면 인증 대신 동료 모집 모드 (다함께·누구나 시작일 지정, v2.8)
@@ -623,25 +626,25 @@ export default function ChallengeRoom() {
             {/* 🚀 개설자 전체 메시지 발송 버튼 — 종료 방은 초대·멈춤과 동일하게 회색 비활성 */}
             {isCreator && challenge.kind !== 'solo' && (
               <Pressable
-                onPress={finished ? onFinishedNotice : () => { haptic.tap(); setInviteLetterOpen(true); }}
-                style={[styles.headerLetterBtn, finished && styles.headerLetterBtnDisabled]}
+                onPress={headerLocked ? onHeaderLockedNotice : () => { haptic.tap(); setInviteLetterOpen(true); }}
+                style={[styles.headerLetterBtn, headerLocked && styles.headerLetterBtnDisabled]}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel={finished ? '발송메시지 — 종료된 도전이라 사용 불가' : '전체 메시지 발송'}
+                accessibilityLabel={headerLocked ? '발송메시지 — 사용 불가' : '전체 메시지 발송'}
               >
-                <Text style={[styles.headerLetterBtnText, finished && styles.headerLetterBtnTextDisabled]}>발송메시지</Text>
+                <Text style={[styles.headerLetterBtnText, headerLocked && styles.headerLetterBtnTextDisabled]}>발송메시지</Text>
               </Pressable>
             )}
           </View>
         </View>
         {challenge.kind !== 'solo' ? (
           <Pressable
-            onPress={finished ? onFinishedNotice : onShareInvite}
+            onPress={headerLocked ? onHeaderLockedNotice : onShareInvite}
             hitSlop={12}
             accessibilityRole="button"
-            accessibilityLabel={finished ? '초대 — 종료된 도전이라 사용 불가' : '동료 초대'}
+            accessibilityLabel={headerLocked ? '초대 — 사용 불가' : '동료 초대'}
           >
-            <Text style={[styles.share, finished && styles.shareDisabled]}>초대</Text>
+            <Text style={[styles.share, headerLocked && styles.shareDisabled]}>초대</Text>
           </Pressable>
         ) : (
           <View style={{ width: 32 }} />
@@ -665,7 +668,7 @@ export default function ChallengeRoom() {
           ) : (
             <Text style={styles.ddayBig}>D-{daysLeft}</Text>
           )}
-          {isMember && (
+          {isMember && !iGaveUp && (
             <Pressable onPress={finished ? onFinishedNotice : onTogglePause} hitSlop={6}>
               <Text style={[styles.pauseInline, finished && styles.pauseInlineDisabled]}>
                 {isCheeredCheerOnly ? '🏃 그만하기' : (isPaused ? '▶ 재개' : '⏸ 멈춤')}
@@ -730,7 +733,7 @@ export default function ChallengeRoom() {
               // ☕ 응원 한잔 — Stage 4 베타 오픈 전까지 파일럿 계정 전용 (isGiftPilot).
               // 동료의 인증에만 노출 (솔로 방·본인 인증·종료 방 제외 — 서버 정책과 동일 잣대)
               onGift={
-                isGiftPilot && challenge.kind !== 'solo' && isMember && !finished && item.user_id !== myUserId
+                isGiftPilot && challenge.kind !== 'solo' && isMember && !finished && !iGaveUp && item.user_id !== myUserId
                   ? () => { haptic.tap(); setGiftTarget({ id: item.user_id, nickname: item.author?.nickname ?? '동료' }); }
                   : null
               }
@@ -801,6 +804,21 @@ export default function ChallengeRoom() {
               <Text style={styles.fabLabel}>
                 {joining ? '참여 중…' : '🌍 이 챌린지에 참여하기'}
               </Text>
+            </Pressable>
+          );
+        }
+        // 🚀 포기한 멤버 — 재도전의 출발점 (보관함이 실패의 전시가 되지 않게)
+        if (iGaveUp) {
+          if (activeTab !== 'proof' && activeTab !== 'log') return null;
+          return (
+            <Pressable
+              style={[styles.fab, styles.fabPaused]}
+              onPress={() => {
+                haptic.tap();
+                router.push(`/create?title=${encodeURIComponent(challenge.title)}` as any);
+              }}
+            >
+              <Text style={styles.fabLabel}>🔄 이 도전, 다시 시작하기</Text>
             </Pressable>
           );
         }

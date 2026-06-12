@@ -9,7 +9,7 @@ import { Screen } from '@/components/Screen';
 import { AppHeader } from '@/components/AppHeader';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
-import { fetchMyChallenges } from '@/lib/db';
+import { fetchMyChallenges, fetchMyGivenUpChallenges, type GivenUpChallenge } from '@/lib/db';
 import { ErrorState } from '@/components/ErrorState';
 import { ChallengeCardSkeleton } from '@/components/Skeleton';
 import { reportError } from '@/lib/sentry';
@@ -20,6 +20,8 @@ import { getKstTodayRange } from '@/lib/format';
 export default function MyChallengesScreen() {
   const session = useSession();
   const [challenges, setChallenges] = useState<ChallengeWithCount[]>([]);
+  const [gaveUpChs, setGaveUpChs] = useState<GivenUpChallenge[]>([]);   // 🚀 조용한 보관함 (v2.8)
+  const [gaveUpOpen, setGaveUpOpen] = useState(false);                  // 기본 접힘 — 포기를 들이밀지 않기
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +36,8 @@ export default function MyChallengesScreen() {
       setError(null);
       const data = await fetchMyChallenges(session.user.id);
       setChallenges(data);
+      // 보관함은 부가 정보 — 실패해도 메인 목록을 막지 않음
+      fetchMyGivenUpChallenges(session.user.id).then(setGaveUpChs).catch(() => {});
     } catch (e: any) {
       reportError(e, { where: 'my-challenges/fetch' });
       setError(e?.message ?? '챌린지 목록을 불러오지 못했어요.');
@@ -94,24 +98,62 @@ export default function MyChallengesScreen() {
                 </View>
               }
               ListFooterComponent={
-                finished.length > 0 ? (
-                  <View style={{ marginTop: 24, gap: 12 }}>
-                    <Text style={{
-                      fontSize: fontSize.base,
-                      color: colors.primary,
-                      fontFamily: fontFamily.bold,
-                      fontWeight: fontWeight.bold,
-                      paddingHorizontal: 4,
-                    }}>
-                      🏆 끝낸 도전
-                    </Text>
-                    {finished.map(item => (
-                      <View key={item.id} style={{ opacity: 0.85 }}>
-                        <Card challenge={item} finished />
-                      </View>
-                    ))}
-                  </View>
-                ) : null
+                <>
+                  {finished.length > 0 && (
+                    <View style={{ marginTop: 24, gap: 12 }}>
+                      <Text style={{
+                        fontSize: fontSize.base,
+                        color: colors.primary,
+                        fontFamily: fontFamily.bold,
+                        fontWeight: fontWeight.bold,
+                        paddingHorizontal: 4,
+                      }}>
+                        🏆 끝낸 도전
+                      </Text>
+                      {finished.map(item => (
+                        <View key={item.id} style={{ opacity: 0.85 }}>
+                          <Card challenge={item} finished />
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* 🕊️ 조용한 보관함 — 포기한 도전 (기본 접힘, 들이밀지 않기 / 열람은 읽기 전용) */}
+                  {gaveUpChs.length > 0 && (
+                    <View style={{ marginTop: 24, gap: 10 }}>
+                      <Pressable
+                        onPress={() => { haptic.tap(); setGaveUpOpen(o => !o); }}
+                        hitSlop={6}
+                        accessibilityRole="button"
+                        accessibilityLabel={`지난 도전 ${gaveUpChs.length}개 ${gaveUpOpen ? '접기' : '펼치기'}`}
+                      >
+                        <Text style={styles.gaveUpToggle}>
+                          🕊️ 지난 도전 {gaveUpChs.length}개 {gaveUpOpen ? '접기 ▲' : '보기 ▼'}
+                        </Text>
+                      </Pressable>
+                      {gaveUpOpen && gaveUpChs.map(item => (
+                        <Pressable
+                          key={item.id}
+                          style={styles.gaveUpCard}
+                          onPress={() => { haptic.tap(); router.push(`/room/${item.id}` as any); }}
+                        >
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.gaveUpTitle} numberOfLines={1}>{item.title}</Text>
+                            <Text style={styles.gaveUpMeta}>
+                              🗓️ {item.start_date.replace(/-/g, '.')} ~ {item.end_date.replace(/-/g, '.')} · 열람만 가능
+                            </Text>
+                          </View>
+                          <Text style={styles.gaveUpArrow}>→</Text>
+                        </Pressable>
+                      ))}
+                      {gaveUpOpen && (
+                        <Text style={styles.gaveUpHint}>
+                          남긴 인증과 기록은 그대로 보존돼 있어요. 방에서 "다시 시작하기"로 이어갈 수 있어요.
+                        </Text>
+                      )}
+                    </View>
+                  )}
+                </>
               }
             />
           );
@@ -372,6 +414,46 @@ const styles = StyleSheet.create({
   },
   finishedBadgeText: {
     color: colors.primary700,
+  },
+  gaveUpToggle: {
+    fontSize: fontSize.sm,
+    color: colors.primary500,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
+    paddingHorizontal: 4,
+  },
+  gaveUpCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: colors.primary50,
+    borderRadius: radius.lg,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    opacity: 0.8,
+  },
+  gaveUpTitle: {
+    fontSize: fontSize.base,
+    color: colors.primary500,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
+  },
+  gaveUpMeta: {
+    fontSize: fontSize.xs,
+    color: colors.primary300,
+    fontFamily: fontFamily.regular,
+    marginTop: 2,
+  },
+  gaveUpArrow: {
+    fontSize: fontSize.base,
+    color: colors.primary300,
+  },
+  gaveUpHint: {
+    fontSize: fontSize.xs,
+    color: colors.primary300,
+    fontFamily: fontFamily.regular,
+    paddingHorizontal: 4,
+    lineHeight: 16,
   },
   empty: {
     flex: 1,

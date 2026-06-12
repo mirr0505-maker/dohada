@@ -68,6 +68,7 @@
 - **관심 도전 라벨 정직화**: `matched_by: explicit | inferred` — 추론 매칭은 "내 도전과 같은 분야" 카피 (관심 미설정 사용자 혼란 방지)
 - **버전·OTA 표시**: [`mobile/app/(tabs)/profile.tsx`](mobile/app/(tabs)/profile.tsx) 하단 — `expo-updates` updateId 8자리 + 적용 시각 (베타 테스터 소통용)
 - **종료 방 UI**: 기록 탭에도 마무리 인사 배너, info bar D-N → 회색 "종료" + 진행 숫자 취소선
+- **포기 = 조용한 보관 + 읽기 전용 (2026-06-12 결정)**: 삭제 ❌ (공유 공간 — 동료 박제 보호 + "보존돼요" 약속). DB 는 [`0034_gave_up_read_only.sql`](supabase/migrations/0034_gave_up_read_only.sql) — `is_viewer_of*` 헬퍼로 SELECT 10개 정책만 포기자 포함, 쓰기 정책은 활성 멤버 전용 유지 (완주 유예보다 강한 잠금). UI: 내도전 탭 하단 "🕊️ 지난 도전" 접힌 섹션 (기본 숨김) → 방 열람 (writeLocked + 헤더 액션 비활성) + FAB "다시 시작하기" (`/create?title=` 프리필). 진입 차단 Alert 제거
 
 ### 신규 코드 위치 (Phase 2 Stage 1 — 핀테크 골격, 2026-06-11, 실돈 0원)
 **단일 진실원천: [`PHASE2_FINTECH_PLAN.md`](PHASE2_FINTECH_PLAN.md) (v0.4)** — 응원 한잔/내기 한잔/기부 허브.

@@ -235,6 +235,38 @@ export async function fetchMyNotifications(myUserId: string, limit = 20): Promis
   return grouped.slice(0, limit);
 }
 
+// ─── 포기한 도전 (조용한 보관함, v2.8) ───────────────────
+// 내도전 탭 하단 접힌 섹션 — 기본 숨김, 펼칠 때만 보임 (포기를 들이밀지 않기).
+export type GivenUpChallenge = {
+  id: string;
+  title: string;
+  kind: ChallengeKind;
+  start_date: string;
+  end_date: string;
+  gave_up_at: string;   // 내 멤버십의 포기 시각
+};
+
+export async function fetchMyGivenUpChallenges(myUserId: string): Promise<GivenUpChallenge[]> {
+  if (!myUserId) return [];
+  const { data, error } = await supabase
+    .from('challenge_members')
+    .select('gave_up_at, challenges(id, title, kind, start_date, end_date)')
+    .eq('user_id', myUserId)
+    .not('gave_up_at', 'is', null)
+    .order('gave_up_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? [])
+    .filter((m: any) => m.challenges)
+    .map((m: any) => ({
+      id: m.challenges.id,
+      title: m.challenges.title,
+      kind: (m.challenges.kind ?? 'closed') as ChallengeKind,
+      start_date: m.challenges.start_date,
+      end_date: m.challenges.end_date,
+      gave_up_at: m.gave_up_at,
+    }));
+}
+
 // ─── 홈 v2.3 — 분류별 카드용 상세 데이터 ─────────────────
 // 4분류 카드 (Solo/Cheered/Closed/Open) 각자 다른 톤이라 데이터도 분류별.
 export type MyChallengeDetail = ChallengeWithCount & {

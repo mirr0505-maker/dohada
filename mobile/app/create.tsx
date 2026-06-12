@@ -5,7 +5,7 @@ import {
   View, Text, TextInput, StyleSheet, ScrollView, Pressable,
   KeyboardAvoidingView, Platform, Alert, ActivityIndicator,
 } from 'react-native';
-import { router, Stack } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
@@ -61,9 +61,11 @@ const ROOM_TYPES: { value: ChallengeKind; label: string; desc: string; icon: str
 export default function CreateChallenge() {
   const session = useSession();
   const [step, setStep] = useState(1);
+  // 🚀 재도전 프리필 — 포기한 방의 "다시 시작하기" 가 ?title= 로 제목을 넘김
+  const { title: titleParam } = useLocalSearchParams<{ title?: string }>();
 
   // 폼 state
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(typeof titleParam === 'string' ? titleParam : '');
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [subcategoryId, setSubcategoryId] = useState<number | null>(null);
   const [durationDays, setDurationDays] = useState<number>(100);   // 기본 100일 (v4 추천)
