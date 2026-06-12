@@ -21,6 +21,9 @@ import { ArchiveTab } from '@/components/challenge/ArchiveTab';
 import { MemberSheet } from '@/components/challenge/MemberSheet';
 import { InviteConfirmModal } from '@/components/challenge/InviteConfirmModal';
 import { GiftSheet } from '@/components/challenge/GiftSheet';
+import {
+  isGiftPilotEmail, fetchMyReceivedGifts, GIFT_TIERS, GIFT_STATUS_LABEL, type ReceivedGift,
+} from '@/lib/payments';
 import { InviteLetterModal } from '@/components/challenge/InviteLetterModal';
 import { ImpactModal } from '@/components/challenge/ImpactModal';
 import { reportError } from '@/lib/sentry';
@@ -42,10 +45,6 @@ const ROOM_TABS: { key: RoomTab; emoji: string; label: string }[] = [
   { key: 'status',  emoji: '📊', label: '현황' },
   { key: 'archive', emoji: '🏆', label: '박제' },
 ];
-
-// ☕ 응원 한잔 파일럿 — Stage 4 베타 오픈 전까지 지정 계정만 노출 (mock 결제를 일반 베타 사용자에게 숨김)
-// 테스트 계정 추가 시 이메일을 여기 넣고 OTA. 전체 오픈은 이 게이트 제거 (PHASE2_FINTECH_PLAN.md Stage 4)
-const GIFT_PILOT_EMAILS = ['mirr0505@gmail.com', 'marianne0519@gmail.com', 'longleg07@gmail.com'];
 
 // 방 종류 메타 라벨 — 분류 용어 X, 사람 단위 톤
 function roomKindLabel(kind: ChallengeKind, memberCount: number): string {
@@ -80,11 +79,13 @@ export default function ChallengeRoom() {
   const [impactModalOpen, setImpactModalOpen] = useState(false);              // info-bar 💚 → 함께 만든 변화 팝업
   const [inviteConfirmOpen, setInviteConfirmOpen] = useState(false);          // 🚀 초대 메시지 첨부 확인 모달 열림 여부
   const [inviteLetterOpen, setInviteLetterOpen] = useState(false);            // 🚀 초대 편지글 모달 열림 여부
-  const [giftTarget, setGiftTarget] = useState<{ id: string; nickname: string } | null>(null);   // ☕ 응원 한잔 대상
+  const [giftTarget, setGiftTarget] = useState<{ id: string; nickname: string; proofId?: string } | null>(null);   // ☕ 응원 한잔 대상
 
   const myUserId = session?.user?.id;
   // ☕ 파일럿 게이트 — 개발 모드이거나 지정 계정일 때만 한잔 버튼 노출
-  const isGiftPilot = __DEV__ || GIFT_PILOT_EMAILS.includes(session?.user?.email ?? '');
+  const isGiftPilot = isGiftPilotEmail(session?.user?.email);
+  // ☕ 내가 받은 한잔들 — 본인 인증 카드 도착 버튼 + 폴백 배너 (수신은 게이트 없음)
+  const [receivedGifts, setReceivedGifts] = useState<ReceivedGift[]>([]);
 
   useEffect(() => {
     if (session === null) router.replace('/login');
@@ -122,6 +123,8 @@ export default function ChallengeRoom() {
       setMembers(data.members);
       setProofs(data.proofs);
       setTotalLogs(data.totalLogs);
+      // 받은 한잔은 부가 정보 — 실패해도 방 로딩을 막지 않음
+      fetchMyReceivedGifts(id, myUserId).then(setReceivedGifts).catch(() => {});
     } catch (e: any) {
       reportError(e, { where: 'room/fetchRoomData', challengeId: id });
       setError(e?.message ?? '챌린지를 불러오지 못했어요.');
@@ -581,6 +584,25 @@ export default function ChallengeRoom() {
   // 헤더 액션(초대·발송메시지·멈춤) 잠금 — 종료 방 + 포기 멤버 공통
   const headerLocked = finished || iGaveUp;
   const onHeaderLockedNotice = iGaveUp ? onLockedNotice : onFinishedNotice;
+  // ☕ 한잔 도착 — 미수령이 있으면 수령 화면으로, 전부 처리됐으면 내역 팝업 (숫자 카운팅 표기 없음)
+  const onGiftArrivedPress = (gifts: ReceivedGift[]) => {
+    haptic.tap();
+    const unclaimed = gifts.find(g => g.status === 'paid');
+    if (unclaimed) {
+      router.push(`/gift/${unclaimed.id}` as any);
+      return;
+    }
+    const lines = gifts.map(g => {
+      const tier = GIFT_TIERS.find(t => t.tier === g.product_tier)?.label ?? '☕ 한잔';
+      return `${g.sender_nickname}님의 ${tier} — ${GIFT_STATUS_LABEL[g.status] ?? g.status}`;
+    });
+    Alert.alert('☕ 도착한 한잔', lines.join('\n'));
+  };
+  // 인증 카드와 연결되지 않은 미수령 한잔 (옛 주문·인증 삭제) — 인증 탭 상단 폴백 배너
+  const visibleProofIds = new Set(proofs.map(p => p.id));
+  const orphanUnclaimedGift = receivedGifts.find(
+    g => g.status === 'paid' && (!g.proof_id || !visibleProofIds.has(g.proof_id)),
+  );
   const daysLeft = progress ? Math.max(0, progress.totalDays - progress.passedDays) : 0;
   const todayCheckedCount = members.filter(m => m.today_checked).length;
   // 🚀 모집 기간 — 시작일 전이면 인증 대신 동료 모집 모드 (다함께·누구나 시작일 지정, v2.8)
@@ -724,9 +746,22 @@ export default function ChallengeRoom() {
               tintColor={colors.accent}
             />
           }
+          ListHeaderComponent={
+            orphanUnclaimedGift ? (
+              <Pressable
+                style={styles.giftArrivedBanner}
+                onPress={() => { haptic.tap(); router.push(`/gift/${orphanUnclaimedGift.id}` as any); }}
+                accessibilityRole="button"
+                accessibilityLabel="받지 않은 한잔 확인하기"
+              >
+                <Text style={styles.giftArrivedBannerText}>☕ 받지 않은 한잔이 있어요 — 눌러서 확인하기</Text>
+              </Pressable>
+            ) : null
+          }
           renderItem={({ item }) => (
             <ProofCard
               proof={item}
+              mine={item.user_id === myUserId}
               locked={writeLocked}
               onCheer={(type) => (writeLocked ? onLockedNotice() : onCheer(item.id, type))}
               onComments={() => { haptic.tap(); setActiveProofId(item.id); }}
@@ -734,9 +769,15 @@ export default function ChallengeRoom() {
               // 동료의 인증에만 노출 (솔로 방·본인 인증·종료 방 제외 — 서버 정책과 동일 잣대)
               onGift={
                 isGiftPilot && challenge.kind !== 'solo' && isMember && !finished && !iGaveUp && item.user_id !== myUserId
-                  ? () => { haptic.tap(); setGiftTarget({ id: item.user_id, nickname: item.author?.nickname ?? '동료' }); }
+                  ? () => { haptic.tap(); setGiftTarget({ id: item.user_id, nickname: item.author?.nickname ?? '동료', proofId: item.id }); }
                   : null
               }
+              // ☕ 한잔 도착 — 본인 인증 카드에 이 인증으로 받은 한잔이 있을 때만 (받은 적 있으면 계속 표시)
+              onGiftArrived={(() => {
+                if (item.user_id !== myUserId) return null;
+                const gifts = receivedGifts.filter(g => g.proof_id === item.id);
+                return gifts.length > 0 ? () => onGiftArrivedPress(gifts) : null;
+              })()}
             />
           )}
           ListEmptyComponent={
@@ -959,6 +1000,7 @@ export default function ChallengeRoom() {
         challengeId={challenge.id}
         recipientId={giftTarget?.id ?? ''}
         recipientNickname={giftTarget?.nickname ?? '동료'}
+        proofId={giftTarget?.proofId ?? null}
         myUserId={myUserId}
       />
     </Screen>
@@ -1011,13 +1053,15 @@ const CHEER_OPTIONS: { type: CheerType; emoji: string; label: string }[] = [
 ];
 
 function ProofCard({
-  proof, onCheer, onComments, locked = false, onGift = null,
+  proof, onCheer, onComments, locked = false, onGift = null, onGiftArrived = null, mine = false,
 }: {
   proof: ProofWithRelations;
   onCheer: (type: CheerType) => void;
   onComments: () => void;
   locked?: boolean;   // 박제(쓰기 잠금) — 응원 칩 회색 처리
-  onGift?: (() => void) | null;   // ☕ 응원 한잔 — null 이면 기존 Phase 2 자리표시 유지
+  onGift?: (() => void) | null;          // ☕ 응원 한잔 보내기 — 동료 카드 (파일럿)
+  onGiftArrived?: (() => void) | null;   // ☕ 한잔 도착 — 본인 카드, 받은 적 있으면 표시 (카운팅 없음)
+  mine?: boolean;                        // 본인 카드 — 🎁 선물 자리표시 제거
 }) {
   return (
     <View style={styles.proofCard}>
@@ -1074,7 +1118,17 @@ function ProofCard({
           >
             <Text style={styles.giftBtnText}>☕ 한잔</Text>
           </Pressable>
-        ) : (
+        ) : onGiftArrived ? (
+          <Pressable
+            style={[styles.giftBtn, styles.giftArrivedBtn]}
+            onPress={onGiftArrived}
+            hitSlop={4}
+            accessibilityRole="button"
+            accessibilityLabel="도착한 한잔 확인하기"
+          >
+            <Text style={[styles.giftBtnText, styles.giftArrivedBtnText]}>☕ 한잔 도착</Text>
+          </Pressable>
+        ) : mine ? null : (
           <Pressable
             style={styles.giftBtn}
             onPress={() => Alert.alert('선물', '🎁 선물 응원은 Phase 2 에서 만나요.')}
@@ -1394,6 +1448,30 @@ const styles = StyleSheet.create({
     color: colors.accent700,
     fontFamily: fontFamily.medium,
     fontWeight: fontWeight.semibold,
+  },
+  giftArrivedBtn: {
+    borderWidth: 1,
+    borderColor: colors.accent,   // 도착 — 받을 게 있다는 신호 (숫자 배지 없이 테두리 톤만)
+  },
+  giftArrivedBtnText: {
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  giftArrivedBanner: {
+    backgroundColor: colors.accent50,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderRadius: radius.lg,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  giftArrivedBannerText: {
+    fontSize: fontSize.sm,
+    color: colors.accent700,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
   },
   commentRow: {
     flexDirection: 'row',

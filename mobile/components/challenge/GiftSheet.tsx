@@ -18,6 +18,7 @@ type Props = {
   challengeId: string;
   recipientId: string;
   recipientNickname: string;
+  proofId?: string | null;   // 보낸 인증 카드 — 수신자의 "☕ 한잔 도착" 버튼 위치 (0035)
   myUserId: string | undefined;
 };
 
@@ -34,7 +35,7 @@ const REASON_LABEL: Record<string, string> = {
 };
 
 export function GiftSheet({
-  visible, onClose, challengeId, recipientId, recipientNickname, myUserId,
+  visible, onClose, challengeId, recipientId, recipientNickname, proofId = null, myUserId,
 }: Props) {
   const [step, setStep] = useState<Step>('tier');
   const [tier, setTier] = useState<GiftTier | null>(null);
@@ -85,7 +86,7 @@ export function GiftSheet({
     if (!selectedTier || busy) return;
     setBusy(true);
     try {
-      const { orderId, amount } = await createGiftOrder({ challengeId, recipientId, tier: selectedTier.tier });
+      const { orderId, amount } = await createGiftOrder({ challengeId, recipientId, tier: selectedTier.tier, proofId });
       await confirmGiftPaymentMock(orderId, amount);   // Stage 3: PG 결제창으로 교체
       haptic.success();
       setStep('done');

@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
   const { data: { user } } = await authClient.auth.getUser();
   if (!user) return json(401, { error: 'unauthorized' });
 
-  const { challengeId, recipientId, productTier } = await req.json().catch(() => ({}));
+  const { challengeId, recipientId, productTier, proofId } = await req.json().catch(() => ({}));
   if (!challengeId || !recipientId || !productTier) {
     return json(400, { error: 'missing_fields' });
   }
@@ -83,6 +83,19 @@ Deno.serve(async (req) => {
   });
   if (!verdict.ok) return json(403, { error: verdict.reason });
 
+  // 한잔을 보낸 인증 카드 연결 (0035) — 검증: 해당 챌린지의 수신자 인증일 때만 기록
+  let linkedProofId: string | null = null;
+  if (proofId && typeof proofId === 'string') {
+    const { data: proof } = await service
+      .from('proofs')
+      .select('id')
+      .eq('id', proofId)
+      .eq('challenge_id', challengeId)
+      .eq('user_id', recipientId)
+      .maybeSingle();
+    linkedProofId = proof?.id ?? null;
+  }
+
   const { data: order, error: insErr } = await service
     .from('gift_orders')
     .insert({
@@ -93,6 +106,7 @@ Deno.serve(async (req) => {
       product_tier: productTier,
       amount: verdict.amount,     // 서버 카탈로그 가격 — 유일한 금액 출처
       status: 'created',
+      proof_id: linkedProofId,
     })
     .select('id, amount')
     .single();

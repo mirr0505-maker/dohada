@@ -28,6 +28,7 @@ import { scheduleDailyReminder, cancelDailyReminder } from '@/lib/notifications'
 import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
+import { isGiftPilotEmail } from '@/lib/payments';
 
 export default function ProfileScreen() {
   const session = useSession();
@@ -386,6 +387,15 @@ export default function ProfileScreen() {
 
         {/* 액션 */}
         <View style={styles.actions}>
+          {/* ☕ 한잔 내역 — 파일럿 전용 (Stage 4 베타 오픈 시 전체 공개) */}
+          {isGiftPilotEmail(session?.user?.email) && (
+            <Button
+              label="☕ 한잔 내역"
+              variant="ghost"
+              block
+              onPress={() => { haptic.tap(); router.push('/gifts' as any); }}
+            />
+          )}
           <Button label="로그아웃" variant="ghost" block onPress={onLogout} />
         </View>
 

@@ -3,6 +3,26 @@
 // 실서비스 전환(Stage 3)은 서버 providers.ts 교체 — 이 파일의 mock 문자열 두 곳도 함께 교체.
 import { supabase } from './supabase';
 
+// ☕ 파일럿 게이트 — Stage 4 베타 오픈 전까지 지정 계정만 (mock 결제 노출 방지)
+// 테스트 계정 추가 시 여기에 이메일 추가 후 OTA. 전체 오픈은 게이트 제거 (PHASE2 Stage 4)
+export const GIFT_PILOT_EMAILS = ['mirr0505@gmail.com', 'marianne0519@gmail.com', 'longleg07@gmail.com'];
+
+export function isGiftPilotEmail(email: string | undefined | null): boolean {
+  return __DEV__ || GIFT_PILOT_EMAILS.includes(email ?? '');
+}
+
+// 상태 → 사용자 문구 (수령 화면·내역 화면 공용)
+export const GIFT_STATUS_LABEL: Record<string, string> = {
+  created: '결제 대기 중',
+  paid: '도착 — 받기를 기다리고 있어요',
+  issued: '교환권 발급됨',
+  delivered: '받았어요 ☕',
+  donated: '기부로 돌렸어요 💚',
+  auto_refund: '발급 실패로 자동 환불되었어요',
+  pay_failed: '결제가 완료되지 않았어요',
+  canceled: '취소된 주문이에요',
+};
+
 export type GiftTier = 'one_cup' | 'hearty_cup';
 
 // 표시 전용 가격표 — 서버 카탈로그(supabase/functions/_shared/payments/catalog.ts)와 동일해야 함
@@ -47,12 +67,17 @@ export async function verifyIdentityMock(birthDate: string, phone: string): Prom
   return { isAdult: Boolean(data?.isAdult) };
 }
 
-// 주문 생성 — 금액은 서버가 결정해 돌려준다
+// 주문 생성 — 금액은 서버가 결정해 돌려준다. proofId = 보낸 인증 카드 연결 (도착 버튼용)
 export async function createGiftOrder(params: {
-  challengeId: string; recipientId: string; tier: GiftTier;
+  challengeId: string; recipientId: string; tier: GiftTier; proofId?: string | null;
 }): Promise<{ orderId: string; amount: number }> {
   const { data, error } = await supabase.functions.invoke('create-gift-order', {
-    body: { challengeId: params.challengeId, recipientId: params.recipientId, productTier: params.tier },
+    body: {
+      challengeId: params.challengeId,
+      recipientId: params.recipientId,
+      productTier: params.tier,
+      proofId: params.proofId ?? null,
+    },
   });
   if (error) throw new Error(await describeFnError(error));
   return { orderId: data.orderId, amount: data.amount };
@@ -88,6 +113,78 @@ export async function fetchGiftOrder(orderId: string): Promise<GiftOrderRow | nu
     .maybeSingle();
   if (error) throw error;
   return (data as unknown as GiftOrderRow) ?? null;
+}
+
+// 이 방에서 내가 받은 한잔들 — 본인 인증 카드 "☕ 한잔 도착" 버튼 + 폴백 배너용
+export type ReceivedGift = {
+  id: string;
+  proof_id: string | null;
+  status: string;
+  product_tier: string;
+  created_at: string;
+  sender_nickname: string;
+};
+
+export async function fetchMyReceivedGifts(challengeId: string, myUserId: string): Promise<ReceivedGift[]> {
+  if (!myUserId) return [];
+  const { data, error } = await supabase
+    .from('gift_orders')
+    .select('id, proof_id, status, product_tier, created_at, sender:sender_id(nickname)')
+    .eq('challenge_id', challengeId)
+    .eq('recipient_id', myUserId)
+    .in('status', ['paid', 'issued', 'delivered', 'donated'])   // 결제 전·실패 건은 수신자에게 의미 없음
+    .order('created_at', { ascending: true });
+  if (error) return [];
+  return (data ?? []).map((g: any) => ({
+    id: g.id,
+    proof_id: g.proof_id ?? null,
+    status: g.status,
+    product_tier: g.product_tier,
+    created_at: g.created_at,
+    sender_nickname: g.sender?.nickname ?? '동료',
+  }));
+}
+
+// 나의 한잔 내역 (보낸 것 + 받은 것) — 내기 한잔도 같은 테이블이라 오픈 시 자동 포함
+export type GiftHistoryRow = {
+  id: string;
+  direction: 'sent' | 'received';
+  order_type: 'cheer' | 'bet';
+  product_tier: string;
+  amount: number;
+  status: string;
+  created_at: string;
+  counterpart_nickname: string;   // 보냈으면 받는 사람, 받았으면 보낸 사람
+  challenge_title: string;
+};
+
+export async function fetchMyGiftHistory(myUserId: string, limit = 50): Promise<GiftHistoryRow[]> {
+  if (!myUserId) return [];
+  const { data, error } = await supabase
+    .from('gift_orders')
+    .select(`
+      id, order_type, product_tier, amount, status, created_at, sender_id, recipient_id,
+      sender:sender_id(nickname), recipient:recipient_id(nickname),
+      challenge:challenge_id(title)
+    `)
+    .or(`sender_id.eq.${myUserId},recipient_id.eq.${myUserId}`)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []).map((g: any) => {
+    const sent = g.sender_id === myUserId;
+    return {
+      id: g.id,
+      direction: (sent ? 'sent' : 'received') as 'sent' | 'received',
+      order_type: g.order_type,
+      product_tier: g.product_tier,
+      amount: g.amount,
+      status: g.status,
+      created_at: g.created_at,
+      counterpart_nickname: (sent ? g.recipient?.nickname : g.sender?.nickname) ?? '동료',
+      challenge_title: g.challenge?.title ?? '',
+    };
+  });
 }
 
 // 방 단위 기부 합계 (ImpactModal "함께 만든 기부") — security definer 집계
