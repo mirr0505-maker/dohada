@@ -65,6 +65,31 @@ test('1인 내기(솔로) — 완주 시 수령, 미완주 시 환불(전원 미
   assert.deepEqual(settleBet([p('a', 'failed')]).refunded, ['order-a']);
 });
 
+// ─── 나와의 내기 (mode: 'self' — 나홀로·응원받기 방) ─────
+test('나와의 내기 — 완주 시 본전(수령), 기부 선택 시 기부', () => {
+  assert.deepEqual(settleBet([p('a', 'completed')], { mode: 'self' }).issued, ['order-a']);
+  assert.deepEqual(settleBet([p('a', 'completed', true)], { mode: 'self' }).donated, ['order-a']);
+});
+
+test('나와의 내기 — 실패·중도포기 시 환불이 아니라 기부 확정 (커밋먼트 핵심)', () => {
+  for (const outcome of ['failed', 'gave_up'] as const) {
+    const r = settleBet([p('a', outcome)], { mode: 'self' });
+    assert.deepEqual(r, { issued: [], donated: ['order-a'], refunded: [] }, `outcome=${outcome}`);
+    assert.equal(settlementInvariantHolds([p('a', outcome)], r), true);
+  }
+});
+
+test('나와의 내기 — 시스템 무효(aborted)만 환불', () => {
+  const r = settleBet([p('a', 'failed')], { mode: 'self', aborted: true });
+  assert.deepEqual(r, { issued: [], donated: [], refunded: ['order-a'] });
+});
+
+test('나와의 내기 — group 모드와의 분기 확인 (같은 입력, 다른 규칙)', () => {
+  const ps = [p('a', 'failed')];
+  assert.deepEqual(settleBet(ps).refunded, ['order-a']);                   // group: 전원 미완주 → 환불
+  assert.deepEqual(settleBet(ps, { mode: 'self' }).donated, ['order-a']);  // self: 실패 → 기부
+});
+
 test('인변량 — 모든 outcome 조합에서 한 장도 증발·중복되지 않음 (전수)', () => {
   const outcomes: BetParticipant['outcome'][] = ['completed', 'failed', 'gave_up'];
   // 3인 방 × outcome 3종 × 완주자 기부선택 2종 — 전 조합

@@ -4,8 +4,14 @@
 //   미완주·중도포기 → 자기 몫 기부 (donated) — 완주자 분배 영구 금지 (도박 구성요건 차단의 전제)
 //   전원 미완주    → 전원 전액 환불 (refunded)
 //   방 폭파·개설자 포기 (aborted) → 전원 전액 환불
+//
+// 나와의 내기 (mode: 'self' — 나홀로·응원받기 방, PHASE2 2.1-3):
+//   완주          → 본전 (issued / 기부 선택 시 donated)
+//   실패·중도포기 → 기부 확정 — "전원 미완주 환불" 규칙 미적용 (환불되면 내기가 무력화됨)
+//   aborted (계정 탈퇴 등 시스템 무효만) → 환불
 
 export type BetOutcome = 'completed' | 'failed' | 'gave_up';
+export type BetMode = 'group' | 'self';
 
 export type BetParticipant = {
   userId: string;
@@ -22,9 +28,9 @@ export type BetSettlement = {
 
 export function settleBet(
   participants: BetParticipant[],
-  opts: { aborted?: boolean } = {},
+  opts: { aborted?: boolean; mode?: BetMode } = {},
 ): BetSettlement {
-  // 중단(방 폭파·개설자 포기): 승부 자체가 무효 — 완주 여부와 무관하게 전원 환불
+  // 중단(방 폭파·개설자 포기 / self 는 시스템 무효만): 승부 자체가 무효 — 전원 환불
   if (opts.aborted) {
     return { issued: [], donated: [], refunded: participants.map(p => p.orderId) };
   }
@@ -32,7 +38,8 @@ export function settleBet(
   const anyoneCompleted = participants.some(p => p.outcome === 'completed');
 
   // 전원 미완주: 기부가 아니라 전원 환불 — "벌칙"이 아니라 "약속 무산" 으로 취급
-  if (!anyoneCompleted) {
+  // 단 나와의 내기(self)는 예외 — 실패해도 환불하면 자기 약속의 긴장감이 사라지므로 기부로 진행
+  if (!anyoneCompleted && opts.mode !== 'self') {
     return { issued: [], donated: [], refunded: participants.map(p => p.orderId) };
   }
 
