@@ -130,6 +130,8 @@ export default function GiftDetail() {
               </Pressable>
             </View>
           )}
+
+          <Text style={styles.mockFootnote}>🧪 베타 테스트 — 실제 결제·계좌 연결이 없는 모의 한잔이에요.</Text>
         </View>
       )}
     </Screen>
@@ -236,4 +238,11 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
   },
   btnDisabled: { opacity: 0.5 },
+  mockFootnote: {
+    fontSize: 11,
+    color: colors.primary300,
+    fontFamily: fontFamily.regular,
+    textAlign: 'center',
+    marginTop: 8,
+  },
 });

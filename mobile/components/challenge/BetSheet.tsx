@@ -154,7 +154,7 @@ export function BetSheet({ visible, onClose, challengeId, myUserId, fixedTier = 
               <Pressable style={styles.primaryBtn} onPress={onStart}>
                 <Text style={styles.primaryBtnText}>{isGroup ? '참여하기' : '한잔 고르기'}</Text>
               </Pressable>
-              <Text style={styles.mockNote}>베타 기간에는 모의 결제로 진행돼요 (실제 결제 없음)</Text>
+              <Text style={styles.mockNote}>🧪 베타 테스트 — 모의 결제예요. 실제 결제·계좌 연결이 없어 돈이 빠져나가지 않아요.</Text>
             </>
           )}
 
@@ -244,6 +244,7 @@ export function BetSheet({ visible, onClose, challengeId, myUserId, fixedTier = 
                   ? <ActivityIndicator color={colors.surface} />
                   : <Text style={styles.primaryBtnText}>{selectedTier.price.toLocaleString()}원 걸기 (모의 결제)</Text>}
               </Pressable>
+              <Text style={styles.mockNote}>🧪 실제 결제·계좌 연결 없음 · 베타 모의 결제 (돈 안 빠져나가요)</Text>
             </>
           )}
 

@@ -117,7 +117,7 @@ export function GiftSheet({
                   <Text style={styles.tierPrice}>{t.price.toLocaleString()}원</Text>
                 </Pressable>
               ))}
-              <Text style={styles.mockNote}>베타 기간에는 모의 결제로 진행돼요 (실제 결제 없음)</Text>
+              <Text style={styles.mockNote}>🧪 베타 테스트 — 모의 결제예요. 실제 결제·계좌 연결이 없어 돈이 빠져나가지 않아요.</Text>
             </>
           )}
 
@@ -172,6 +172,7 @@ export function GiftSheet({
                   ? <ActivityIndicator color={colors.surface} />
                   : <Text style={styles.primaryBtnText}>{selectedTier.price.toLocaleString()}원 보내기 (모의 결제)</Text>}
               </Pressable>
+              <Text style={styles.mockNote}>🧪 실제 결제·계좌 연결 없음 · 베타 모의 결제 (돈 안 빠져나가요)</Text>
             </>
           )}
 

@@ -86,7 +86,7 @@
 - DB: [`supabase/migrations/0032_identity_gift_orders.sql`](supabase/migrations/0032_identity_gift_orders.sql) — `user_verifications`(본인만 조회) + `gift_orders` + `is_adult_verified`/`challenge_bet_allowed`
 - 테스트: 루트 [`__tests__/`](__tests__/) — `npm test` (Node 내장 러너, 의존성 0). **결제 로직 수정 시 반드시 함께 갱신·실행** (자동 테스트 의무 영역)
 - 내기(bet) 주문 오픈·실서비스 전환은 법률 자문 게이트 후 providers.ts 구현체 교체로만
-- **응원 한잔 UI (Stage 1.5)**: 보내기 = [`mobile/components/challenge/GiftSheet.tsx`](mobile/components/challenge/GiftSheet.tsx) (티어→본인인증→mock결제), 수령 = `mobile/app/gift/[id].tsx` (받기/기부 2택 → 발신자 피드백 알림), 클라 함수 = [`mobile/lib/payments.ts`](mobile/lib/payments.ts). 인증 카드 ☕ 버튼은 **`__DEV__` 전용** (Stage 4 베타 오픈 시 해제). 수령 선택 시 발급 (claim-gift), 알림 kind 4종 + 기부 집계는 0033
+- **응원 한잔 UI (Stage 1.5)**: 보내기 = [`mobile/components/challenge/GiftSheet.tsx`](mobile/components/challenge/GiftSheet.tsx) (티어→본인인증→mock결제), 수령 = `mobile/app/gift/[id].tsx` (받기/기부 2택 → 발신자 피드백 알림), 클라 함수 = [`mobile/lib/payments.ts`](mobile/lib/payments.ts). 인증 카드 ☕ 버튼은 **전체 사용자 오픈 (Stage 4, 2026-06-13)** — `isGiftPilot` 게이트 제거(응원만). 디스클레이머 "🧪 실제 결제·계좌 연결 없음 · 베타 모의 결제" 를 보내기·결제확인·받기 화면에 명시. **내기(BetCard/BetConfig/fetchMyBet)는 `isGiftPilot` 파일럿 유지 — 앱스토어 도박 오인·법률 자문(⑤b) 전까지.** 수령 선택 시 발급 (claim-gift), 알림 kind 4종 + 기부 집계는 0033
 
 ### 신규 코드 위치 (Phase 2 Stage 5 ⑤a — 나와의 내기, mock·파일럿, 2026-06-12)
 **단일 진실원천: [`PHASE2_FINTECH_PLAN.md`](PHASE2_FINTECH_PLAN.md) 2.1-3 + Stage 5 ⑤a.** 나홀로(solo)·응원받기(cheered) 방의 도전자가 자기 한잔을 선주문 결제 → **완주=본전(받기/기부 선택)·실패=기부 확정**. 다인 내기(group)는 ⑤c 게이트 전까지 차단.

@@ -847,10 +847,10 @@ export default function ChallengeRoom() {
               locked={writeLocked}
               onCheer={(type) => (writeLocked ? onLockedNotice() : onCheer(item.id, type))}
               onComments={() => { haptic.tap(); setActiveProofId(item.id); }}
-              // ☕ 응원 한잔 — Stage 4 베타 오픈 전까지 파일럿 계정 전용 (isGiftPilot).
+              // ☕ 응원 한잔 — 전체 오픈 (Stage 4, 2026-06-13). mock·실제 결제 없음(GiftSheet 디스클레이머).
               // 동료의 인증에만 노출 (솔로 방·본인 인증·종료 방 제외 — 서버 정책과 동일 잣대)
               onGift={
-                isGiftPilot && challenge.kind !== 'solo' && isMember && !finished && !iGaveUp && item.user_id !== myUserId
+                challenge.kind !== 'solo' && isMember && !finished && !iGaveUp && item.user_id !== myUserId
                   ? () => { haptic.tap(); setGiftTarget({ id: item.user_id, nickname: item.author?.nickname ?? '동료', proofId: item.id }); }
                   : null
               }
