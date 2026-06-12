@@ -45,7 +45,7 @@ const ROOM_TABS: { key: RoomTab; emoji: string; label: string }[] = [
 
 // ☕ 응원 한잔 파일럿 — Stage 4 베타 오픈 전까지 지정 계정만 노출 (mock 결제를 일반 베타 사용자에게 숨김)
 // 테스트 계정 추가 시 이메일을 여기 넣고 OTA. 전체 오픈은 이 게이트 제거 (PHASE2_FINTECH_PLAN.md Stage 4)
-const GIFT_PILOT_EMAILS = ['mirr0505@gmail.com', 'marianne0519@gmail.com'];
+const GIFT_PILOT_EMAILS = ['mirr0505@gmail.com', 'marianne0519@gmail.com', 'longleg07@gmail.com'];
 
 // 방 종류 메타 라벨 — 분류 용어 X, 사람 단위 톤
 function roomKindLabel(kind: ChallengeKind, memberCount: number): string {
