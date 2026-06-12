@@ -9,7 +9,7 @@ import { Button } from '@/components/Button';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import { fetchRoomData } from '@/lib/db';
-import { computeProgress } from '@/lib/stats';
+import { computeProgress, memberTargetProofCount, uniqueProofDays } from '@/lib/stats';
 import { haptic } from '@/lib/haptics';
 
 export default function CompleteScreen() {
@@ -18,6 +18,9 @@ export default function CompleteScreen() {
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState('');
   const [totalDays, setTotalDays] = useState(0);
+  // 🚀 완주율 — 인증 일수/본인 목표 (늦합류자는 합류일 기준 비례 목표와 일관)
+  const [provedDays, setProvedDays] = useState(0);
+  const [targetDays, setTargetDays] = useState(0);
 
   useEffect(() => {
     if (session === null) router.replace('/login');
@@ -31,6 +34,11 @@ export default function CompleteScreen() {
         if (data.challenge) {
           setTitle(data.challenge.title);
           setTotalDays(computeProgress(data.challenge).totalDays);
+          // 완주 판정 주체 = 본인 (cheered 응원자는 이 화면으로 redirect 되지 않음)
+          const myProofs = data.proofs.filter(p => p.user_id === session.user.id);
+          const myJoinedAt = data.members.find(m => m.id === session.user.id)?.joined_at ?? null;
+          setProvedDays(uniqueProofDays(myProofs));
+          setTargetDays(memberTargetProofCount(data.challenge, myJoinedAt));
           haptic.success();
         }
       } finally {
@@ -38,6 +46,8 @@ export default function CompleteScreen() {
       }
     })();
   }, [id, session]);
+
+  const completionRate = targetDays > 0 ? Math.min(100, Math.round((provedDays / targetDays) * 100)) : 100;
 
   const onShare = async () => {
     try {
@@ -69,6 +79,12 @@ export default function CompleteScreen() {
         <Animated.Text entering={FadeInDown.springify().delay(540)} style={styles.days}>
           {totalDays}일을 끝까지 해냈어요
         </Animated.Text>
+        {/* 🚀 완주율 — 가부만이 아니라 숫자로 성취를 보여줌 (목표 = 본인 합류일 기준) */}
+        {targetDays > 0 && (
+          <Animated.Text entering={FadeInDown.springify().delay(620)} style={styles.rate}>
+            📸 인증 {provedDays}일 / 목표 {targetDays}일 · 완주율 {completionRate}%
+          </Animated.Text>
+        )}
 
         <Animated.View entering={FadeInUp.springify().delay(700)} style={styles.sloganBox}>
           <Text style={styles.slogan}>더 나은 나, 더 나은 세상</Text>
@@ -78,6 +94,14 @@ export default function CompleteScreen() {
 
       <Animated.View entering={FadeInUp.delay(900)} style={styles.bottom}>
         <Button label="기록 공유하기" size="xl" block onPress={onShare} />
+        {/* 🚀 완주 방(박제)으로 돌아가는 길 — 이 버튼이 없으면 완주 방 진입 동선이 끊김 */}
+        <Button
+          label="🏆 박제 보러 가기"
+          variant="ghost"
+          size="lg"
+          block
+          onPress={() => router.replace(`/room/${id}?tab=archive` as any)}
+        />
         <Button
           label="홈으로"
           variant="ghost"
@@ -118,6 +142,13 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.85)',
     fontFamily: fontFamily.regular,
     marginTop: 4,
+  },
+  rate: {
+    fontSize: fontSize.sm,
+    color: 'rgba(255,255,255,0.95)',
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    marginTop: 2,
   },
   sloganBox: {
     marginTop: 32,

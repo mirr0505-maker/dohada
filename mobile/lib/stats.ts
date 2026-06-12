@@ -75,6 +75,11 @@ export function memberTargetProofCount(challenge: DbChallenge, joinedAt?: string
   return targetProofCount(days, challenge.frequency ?? 'daily');
 }
 
+// 인증한 고유 날짜 수 (KST) — 완주율 표시 등 (UTC slice 묶음 오류 방지)
+export function uniqueProofDays(proofs: ProofWithRelations[]): number {
+  return new Set(proofs.map(p => toKstDateStr(p.created_at))).size;
+}
+
 // 멤버별 경과일 — 늦합류자는 합류일부터 센다 (현황 탭 분모, 시작 전이면 0)
 export function memberPassedDays(challenge: DbChallenge, joinedAt?: string | null): number {
   const joinedDate = joinedAt ? toKstDateStr(joinedAt) : null;
