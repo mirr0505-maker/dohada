@@ -27,6 +27,7 @@ import { uploadProofImage } from '@/lib/upload';
 import { scheduleDailyReminder, cancelDailyReminder } from '@/lib/notifications';
 import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
 
 export default function ProfileScreen() {
   const session = useSession();
@@ -388,9 +389,14 @@ export default function ProfileScreen() {
           <Button label="로그아웃" variant="ghost" block onPress={onLogout} />
         </View>
 
-        {/* 버전 */}
+        {/* 버전 — 베타 테스터 소통용: OTA 업데이트가 실제 적용됐는지 이 줄로 확인 */}
         <View style={styles.footer}>
           <Text style={styles.version}>Do : 하다 v{appVersion}</Text>
+          <Text style={styles.version}>
+            {Updates.updateId
+              ? `업데이트 ${Updates.updateId.slice(0, 8)} · ${formatUpdateTime(Updates.createdAt)} 적용`
+              : '업데이트: 빌드 내장 버전'}
+          </Text>
           <Text style={styles.tagline}>같이 도전하는 사람의 응원이 진짜 힘이에요</Text>
         </View>
       </ScrollView>
@@ -596,6 +602,12 @@ function NicknameEditModal({
       </SafeAreaView>
     </Modal>
   );
+}
+
+// OTA 적용 시각 — 테스터가 "어느 업데이트인지" 말로 전달할 수 있는 형태 (M/D HH:mm)
+function formatUpdateTime(d: Date | null): string {
+  if (!d) return '';
+  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 function formatReminderTime(h: number, m: number): string {

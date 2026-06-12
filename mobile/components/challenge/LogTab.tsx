@@ -26,13 +26,14 @@ type Props = {
   composerOpen: boolean;             // 기록 모달 — 부모(room) FAB 가 트리거
   onComposerClose: () => void;
   writeLocked?: boolean;             // 박제 — 좋아요·수정·댓글 작성 잠금
+  farewellDaysLeft?: number;         // 마무리 인사 유예 잔여일 (유예 중일 때만 1~7) — ChatTab 과 동일 배너
   focusLogId?: string | null;        // 알림 딥링크 — 해당 기록 카드로 스크롤 포커스
   focusComments?: boolean;           // 알림 딥링크 — 댓글 시트까지 자동 오픈 (log_comment)
 };
 
 export function LogTab({
   challengeId, challengeStartDate, myUserId, isMember, canComment,
-  composerOpen, onComposerClose, writeLocked = false,
+  composerOpen, onComposerClose, writeLocked = false, farewellDaysLeft = 0,
   focusLogId = null, focusComments = false,
 }: Props) {
   const [logs, setLogs] = useState<LogWithAuthor[]>([]);
@@ -151,6 +152,14 @@ export function LogTab({
 
   return (
     <View style={styles.wrap}>
+      {/* 🏁 마무리 인사 유예 배너 — 대화 탭과 동일 로직 (유예 중일 때만) */}
+      {farewellDaysLeft > 0 && (
+        <View style={styles.farewellBar}>
+          <Text style={styles.farewellText}>
+            🏁 도전 종료 — 마무리 인사 기간이 {farewellDaysLeft}일 남았어요
+          </Text>
+        </View>
+      )}
       <FlatList
         ref={listRef}
         data={logs}
@@ -475,6 +484,19 @@ function formatRel(iso: string): string {
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.background },
+  farewellBar: {
+    paddingVertical: 8,
+    alignItems: 'center',
+    backgroundColor: colors.accent50,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.accent100,
+  },
+  farewellText: {
+    fontSize: fontSize.xs,
+    color: colors.accent700,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
+  },
   list: { padding: 16, gap: 12, flexGrow: 1, paddingBottom: 80 },
   card: {
     backgroundColor: colors.surface,

@@ -591,13 +591,18 @@ function InterestCard({ challenge }: { challenge: InterestingChallenge }) {
           <Text style={styles.who} numberOfLines={1}>{challenge.title}</Text>
           {challenge.matched_category && (
             <Text style={styles.sub}>
-              {challenge.matched_category.emoji} {challenge.matched_category.name} 관심 · 함께 {challenge.member_count}명
+              {/* 추론 매칭은 "관심 등록한 적 없는데?" 혼란 방지 — 매칭 이유를 정직하게 표기 */}
+              {challenge.matched_by === 'explicit'
+                ? `${challenge.matched_category.emoji} ${challenge.matched_category.name} 관심 · 함께 ${challenge.member_count}명`
+                : `${challenge.matched_category.emoji} 내 도전과 같은 ${challenge.matched_category.name} 분야 · 함께 ${challenge.member_count}명`}
             </Text>
           )}
         </View>
       </View>
       <View style={[styles.joinBtn, { marginTop: 6 }]}>
-        <Text style={styles.joinBtnText}>관심 도전 살펴보기 →</Text>
+        <Text style={styles.joinBtnText}>
+          {challenge.matched_by === 'explicit' ? '관심 도전 살펴보기 →' : '비슷한 도전 살펴보기 →'}
+        </Text>
       </View>
     </Pressable>
   );

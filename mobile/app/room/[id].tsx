@@ -630,17 +630,21 @@ export default function ChallengeRoom() {
         )}
       </View>
 
-      {/* ─── 진행 info bar (D-N + 연속 + 멈춤) ─── */}
+      {/* ─── 진행 info bar (D-N + 연속 + 멈춤) — 종료 방은 "종료" + 진행 숫자 취소선 ─── */}
       <View style={styles.infoBar}>
         <View style={styles.infoStats}>
-          <Text style={styles.infoStatItem}>🔥 {progress?.passedDays ?? 0}/{progress?.totalDays ?? 0}일</Text>
-          <Text style={styles.infoStatItem}>📸 {todayCheckedCount}/{Math.max(1, members.length)} 인증</Text>
+          <Text style={[styles.infoStatItem, finished && styles.infoStatItemDone]}>🔥 {progress?.passedDays ?? 0}/{progress?.totalDays ?? 0}일</Text>
+          <Text style={[styles.infoStatItem, finished && styles.infoStatItemDone]}>📸 {todayCheckedCount}/{Math.max(1, members.length)} 인증</Text>
         </View>
         <View style={styles.infoRight}>
           <Pressable onPress={() => { haptic.tap(); setImpactModalOpen(true); }} hitSlop={6}>
             <Text style={styles.impactBtn}>💚</Text>
           </Pressable>
-          <Text style={styles.ddayBig}>D-{daysLeft}</Text>
+          {finished ? (
+            <Text style={[styles.ddayBig, styles.ddayDone]}>종료</Text>
+          ) : (
+            <Text style={styles.ddayBig}>D-{daysLeft}</Text>
+          )}
           {isMember && (
             <Pressable onPress={finished ? onFinishedNotice : onTogglePause} hitSlop={6}>
               <Text style={[styles.pauseInline, finished && styles.pauseInlineDisabled]}>
@@ -742,6 +746,7 @@ export default function ChallengeRoom() {
           composerOpen={logComposerOpen}
           onComposerClose={() => setLogComposerOpen(false)}
           writeLocked={writeLocked}
+          farewellDaysLeft={farewell.farewellDaysLeft}
           focusLogId={typeof logId === 'string' ? logId : null}
           focusComments={comments === '1'}
         />
@@ -1353,6 +1358,10 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.medium,
     fontWeight: fontWeight.medium,
   },
+  infoStatItemDone: {
+    textDecorationLine: 'line-through',   // 종료 방 — 더 이상 유효하지 않은 진행 정보
+    color: colors.primary300,
+  },
   infoRight: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1364,6 +1373,10 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
     letterSpacing: -0.4,
+  },
+  ddayDone: {
+    color: colors.primary300,   // 종료 방 — D-0 대신 회색 "종료"
+    fontSize: fontSize.lg,
   },
   pauseInline: {
     fontSize: fontSize.xs,

@@ -387,6 +387,7 @@ export async function removeInterest(interestId: string): Promise<void> {
 // 본인이 이미 멤버이거나 만든 챌린지는 제외 — "발견" 의도.
 export type InterestingChallenge = OpenChallengeCard & {
   matched_category: { emoji: string; name: string } | null;
+  matched_by: 'explicit' | 'inferred';   // 명시 관심 vs 자동 추론(내 도전과 같은 분야) — 카드 라벨 정직성
 };
 
 export async function fetchInterestingOpenChallenges(
@@ -474,6 +475,7 @@ export async function fetchInterestingOpenChallenges(
         matched_category: c.category
           ? { emoji: c.category.emoji, name: c.category.name }
           : null,
+        matched_by: (explicitIds.has(c.category_id) ? 'explicit' : 'inferred') as 'explicit' | 'inferred',
         gave_up_at: c.gave_up_at ?? null,
       };
     });
