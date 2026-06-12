@@ -25,7 +25,7 @@ import { BetSheet } from '@/components/challenge/BetSheet';
 import { BetCard } from '@/components/challenge/BetCard';
 import {
   isGiftPilotEmail, fetchMyReceivedGifts, GIFT_TIERS, GIFT_STATUS_LABEL, type ReceivedGift,
-  fetchMyBet, claimGift, type MyBet,
+  fetchMyBet, claimGift, type MyBet, type BetTier, type BetDonationMode,
 } from '@/lib/payments';
 import { InviteLetterModal } from '@/components/challenge/InviteLetterModal';
 import { ImpactModal } from '@/components/challenge/ImpactModal';
@@ -621,13 +621,15 @@ export default function ChallengeRoom() {
     ? Math.max(1, Math.round((new Date(challenge.start_date + 'T00:00:00').getTime() - new Date(kstToday + 'T00:00:00').getTime()) / 86_400_000))
     : 0;
 
-  // 🎯 나와의 내기 — 나홀로·응원받기 방의 도전자 본인만 (서버 게이트와 동일 조건의 클라 노출)
+  // 🎯 내기 — 나와의 내기(solo·cheered 개설자) / 다인 내기(closed·open 멤버, 챌린지에 bet_tier 걸림)
   const isSelfBetRoom = challenge.kind === 'solo' || challenge.kind === 'cheered';
-  const canPlaceBet = isGiftPilot && isSelfBetRoom && isCreator && isMember && !iGaveUp && !finished && !myBet;
-  // 정산 표시용 완주 판정 — 도전 주체(cheered=개설자) 기준. 받기 허용의 최종 권위는 서버(claim-gift).
+  const hasGroupBet = (challenge.kind === 'closed' || challenge.kind === 'open') && !!challenge.bet_tier;
+  const isBetSubject = isSelfBetRoom ? isCreator : hasGroupBet;   // self=개설자 / group=활성 멤버 누구나
+  const canPlaceBet = isGiftPilot && isBetSubject && isMember && !iGaveUp && !finished && !myBet;
+  // 정산 표시용 완주 판정 — badgeProofs/subjectJoinedAt 가 self=개설자/group=본인으로 이미 매핑됨
   const challengerCompleted = isCompleted(challenge, badgeProofs, subjectJoinedAt);
-  const showBetCard = isGiftPilot && isSelfBetRoom && isCreator && (myBet !== null || canPlaceBet);
-  const onSettleBet = async (action: 'receive' | 'donate') => {
+  const showBetCard = isGiftPilot && isBetSubject && isMember && (myBet !== null || canPlaceBet);
+  const onSettleBet = async (action: 'receive' | 'donate' | 'refund') => {
     if (!myBet || betBusy) return;
     haptic.tap();
     setBetBusy(true);
@@ -639,13 +641,45 @@ export default function ChallengeRoom() {
       }
       setMyBet(await fetchMyBet(challenge.id, myUserId));
     } catch (e: any) {
-      const msg = e?.message === 'bet_not_completed'
-        ? '아직 완주하지 못해 받을 수 없어요. 기부로 마무리할 수 있어요.'
-        : (e?.message ?? String(e));
-      Alert.alert('정산 실패', msg);
+      // 서버 거부 사유 → 사용자 문구 (claim-gift validateBetClaim)
+      const REASON: Record<string, string> = {
+        bet_in_progress: '아직 진행 중이에요. 종료 후 정산할 수 있어요.',
+        bet_receive_not_allowed: '이 내기는 받기가 아니라 기부/환불로 정산돼요.',
+        bet_donate_not_allowed: '지금은 기부할 수 없어요.',
+        bet_refund_not_allowed: '이 내기는 환불 대상이 아니에요.',
+      };
+      Alert.alert('정산 실패', REASON[e?.message] ?? (e?.message ?? String(e)));
     } finally {
       setBetBusy(false);
     }
+  };
+  // 🏳️ 내기 포기 = 실패 인증 — 종료일 전이라도 즉시 실패 정산(기부/환불) 후 도전 포기
+  const onBetGiveUp = () => {
+    if (!myBet || betBusy) return;
+    const action: 'donate' | 'refund' = myBet.donation_mode === 'pledge' ? 'refund' : 'donate';
+    const consequence = myBet.donation_mode === 'pledge' ? '걸어둔 한잔은 환불돼요' : '걸어둔 한잔은 기부로 마무리돼요';
+    Alert.alert(
+      '도전 포기 — 실패 인증',
+      `포기하면 이 내기는 '실패'로 처리되고, ${consequence}.\n되돌릴 수 없어요.`,
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '실패 인증', style: 'destructive',
+          onPress: async () => {
+            setBetBusy(true);
+            try {
+              await claimGift(myBet.id, action, true);   // gaveUp=true → 즉시 실패 정산
+              await giveUpMembership({ challengeId: challenge.id, userId: myUserId! });
+              haptic.warning();
+              router.replace('/(tabs)/home');
+            } catch (e: any) {
+              Alert.alert('포기 실패', e?.message ?? String(e));
+              setBetBusy(false);
+            }
+          },
+        },
+      ],
+    );
   };
   const betSlot = showBetCard ? (
     <BetCard
@@ -653,10 +687,10 @@ export default function ChallengeRoom() {
       canPlace={canPlaceBet}
       challengerCompleted={challengerCompleted}
       finished={finished}
-      iGaveUp={iGaveUp}
       busy={betBusy}
       onPlace={() => { haptic.tap(); setBetSheetOpen(true); }}
       onSettle={onSettleBet}
+      onGiveUp={onBetGiveUp}
     />
   ) : null;
 
@@ -1053,7 +1087,7 @@ export default function ChallengeRoom() {
         myUserId={myUserId}
       />
 
-      {/* 🎯 나와의 내기 걸기 시트 — 닫힐 때 내기 상태 새로고침 */}
+      {/* 🎯 내기 걸기 시트 — self(티어·모드 선택) / group(챌린지 설정 고정). 닫힐 때 상태 새로고침 */}
       <BetSheet
         visible={betSheetOpen}
         onClose={() => {
@@ -1062,6 +1096,8 @@ export default function ChallengeRoom() {
         }}
         challengeId={challenge.id}
         myUserId={myUserId}
+        fixedTier={hasGroupBet ? (challenge.bet_tier as BetTier) : null}
+        fixedMode={hasGroupBet ? ((challenge.bet_donation_mode ?? 'commitment') as BetDonationMode) : null}
       />
     </Screen>
   );

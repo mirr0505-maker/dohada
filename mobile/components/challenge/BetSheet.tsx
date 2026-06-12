@@ -10,7 +10,7 @@ import {
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { haptic } from '@/lib/haptics';
 import {
-  BET_TIERS, type BetTier,
+  BET_TIERS, type BetTier, BET_DONATION_MODES, type BetDonationMode,
   fetchMyVerification, verifyIdentityMock, createBetOrder, confirmGiftPaymentMock,
   formatBirthDateInput,
 } from '@/lib/payments';
@@ -20,9 +20,12 @@ type Props = {
   onClose: () => void;     // 완료/닫기 — 닫힐 때 부모가 내기 상태 새로고침
   challengeId: string;
   myUserId: string | undefined;
+  // 🚀 다인 내기(⑤c) — 챌린지에 걸린 티어·모드 고정. 둘 다 주면 group 모드(티어·모드 선택 생략)
+  fixedTier?: BetTier | null;
+  fixedMode?: BetDonationMode | null;
 };
 
-type Step = 'intro' | 'tier' | 'verify' | 'confirm' | 'done';
+type Step = 'intro' | 'tier' | 'mode' | 'verify' | 'confirm' | 'done';
 
 // 서버 거부 사유 → 사용자 문구
 const REASON_LABEL: Record<string, string> = {
@@ -36,29 +39,52 @@ const REASON_LABEL: Record<string, string> = {
   amount_mismatch: '결제 금액이 맞지 않아 취소했어요.',
 };
 
-export function BetSheet({ visible, onClose, challengeId, myUserId }: Props) {
+export function BetSheet({ visible, onClose, challengeId, myUserId, fixedTier = null, fixedMode = null }: Props) {
+  const isGroup = !!(fixedTier && fixedMode);   // 다인 내기 = 티어·모드 고정
   const [step, setStep] = useState<Step>('intro');
   const [tier, setTier] = useState<BetTier | null>(null);
+  const [donationMode, setDonationMode] = useState<BetDonationMode | null>(null);
   const [verified, setVerified] = useState<boolean | null>(null);   // null = 확인 중
   const [birthDate, setBirthDate] = useState('');
   const [phone, setPhone] = useState('');
   const [busy, setBusy] = useState(false);
 
-  // 열릴 때마다 초기화 + 본인인증 여부 확인
+  // 열릴 때마다 초기화 + 본인인증 여부 확인. 다인 내기는 티어·모드를 챌린지 설정으로 고정.
   useEffect(() => {
     if (!visible || !myUserId) return;
-    setStep('intro'); setTier(null); setBusy(false);
+    setStep('intro'); setBusy(false);
+    setTier(isGroup ? fixedTier : null);
+    setDonationMode(isGroup ? fixedMode : null);
     setVerified(null);
     fetchMyVerification(myUserId)
       .then(v => setVerified(v.verified && v.isAdult))
       .catch(() => setVerified(false));
-  }, [visible, myUserId]);
+  }, [visible, myUserId, isGroup, fixedTier, fixedMode]);
 
   const selectedTier = BET_TIERS.find(t => t.tier === tier) ?? null;
+  const selectedMode = BET_DONATION_MODES.find(m => m.mode === donationMode) ?? null;
+
+  // 다인 내기는 티어·모드가 고정 — intro 에서 바로 인증/확인으로
+  const onStart = () => {
+    haptic.tap();
+    if (isGroup) {
+      setTier(fixedTier);
+      setDonationMode(fixedMode);
+      setStep(verified ? 'confirm' : 'verify');
+    } else {
+      setStep('tier');
+    }
+  };
 
   const onPickTier = (t: BetTier) => {
     haptic.tap();
     setTier(t);
+    setStep('mode');     // 티어 → 기부 모드 선택
+  };
+
+  const onPickMode = (m: BetDonationMode) => {
+    haptic.tap();
+    setDonationMode(m);
     setStep(verified ? 'confirm' : 'verify');
   };
 
@@ -83,10 +109,10 @@ export function BetSheet({ visible, onClose, challengeId, myUserId }: Props) {
   };
 
   const onPay = async () => {
-    if (!selectedTier || busy) return;
+    if (!selectedTier || !donationMode || busy) return;
     setBusy(true);
     try {
-      const { orderId, amount } = await createBetOrder({ challengeId, tier: selectedTier.tier });
+      const { orderId, amount } = await createBetOrder({ challengeId, tier: selectedTier.tier, donationMode });
       await confirmGiftPaymentMock(orderId, amount);   // ⑤b: PG 결제창으로 교체
       haptic.success();
       setStep('done');
@@ -105,19 +131,28 @@ export function BetSheet({ visible, onClose, challengeId, myUserId }: Props) {
           {step === 'intro' && (
             <>
               <Text style={styles.emojiBig}>🎯</Text>
-              <Text style={styles.title}>이 도전, 한잔 걸기</Text>
-              <Text style={styles.sub}>
-                나 자신과의 약속에 한 잔을 겁니다.{'\n'}
-                <Text style={styles.bold}>완주하면 본전</Text> — 내 한잔을 그대로 받아요.{'\n'}
-                <Text style={styles.bold}>실패를 인정하면 기부</Text> — 누군가의 한잔이 돼요.
-              </Text>
+              <Text style={styles.title}>{isGroup ? '이 방의 내기에 참여하기' : '이 도전, 한잔 걸기'}</Text>
+              {isGroup && selectedTier ? (
+                <Text style={styles.sub}>
+                  이 방에 <Text style={styles.bold}>{selectedTier.label} {selectedTier.price.toLocaleString()}원</Text> 내기가 걸려 있어요.{'\n'}
+                  참여자 전원이 같은 한잔을 걸고 함께 도전해요.
+                </Text>
+              ) : (
+                <Text style={styles.sub}>
+                  나 자신과의 약속에 한 잔을 겁니다.{'\n'}
+                  <Text style={styles.bold}>완주하면 본전</Text> — 내 한잔을 그대로 받아요.{'\n'}
+                  <Text style={styles.bold}>실패를 인정하면 기부</Text> — 누군가의 한잔이 돼요.
+                </Text>
+              )}
               <View style={styles.promiseBox}>
                 <Text style={styles.promiseText}>
-                  상대가 없는, 오직 나와의 약속이에요. 그래서 실패해도 환불은 없어요 — 그 긴장이 이 한잔의 힘이에요.
+                  {isGroup && selectedMode
+                    ? `${selectedMode.label} — ${selectedMode.desc}`
+                    : '상대가 없는, 오직 나와의 약속이에요. 그래서 실패해도 환불은 없어요 — 그 긴장이 이 한잔의 힘이에요.'}
                 </Text>
               </View>
-              <Pressable style={styles.primaryBtn} onPress={() => { haptic.tap(); setStep('tier'); }}>
-                <Text style={styles.primaryBtnText}>한잔 고르기</Text>
+              <Pressable style={styles.primaryBtn} onPress={onStart}>
+                <Text style={styles.primaryBtnText}>{isGroup ? '참여하기' : '한잔 고르기'}</Text>
               </Pressable>
               <Text style={styles.mockNote}>베타 기간에는 모의 결제로 진행돼요 (실제 결제 없음)</Text>
             </>
@@ -134,6 +169,21 @@ export function BetSheet({ visible, onClose, challengeId, myUserId }: Props) {
                     <Text style={styles.tierDesc}>{t.desc}</Text>
                   </View>
                   <Text style={styles.tierPrice}>{t.price.toLocaleString()}원</Text>
+                </Pressable>
+              ))}
+            </>
+          )}
+
+          {step === 'mode' && (
+            <>
+              <Text style={styles.title}>어떻게 정산할까요?</Text>
+              <Text style={styles.sub}>완주했을 때와 못 했을 때, 이 한잔이 어디로 갈지 골라요</Text>
+              {BET_DONATION_MODES.map(m => (
+                <Pressable key={m.mode} style={styles.tierCard} onPress={() => onPickMode(m.mode)}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.tierLabel}>{m.label}</Text>
+                    <Text style={styles.tierDesc}>{m.desc}</Text>
+                  </View>
                 </Pressable>
               ))}
             </>
@@ -174,13 +224,17 @@ export function BetSheet({ visible, onClose, challengeId, myUserId }: Props) {
             </>
           )}
 
-          {step === 'confirm' && selectedTier && (
+          {step === 'confirm' && selectedTier && selectedMode && (
             <>
               <Text style={styles.title}>{selectedTier.label} 걸기</Text>
               <Text style={styles.sub}>
-                이 도전에 {selectedTier.price.toLocaleString()}원의 한잔을 겁니다.{'\n'}
-                완주하면 받고, 실패를 인정하면 기부돼요.
+                이 도전에 {selectedTier.price.toLocaleString()}원의 한잔을 겁니다.
               </Text>
+              <View style={styles.promiseBox}>
+                <Text style={styles.promiseText}>
+                  <Text style={styles.bold}>{selectedMode.label}</Text> — {selectedMode.desc}
+                </Text>
+              </View>
               <Pressable
                 style={[styles.primaryBtn, busy && styles.btnDisabled]}
                 onPress={onPay}

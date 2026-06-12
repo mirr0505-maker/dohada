@@ -18,6 +18,9 @@ import { haptic } from '@/lib/haptics';
 import { supabase } from '@/lib/supabase';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadProofImage } from '@/lib/upload';
+import {
+  isGiftPilotEmail, BET_TIERS, BET_DONATION_MODES, type BetTier, type BetDonationMode,
+} from '@/lib/payments';
 import type { ChallengeKind } from '@/lib/types';
 
 const TOTAL_STEPS = 5;
@@ -78,6 +81,10 @@ export default function CreateChallenge() {
   // 🚀 안내문 (나홀로 제외) — 합류 전 미리보기·방 현황에 노출. 텍스트 + 보관함 이미지(선택)
   const [description, setDescription] = useState('');
   const [introImageUri, setIntroImageUri] = useState<string | null>(null);
+  // 🚀 다인 내기 (다함께·누구나, 파일럿) — 개설 시 티어+모드 고정. null = 내기 없음
+  const [betTier, setBetTier] = useState<BetTier | null>(null);
+  const [betDonationMode, setBetDonationMode] = useState<BetDonationMode>('commitment');
+  const isBetPilot = isGiftPilotEmail(session?.user?.email);
   // bet 은 'none' 고정.
 
   const [submitting, setSubmitting] = useState(false);
@@ -160,6 +167,9 @@ export default function CreateChallenge() {
         frequency,
         startDate, // 🚀 신규 추가
         introImageUrl, // 🚀 0037: 안내문 이미지
+        // 🚀 0040: 다인 내기 — 다함께·누구나에서만. 서버도 kind 로 한 번 더 강제
+        betTier: (kind === 'closed' || kind === 'open') ? betTier : null,
+        betDonationMode,
       });
       haptic.success();
       // 응원자를 초대해야 의미 있는 방 = closed (함께 도전) + cheered (응원받기)
@@ -259,10 +269,17 @@ export default function CreateChallenge() {
           {step === 5 && (
             <View style={{ gap: 12 }}>
               <Step5ProofType value={proofType} setValue={setProofType} />
-              {/* 내기 (Phase 2) — 별도 단계 대신 한 줄 티저 */}
-              <Text style={styles.smallNote}>
-                💰 보석금 내기 걸기는 결제·정산 안정화 후 Phase 2 에서 열려요.
-              </Text>
+              {/* 🚀 다인 내기 — 다함께·누구나 + 파일럿만 (베타는 mock·실돈 0원) */}
+              {isBetPilot && (kind === 'closed' || kind === 'open') ? (
+                <BetConfig
+                  betTier={betTier} setBetTier={setBetTier}
+                  betDonationMode={betDonationMode} setBetDonationMode={setBetDonationMode}
+                />
+              ) : (
+                <Text style={styles.smallNote}>
+                  💰 내기 한잔은 다함께·누구나 방에서 열려요 (정식 출시 후 실결제).
+                </Text>
+              )}
             </View>
           )}
         </ScrollView>
@@ -912,6 +929,62 @@ function IntroEditor({
   );
 }
 
+// ─── 🚀 다인 내기 설정 (다함께·누구나, 파일럿) — 티어 + 정산(기부) 모드. null=내기 없음 ───
+function BetConfig({
+  betTier, setBetTier, betDonationMode, setBetDonationMode,
+}: {
+  betTier: BetTier | null; setBetTier: (t: BetTier | null) => void;
+  betDonationMode: BetDonationMode; setBetDonationMode: (m: BetDonationMode) => void;
+}) {
+  return (
+    <View style={styles.introBox}>
+      <Text style={styles.introLabel}>🎯 내기 한잔, 걸까요? (선택)</Text>
+      <Text style={styles.smallNote}>
+        걸면 참여자 전원이 같은 금액을 선주문해요. 성인 인증된 사람만 합류할 수 있어요. (베타: 모의 결제)
+      </Text>
+      <View style={styles.betChipRow}>
+        <Pressable
+          style={[styles.betChip, betTier === null && styles.betChipActive]}
+          onPress={() => { haptic.tap(); setBetTier(null); }}
+        >
+          <Text style={[styles.betChipText, betTier === null && styles.betChipTextActive]}>안 걸기</Text>
+        </Pressable>
+        {BET_TIERS.map(t => (
+          <Pressable
+            key={t.tier}
+            style={[styles.betChip, betTier === t.tier && styles.betChipActive]}
+            onPress={() => { haptic.tap(); setBetTier(t.tier); }}
+          >
+            <Text style={[styles.betChipText, betTier === t.tier && styles.betChipTextActive]}>{t.label}</Text>
+            <Text style={styles.betChipPrice}>{t.price.toLocaleString()}원</Text>
+          </Pressable>
+        ))}
+      </View>
+      {betTier && (
+        <View style={{ gap: 8, marginTop: 4 }}>
+          <Text style={styles.introLabel}>정산 방식</Text>
+          {BET_DONATION_MODES.map(m => {
+            const active = betDonationMode === m.mode;
+            return (
+              <Pressable
+                key={m.mode}
+                style={[styles.option, active && styles.optionActive]}
+                onPress={() => { haptic.tap(); setBetDonationMode(m.mode); }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.optionTitle, active && styles.optionTitleActive]}>{m.label}</Text>
+                  <Text style={styles.optionDesc}>{m.desc}</Text>
+                </View>
+                {active && <Text style={styles.optionCheck}>✓</Text>}
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+    </View>
+  );
+}
+
 // ─── 스타일 ───
 const styles = StyleSheet.create({
   header: {
@@ -1338,5 +1411,38 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
+  },
+
+  // 🚀 다인 내기 티어 칩 (BetConfig)
+  betChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  betChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.primary100,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    gap: 2,
+  },
+  betChipActive: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accent50,
+  },
+  betChipText: {
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  betChipTextActive: { color: colors.accent700 },
+  betChipPrice: {
+    fontSize: 11,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
   },
 });

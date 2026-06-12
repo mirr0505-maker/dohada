@@ -10,6 +10,7 @@ import { useSession } from '@/lib/session';
 import { joinChallenge, setPendingInvite, clearPendingInvite } from '@/lib/invite';
 import { fetchChallengeDetailForInvite } from '@/lib/db';
 import { getChallengeDDay } from '@/lib/format';
+import { betBadgeText } from '@/lib/payments';
 import { haptic } from '@/lib/haptics';
 
 type Status = 'loading' | 'confirming' | 'joining' | 'error';
@@ -63,6 +64,11 @@ export default function InviteScreen() {
       Alert.alert('합류 완료', msg);
       router.replace(`/room/${id}`);
     } catch (e: any) {
+      if (e?.message === 'adult_required') {
+        setStatus('confirming');   // 화면 유지 — 다시 시도 가능
+        Alert.alert('성인 인증이 필요해요', '내기가 걸린 도전이라 성인 본인인증을 마친 분만 합류할 수 있어요.\n응원 한잔/내기에서 본인인증을 먼저 진행해주세요.');
+        return;
+      }
       setStatus('error');
       setErrorMsg(e?.message ?? '참여 처리에 실패했습니다.');
     }
@@ -125,6 +131,13 @@ export default function InviteScreen() {
                 📅 기간: {challenge.start_date.slice(5)} ~ {challenge.end_date.slice(5)} ({getChallengeDDay(challenge.start_date, challenge.end_date)})
               </Text>
             </View>
+
+            {/* 🎯 다인 내기 걸린 방 — 합류 전 고지 (성인 인증 필요) */}
+            {betBadgeText(challenge.bet_tier) ? (
+              <View style={styles.betBadge}>
+                <Text style={styles.betBadgeText}>{betBadgeText(challenge.bet_tier)}</Text>
+              </View>
+            ) : null}
 
             {/* 🚀 안내문 — 개설자가 합류 전에 보여주려고 쓴 소개 (이미지 + 텍스트) */}
             {challenge.intro_image_url ? (
@@ -260,6 +273,22 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontFamily: fontFamily.medium,
     fontWeight: fontWeight.medium,
+  },
+  betBadge: {
+    width: '100%',
+    backgroundColor: colors.accent50,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderRadius: radius.lg,
+    padding: 12,
+    marginBottom: 12,
+  },
+  betBadgeText: {
+    fontSize: fontSize.sm,
+    color: colors.accent700,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    textAlign: 'center',
   },
   introImage: {
     width: '100%',

@@ -19,6 +19,7 @@ export const GIFT_STATUS_LABEL: Record<string, string> = {
   delivered: '받았어요 ☕',
   donated: '기부로 돌렸어요 💚',
   auto_refund: '발급 실패로 자동 환불되었어요',
+  refunded: '환불되었어요',
   pay_failed: '결제가 완료되지 않았어요',
   canceled: '취소된 주문이에요',
 };
@@ -38,6 +39,21 @@ export const BET_TIERS: { tier: BetTier; label: string; price: number; desc: str
   { tier: 'hearty_cup', label: '🍰 든든한 한잔', price: 10_000, desc: '제대로 걸어보기' },
   { tier: 'grand_cup', label: '🎁 거하게 한잔', price: 20_000, desc: '배수의 진을 치고' },
 ];
+
+// 🚀 내기 기부 모드 3종 (서버 betSettlement.ts DonationMode 와 동일). 설명은 나와의 내기(1인) 기준.
+export type BetDonationMode = 'commitment' | 'pledge' | 'always';
+export const BET_DONATION_MODES: { mode: BetDonationMode; label: string; desc: string }[] = [
+  { mode: 'commitment', label: '본전 내기', desc: '완주하면 받기/기부 선택 · 실패하면 기부' },
+  { mode: 'pledge', label: '완주 기부 서약', desc: '완주하면 기부 · 못 하면 환불(돈 안 나감)' },
+  { mode: 'always', label: '무조건 기부', desc: '완주하든 못하든 기부' },
+];
+
+// 다인 내기 걸린 방 — 합류 전 미리보기 배지. null = 내기 없음
+export function betBadgeText(betTier: string | null | undefined): string | null {
+  if (!betTier) return null;
+  const t = BET_TIERS.find(x => x.tier === betTier);
+  return `🎯 ${t?.label ?? '한잔'} ${t ? t.price.toLocaleString() + '원' : ''} 내기 · 성인 인증 필요`;
+}
 
 export type GiftOrderRow = {
   id: string;
@@ -102,10 +118,13 @@ export async function createGiftOrder(params: {
 
 // 🚀 나와의 내기 주문 생성 — 자기 몫 1잔. 받는 사람은 서버가 본인으로 강제 (recipientId 안 보냄)
 export async function createBetOrder(params: {
-  challengeId: string; tier: BetTier;
+  challengeId: string; tier: BetTier; donationMode: BetDonationMode;
 }): Promise<{ orderId: string; amount: number }> {
   const { data, error } = await supabase.functions.invoke('create-gift-order', {
-    body: { challengeId: params.challengeId, orderType: 'bet', productTier: params.tier },
+    body: {
+      challengeId: params.challengeId, orderType: 'bet',
+      productTier: params.tier, donationMode: params.donationMode,
+    },
   });
   if (error) throw new Error(await describeFnError(error));
   return { orderId: data.orderId, amount: data.amount };
@@ -118,17 +137,18 @@ export type MyBet = {
   product_tier: string;
   amount: number;
   created_at: string;
+  donation_mode: BetDonationMode;
 };
 
 export async function fetchMyBet(challengeId: string, myUserId: string | undefined): Promise<MyBet | null> {
   if (!myUserId) return null;
   const { data, error } = await supabase
     .from('gift_orders')
-    .select('id, status, product_tier, amount, created_at')
+    .select('id, status, product_tier, amount, created_at, donation_mode')
     .eq('challenge_id', challengeId)
     .eq('sender_id', myUserId)
     .eq('order_type', 'bet')
-    .not('status', 'in', '(canceled,pay_failed,auto_refund)')   // 진행 중인 내기만
+    .not('status', 'in', '(canceled,pay_failed)')   // 생성 실패분만 제외 — 정산 결과(기부/환불/수령)는 카드에 표시
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -144,10 +164,12 @@ export async function confirmGiftPaymentMock(orderId: string, amount: number): P
   if (error) throw new Error(await describeFnError(error));
 }
 
-// 수령 선택 — 내가 받기 / 기부하기
-export async function claimGift(orderId: string, action: 'receive' | 'donate'):
-  Promise<{ status: string; voucherRef?: string }> {
-  const { data, error } = await supabase.functions.invoke('claim-gift', { body: { orderId, action } });
+// 수령/정산 선택 — 내가 받기 / 기부하기 / 환불(서약 모드 미완주)
+// gaveUp=true: 내기 방 포기(실패 인증) — 종료일 전이라도 즉시 실패 정산 (받기는 어차피 불가)
+export async function claimGift(
+  orderId: string, action: 'receive' | 'donate' | 'refund', gaveUp = false,
+): Promise<{ status: string; voucherRef?: string }> {
+  const { data, error } = await supabase.functions.invoke('claim-gift', { body: { orderId, action, gaveUp } });
   if (error) throw new Error(await describeFnError(error));
   return { status: data.status, voucherRef: data.voucherRef };
 }

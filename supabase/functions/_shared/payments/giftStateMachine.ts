@@ -9,19 +9,22 @@ export type GiftStatus =
   | 'created' | 'canceled' | 'pay_failed'
   | 'paid'
   | 'issued' | 'issue_failed' | 'auto_refund'
-  | 'delivered' | 'donated' | 'redeemed';
+  | 'delivered' | 'donated' | 'redeemed'
+  | 'refunded';
 
 export const GIFT_STATUSES: GiftStatus[] = [
   'created', 'canceled', 'pay_failed',
   'paid',
   'issued', 'issue_failed', 'auto_refund',
   'delivered', 'donated', 'redeemed',
+  'refunded',
 ];
 
 // 상태별 허용 전이 — 여기 없는 전이는 전부 거부
 const TRANSITIONS: Record<GiftStatus, GiftStatus[]> = {
   created: ['paid', 'pay_failed', 'canceled'],
-  paid: ['issued', 'issue_failed', 'donated', 'auto_refund'],
+  // 정산 환불(refunded) = pledge 미완주·다인 전원 미완주 (auto_refund 는 발급 실패 환불과 구분)
+  paid: ['issued', 'issue_failed', 'donated', 'auto_refund', 'refunded'],
   issued: ['delivered'],
   delivered: ['redeemed'],
   issue_failed: ['auto_refund'],
@@ -31,6 +34,7 @@ const TRANSITIONS: Record<GiftStatus, GiftStatus[]> = {
   auto_refund: [],
   donated: [],
   redeemed: [],
+  refunded: [],
 };
 
 export function canTransition(from: GiftStatus, to: GiftStatus): boolean {

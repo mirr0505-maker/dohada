@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { getChallengeDDay } from '@/lib/format';
+import { betBadgeText } from '@/lib/payments';
 import { haptic } from '@/lib/haptics';
 import type { OpenChallengeCard } from '@/lib/types';
 
@@ -51,6 +52,13 @@ export function OpenJoinPreviewSheet({ challenge, joining, onClose, onConfirm }:
                     📅 {challenge.start_date.slice(5)} ~ {challenge.end_date.slice(5)} ({getChallengeDDay(challenge.start_date, challenge.end_date)})
                   </Text>
                 </View>
+
+                {/* 🎯 다인 내기 걸린 방 — 합류 전 고지 (성인 인증 필요) */}
+                {betBadgeText(challenge.bet_tier) && (
+                  <View style={styles.betBadge}>
+                    <Text style={styles.betBadgeText}>{betBadgeText(challenge.bet_tier)}</Text>
+                  </View>
+                )}
 
                 {/* 안내문 — 개설자가 합류 전에 보여주려고 쓴 소개 */}
                 {challenge.intro_image_url ? (
@@ -151,6 +159,20 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontFamily: fontFamily.medium,
     fontWeight: fontWeight.medium,
+  },
+  betBadge: {
+    backgroundColor: colors.accent50,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderRadius: radius.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  betBadgeText: {
+    fontSize: fontSize.sm,
+    color: colors.accent700,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
   },
   introImage: {
     width: '100%',

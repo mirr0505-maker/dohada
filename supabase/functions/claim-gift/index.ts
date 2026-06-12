@@ -15,7 +15,7 @@
 // @ts-nocheck — Deno 글로벌
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { validateClaim } from '../_shared/payments/claimPolicy.ts';
+import { validateClaim, validateBetClaim } from '../_shared/payments/claimPolicy.ts';
 import { canTransition } from '../_shared/payments/giftStateMachine.ts';
 import { computeSelfBetOutcome } from '../_shared/payments/betOutcome.ts';
 import { createMockPgClient, createMockGifticonClient } from '../_shared/payments/providers.ts';
@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
   const { data: { user } } = await authClient.auth.getUser();
   if (!user) return json(401, { error: 'unauthorized' });
 
-  const { orderId, action } = await req.json().catch(() => ({}));
+  const { orderId, action, gaveUp } = await req.json().catch(() => ({}));
   if (!orderId || !action) return json(400, { error: 'missing_fields' });
 
   const service = createClient(
@@ -94,24 +94,38 @@ Deno.serve(async (req) => {
 
   const { data: order } = await service
     .from('gift_orders')
-    .select('id, order_type, challenge_id, recipient_id, status, product_tier, pg_payment_key')
+    .select('id, order_type, challenge_id, recipient_id, status, product_tier, pg_payment_key, donation_mode')
     .eq('id', orderId)
     .maybeSingle();
   if (!order) return json(404, { error: 'order_not_found' });
 
-  const verdict = validateClaim(order, user.id, action);
-  if (!verdict.ok) return json(403, { error: verdict.reason });
+  // 공통 가드 — 본인(recipient) + paid 상태
+  if (order.recipient_id !== user.id) return json(403, { error: 'not_recipient' });
+  if (order.status !== 'paid') return json(403, { error: 'not_claimable' });
 
-  // 🚀 나와의 내기 받기 게이트 — 완주했을 때만 본전 수령 (서버 권위 완주 판정)
-  if (order.order_type === 'bet' && action === 'receive') {
-    const outcome = await selfBetOutcome(service, order.challenge_id, order.recipient_id);
-    if (outcome !== 'completed') return json(403, { error: 'bet_not_completed' });
+  // 🚀 내기(나와의 내기/다인): 기부 모드 × 완주 결과로 허용 액션 판정 (서버 권위 — 받기/기부/환불 백도어 차단)
+  if (order.order_type === 'bet') {
+    // 포기(실패 인증)면 종료일과 무관하게 즉시 '실패'로 판정 — 능동적 실패 인정 (받기는 어차피 불가)
+    const outcome = gaveUp ? 'failed' : await selfBetOutcome(service, order.challenge_id, order.recipient_id);
+    const verdict = validateBetClaim(order.donation_mode, outcome, action);
+    if (!verdict.ok) return json(403, { error: verdict.reason });
+  } else {
+    // 응원 한잔 — receive/donate 만 (refund 없음)
+    const verdict = validateClaim(order, user.id, action);
+    if (!verdict.ok) return json(403, { error: verdict.reason });
   }
 
   // 기부하기 — 발급 없이 기부 풀로
   if (action === 'donate') {
     await transition('paid', 'donated');
     return json(200, { status: 'donated' });
+  }
+
+  // 환불 — 서약(pledge) 모드 미완주 정산. 발급 실패(auto_refund)와 구분되는 정산 환불(refunded)
+  if (action === 'refund') {
+    await pg.cancel(order.pg_payment_key ?? '', 'bet_pledge_refund');
+    await transition('paid', 'refunded');
+    return json(200, { status: 'refunded' });
   }
 
   // 내가 받기 — 이 시점에 발급, 실패하면 자동 환불

@@ -29,7 +29,7 @@ test('상태머신 — 허용된 전이만 통과 (전수)', () => {
   // 스펙: 허용 전이의 완전한 목록. 여기 없는 (from,to) 조합은 전부 거부돼야 한다.
   const ALLOWED = new Set([
     'created->paid', 'created->pay_failed', 'created->canceled',
-    'paid->issued', 'paid->issue_failed', 'paid->donated', 'paid->auto_refund',
+    'paid->issued', 'paid->issue_failed', 'paid->donated', 'paid->auto_refund', 'paid->refunded',
     'issued->delivered',
     'delivered->redeemed',
     'issue_failed->auto_refund',

@@ -940,6 +940,8 @@ export type InviteInfo = {
   invitation_message: string | null;
   description: string | null;            // 🚀 0037: 안내문 텍스트
   intro_image_url: string | null;        // 🚀 0037: 안내문 이미지
+  bet_tier: string | null;               // 🚀 0040: 다인 내기 티어 (null=내기 없음)
+  bet_donation_mode: string | null;      // 🚀 0040: 다인 내기 기부 모드
   member_count: number;
   creator_nickname: string;
   category: { emoji: string; name: string } | null;
@@ -1051,6 +1053,8 @@ export async function createChallenge(args: {
   proofType?: CreateChallengeProofType; // v2.2: 사진(카메라) or 스크린샷(보관함)
   startDate?: string;               // 🚀 신규 추가: YYYY-MM-DD 포맷
   introImageUrl?: string | null;    // 🚀 0037: 안내문 이미지 R2 URL (나홀로 제외)
+  betTier?: string | null;          // 🚀 0040: 다인 내기 티어 (다함께·누구나, null=내기 없음)
+  betDonationMode?: string;         // 🚀 0040: 다인 내기 기부 모드 (기본 commitment)
 }): Promise<DbChallenge> {
   const start = args.startDate ? new Date(args.startDate) : new Date();
   const end = new Date(start);
@@ -1067,6 +1071,8 @@ export async function createChallenge(args: {
     p_frequency:      args.frequency     ?? 'daily',
     p_proof_type:     args.proofType     ?? 'photo',
     p_intro_image_url: args.introImageUrl ?? null,
+    p_bet_tier:        args.betTier        ?? null,
+    p_bet_donation_mode: args.betDonationMode ?? 'commitment',
   });
 
   if (error) throw error;

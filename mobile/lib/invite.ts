@@ -29,7 +29,7 @@ export async function joinChallenge(challengeId: string, userId: string): Promis
   //    단, 이미 멤버라면 방(박제) 진입은 허용.
   const { data: ch, error: chErr } = await supabase
     .from('challenges')
-    .select('end_date, gave_up_at')
+    .select('end_date, gave_up_at, bet_tier')
     .eq('id', challengeId)
     .maybeSingle();
   if (chErr) throw chErr;
@@ -45,6 +45,15 @@ export async function joinChallenge(challengeId: string, userId: string): Promis
       .maybeSingle();
     if (mem) return 'already_member';
     throw new Error('이미 종료된 도전이에요.\n새로 합류할 수 없어요.');
+  }
+
+  // 🚀 내기 걸린 방(bet_tier != null)은 성인 본인인증된 사람만 합류 — 미성년/미인증 차단(처음부터)
+  //    방을 성인으로만 채워 내기를 항상 유효하게. (real-money 전환 시 서버 RLS 로 격상 — 지금은 클라 게이트)
+  if (ch.bet_tier) {
+    const { data: isAdult } = await supabase.rpc('is_adult_verified', { p_user_id: userId });
+    if (!isAdult) {
+      throw new Error('adult_required');   // UI 가 이 코드를 받아 성인 인증 유도
+    }
   }
 
   const { error } = await supabase

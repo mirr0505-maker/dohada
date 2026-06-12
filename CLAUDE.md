@@ -96,7 +96,15 @@
 - **알림 스킵**: [`0036_self_bet.sql`](supabase/migrations/0036_self_bet.sql) — self-order(sender=recipient) 는 알림 미생성 (solo=알림 0건 원칙). 스키마 변경 없음(0032 가 bet/grand_cup 이미 지원)
 - **UI**: 방 **현황 탭 상단** [`BetCard.tsx`](mobile/components/challenge/BetCard.tsx) (진입·진행·정산 한 카드, 도전자 본인만 — gift_orders RLS) + 걸기 시트 [`BetSheet.tsx`](mobile/components/challenge/BetSheet.tsx). 클라 함수 = `createBetOrder`·`fetchMyBet`·`BET_TIERS`(payments.ts). 노출 게이트 = `isGiftPilotEmail`. 완주 직후 발견성: [`complete/[id].tsx`](mobile/app/complete/[id].tsx) 에 paid 내기 있으면 "🎯 내기 정산하러 가기"(→현황 탭)
 - **운영 반영 완료 (2026-06-12)**: 0036 운영 DB 적용 + `claim-gift`·`create-gift-order` 배포 (project `bpffxeddkuekefphsolz`)
-- **⑤b 이월**: 정산 미응답 N일 자동 기부(cron)·다인 내기·mock→실돈 PG/기프티콘 전환은 미구현
+
+### 신규 코드 위치 (Phase 2 Stage 5 ⑤c + 기부 모드 3종 — 다인 내기, mock·파일럿, 2026-06-12)
+**기부 모드 3종 (개설 시 선택, ⑤a·⑤c 공통)**: commitment(완주→받기/기부·실패→기부) / pledge(완주→기부·실패→환불) / always(무조건 기부). **참여자 간 이전 0 불변** (자기 한잔은 자기가 받기/기부/환불 — 도박 구성요건 무관). commitment 의 구 "전원 미완주→전원 환불" 특례는 **제거**(실패=항상 기부 일관 / 환불은 pledge).
+- **정산 순수 로직**: [`betSettlement.ts`](supabase/functions/_shared/payments/betSettlement.ts) `settleBet(donationMode)` + [`claimPolicy.ts`](supabase/functions/_shared/payments/claimPolicy.ts) `validateBetClaim`(per-주문 모드×결과→허용 액션). 테스트 = `bet-settlement`·`bet-claim`·`self-bet-outcome` (`npm test` 63/63). DB = [`0039_bet_donation_mode.sql`](supabase/migrations/0039_bet_donation_mode.sql) `gift_orders.donation_mode` + `refunded` 상태
+- **다인 내기 설정**: [`0040_group_bet.sql`](supabase/migrations/0040_group_bet.sql) `challenges.bet_tier`·`bet_donation_mode`(null=내기 없음, closed/open 만) + `create_challenge`·`get_invite_info` 확장. 생성 마법사 `BetConfig`([create.tsx](mobile/app/create.tsx) step5, 다함께·누구나·파일럿). create-gift-order 가 group 은 챌린지 설정(티어·모드) 강제
+- **미성년 합류 차단**: `bet_tier != null` 방은 [`joinChallenge`](mobile/lib/invite.ts) 가 성인 인증 검사 → `adult_required` 거부. 홈/초대 미리보기 `betBadgeText` 배지 + 거부 안내
+- **포기=실패 인증**: [`claim-gift`](supabase/functions/claim-gift/index.ts) `gaveUp=true` → 종료 전이라도 즉시 실패 정산(commitment/always→기부·pledge→환불). [`BetCard`](mobile/components/challenge/BetCard.tsx) "🏳️ 포기하기(실패 인증)" + room `onBetGiveUp`
+- **방 노출**: BetCard 가 self(개설자)·group(활성 멤버) 양쪽. group BetSheet 은 `fixedTier`·`fixedMode` 로 선택 생략
+- **운영 반영 대기**: 0039·0040 적용 + `claim-gift`·`create-gift-order` 재배포 (⚠️ **migration 먼저** — 미적용 상태로 EF 배포 시 donation_mode 컬럼 없어 응원 한잔까지 깨짐)
 
 ### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.
