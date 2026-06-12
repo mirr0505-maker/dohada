@@ -1,9 +1,9 @@
 // 🚀 누구나 합류 — 합류 전 미리보기 바텀시트
 // 홈에서 "함께 합류하기"를 누르면 바로 합류 Alert 가 아니라, 이 도전이 어떤 도전인지
 // (안내문 텍스트 + 이미지 + 기간·인원·개설자)를 충분히 보고 결정할 수 있게 한다.
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
-  View, Text, Pressable, Modal, StyleSheet, ScrollView, Image, ActivityIndicator,
+  View, Text, Pressable, Modal, StyleSheet, ScrollView, Image, ActivityIndicator, Keyboard,
 } from 'react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { getChallengeDDay } from '@/lib/format';
@@ -22,17 +22,24 @@ export function OpenJoinPreviewSheet({ challenge, joining, onClose, onConfirm }:
   const visible = challenge !== null;
   const hasIntro = !!(challenge?.description && challenge.description.trim() !== '');
 
+  // 열릴 때 키보드(자동완성 추천줄 포함) 강제 닫기 — 다른 화면 입력 포커스가 남아 시트를 덮는 것 방지
+  useEffect(() => {
+    if (visible) Keyboard.dismiss();
+  }, [visible]);
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={() => {}}>
+      {/* backdrop = 닫기용 절대영역 + 그 위 시트(View) — Pressable 로 ScrollView 를 감싸면 스크롤 제스처가 막힘 */}
+      <View style={styles.backdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={styles.sheet}>
           {challenge && (
             <>
               <View style={styles.handle} />
               <ScrollView
                 style={{ flexShrink: 1 }}
                 contentContainerStyle={styles.scrollBody}
-                showsVerticalScrollIndicator={false}
+                showsVerticalScrollIndicator={true}
               >
                 <Text style={styles.curation}>🌍 누구나 합류</Text>
                 <Text style={styles.title}>{challenge.title}</Text>
@@ -90,8 +97,8 @@ export function OpenJoinPreviewSheet({ challenge, joining, onClose, onConfirm }:
               </View>
             </>
           )}
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }
