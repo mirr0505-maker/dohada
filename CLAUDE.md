@@ -104,7 +104,7 @@
 - **미성년 합류 차단**: `bet_tier != null` 방은 [`joinChallenge`](mobile/lib/invite.ts) 가 성인 인증 검사 → `adult_required` 거부. 홈/초대 미리보기 `betBadgeText` 배지 + 거부 안내
 - **포기=실패 인증**: [`claim-gift`](supabase/functions/claim-gift/index.ts) `gaveUp=true` → 종료 전이라도 즉시 실패 정산(commitment/always→기부·pledge→환불). [`BetCard`](mobile/components/challenge/BetCard.tsx) "🏳️ 포기하기(실패 인증)" + room `onBetGiveUp`
 - **방 노출**: BetCard 가 self(개설자)·group(활성 멤버) 양쪽. group BetSheet 은 `fixedTier`·`fixedMode` 로 선택 생략
-- **운영 반영 대기**: 0039·0040 적용 + `claim-gift`·`create-gift-order` 재배포 (⚠️ **migration 먼저** — 미적용 상태로 EF 배포 시 donation_mode 컬럼 없어 응원 한잔까지 깨짐)
+- **운영 반영 완료 (2026-06-13)**: 0039·0040 적용 + `claim-gift`·`create-gift-order` 배포. 클라는 빌드/OTA 대기. (배포 시 ⚠️ **migration 먼저** 원칙 — 미적용 상태로 EF 배포 시 donation_mode 컬럼 없어 응원 한잔까지 깨짐)
 
 ### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.
