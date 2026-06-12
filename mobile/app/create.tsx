@@ -895,6 +895,7 @@ function IntroEditor({
         maxLength={1000}
         editable={!disabled}
       />
+      <Text style={styles.introCounter}>{description.length} / 1000</Text>
       {imageUri ? (
         <View style={styles.introImageWrap}>
           <Image source={{ uri: imageUri }} style={styles.introImage} resizeMode="cover" />
@@ -1290,6 +1291,13 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: colors.background,
     borderRadius: radius.md,
+  },
+  introCounter: {
+    fontSize: 11,
+    color: colors.primary300,
+    fontFamily: fontFamily.regular,
+    textAlign: 'right',
+    marginTop: -4,
   },
   introImageBtn: {
     paddingVertical: 12,
