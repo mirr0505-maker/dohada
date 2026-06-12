@@ -31,6 +31,14 @@ export const GIFT_TIERS: { tier: GiftTier; label: string; price: number; desc: s
   { tier: 'hearty_cup', label: '🍰 든든한 한잔', price: 10_000, desc: '커피와 디저트까지' },
 ];
 
+// 🚀 나와의 내기 — 티어 3종 (5천/1만/2만, grand_cup 포함). 서버 catalog.ts 와 동일해야 함.
+export type BetTier = 'one_cup' | 'hearty_cup' | 'grand_cup';
+export const BET_TIERS: { tier: BetTier; label: string; price: number; desc: string }[] = [
+  { tier: 'one_cup', label: '☕ 한잔', price: 5_000, desc: '가볍게 거는 다짐' },
+  { tier: 'hearty_cup', label: '🍰 든든한 한잔', price: 10_000, desc: '제대로 걸어보기' },
+  { tier: 'grand_cup', label: '🎁 거하게 한잔', price: 20_000, desc: '배수의 진을 치고' },
+];
+
 export type GiftOrderRow = {
   id: string;
   order_type: 'cheer' | 'bet';
@@ -45,6 +53,15 @@ export type GiftOrderRow = {
   sender: { nickname: string; avatar_url: string | null } | null;
   recipient: { nickname: string; avatar_url: string | null } | null;
 };
+
+// 🚀 생년월일 입력 자동 하이픈 — 숫자만 치면 YYYY-MM-DD 로 정형 (형식 맞추는 수고 제거)
+// mock·실서비스 모두 토큰은 YYYY-MM-DD 를 요구하므로 입력 단계에서 보정한다.
+export function formatBirthDateInput(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 8);   // YYYYMMDD 8자리까지
+  if (digits.length > 6) return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6)}`;
+  if (digits.length > 4) return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+  return digits;
+}
 
 // 본인인증 여부 — user_verifications 는 RLS 로 본인 행만 보임
 export async function fetchMyVerification(myUserId: string): Promise<{ verified: boolean; isAdult: boolean }> {
@@ -81,6 +98,42 @@ export async function createGiftOrder(params: {
   });
   if (error) throw new Error(await describeFnError(error));
   return { orderId: data.orderId, amount: data.amount };
+}
+
+// 🚀 나와의 내기 주문 생성 — 자기 몫 1잔. 받는 사람은 서버가 본인으로 강제 (recipientId 안 보냄)
+export async function createBetOrder(params: {
+  challengeId: string; tier: BetTier;
+}): Promise<{ orderId: string; amount: number }> {
+  const { data, error } = await supabase.functions.invoke('create-gift-order', {
+    body: { challengeId: params.challengeId, orderType: 'bet', productTier: params.tier },
+  });
+  if (error) throw new Error(await describeFnError(error));
+  return { orderId: data.orderId, amount: data.amount };
+}
+
+// 이 방에서 내가 건 내기 1건 (1인 1내기) — 진입/진행/정산 카드용. 종결-실패 상태는 제외.
+export type MyBet = {
+  id: string;
+  status: string;
+  product_tier: string;
+  amount: number;
+  created_at: string;
+};
+
+export async function fetchMyBet(challengeId: string, myUserId: string | undefined): Promise<MyBet | null> {
+  if (!myUserId) return null;
+  const { data, error } = await supabase
+    .from('gift_orders')
+    .select('id, status, product_tier, amount, created_at')
+    .eq('challenge_id', challengeId)
+    .eq('sender_id', myUserId)
+    .eq('order_type', 'bet')
+    .not('status', 'in', '(canceled,pay_failed,auto_refund)')   // 진행 중인 내기만
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) return null;
+  return (data as MyBet) ?? null;
 }
 
 // 결제 승인 — Stage 1 은 mock 결제키 (실서비스: PG 결제창이 돌려준 paymentKey 로 교체)

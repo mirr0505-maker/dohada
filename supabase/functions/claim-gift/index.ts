@@ -1,4 +1,4 @@
-// 🚀 claim-gift — 수신자의 "내가 받기 / 기부하기" 선택 (응원 한잔 수령)
+// 🚀 claim-gift — 수령/정산의 "내가 받기 / 기부하기" 선택 (응원 한잔 + 나와의 내기)
 //
 // 호출: supabase.functions.invoke('claim-gift', { body: { orderId, action: 'receive' | 'donate' } })
 //
@@ -7,12 +7,17 @@
 //           발급 실패 → issue_failed → auto_refund (보낸 사람에게 환불 — 0033 트리거가 통지)
 //   기부:   paid → donated (기부 풀 — 4절 기부 허브)
 //   결과는 0033 트리거가 보낸 사람에게 피드백 알림 ("받았어요 ☕ / 기부로 돌렸어요 💚")
+//
+// 나와의 내기(order_type='bet') 정산 (PHASE2 2.1-3):
+//   받기(본전)는 서버가 완주를 확인했을 때만 허용 — 실패자가 본전을 회수하는 백도어 차단.
+//   기부는 언제나 허용 ("실패를 인정하고 기부" + 완주자의 "기부로 돌리기" 둘 다).
 
 // @ts-nocheck — Deno 글로벌
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { validateClaim } from '../_shared/payments/claimPolicy.ts';
 import { canTransition } from '../_shared/payments/giftStateMachine.ts';
+import { computeSelfBetOutcome } from '../_shared/payments/betOutcome.ts';
 import { createMockPgClient, createMockGifticonClient } from '../_shared/payments/providers.ts';
 
 const corsHeaders = {
@@ -28,6 +33,25 @@ function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+
+// 나와의 내기 완주 판정 — DB(챌린지·합류일·도전자 인증)를 모아 순수 함수로 판정.
+// 도전자 = 내기 주문의 recipient(=sender 본인). proofs 도 그 user 의 것만 센다.
+async function selfBetOutcome(service: any, challengeId: string, userId: string) {
+  const [chRes, memRes, proofRes] = await Promise.all([
+    service.from('challenges').select('start_date, end_date, frequency').eq('id', challengeId).maybeSingle(),
+    service.from('challenge_members').select('joined_at').eq('challenge_id', challengeId).eq('user_id', userId).maybeSingle(),
+    service.from('proofs').select('created_at').eq('challenge_id', challengeId).eq('user_id', userId),
+  ]);
+  const ch = chRes.data;
+  if (!ch) return 'in_progress';
+  return computeSelfBetOutcome({
+    startDate: ch.start_date,
+    endDate: ch.end_date,
+    frequency: ch.frequency ?? 'daily',
+    joinedAt: memRes.data?.joined_at ?? null,
+    proofIso: (proofRes.data ?? []).map((r: { created_at: string }) => r.created_at),
   });
 }
 
@@ -70,13 +94,19 @@ Deno.serve(async (req) => {
 
   const { data: order } = await service
     .from('gift_orders')
-    .select('id, recipient_id, status, product_tier, pg_payment_key')
+    .select('id, order_type, challenge_id, recipient_id, status, product_tier, pg_payment_key')
     .eq('id', orderId)
     .maybeSingle();
   if (!order) return json(404, { error: 'order_not_found' });
 
   const verdict = validateClaim(order, user.id, action);
   if (!verdict.ok) return json(403, { error: verdict.reason });
+
+  // 🚀 나와의 내기 받기 게이트 — 완주했을 때만 본전 수령 (서버 권위 완주 판정)
+  if (order.order_type === 'bet' && action === 'receive') {
+    const outcome = await selfBetOutcome(service, order.challenge_id, order.recipient_id);
+    if (outcome !== 'completed') return json(403, { error: 'bet_not_completed' });
+  }
 
   // 기부하기 — 발급 없이 기부 풀로
   if (action === 'donate') {

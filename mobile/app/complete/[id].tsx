@@ -10,6 +10,7 @@ import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import { fetchRoomData } from '@/lib/db';
 import { computeProgress, memberTargetProofCount, uniqueProofDays } from '@/lib/stats';
+import { fetchMyBet, isGiftPilotEmail } from '@/lib/payments';
 import { haptic } from '@/lib/haptics';
 
 export default function CompleteScreen() {
@@ -21,6 +22,8 @@ export default function CompleteScreen() {
   // 🚀 완주율 — 인증 일수/본인 목표 (늦합류자는 합류일 기준 비례 목표와 일관)
   const [provedDays, setProvedDays] = useState(0);
   const [targetDays, setTargetDays] = useState(0);
+  // 🎯 정산 대기(paid) 내기가 있으면 완주 화면에서 현황 탭 정산 동선 노출 (받기/기부)
+  const [settleBetPending, setSettleBetPending] = useState(false);
 
   useEffect(() => {
     if (session === null) router.replace('/login');
@@ -40,6 +43,11 @@ export default function CompleteScreen() {
           setProvedDays(uniqueProofDays(myProofs));
           setTargetDays(memberTargetProofCount(data.challenge, myJoinedAt));
           haptic.success();
+          // 정산 대기 내기 확인 — 파일럿 도전자만 (fetchMyBet 은 RLS 로 본인 주문만)
+          if (isGiftPilotEmail(session.user.email)) {
+            const bet = await fetchMyBet(id, session.user.id);
+            if (bet && bet.status === 'paid') setSettleBetPending(true);
+          }
         }
       } finally {
         setLoading(false);
@@ -94,6 +102,16 @@ export default function CompleteScreen() {
 
       <Animated.View entering={FadeInUp.delay(900)} style={styles.bottom}>
         <Button label="기록 공유하기" size="xl" block onPress={onShare} />
+        {/* 🎯 걸어둔 한잔 정산 — 완주 직후 발견성. 현황 탭의 내기 카드로 (받기/기부 선택) */}
+        {settleBetPending && (
+          <Button
+            label="🎯 내기 정산하러 가기"
+            variant="secondary"
+            size="lg"
+            block
+            onPress={() => router.replace(`/room/${id}?tab=status` as any)}
+          />
+        )}
         {/* 🚀 완주 방(박제)으로 돌아가는 길 — 이 버튼이 없으면 완주 방 진입 동선이 끊김 */}
         <Button
           label="🏆 박제 보러 가기"

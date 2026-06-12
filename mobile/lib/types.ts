@@ -33,6 +33,7 @@ export type DbChallenge = {
   created_at: string;
   frequency?: ChallengeFrequency;     // 0007: 인증 빈도 (기본 daily)
   invitation_message?: string | null; // 🚀 초대 메시지: 개설자가 동료들을 초대할 때 보낼 커스텀 소환장 메시지
+  intro_image_url?: string | null;    // 🚀 0037: 안내문 이미지 (보관함, 합류 전 미리보기·방 현황에 노출)
   gave_up_at: string | null; // 🚀 개설자가 챌린지 포기한 시각 (비활성화 판단용)
 };
 

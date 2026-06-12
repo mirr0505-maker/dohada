@@ -25,6 +25,7 @@ import {
 } from '@/lib/db';
 import { ErrorState } from '@/components/ErrorState';
 import { ChallengeCardSkeleton } from '@/components/Skeleton';
+import { OpenJoinPreviewSheet } from '@/components/home/OpenJoinPreviewSheet';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import type { CompletionStoryCard, OpenChallengeCard } from '@/lib/types';
@@ -49,6 +50,9 @@ export default function HomeScreen() {
   const [loading, setLoading]               = useState(true);
   const [refreshing, setRefreshing]         = useState(false);
   const [error, setError]                   = useState<string | null>(null);
+  // 🚀 누구나 합류 — 합류 전 안내문 미리보기 시트 대상 (null = 닫힘)
+  const [previewCard, setPreviewCard]       = useState<OpenChallengeCard | null>(null);
+  const [joiningPreview, setJoiningPreview]  = useState(false);
   
   const myUserId = session?.user?.id;
   // 🚀 같은 세션에서 한 챌린지에 대해 포기 Alert 중복 표시 차단 (P1-12 안전망).
@@ -80,29 +84,35 @@ export default function HomeScreen() {
       return;
     }
 
-    Alert.alert(
-      '도전 합류',
-      '정말 개설자와 함께 도전하시겠습니까?',
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '확인',
-          onPress: async () => {
-            try {
-              setLoading(true);
-              await joinChallenge(challengeId, myUserId);
-              haptic.success();
-              Alert.alert('합류 완료', '챌린지에 성공적으로 합류했습니다!');
-              await load();
-            } catch (err: any) {
-              Alert.alert('합류 실패', err?.message ?? String(err));
-            } finally {
-              setLoading(false);
-            }
-          }
-        }
-      ]
-    );
+    // 🚀 즉시 합류 Alert 대신 — 안내문 미리보기 시트를 열어 내용을 보고 결정하게 한다
+    const card = openChs.find(c => c.id === challengeId) ?? null;
+    if (card) {
+      haptic.tap();
+      setPreviewCard(card);
+      return;
+    }
+    // 카드 정보를 못 찾는 예외 케이스만 기존 즉시 합류 폴백
+    Alert.alert('도전 합류', '정말 개설자와 함께 도전하시겠습니까?', [
+      { text: '취소', style: 'cancel' },
+      { text: '확인', onPress: () => doJoin(challengeId) },
+    ]);
+  };
+
+  // 실제 합류 처리 — 미리보기 시트 확인 / 폴백 Alert 공용
+  const doJoin = async (challengeId: string) => {
+    if (!myUserId || joiningPreview) return;
+    try {
+      setJoiningPreview(true);
+      await joinChallenge(challengeId, myUserId);
+      haptic.success();
+      setPreviewCard(null);
+      Alert.alert('합류 완료', '챌린지에 성공적으로 합류했습니다!');
+      await load();
+    } catch (err: any) {
+      Alert.alert('합류 실패', err?.message ?? String(err));
+    } finally {
+      setJoiningPreview(false);
+    }
   };
 
   const load = useCallback(async () => {
@@ -487,6 +497,14 @@ export default function HomeScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* 🌍 누구나 합류 — 안내문 미리보기 후 합류 결정 */}
+      <OpenJoinPreviewSheet
+        challenge={previewCard}
+        joining={joiningPreview}
+        onClose={() => setPreviewCard(null)}
+        onConfirm={() => { if (previewCard) doJoin(previewCard.id); }}
+      />
     </Screen>
   );
 }

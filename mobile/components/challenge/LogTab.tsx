@@ -4,7 +4,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, TextInput, Pressable, StyleSheet, FlatList, Modal,
-  KeyboardAvoidingView, Platform, Alert, Image,
+  KeyboardAvoidingView, Platform, Alert, Image, ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -458,7 +458,14 @@ function LogComposer({
           </Pressable>
         </View>
 
-        <View style={styles.modalBody}>
+        {/* 🚀 사진을 먼저 넣으면 세로 긴 사진이 본문 입력칸을 화면 밖으로 밀어냈음 →
+            스크롤 가능하게 변경 + 사진 미리보기 높이 제한 (본문이 항상 닿을 수 있게) */}
+        <ScrollView
+          style={styles.modalBody}
+          contentContainerStyle={styles.modalBodyContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+        >
           <TextInput
             value={title}
             onChangeText={setTitle}
@@ -503,7 +510,7 @@ function LogComposer({
             editable={!saving}
           />
           <Text style={styles.counter}>{content.length} / 4000</Text>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -629,7 +636,8 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },
-  modalBody: { flex: 1, paddingHorizontal: 20, paddingTop: 16 },
+  modalBody: { flex: 1 },
+  modalBodyContent: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 28 },
   titleInput: {
     fontSize: fontSize.xl,
     color: colors.primary,
@@ -640,7 +648,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.primary100,
   },
   contentInput: {
-    flex: 1,
+    minHeight: 200,   // flex:1 → ScrollView 안에선 높이 0 이 되므로 최소 높이로 (본문 항상 보임)
     fontSize: fontSize.base,
     color: colors.primary,
     fontFamily: fontFamily.regular,
@@ -682,6 +690,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     borderRadius: radius.lg,
     overflow: 'hidden',
+    maxHeight: 320,   // 세로 긴 사진이 본문 입력칸을 화면 밖으로 밀어내지 않게 미리보기 높이 제한
   },
   photoPreview: {
     width: '100%',

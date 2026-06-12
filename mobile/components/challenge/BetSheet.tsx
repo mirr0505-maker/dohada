@@ -1,6 +1,7 @@
-// 🚀 응원 한잔 보내기 시트 — 인증 카드 ☕ 버튼에서 진입
-// 단계: 티어 선택 → (첫 사용 시) 본인인증 → 결제 확인 → 완료
-// Stage 1.5: 본인인증·결제 전부 mock (실돈 0원). 실서비스 전환은 PHASE2_FINTECH_PLAN.md Stage 3.
+// 🚀 나와의 내기 걸기 시트 — 현황 탭 "이 도전, 한잔 걸기" 카드에서 진입
+// 단계: 약속 안내 → 티어 선택(3종) → (첫 사용 시) 본인인증 → 결제 확인 → 완료
+// 핵심 약속: 완주하면 본전(내 한잔 수령), 실패를 인정하면 기부 — stickK 커밋먼트 계약 (PHASE2 2.1-3).
+// Stage 5 ⑤a: 본인인증·결제 전부 mock(실돈 0원). 실서비스 전환은 ⑤b(자문 후).
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, Pressable, Modal, StyleSheet, TextInput, ActivityIndicator, Alert,
@@ -9,38 +10,35 @@ import {
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { haptic } from '@/lib/haptics';
 import {
-  GIFT_TIERS, type GiftTier,
-  fetchMyVerification, verifyIdentityMock, createGiftOrder, confirmGiftPaymentMock,
+  BET_TIERS, type BetTier,
+  fetchMyVerification, verifyIdentityMock, createBetOrder, confirmGiftPaymentMock,
   formatBirthDateInput,
 } from '@/lib/payments';
 
 type Props = {
   visible: boolean;
-  onClose: () => void;
+  onClose: () => void;     // 완료/닫기 — 닫힐 때 부모가 내기 상태 새로고침
   challengeId: string;
-  recipientId: string;
-  recipientNickname: string;
-  proofId?: string | null;   // 보낸 인증 카드 — 수신자의 "☕ 한잔 도착" 버튼 위치 (0035)
   myUserId: string | undefined;
 };
 
-type Step = 'tier' | 'verify' | 'confirm' | 'done';
+type Step = 'intro' | 'tier' | 'verify' | 'confirm' | 'done';
 
 // 서버 거부 사유 → 사용자 문구
 const REASON_LABEL: Record<string, string> = {
   identity_not_verified: '본인인증이 필요해요.',
-  invalid_tier: '지금은 보낼 수 없는 상품이에요.',
-  not_a_member: '같은 챌린지의 동료에게만 보낼 수 있어요.',
-  self_cheer_not_allowed: '나에게는 보낼 수 없어요.',
-  daily_limit_exceeded: '응원 한잔은 하루 3건까지 보낼 수 있어요.',
+  invalid_tier: '지금은 걸 수 없는 금액이에요.',
+  not_a_member: '이 도전의 멤버만 걸 수 있어요.',
+  bet_room_not_allowed: '나와의 내기는 나혼자·응원받기 방에서만 걸 수 있어요.',
+  bet_challenger_only: '도전을 시작한 본인만 걸 수 있어요.',
+  bet_challenge_finished: '이미 종료된 도전에는 걸 수 없어요.',
+  bet_already_exists: '이미 이 도전에 한잔을 걸어두었어요.',
   amount_mismatch: '결제 금액이 맞지 않아 취소했어요.',
 };
 
-export function GiftSheet({
-  visible, onClose, challengeId, recipientId, recipientNickname, proofId = null, myUserId,
-}: Props) {
-  const [step, setStep] = useState<Step>('tier');
-  const [tier, setTier] = useState<GiftTier | null>(null);
+export function BetSheet({ visible, onClose, challengeId, myUserId }: Props) {
+  const [step, setStep] = useState<Step>('intro');
+  const [tier, setTier] = useState<BetTier | null>(null);
   const [verified, setVerified] = useState<boolean | null>(null);   // null = 확인 중
   const [birthDate, setBirthDate] = useState('');
   const [phone, setPhone] = useState('');
@@ -49,16 +47,16 @@ export function GiftSheet({
   // 열릴 때마다 초기화 + 본인인증 여부 확인
   useEffect(() => {
     if (!visible || !myUserId) return;
-    setStep('tier'); setTier(null); setBusy(false);
+    setStep('intro'); setTier(null); setBusy(false);
     setVerified(null);
     fetchMyVerification(myUserId)
       .then(v => setVerified(v.verified && v.isAdult))
       .catch(() => setVerified(false));
   }, [visible, myUserId]);
 
-  const selectedTier = GIFT_TIERS.find(t => t.tier === tier) ?? null;
+  const selectedTier = BET_TIERS.find(t => t.tier === tier) ?? null;
 
-  const onPickTier = (t: GiftTier) => {
+  const onPickTier = (t: BetTier) => {
     haptic.tap();
     setTier(t);
     setStep(verified ? 'confirm' : 'verify');
@@ -70,7 +68,7 @@ export function GiftSheet({
     try {
       const { isAdult } = await verifyIdentityMock(birthDate.trim(), phone.trim());
       if (!isAdult) {
-        Alert.alert('응원 한잔', '만 19세 이상만 보낼 수 있어요.');
+        Alert.alert('나와의 내기', '만 19세 이상만 걸 수 있어요.');
         setBusy(false);
         return;
       }
@@ -88,12 +86,12 @@ export function GiftSheet({
     if (!selectedTier || busy) return;
     setBusy(true);
     try {
-      const { orderId, amount } = await createGiftOrder({ challengeId, recipientId, tier: selectedTier.tier, proofId });
-      await confirmGiftPaymentMock(orderId, amount);   // Stage 3: PG 결제창으로 교체
+      const { orderId, amount } = await createBetOrder({ challengeId, tier: selectedTier.tier });
+      await confirmGiftPaymentMock(orderId, amount);   // ⑤b: PG 결제창으로 교체
       haptic.success();
       setStep('done');
     } catch (e: any) {
-      Alert.alert('보내기 실패', REASON_LABEL[e?.message] ?? (e?.message ?? String(e)));
+      Alert.alert('내기 걸기 실패', REASON_LABEL[e?.message] ?? (e?.message ?? String(e)));
     } finally {
       setBusy(false);
     }
@@ -104,11 +102,32 @@ export function GiftSheet({
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={() => {}}>
+          {step === 'intro' && (
+            <>
+              <Text style={styles.emojiBig}>🎯</Text>
+              <Text style={styles.title}>이 도전, 한잔 걸기</Text>
+              <Text style={styles.sub}>
+                나 자신과의 약속에 한 잔을 겁니다.{'\n'}
+                <Text style={styles.bold}>완주하면 본전</Text> — 내 한잔을 그대로 받아요.{'\n'}
+                <Text style={styles.bold}>실패를 인정하면 기부</Text> — 누군가의 한잔이 돼요.
+              </Text>
+              <View style={styles.promiseBox}>
+                <Text style={styles.promiseText}>
+                  상대가 없는, 오직 나와의 약속이에요. 그래서 실패해도 환불은 없어요 — 그 긴장이 이 한잔의 힘이에요.
+                </Text>
+              </View>
+              <Pressable style={styles.primaryBtn} onPress={() => { haptic.tap(); setStep('tier'); }}>
+                <Text style={styles.primaryBtnText}>한잔 고르기</Text>
+              </Pressable>
+              <Text style={styles.mockNote}>베타 기간에는 모의 결제로 진행돼요 (실제 결제 없음)</Text>
+            </>
+          )}
+
           {step === 'tier' && (
             <>
-              <Text style={styles.title}>☕ {recipientNickname}님에게 한잔</Text>
-              <Text style={styles.sub}>오늘의 인증을 봤다면, 진짜 한 잔으로 응원해요</Text>
-              {GIFT_TIERS.map(t => (
+              <Text style={styles.title}>얼마를 걸까요?</Text>
+              <Text style={styles.sub}>걸수록 약속이 단단해져요</Text>
+              {BET_TIERS.map(t => (
                 <Pressable key={t.tier} style={styles.tierCard} onPress={() => onPickTier(t.tier)}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.tierLabel}>{t.label}</Text>
@@ -117,14 +136,13 @@ export function GiftSheet({
                   <Text style={styles.tierPrice}>{t.price.toLocaleString()}원</Text>
                 </Pressable>
               ))}
-              <Text style={styles.mockNote}>베타 기간에는 모의 결제로 진행돼요 (실제 결제 없음)</Text>
             </>
           )}
 
           {step === 'verify' && (
             <>
               <Text style={styles.title}>휴대폰 본인인증</Text>
-              <Text style={styles.sub}>한잔 보내기는 처음 한 번 본인인증이 필요해요 (만 19세 이상)</Text>
+              <Text style={styles.sub}>내기 걸기는 처음 한 번 본인인증이 필요해요 (만 19세 이상)</Text>
               <TextInput
                 value={birthDate}
                 onChangeText={(t) => setBirthDate(formatBirthDateInput(t))}
@@ -158,10 +176,10 @@ export function GiftSheet({
 
           {step === 'confirm' && selectedTier && (
             <>
-              <Text style={styles.title}>{selectedTier.label}</Text>
+              <Text style={styles.title}>{selectedTier.label} 걸기</Text>
               <Text style={styles.sub}>
-                {recipientNickname}님에게 {selectedTier.price.toLocaleString()}원의 한잔을 보내요{'\n'}
-                받는 분이 "받기" 또는 "기부하기"를 선택하면 알려드릴게요
+                이 도전에 {selectedTier.price.toLocaleString()}원의 한잔을 겁니다.{'\n'}
+                완주하면 받고, 실패를 인정하면 기부돼요.
               </Text>
               <Pressable
                 style={[styles.primaryBtn, busy && styles.btnDisabled]}
@@ -170,18 +188,18 @@ export function GiftSheet({
               >
                 {busy
                   ? <ActivityIndicator color={colors.surface} />
-                  : <Text style={styles.primaryBtnText}>{selectedTier.price.toLocaleString()}원 보내기 (모의 결제)</Text>}
+                  : <Text style={styles.primaryBtnText}>{selectedTier.price.toLocaleString()}원 걸기 (모의 결제)</Text>}
               </Pressable>
             </>
           )}
 
           {step === 'done' && (
             <>
-              <Text style={styles.doneEmoji}>☕</Text>
-              <Text style={styles.title}>한잔을 보냈어요!</Text>
-              <Text style={styles.sub}>{recipientNickname}님이 받으면 알림으로 알려드릴게요</Text>
+              <Text style={styles.emojiBig}>🎯</Text>
+              <Text style={styles.title}>한잔을 걸었어요!</Text>
+              <Text style={styles.sub}>이제 끝까지 완주해서 본전을 찾아오세요</Text>
               <Pressable style={styles.primaryBtn} onPress={() => { haptic.tap(); onClose(); }}>
-                <Text style={styles.primaryBtnText}>확인</Text>
+                <Text style={styles.primaryBtnText}>좋아요</Text>
               </Pressable>
             </>
           )}
@@ -207,6 +225,7 @@ const styles = StyleSheet.create({
     gap: 12,
     ...shadow.lg,
   },
+  emojiBig: { fontSize: 44, textAlign: 'center' },
   title: {
     fontSize: fontSize.lg,
     color: colors.primary,
@@ -221,6 +240,24 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 4,
+  },
+  bold: {
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  promiseBox: {
+    padding: 12,
+    backgroundColor: colors.accent50,
+    borderRadius: radius.lg,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.accent,
+  },
+  promiseText: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+    lineHeight: 18,
   },
   tierCard: {
     flexDirection: 'row',
@@ -282,5 +319,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
   },
-  doneEmoji: { fontSize: 48, textAlign: 'center' },
 });

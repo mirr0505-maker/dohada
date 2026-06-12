@@ -70,6 +70,15 @@
 - **종료 방 UI**: 기록 탭에도 마무리 인사 배너, info bar D-N → 회색 "종료" + 진행 숫자 취소선
 - **포기 = 조용한 보관 + 읽기 전용 (2026-06-12 결정)**: 삭제 ❌ (공유 공간 — 동료 박제 보호 + "보존돼요" 약속). DB 는 [`0034_gave_up_read_only.sql`](supabase/migrations/0034_gave_up_read_only.sql) — `is_viewer_of*` 헬퍼로 SELECT 10개 정책만 포기자 포함, 쓰기 정책은 활성 멤버 전용 유지 (완주 유예보다 강한 잠금). UI: 내도전 탭 하단 "🕊️ 지난 도전" 접힌 섹션 (기본 숨김) → 방 열람 (writeLocked + 헤더 액션 비활성) + FAB "다시 시작하기" (`/create?title=` 프리필). 진입 차단 Alert 제거
 
+### 신규 코드 위치 (v2.9 — 안내문 + 베타 피드백 버그픽스, 2026-06-12)
+- **안내문 (나홀로 제외 전체)**: 합류 전에 "어떤 도전인지" 보여주는 소개글(텍스트 + 보관함 이미지). DB = [`0037_challenge_intro.sql`](supabase/migrations/0037_challenge_intro.sql) (`challenges.intro_image_url` 컬럼 + `create_challenge`·`get_invite_info` RPC 확장 — **적용 필수, 미적용 시 챌린지 생성 실패**)
+  - 입력: [`create.tsx`](mobile/app/create.tsx) `IntroEditor` (방 타입 스텝, kind≠solo). submit 에서 `description`+이미지(R2 업로드)→`createChallenge`. AI 검수에 안내문 텍스트 포함
+  - 노출: 누구나=홈 [`OpenJoinPreviewSheet`](mobile/components/home/OpenJoinPreviewSheet.tsx) (합류 전 바텀시트, home.tsx 동선 교체) / 응원받기·다함께=[`invite/[id].tsx`](mobile/app/invite/[id].tsx) 초대 미리보기 / 전체=방 [`StatusTab`](mobile/components/challenge/StatusTab.tsx) 현황 info 카드
+- **버그픽스 ②**: [`create.tsx`](mobile/app/create.tsx) 날짜 — `toLocalDateStr` 로 달력·칩·기본값을 로컬(KST) 기준 생성 (`toISOString().slice(0,10)` UTC 밀림 → "오늘" 비활성·+1~2일 어긋남 해소)
+- **버그픽스 ③**: [`LogTab`](mobile/components/challenge/LogTab.tsx) 기록 작성 — 본문 영역 ScrollView 화 + 사진 미리보기 maxHeight 320 + 본문 minHeight 200 (사진 먼저 넣어도 본문 입력칸이 안 가려짐)
+- **본인인증 입력 UX**: [`GiftSheet`](mobile/components/challenge/GiftSheet.tsx)·[`BetSheet`](mobile/components/challenge/BetSheet.tsx) 바텀시트를 `KeyboardAvoidingView` 로 감싸 키보드 가림 해소 + 생년월일 숫자만 입력→하이픈 자동(`formatBirthDateInput` in payments.ts, 숫자패드). ※ 현재 본인인증은 mock(형식·만19세만 검사) — 진짜 PASS 는 Stage 3 에서 화면째 교체, 이 수동 입력 UX 는 그때 사라짐
+- **운영 반영 (2026-06-12)**: 0037 운영 DB 적용 완료 + OTA 배포(preview·production 양 채널). Edge Function 변경 없음
+
 ### 신규 코드 위치 (Phase 2 Stage 1 — 핀테크 골격, 2026-06-11, 실돈 0원)
 **단일 진실원천: [`PHASE2_FINTECH_PLAN.md`](PHASE2_FINTECH_PLAN.md) (v0.4)** — 응원 한잔/내기 한잔/기부 허브.
 - 결제 순수 로직: [`supabase/functions/_shared/payments/`](supabase/functions/_shared/payments/) — catalog(금액 단일소스)·giftStateMachine·orderPolicy·verifyPayment·betSettlement·providers(PG/기프티콘/본인인증 mock, 주입 구조)
@@ -78,6 +87,16 @@
 - 테스트: 루트 [`__tests__/`](__tests__/) — `npm test` (Node 내장 러너, 의존성 0). **결제 로직 수정 시 반드시 함께 갱신·실행** (자동 테스트 의무 영역)
 - 내기(bet) 주문 오픈·실서비스 전환은 법률 자문 게이트 후 providers.ts 구현체 교체로만
 - **응원 한잔 UI (Stage 1.5)**: 보내기 = [`mobile/components/challenge/GiftSheet.tsx`](mobile/components/challenge/GiftSheet.tsx) (티어→본인인증→mock결제), 수령 = `mobile/app/gift/[id].tsx` (받기/기부 2택 → 발신자 피드백 알림), 클라 함수 = [`mobile/lib/payments.ts`](mobile/lib/payments.ts). 인증 카드 ☕ 버튼은 **`__DEV__` 전용** (Stage 4 베타 오픈 시 해제). 수령 선택 시 발급 (claim-gift), 알림 kind 4종 + 기부 집계는 0033
+
+### 신규 코드 위치 (Phase 2 Stage 5 ⑤a — 나와의 내기, mock·파일럿, 2026-06-12)
+**단일 진실원천: [`PHASE2_FINTECH_PLAN.md`](PHASE2_FINTECH_PLAN.md) 2.1-3 + Stage 5 ⑤a.** 나홀로(solo)·응원받기(cheered) 방의 도전자가 자기 한잔을 선주문 결제 → **완주=본전(받기/기부 선택)·실패=기부 확정**. 다인 내기(group)는 ⑤c 게이트 전까지 차단.
+- **완주 판정 순수 로직**: [`supabase/functions/_shared/payments/betOutcome.ts`](supabase/functions/_shared/payments/betOutcome.ts) `computeSelfBetOutcome` — `lib/stats.ts`(isCompleted/memberTargetProofCount) 미러. KST·frequency·늦합류 비례. **결제 로직 = 자동 테스트 의무**라 SQL 아닌 TS 로 둠 (npm test 검증 위해). 테스트 = [`__tests__/self-bet-outcome.test.ts`](__tests__/self-bet-outcome.test.ts)
+- **주문 경로 개방**: [`create-gift-order`](supabase/functions/create-gift-order/index.ts) 가 `orderType='bet'` 수용 — solo/cheered + 개설자 본인 + recipient=sender 강제 + 종료 전 + 1인 1내기 중복 차단(서버 게이트). `confirm-gift-payment` 는 order_type 무관 재사용
+- **받기 게이트**: [`claim-gift`](supabase/functions/claim-gift/index.ts) 가 bet+receive 시 `selfBetOutcome` 로 완주 확인 — **미완주자 본전 회수 백도어 차단** (실돈 전환 후에도 안전). 기부는 언제나 허용
+- **알림 스킵**: [`0036_self_bet.sql`](supabase/migrations/0036_self_bet.sql) — self-order(sender=recipient) 는 알림 미생성 (solo=알림 0건 원칙). 스키마 변경 없음(0032 가 bet/grand_cup 이미 지원)
+- **UI**: 방 **현황 탭 상단** [`BetCard.tsx`](mobile/components/challenge/BetCard.tsx) (진입·진행·정산 한 카드, 도전자 본인만 — gift_orders RLS) + 걸기 시트 [`BetSheet.tsx`](mobile/components/challenge/BetSheet.tsx). 클라 함수 = `createBetOrder`·`fetchMyBet`·`BET_TIERS`(payments.ts). 노출 게이트 = `isGiftPilotEmail`. 완주 직후 발견성: [`complete/[id].tsx`](mobile/app/complete/[id].tsx) 에 paid 내기 있으면 "🎯 내기 정산하러 가기"(→현황 탭)
+- **운영 반영 완료 (2026-06-12)**: 0036 운영 DB 적용 + `claim-gift`·`create-gift-order` 배포 (project `bpffxeddkuekefphsolz`)
+- **⑤b 이월**: 정산 미응답 N일 자동 기부(cron)·다인 내기·mock→실돈 PG/기프티콘 전환은 미구현
 
 ### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.

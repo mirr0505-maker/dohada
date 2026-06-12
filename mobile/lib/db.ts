@@ -564,6 +564,7 @@ export async function fetchOpenChallenges(myUserId: string | undefined): Promise
       creator_id: c.creator_id,
       title: c.title,
       description: c.description,
+      intro_image_url: c.intro_image_url ?? null,
       kind: 'open' as ChallengeKind,
       start_date: c.start_date,
       end_date: c.end_date,
@@ -937,6 +938,8 @@ export type InviteInfo = {
   start_date: string;
   end_date: string;
   invitation_message: string | null;
+  description: string | null;            // 🚀 0037: 안내문 텍스트
+  intro_image_url: string | null;        // 🚀 0037: 안내문 이미지
   member_count: number;
   creator_nickname: string;
   category: { emoji: string; name: string } | null;
@@ -1047,6 +1050,7 @@ export async function createChallenge(args: {
   frequency?: CreateChallengeFrequency; // v2: 인증 빈도 (기본 daily)
   proofType?: CreateChallengeProofType; // v2.2: 사진(카메라) or 스크린샷(보관함)
   startDate?: string;               // 🚀 신규 추가: YYYY-MM-DD 포맷
+  introImageUrl?: string | null;    // 🚀 0037: 안내문 이미지 R2 URL (나홀로 제외)
 }): Promise<DbChallenge> {
   const start = args.startDate ? new Date(args.startDate) : new Date();
   const end = new Date(start);
@@ -1062,6 +1066,7 @@ export async function createChallenge(args: {
     p_subcategory_id: args.subcategoryId ?? null,
     p_frequency:      args.frequency     ?? 'daily',
     p_proof_type:     args.proofType     ?? 'photo',
+    p_intro_image_url: args.introImageUrl ?? null,
   });
 
   if (error) throw error;

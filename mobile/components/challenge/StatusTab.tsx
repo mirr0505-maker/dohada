@@ -11,9 +11,10 @@ type Props = {
   members: MemberWithToday[];
   proofs: ProofWithRelations[];
   myUserId: string | undefined;
+  betSlot?: React.ReactNode;   // 🎯 나와의 내기 카드 (도전자 본인에게만, 부모가 구성) — 없으면 미노출
 };
 
-export function StatusTab({ challenge, members, proofs, myUserId }: Props) {
+export function StatusTab({ challenge, members, proofs, myUserId, betSlot }: Props) {
 
   // 멤버별 통계 (인증한 고유 날짜 수 / 본인 진행일수)
   // 분모는 합류일 기준 — 시작 후 합류한 동료도 자기 출발선으로 공정하게 계산 (v2.8)
@@ -47,6 +48,8 @@ export function StatusTab({ challenge, members, proofs, myUserId }: Props) {
       keyExtractor={r => r.member.id}
       contentContainerStyle={styles.list}
       ListHeaderComponent={
+        <>
+        {betSlot}
         <View style={styles.infoCard}>
           <View style={styles.infoCardHeader}>
             <Text style={styles.infoKindTag}>
@@ -57,6 +60,16 @@ export function StatusTab({ challenge, members, proofs, myUserId }: Props) {
             </Text>
           </View>
           <Text style={styles.infoTitle}>{challenge.title}</Text>
+          {/* 🚀 안내문 (나홀로 제외) — 합류 전 미리보기와 동일한 소개를 방 안에서도 보존 */}
+          {challenge.intro_image_url ? (
+            <Image source={{ uri: challenge.intro_image_url }} style={styles.infoIntroImage} resizeMode="cover" />
+          ) : null}
+          {challenge.description && challenge.description.trim() !== '' ? (
+            <View style={styles.infoMessageWrap}>
+              <Text style={styles.infoMessageLabel}>📋 안내문</Text>
+              <Text style={styles.infoMessageText}>{challenge.description}</Text>
+            </View>
+          ) : null}
           {challenge.invitation_message && challenge.invitation_message.trim() !== '' ? (
             <View style={styles.infoMessageWrap}>
               <Text style={styles.infoMessageLabel}>📨 초대 편지글</Text>
@@ -64,6 +77,7 @@ export function StatusTab({ challenge, members, proofs, myUserId }: Props) {
             </View>
           ) : null}
         </View>
+        </>
       }
       renderItem={({ item }) => (
         <StatusCard
@@ -270,6 +284,13 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
     lineHeight: 24,
+  },
+  infoIntroImage: {
+    width: '100%',
+    aspectRatio: 4 / 3,
+    borderRadius: radius.lg,
+    backgroundColor: colors.primary100,
+    marginTop: 6,
   },
   infoMessageWrap: {
     marginTop: 6,

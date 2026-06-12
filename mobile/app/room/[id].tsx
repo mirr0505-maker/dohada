@@ -21,8 +21,11 @@ import { ArchiveTab } from '@/components/challenge/ArchiveTab';
 import { MemberSheet } from '@/components/challenge/MemberSheet';
 import { InviteConfirmModal } from '@/components/challenge/InviteConfirmModal';
 import { GiftSheet } from '@/components/challenge/GiftSheet';
+import { BetSheet } from '@/components/challenge/BetSheet';
+import { BetCard } from '@/components/challenge/BetCard';
 import {
   isGiftPilotEmail, fetchMyReceivedGifts, GIFT_TIERS, GIFT_STATUS_LABEL, type ReceivedGift,
+  fetchMyBet, claimGift, type MyBet,
 } from '@/lib/payments';
 import { InviteLetterModal } from '@/components/challenge/InviteLetterModal';
 import { ImpactModal } from '@/components/challenge/ImpactModal';
@@ -86,6 +89,10 @@ export default function ChallengeRoom() {
   const isGiftPilot = isGiftPilotEmail(session?.user?.email);
   // ☕ 내가 받은 한잔들 — 본인 인증 카드 도착 버튼 + 폴백 배너 (수신은 게이트 없음)
   const [receivedGifts, setReceivedGifts] = useState<ReceivedGift[]>([]);
+  // 🎯 나와의 내기 — 내가 이 방에 건 한잔 (도전자 본인만, RLS 가 sender 본인만 조회)
+  const [myBet, setMyBet] = useState<MyBet | null>(null);
+  const [betSheetOpen, setBetSheetOpen] = useState(false);
+  const [betBusy, setBetBusy] = useState(false);
 
   useEffect(() => {
     if (session === null) router.replace('/login');
@@ -125,6 +132,8 @@ export default function ChallengeRoom() {
       setTotalLogs(data.totalLogs);
       // 받은 한잔은 부가 정보 — 실패해도 방 로딩을 막지 않음
       fetchMyReceivedGifts(id, myUserId).then(setReceivedGifts).catch(() => {});
+      // 🎯 내가 건 내기 — 파일럿 계정만. RLS 가 sender 본인만 조회라 비도전자는 자연히 null
+      if (isGiftPilot) fetchMyBet(id, myUserId).then(setMyBet).catch(() => {});
     } catch (e: any) {
       reportError(e, { where: 'room/fetchRoomData', challengeId: id });
       setError(e?.message ?? '챌린지를 불러오지 못했어요.');
@@ -612,6 +621,45 @@ export default function ChallengeRoom() {
     ? Math.max(1, Math.round((new Date(challenge.start_date + 'T00:00:00').getTime() - new Date(kstToday + 'T00:00:00').getTime()) / 86_400_000))
     : 0;
 
+  // 🎯 나와의 내기 — 나홀로·응원받기 방의 도전자 본인만 (서버 게이트와 동일 조건의 클라 노출)
+  const isSelfBetRoom = challenge.kind === 'solo' || challenge.kind === 'cheered';
+  const canPlaceBet = isGiftPilot && isSelfBetRoom && isCreator && isMember && !iGaveUp && !finished && !myBet;
+  // 정산 표시용 완주 판정 — 도전 주체(cheered=개설자) 기준. 받기 허용의 최종 권위는 서버(claim-gift).
+  const challengerCompleted = isCompleted(challenge, badgeProofs, subjectJoinedAt);
+  const showBetCard = isGiftPilot && isSelfBetRoom && isCreator && (myBet !== null || canPlaceBet);
+  const onSettleBet = async (action: 'receive' | 'donate') => {
+    if (!myBet || betBusy) return;
+    haptic.tap();
+    setBetBusy(true);
+    try {
+      const r = await claimGift(myBet.id, action);
+      haptic.success();
+      if (r.status === 'auto_refund') {
+        Alert.alert('나와의 내기', '교환권 발급이 실패해 자동 환불되었어요.');
+      }
+      setMyBet(await fetchMyBet(challenge.id, myUserId));
+    } catch (e: any) {
+      const msg = e?.message === 'bet_not_completed'
+        ? '아직 완주하지 못해 받을 수 없어요. 기부로 마무리할 수 있어요.'
+        : (e?.message ?? String(e));
+      Alert.alert('정산 실패', msg);
+    } finally {
+      setBetBusy(false);
+    }
+  };
+  const betSlot = showBetCard ? (
+    <BetCard
+      bet={myBet}
+      canPlace={canPlaceBet}
+      challengerCompleted={challengerCompleted}
+      finished={finished}
+      iGaveUp={iGaveUp}
+      busy={betBusy}
+      onPlace={() => { haptic.tap(); setBetSheetOpen(true); }}
+      onSettle={onSettleBet}
+    />
+  ) : null;
+
   return (
     <Screen
       backgroundColor={colors.background}
@@ -821,6 +869,7 @@ export default function ChallengeRoom() {
           members={members}
           proofs={proofs}
           myUserId={myUserId}
+          betSlot={betSlot}
         />
       )}
       {activeTab === 'archive' && (
@@ -1001,6 +1050,17 @@ export default function ChallengeRoom() {
         recipientId={giftTarget?.id ?? ''}
         recipientNickname={giftTarget?.nickname ?? '동료'}
         proofId={giftTarget?.proofId ?? null}
+        myUserId={myUserId}
+      />
+
+      {/* 🎯 나와의 내기 걸기 시트 — 닫힐 때 내기 상태 새로고침 */}
+      <BetSheet
+        visible={betSheetOpen}
+        onClose={() => {
+          setBetSheetOpen(false);
+          if (isGiftPilot) fetchMyBet(challenge.id, myUserId).then(setMyBet).catch(() => {});
+        }}
+        challengeId={challenge.id}
         myUserId={myUserId}
       />
     </Screen>

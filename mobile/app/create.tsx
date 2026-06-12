@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, TextInput, StyleSheet, ScrollView, Pressable,
-  KeyboardAvoidingView, Platform, Alert, ActivityIndicator,
+  KeyboardAvoidingView, Platform, Alert, ActivityIndicator, Image,
 } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/components/Screen';
@@ -16,6 +16,8 @@ import {
 } from '@/lib/db';
 import { haptic } from '@/lib/haptics';
 import { supabase } from '@/lib/supabase';
+import * as ImagePicker from 'expo-image-picker';
+import { uploadProofImage } from '@/lib/upload';
 import type { ChallengeKind } from '@/lib/types';
 
 const TOTAL_STEPS = 5;
@@ -72,7 +74,10 @@ export default function CreateChallenge() {
   const [frequency, setFrequency] = useState<CreateChallengeFrequency>('daily');
   const [proofType, setProofType] = useState<CreateChallengeProofType>('photo');   // v2.2
   const [kind, setKind] = useState<ChallengeKind>('solo');
-  const [startDate, setStartDate] = useState<string>(new Date().toISOString().slice(0, 10)); // 🚀 당일 챌린지용 시작일 추가
+  const [startDate, setStartDate] = useState<string>(toLocalDateStr(new Date())); // 🚀 당일 챌린지용 시작일 (로컬 기준 — 타임존 밀림 방지)
+  // 🚀 안내문 (나홀로 제외) — 합류 전 미리보기·방 현황에 노출. 텍스트 + 보관함 이미지(선택)
+  const [description, setDescription] = useState('');
+  const [introImageUri, setIntroImageUri] = useState<string | null>(null);
   // bet 은 'none' 고정.
 
   const [submitting, setSubmitting] = useState(false);
@@ -124,10 +129,14 @@ export default function CreateChallenge() {
     }
     setSubmitting(true);
     try {
-      // 1) AI 검수 (기존)
+      // 안내문은 나홀로 방엔 없음 (수신자가 없으므로) — 저장 전에 정리
+      const introText = kind === 'solo' ? '' : description.trim();
+      const introUri = kind === 'solo' ? null : introImageUri;
+
+      // 1) AI 검수 (기존) — 제목 + 안내문 텍스트 함께 검수 (검수 우회 분기 없음)
       const { data: mod, error: modErr } = await supabase.functions.invoke<{
         verdict: 'allow' | 'block'; reason: string | null; category: string | null;
-      }>('moderate-challenge', { body: { title, description: '' } });
+      }>('moderate-challenge', { body: { title, description: introText } });
       if (modErr) throw modErr;
       if (!mod || mod.verdict === 'block') {
         haptic.warning();
@@ -135,17 +144,22 @@ export default function CreateChallenge() {
         return;
       }
 
+      // 1.5) 안내문 이미지 업로드 (있으면) — R2 URL 로 변환
+      const introImageUrl = introUri ? await uploadProofImage(introUri, 'jpg') : null;
+
       // 2) DB insert (RPC)
       const challenge = await createChallenge({
         userId: session.user.id,
         proofType,
         title,
+        description: introText,
         kind,
         durationDays,
         categoryId,
         subcategoryId,
         frequency,
         startDate, // 🚀 신규 추가
+        introImageUrl, // 🚀 0037: 안내문 이미지
       });
       haptic.success();
       // 응원자를 초대해야 의미 있는 방 = closed (함께 도전) + cheered (응원받기)
@@ -159,7 +173,7 @@ export default function CreateChallenge() {
     } finally {
       setSubmitting(false);
     }
-  }, [session, title, kind, durationDays, categoryId, subcategoryId, frequency, proofType, startDate]);
+  }, [session, title, kind, durationDays, categoryId, subcategoryId, frequency, proofType, startDate, description, introImageUri]);
 
   const stepMeta = STEP_META[step];
 
@@ -214,7 +228,19 @@ export default function CreateChallenge() {
             />
           )}
           {step === 3 && (
-            <Step6RoomType value={kind} setValue={setKind} durationDays={durationDays} />
+            <View style={{ gap: 12 }}>
+              <Step6RoomType value={kind} setValue={setKind} durationDays={durationDays} />
+              {/* 🚀 안내문 — 나홀로 제외. 합류 전 미리보기·방 현황에 보임 (선택 입력) */}
+              {kind !== 'solo' && (
+                <IntroEditor
+                  description={description}
+                  setDescription={setDescription}
+                  imageUri={introImageUri}
+                  setImageUri={setIntroImageUri}
+                  disabled={submitting}
+                />
+              )}
+            </View>
           )}
           {step === 4 && (
             <View style={{ gap: 12 }}>
@@ -432,6 +458,16 @@ function Step3Duration({
   );
 }
 
+// 🚀 로컬(기기 시간) 기준 YYYY-MM-DD — toISOString().slice(0,10) 는 UTC 라
+// KST 자정~오전 9시 사이에 날짜가 하루 밀린다(오늘이 어제로). 달력·칩은 사용자가 보는
+// 로컬 날짜로 만들어야 "오늘" 선택이 정상 동작한다. (완주 판정 등 서버 경계는 별도로 KST 사용)
+function toLocalDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 // ─── 🚀 100일 범위 내 커스텀 달력 오버레이 컴포넌트 ───
 const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
 const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
@@ -501,11 +537,11 @@ function SimpleCalendarModal({
           {calendarCells.map((date, idx) => {
             if (!date) return <View key={`empty-${idx}`} style={styles.dayCellEmpty} />;
             
-            const dateStr = date.toISOString().slice(0, 10);
+            const dateStr = toLocalDateStr(date);
             const active = selectedDateStr === dateStr;
-            
-            const isBeforeToday = dateStr < today.toISOString().slice(0, 10);
-            const isAfterMax = dateStr > maxDate.toISOString().slice(0, 10);
+
+            const isBeforeToday = dateStr < toLocalDateStr(today);
+            const isAfterMax = dateStr > toLocalDateStr(maxDate);
             const disabled = isBeforeToday || isAfterMax;
 
             return (
@@ -571,7 +607,7 @@ function Step4Frequency({
     for (let i = 0; i < 3; i++) {
       const d = new Date();
       d.setDate(d.getDate() + i);
-      const dateStr = d.toISOString().slice(0, 10);
+      const dateStr = toLocalDateStr(d);
       let label = `${d.getMonth() + 1}/${d.getDate()}`;
       let suffix = i === 0 ? '오늘' : i === 1 ? '내일' : '모레';
       arr.push({ dateStr, label, suffix });
@@ -586,7 +622,7 @@ function Step4Frequency({
     for (let i = 0; i <= 7; i++) {
       const d = new Date();
       d.setDate(d.getDate() + i);
-      const dateStr = d.toISOString().slice(0, 10);
+      const dateStr = toLocalDateStr(d);
       const label = `${d.getMonth() + 1}/${d.getDate()}`;
       const suffix = i === 0 ? '오늘' : i === 1 ? '내일' : i === 2 ? '모레' : `${i}일 뒤`;
       arr.push({ dateStr, label, suffix });
@@ -607,7 +643,7 @@ function Step4Frequency({
 
   const customLabel = useMemo(() => {
     if (!isCustomDate) return '달력 선택 📅';
-    const d = new Date(startDate);
+    const d = new Date(startDate + 'T00:00:00');   // 로컬 자정 파싱 — 'YYYY-MM-DD' 의 UTC 파싱 밀림 방지
     const days = ['일', '월', '화', '수', '목', '금', '토'];
     return `${d.getMonth() + 1}/${d.getDate()} (${days[d.getDay()]}) 📅`;
   }, [isCustomDate, startDate]);
@@ -811,6 +847,66 @@ function Step6RoomType({
           </Pressable>
         );
       })}
+    </View>
+  );
+}
+
+// ─── 🚀 안내문 입력 (나홀로 제외) — 텍스트 + 보관함 이미지(선택). 합류 전 미리보기에 노출 ───
+function IntroEditor({
+  description, setDescription, imageUri, setImageUri, disabled,
+}: {
+  description: string;
+  setDescription: (s: string) => void;
+  imageUri: string | null;
+  setImageUri: (u: string | null) => void;
+  disabled: boolean;
+}) {
+  const onPickImage = async () => {
+    haptic.tap();
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (perm.status === 'denied') {
+        Alert.alert('보관함 접근 권한이 필요해요', '설정 → Do:하다 → 사진 에서 켜주세요.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],   // v18 — MediaTypeOptions 는 deprecated
+        quality: 0.85,
+        exif: false,
+      });
+      if (result.canceled) return;
+      const uri = result.assets?.[0]?.uri;
+      if (uri) setImageUri(uri);
+    } catch (e: any) {
+      Alert.alert('사진 선택 실패', e?.message ?? String(e));
+    }
+  };
+
+  return (
+    <View style={styles.introBox}>
+      <Text style={styles.introLabel}>📋 안내문 (선택) — 합류 전에 보여요</Text>
+      <TextInput
+        value={description}
+        onChangeText={setDescription}
+        placeholder={'이 도전이 어떤 도전인지, 어떤 마음으로 함께하면 좋을지 알려주세요.'}
+        placeholderTextColor={colors.primary300}
+        style={styles.introInput}
+        multiline
+        maxLength={1000}
+        editable={!disabled}
+      />
+      {imageUri ? (
+        <View style={styles.introImageWrap}>
+          <Image source={{ uri: imageUri }} style={styles.introImage} resizeMode="cover" />
+          <Pressable style={styles.introImageRemove} onPress={() => setImageUri(null)} disabled={disabled} hitSlop={8}>
+            <Text style={styles.introImageRemoveText}>✕</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <Pressable style={styles.introImageBtn} onPress={onPickImage} disabled={disabled}>
+          <Text style={styles.introImageBtnText}>🖼️ 보관함에서 사진 추가</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -1166,5 +1262,73 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.primary,
     fontFamily: fontFamily.medium,
+  },
+
+  // 🚀 안내문 입력 (IntroEditor)
+  introBox: {
+    marginTop: 8,
+    padding: 14,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.primary100,
+    gap: 10,
+  },
+  introLabel: {
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  introInput: {
+    minHeight: 90,
+    fontSize: fontSize.base,
+    color: colors.primary,
+    fontFamily: fontFamily.regular,
+    lineHeight: 22,
+    textAlignVertical: 'top',
+    padding: 12,
+    backgroundColor: colors.background,
+    borderRadius: radius.md,
+  },
+  introImageBtn: {
+    paddingVertical: 12,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.primary100,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+  },
+  introImageBtnText: {
+    fontSize: fontSize.sm,
+    color: colors.primary500,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
+  },
+  introImageWrap: {
+    position: 'relative',
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    maxHeight: 320,
+  },
+  introImage: {
+    width: '100%',
+    aspectRatio: 4 / 3,
+    backgroundColor: colors.primary100,
+  },
+  introImageRemove: {
+    position: 'absolute',
+    top: 8, right: 8,
+    width: 28, height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  introImageRemoveText: {
+    color: colors.surface,
+    fontSize: 14,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
   },
 });

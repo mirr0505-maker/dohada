@@ -1,7 +1,7 @@
 // 🚀 초대 진입점 — dohada://invite/<id> 또는 앱 내 push 로 진입
 // 개선: 자동 참여 차단 → 챌린지 기본 정보 및 초대 메시지를 확인하고 참여 여부를 수락/거절 선택하는 랜딩페이지
 import React, { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, Alert, Pressable } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, Alert, Pressable, Image } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
@@ -126,6 +126,17 @@ export default function InviteScreen() {
               </Text>
             </View>
 
+            {/* 🚀 안내문 — 개설자가 합류 전에 보여주려고 쓴 소개 (이미지 + 텍스트) */}
+            {challenge.intro_image_url ? (
+              <Image source={{ uri: challenge.intro_image_url }} style={styles.introImage} resizeMode="cover" />
+            ) : null}
+            {challenge.description && challenge.description.trim() !== '' ? (
+              <View style={styles.introBox}>
+                <Text style={styles.introLabel}>📋 안내문</Text>
+                <Text style={styles.introText}>{challenge.description}</Text>
+              </View>
+            ) : null}
+
             {/* 개설자가 보낸 메시지 */}
             {challenge.invitation_message && challenge.invitation_message.trim() !== '' ? (
               <View style={styles.messageBox}>
@@ -249,6 +260,33 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontFamily: fontFamily.medium,
     fontWeight: fontWeight.medium,
+  },
+  introImage: {
+    width: '100%',
+    aspectRatio: 4 / 3,
+    borderRadius: radius.lg,
+    backgroundColor: colors.primary100,
+    marginBottom: 12,
+  },
+  introBox: {
+    width: '100%',
+    backgroundColor: colors.background,
+    borderRadius: radius.lg,
+    padding: 14,
+    marginBottom: 16,
+    gap: 6,
+  },
+  introLabel: {
+    fontSize: fontSize.xs,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
+  },
+  introText: {
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontFamily: fontFamily.regular,
+    lineHeight: 20,
   },
   messageBox: {
     width: '100%',
