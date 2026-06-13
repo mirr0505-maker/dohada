@@ -208,18 +208,25 @@ export default function HomeScreen() {
   // 🚀 홈 노출 상한 — 참여 방이 많아도 홈 스크롤 폭증 방지 (전체는 내도전 탭에서)
   const HOME_ACTIVE_LIMIT = 5;
   const HOME_FINISHED_LIMIT = 3;
+  const kstTodayStr = getKstTodayRange().kstDateStr;
+  // 🚀 0041: 목표 횟수형(count)은 일일 의무 없음 — '오늘 인증' 잔소리·정렬·배지에서 제외
+  const isCountGoal = (c: MyChallengeDetail) => c.goal_type === 'count';
+  const goalDone = (c: MyChallengeDetail) =>
+    isCountGoal(c) && c.target_count != null && c.my_proof_count >= c.target_count;
+  // 오늘 인증이 필요한 방 (주기형 + 시작했고 + 오늘 미인증 + cheered 응원자 제외)
+  const needsTodayCheck = (c: MyChallengeDetail) =>
+    !isCountGoal(c) &&
+    !c.is_today_checked &&
+    !(c.kind === 'cheered' && c.creator_id !== myUserId) &&
+    c.start_date <= kstTodayStr;
+
   const visibleActiveChs = [...activeChs]
-    .sort((a, b) => Number(a.is_today_checked) - Number(b.is_today_checked))   // 미인증 먼저 (오늘 할 일 우선)
+    .sort((a, b) => Number(needsTodayCheck(b)) - Number(needsTodayCheck(a)))   // 오늘 할 일 우선
     .slice(0, HOME_ACTIVE_LIMIT);
   const visibleFinishedChs = finishedChs.slice(0, HOME_FINISHED_LIMIT);
 
-  // 🚀 미인증 챌린지 (인증 의무 있는 것만 — cheered 응원자·시작 전 모집 기간 방은 제외)
-  const kstTodayStr = getKstTodayRange().kstDateStr;
-  const uncheckedChs = activeChs.filter(c =>
-    !c.is_today_checked &&
-    !(c.kind === 'cheered' && c.creator_id !== myUserId) &&
-    c.start_date <= kstTodayStr,
-  );
+  // 🚀 미인증 챌린지 (인증 의무 있는 것만 — count형·cheered 응원자·시작 전 모집 기간 방은 제외)
+  const uncheckedChs = activeChs.filter(needsTodayCheck);
   const [checkinPickerOpen, setCheckinPickerOpen] = useState(false);
 
   // 오늘 인증 액션 — 0개면 완료 안내, 1개면 즉시 인증, 여러 개면 선택 모달
@@ -297,14 +304,31 @@ export default function HomeScreen() {
                         <View style={styles.metaBadge}>
                           <Text style={styles.metaBadgeText}>{ddayText}</Text>
                         </View>
-                        {c.kind !== 'solo' && (
+                        {isCountGoal(c) ? (
+                          <View style={styles.metaBadge}>
+                            <Text style={styles.metaBadgeText}>🎯 진행 {c.my_proof_count}/{c.target_count ?? 0}</Text>
+                          </View>
+                        ) : c.kind !== 'solo' ? (
                           <View style={styles.metaBadge}>
                             <Text style={styles.metaBadgeText}>👥 동료 {c.today_check_count}/{c.member_count} 완료</Text>
                           </View>
-                        )}
+                        ) : null}
                       </View>
                     </Pressable>
-                    {c.is_today_checked ? (
+                    {isCountGoal(c) ? (
+                      goalDone(c) ? (
+                        <View style={styles.quickCheckedBadge}>
+                          <Text style={styles.quickCheckedText}>✓ 달성</Text>
+                        </View>
+                      ) : (
+                        <Pressable
+                          style={styles.quickCheckinBtn}
+                          onPress={() => { haptic.tap(); router.push(`/room/${c.id}` as any); }}
+                        >
+                          <Text style={styles.quickCheckinBtnText}>인증 추가</Text>
+                        </Pressable>
+                      )
+                    ) : c.is_today_checked ? (
                       <View style={styles.quickCheckedBadge}>
                         <Text style={styles.quickCheckedText}>✓ 완료</Text>
                       </View>

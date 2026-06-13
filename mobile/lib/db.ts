@@ -3,7 +3,7 @@
 import { supabase } from './supabase';
 import { getKstTodayRange } from './format';
 import type {
-  ChallengeWithCount, ChallengeKind, MemberWithToday, ProofWithRelations, DbChallenge,
+  ChallengeWithCount, ChallengeKind, ChallengeGoalType, MemberWithToday, ProofWithRelations, DbChallenge,
   CommentWithAuthor, CheerType,
   OpenChallengeCard, ChallengeVoteType, ChallengeVoteCounts,
   DbCompletionStory, CompletionStoryCard, StoryVisibility,
@@ -178,6 +178,9 @@ export async function fetchMyChallenges(myUserId?: string): Promise<ChallengeWit
       my_streak: streak,
       has_new_chat: c.kind !== 'solo' && hasNewChatSet.has(c.id),
       has_new_log: c.kind !== 'solo' && hasNewLogSet.has(c.id),
+      goal_type: (c.goal_type ?? 'cadence') as ChallengeGoalType,   // 🚀 0041
+      target_count: c.target_count ?? null,
+      my_proof_count: myDates.length,
       gave_up_at: c.gave_up_at ?? null,
     };
   });
@@ -277,6 +280,9 @@ export type MyChallengeDetail = ChallengeWithCount & {
   my_cheers_count: number;        // 본인 인증에 받은 응원 합계 (cheered 카드용)
   top_members: { id: string; nickname: string; avatar_url: string | null }[];   // 멤버 top 5 (아바타 가로용)
   is_today_checked: boolean;      // 오늘 내가 인증했는지 여부
+  goal_type: ChallengeGoalType;   // 🚀 0041: 목표 유형 (cadence/count)
+  target_count: number | null;    // 🚀 0041: count 유형의 목표 개수
+  my_proof_count: number;         // 🚀 0041: 내 총 인증 수 (count 유형 진행도 N/목표)
 };
 
 export async function fetchMyChallengesWithDetails(myUserId: string): Promise<MyChallengeDetail[]> {
@@ -331,9 +337,11 @@ export async function fetchMyChallengesWithDetails(myUserId: string): Promise<My
     .in('challenge_id', challengeIds)
     .eq('user_id', myUserId);
   const myCheersMap = new Map<string, number>();
+  const myProofCountMap = new Map<string, number>();   // 🚀 0041: 내 총 인증 수 (count 유형 진행도)
   for (const p of (myProofs ?? []) as any[]) {
     const cheers = p.cheers?.[0]?.count ?? 0;
     myCheersMap.set(p.challenge_id, (myCheersMap.get(p.challenge_id) ?? 0) + cheers);
+    myProofCountMap.set(p.challenge_id, (myProofCountMap.get(p.challenge_id) ?? 0) + 1);
   }
 
   // 5. 멤버 top 5 (가입 순 — 시간의 흐름 톤)
@@ -368,6 +376,9 @@ export async function fetchMyChallengesWithDetails(myUserId: string): Promise<My
     my_cheers_count: myCheersMap.get(c.id) ?? 0,
     top_members: topMembersMap.get(c.id) ?? [],
     is_today_checked: myTodayProofSet.has(c.id),
+    goal_type: (c.goal_type ?? 'cadence') as ChallengeGoalType,
+    target_count: c.target_count ?? null,
+    my_proof_count: myProofCountMap.get(c.id) ?? 0,
     gave_up_at: c.gave_up_at ?? null,
   }));
 }
@@ -1055,6 +1066,8 @@ export async function createChallenge(args: {
   introImageUrl?: string | null;    // 🚀 0037: 안내문 이미지 R2 URL (나홀로 제외)
   betTier?: string | null;          // 🚀 0040: 다인 내기 티어 (다함께·누구나, null=내기 없음)
   betDonationMode?: string;         // 🚀 0040: 다인 내기 기부 모드 (기본 commitment)
+  goalType?: 'cadence' | 'count';   // 🚀 0041: 목표 유형 (기본 cadence)
+  targetCount?: number | null;      // 🚀 0041: count 유형의 목표 개수
 }): Promise<DbChallenge> {
   const start = args.startDate ? new Date(args.startDate) : new Date();
   const end = new Date(start);
@@ -1073,6 +1086,8 @@ export async function createChallenge(args: {
     p_intro_image_url: args.introImageUrl ?? null,
     p_bet_tier:        args.betTier        ?? null,
     p_bet_donation_mode: args.betDonationMode ?? 'commitment',
+    p_goal_type:       args.goalType       ?? 'cadence',
+    p_target_count:    args.targetCount    ?? null,
   });
 
   if (error) throw error;

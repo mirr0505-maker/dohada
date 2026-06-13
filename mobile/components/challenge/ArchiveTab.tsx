@@ -43,7 +43,7 @@ export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs, myUserId
   const completed = isCompleted(challenge, subjectProofs, subjectJoinedAt);
   const progress  = useMemo(() => computeProgress(challenge), [challenge]);
 
-  if (!finished) {
+  if (!finished && !completed) {   // 🚀 0041: count 유형은 조기 완주 시에도 박제 노출 (종료 안 기다림)
     return (
       <FlatList
         data={[]}
@@ -94,8 +94,14 @@ export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs, myUserId
           </Text>
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={styles.statNum}>{progress.totalDays}</Text>
-              <Text style={styles.statLabel}>{completed ? '일 완주' : '일 도전'}</Text>
+              <Text style={styles.statNum}>
+                {challenge.goal_type === 'count' ? (challenge.target_count ?? 0) : progress.totalDays}
+              </Text>
+              <Text style={styles.statLabel}>
+                {challenge.goal_type === 'count'
+                  ? (completed ? '개 달성' : '개 목표')
+                  : (completed ? '일 완주' : '일 도전')}
+              </Text>
             </View>
             <View style={styles.statItem}>
               <Text style={styles.statNum}>{subjectProofs.length}</Text>

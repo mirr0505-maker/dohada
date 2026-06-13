@@ -93,23 +93,36 @@ export function memberPassedDays(challenge: DbChallenge, joinedAt?: string | nul
   return Math.max(0, Math.round((cap - start.getTime()) / 86_400_000) + 1);
 }
 
-// 완주 여부: 종료일이 지났고 frequency 기준 목표 인증 횟수를 채운 경우 true
-//   daily   : 모든 날 인증
-//   weekly3 : 총일수의 3/7 이상 (반올림 올림)
-//   weekly1 : 총일수의 1/7 이상 (반올림 올림)
-//   joinedAt 을 주면 늦합류자는 합류일 기준 비례 목표로 판정 (다함께·누구나 방)
+// 🚀 0041 목표 진행 상태 — cadence/count 통합 (분자·분모·완주를 한 곳에서 산출)
+//   cadence : 분자 = 고유 인증 날짜수, 분모 = 기간×빈도(늦합류 비례), 완주 = 종료 후 분자 ≥ 분모
+//   count   : 분자 = 총 인증 수,      분모 = target_count(고정), 완주 = 분자 ≥ 분모 (기간 내 언제든·조기 완주 인정)
+export function goalStatus(
+  challenge: DbChallenge,
+  myProofs: ProofWithRelations[],
+  joinedAt?: string | null,
+): { current: number; target: number; isComplete: boolean } {
+  if (challenge.goal_type === 'count') {
+    const target = challenge.target_count ?? 0;
+    const current = myProofs.length;                 // 하루 다회 인증도 각 1개로 카운트 (몰아서 OK)
+    return { current, target, isComplete: target > 0 && current >= target };
+  }
+  // cadence (기존 로직): KST 고유 날짜수 ≥ frequency 목표, 종료일 이후에만 완주 판정
+  const target = memberTargetProofCount(challenge, joinedAt);
+  const current = uniqueProofDays(myProofs);
+  const ended = getKstTodayRange().kstDateStr >= challenge.end_date;
+  return { current, target, isComplete: ended && current >= target };
+}
+
+// 완주 여부 — goalStatus 단일 소스에 위임.
+//   cadence : 종료일이 지났고 frequency 기준 목표 인증 횟수를 채운 경우
+//   count   : target_count 개를 채운 경우 (종료 무관, 조기 완주 인정)
+//   joinedAt 을 주면 cadence 늦합류자는 합류일 기준 비례 목표로 판정 (다함께·누구나 방)
 export function isCompleted(
   challenge: DbChallenge,
   myProofs: ProofWithRelations[],
   joinedAt?: string | null,
 ): boolean {
-  const today = getKstTodayRange().kstDateStr;
-  if (today < challenge.end_date) return false; // 아직 진행 중
-
-  const target = memberTargetProofCount(challenge, joinedAt);
-  // UTC slice 로 묶으면 KST 23시·다음날 01시 인증이 같은 날로 합쳐져 완주가 누락될 수 있음
-  const uniqueDays = new Set(myProofs.map(p => toKstDateStr(p.created_at))).size;
-  return uniqueDays >= target;
+  return goalStatus(challenge, myProofs, joinedAt).isComplete;
 }
 
 // 실패 여부: 종료일이 지났고 목표 인증 횟수를 못 채운 경우 true (= isCompleted 의 보완)

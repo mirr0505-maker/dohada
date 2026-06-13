@@ -22,6 +22,7 @@ export default function CompleteScreen() {
   // 🚀 완주율 — 인증 일수/본인 목표 (늦합류자는 합류일 기준 비례 목표와 일관)
   const [provedDays, setProvedDays] = useState(0);
   const [targetDays, setTargetDays] = useState(0);
+  const [isCount, setIsCount] = useState(false);   // 🚀 0041: 목표 횟수형이면 "개" 단위·조기 완주
   // 🎯 정산 대기(paid) 내기가 있으면 완주 화면에서 현황 탭 정산 동선 노출 (받기/기부)
   const [settleBetPending, setSettleBetPending] = useState(false);
 
@@ -40,8 +41,15 @@ export default function CompleteScreen() {
           // 완주 판정 주체 = 본인 (cheered 응원자는 이 화면으로 redirect 되지 않음)
           const myProofs = data.proofs.filter(p => p.user_id === session.user.id);
           const myJoinedAt = data.members.find(m => m.id === session.user.id)?.joined_at ?? null;
-          setProvedDays(uniqueProofDays(myProofs));
-          setTargetDays(memberTargetProofCount(data.challenge, myJoinedAt));
+          // 🚀 0041: count 유형은 총 인증 수 / 고정 목표, cadence 는 고유 날짜 수 / 비례 목표
+          if (data.challenge.goal_type === 'count') {
+            setIsCount(true);
+            setProvedDays(myProofs.length);
+            setTargetDays(data.challenge.target_count ?? 0);
+          } else {
+            setProvedDays(uniqueProofDays(myProofs));
+            setTargetDays(memberTargetProofCount(data.challenge, myJoinedAt));
+          }
           haptic.success();
           // 정산 대기 내기 확인 — 파일럿 도전자만 (fetchMyBet 은 RLS 로 본인 주문만)
           if (isGiftPilotEmail(session.user.email)) {
@@ -60,7 +68,9 @@ export default function CompleteScreen() {
   const onShare = async () => {
     try {
       await Share.share({
-        message: `🏆 "${title}" 챌린지 ${totalDays}일 완주!\n\n더 나은 나, 더 나은 세상.`,
+        message: isCount
+          ? `🏆 "${title}" 목표 ${targetDays}개 달성!\n\n더 나은 나, 더 나은 세상.`
+          : `🏆 "${title}" 챌린지 ${totalDays}일 완주!\n\n더 나은 나, 더 나은 세상.`,
       });
     } catch (e) {
       Alert.alert('공유 실패', String(e));
@@ -85,12 +95,14 @@ export default function CompleteScreen() {
         <Animated.Text entering={FadeInDown.springify().delay(300)} style={styles.title}>완주!</Animated.Text>
         <Animated.Text entering={FadeInDown.springify().delay(420)} style={styles.challengeName}>"{title}"</Animated.Text>
         <Animated.Text entering={FadeInDown.springify().delay(540)} style={styles.days}>
-          {totalDays}일을 끝까지 해냈어요
+          {isCount ? `목표 ${targetDays}개를 달성했어요` : `${totalDays}일을 끝까지 해냈어요`}
         </Animated.Text>
         {/* 🚀 완주율 — 가부만이 아니라 숫자로 성취를 보여줌 (목표 = 본인 합류일 기준) */}
         {targetDays > 0 && (
           <Animated.Text entering={FadeInDown.springify().delay(620)} style={styles.rate}>
-            📸 인증 {provedDays}일 / 목표 {targetDays}일 · 완주율 {completionRate}%
+            {isCount
+              ? `📸 인증 ${provedDays}개 / 목표 ${targetDays}개 · 완주율 ${completionRate}%`
+              : `📸 인증 ${provedDays}일 / 목표 ${targetDays}일 · 완주율 ${completionRate}%`}
           </Animated.Text>
         )}
 

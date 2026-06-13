@@ -22,6 +22,11 @@ export type ChallengeKind = 'closed' | 'solo' | 'open' | 'cheered';
 //   weekly1 : 주 1회
 export type ChallengeFrequency = 'daily' | 'weekly3' | 'weekly1';
 
+// 목표 유형 — 0041 challenges.goal_type 컬럼.
+//   cadence : 주기형 (기간 × frequency 로 목표 인증 수, 일일/주기 의무)
+//   count   : 목표 횟수형 (기간 내 target_count 개 달성하면 완주 — 100대명산·올레 완주 등)
+export type ChallengeGoalType = 'cadence' | 'count';
+
 export type DbChallenge = {
   id: string;
   creator_id: string;
@@ -36,6 +41,8 @@ export type DbChallenge = {
   intro_image_url?: string | null;    // 🚀 0037: 안내문 이미지 (보관함, 합류 전 미리보기·방 현황에 노출)
   bet_tier?: string | null;           // 🚀 0040: 다인 내기 티어 (다함께·누구나, null=내기 없음)
   bet_donation_mode?: string | null;  // 🚀 0040: 다인 내기 기부 모드 (commitment/pledge/always)
+  goal_type?: ChallengeGoalType;      // 🚀 0041: 목표 유형 (기본 cadence)
+  target_count?: number | null;       // 🚀 0041: count 유형의 목표 개수 (cadence 는 null)
   gave_up_at: string | null; // 🚀 개설자가 챌린지 포기한 시각 (비활성화 판단용)
 };
 
@@ -89,6 +96,7 @@ export type ChallengeWithCount = DbChallenge & {
   my_streak?: number;
   has_new_chat?: boolean;
   has_new_log?: boolean;
+  my_proof_count?: number;   // 🚀 0041: 내 총 인증 수 (count 유형 진행도 N/목표)
 };
 
 export type MemberWithToday = DbUser & {

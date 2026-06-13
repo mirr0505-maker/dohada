@@ -628,7 +628,8 @@ export default function ChallengeRoom() {
   const canPlaceBet = isGiftPilot && isBetSubject && isMember && !iGaveUp && !finished && !myBet;
   // 정산 표시용 완주 판정 — badgeProofs/subjectJoinedAt 가 self=개설자/group=본인으로 이미 매핑됨
   const challengerCompleted = isCompleted(challenge, badgeProofs, subjectJoinedAt);
-  const showBetCard = isGiftPilot && isBetSubject && isMember && (myBet !== null || canPlaceBet);
+  // 🚀 0041: 목표 횟수형(count)은 베타에서 내기 비활성 — betOutcome 미지원(응원만)
+  const showBetCard = isGiftPilot && isBetSubject && isMember && challenge.goal_type !== 'count' && (myBet !== null || canPlaceBet);
   const onSettleBet = async (action: 'receive' | 'donate' | 'refund') => {
     if (!myBet || betBusy) return;
     haptic.tap();
@@ -1010,6 +1011,24 @@ export default function ChallengeRoom() {
             </Pressable>
           );
         }
+        // 🚀 0041: 목표 횟수형 — 일일 의무 없음(매일 "완료" 표시 X). 다 채우면 박제 안내, 아니면 인증 추가(하루 다회 OK).
+        if (challenge.goal_type === 'count') {
+          if (isCompleted(challenge, myProofs, me?.joined_at)) {
+            return (
+              <Pressable style={[styles.fab, styles.fabDone]} onPress={() => { haptic.tap(); setActiveTab('archive'); }}>
+                <Text style={styles.fabLabel}>🏆 목표 달성! · 박제 보기</Text>
+              </Pressable>
+            );
+          }
+          return (
+            <Pressable
+              style={styles.fab}
+              onPress={() => { haptic.tap(); router.push(`/checkin/${challenge.id}`); }}
+            >
+              <Text style={styles.fabLabel}>📸 인증 추가하기 ({myProofs.length}/{challenge.target_count ?? 0})</Text>
+            </Pressable>
+          );
+        }
         if (todayChecked) {
           return (
             <Pressable style={[styles.fab, styles.fabDone]} onPress={() => haptic.tap()}>
@@ -1183,6 +1202,8 @@ function ProofCard({
 
       {/* 4가지 응원 chips — type 별 독립 카운트 (박제 후엔 회색·카운트만 보존) */}
       <View style={[styles.cheerRow, locked && { opacity: 0.55 }]}>
+        {/* 응원 칩 4개 — 한잔 버튼이 줄바뀜되지 않도록 별도 wrap 컨테이너 (좁으면 칩끼리만 줄바꿈) */}
+        <View style={styles.cheerChipsWrap}>
         {CHEER_OPTIONS.map(({ type, emoji, label }) => {
           const count = proof.cheers_by_type[type] ?? 0;
           const active = proof.my_cheers.includes(type);
@@ -1204,6 +1225,7 @@ function ProofCard({
             </Pressable>
           );
         })}
+        </View>
         {onGift ? (
           <Pressable
             style={styles.giftBtn}
@@ -1496,11 +1518,18 @@ const styles = StyleSheet.create({
   // 4가지 응원 chips + 선물 + 댓글 (v2)
   cheerRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',          // 한잔 버튼이 다음 줄로 밀리지 않도록 (칩은 아래 wrap 안에서만 줄바꿈)
     alignItems: 'center',
     gap: 8,
     paddingTop: 8,
     paddingHorizontal: 2,
+  },
+  cheerChipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 1,               // 공간 부족 시 칩끼리만 줄바꿈 — 한잔 버튼은 그대로
   },
   cheerChip: {
     flexDirection: 'row',
@@ -1537,7 +1566,8 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: radius.pill,
     backgroundColor: colors.accent50,
-    marginLeft: 4,
+    marginLeft: 0,               // 간격은 cheerRow gap 으로 통일
+    flexShrink: 0,               // 한잔 버튼은 절대 압축·줄바뀜 안 됨
   },
   giftBtnText: {
     fontSize: fontSize.sm,

@@ -203,6 +203,16 @@ function Card({ challenge, finished = false }: { challenge: ChallengeWithCount; 
             <View style={[styles.checkinBadge, styles.finishedBadge]}>
               <Text style={[styles.checkinBadgeText, styles.finishedBadgeText]}>🏁 종료 · 박제 보기</Text>
             </View>
+          ) : challenge.goal_type === 'count' ? (
+            <>
+              {/* 🚀 0041: 목표 횟수형 — 일일 의무 없음. 진행 N/목표 + D-day */}
+              <View style={[styles.checkinBadge, styles.checkedBadge]}>
+                <Text style={[styles.checkinBadgeText, styles.checkedBadgeText]}>🎯 {challenge.my_proof_count ?? 0}/{challenge.target_count ?? 0}</Text>
+              </View>
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>D-{daysLeft}</Text>
+              </View>
+            </>
           ) : (
             <>
               {/* 🚀 오늘 인증 상태 배지 */}

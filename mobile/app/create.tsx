@@ -85,6 +85,9 @@ export default function CreateChallenge() {
   const [betTier, setBetTier] = useState<BetTier | null>(null);
   const [betDonationMode, setBetDonationMode] = useState<BetDonationMode>('commitment');
   const isBetPilot = isGiftPilotEmail(session?.user?.email);
+  // 🚀 0041: 목표 유형 — cadence(주기형: 매일/주N회) / count(목표 횟수형: 기간 내 N개)
+  const [goalType, setGoalType] = useState<'cadence' | 'count'>('cadence');
+  const [targetCount, setTargetCount] = useState<number>(10);
   // bet 은 'none' 고정.
 
   const [submitting, setSubmitting] = useState(false);
@@ -107,10 +110,12 @@ export default function CreateChallenge() {
     if (step === 1) return title.trim().length >= 2;
     if (step === 2) return categoryId != null;
     if (step === 3) return Boolean(kind);                              // 방 타입
-    if (step === 4) return durationDays > 0 && Boolean(frequency);     // 기간 + 빈도 (병합)
+    if (step === 4) return goalType === 'count'
+      ? durationDays > 0 && targetCount >= 1                           // 목표 횟수형: 기간 + 목표 개수
+      : durationDays > 0 && Boolean(frequency);                        // 주기형: 기간 + 빈도
     if (step === 5) return true;                                       // 인증 방식 (기본 photo)
     return false;
-  }, [step, title, categoryId, durationDays, frequency, kind, submitting]);
+  }, [step, title, categoryId, durationDays, frequency, goalType, targetCount, kind, submitting]);
 
   const onPrev = () => {
     haptic.tap();
@@ -165,6 +170,8 @@ export default function CreateChallenge() {
         categoryId,
         subcategoryId,
         frequency,
+        goalType,                                            // 🚀 0041: 목표 유형
+        targetCount: goalType === 'count' ? targetCount : null,
         startDate, // 🚀 신규 추가
         introImageUrl, // 🚀 0037: 안내문 이미지
         // 🚀 0040: 다인 내기 — 다함께·누구나에서만. 서버도 kind 로 한 번 더 강제
@@ -183,7 +190,7 @@ export default function CreateChallenge() {
     } finally {
       setSubmitting(false);
     }
-  }, [session, title, kind, durationDays, categoryId, subcategoryId, frequency, proofType, startDate, description, introImageUri]);
+  }, [session, title, kind, durationDays, categoryId, subcategoryId, frequency, goalType, targetCount, proofType, startDate, description, introImageUri]);
 
   const stepMeta = STEP_META[step];
 
@@ -255,7 +262,14 @@ export default function CreateChallenge() {
           {step === 4 && (
             <View style={{ gap: 12 }}>
               <Step3Duration value={durationDays} setValue={setDurationDays} kind={kind} />
-              <Text style={[styles.subSectionTitle, { marginTop: 16 }]}>⏰ 얼마나 자주 인증할까요?</Text>
+              {/* 🚀 0041: 목표 유형 — 주기형(매일/주N회) vs 목표 횟수형(기간 내 N개 달성) */}
+              <Text style={[styles.subSectionTitle, { marginTop: 16 }]}>🎯 어떻게 달성할까요?</Text>
+              <GoalTypeToggle value={goalType} setValue={setGoalType} />
+              {goalType === 'cadence' ? (
+                <Text style={[styles.subSectionTitle, { marginTop: 16 }]}>⏰ 얼마나 자주 인증할까요?</Text>
+              ) : (
+                <Text style={[styles.subSectionTitle, { marginTop: 16 }]}>🎯 기간 내 몇 개를 달성할까요?</Text>
+              )}
               <Step4Frequency
                 value={frequency}
                 setValue={setFrequency}
@@ -263,6 +277,9 @@ export default function CreateChallenge() {
                 kind={kind}
                 startDate={startDate}
                 setStartDate={setStartDate}
+                goalType={goalType}
+                targetCount={targetCount}
+                setTargetCount={setTargetCount}
               />
             </View>
           )}
@@ -270,11 +287,15 @@ export default function CreateChallenge() {
             <View style={{ gap: 12 }}>
               <Step5ProofType value={proofType} setValue={setProofType} />
               {/* 🚀 다인 내기 — 다함께·누구나 + 파일럿만 (베타는 mock·실돈 0원) */}
-              {isBetPilot && (kind === 'closed' || kind === 'open') ? (
+              {isBetPilot && (kind === 'closed' || kind === 'open') && goalType !== 'count' ? (
                 <BetConfig
                   betTier={betTier} setBetTier={setBetTier}
                   betDonationMode={betDonationMode} setBetDonationMode={setBetDonationMode}
                 />
+              ) : goalType === 'count' ? (
+                <Text style={styles.smallNote}>
+                  🎯 목표 횟수형은 내기 없이 진행해요 (응원 한잔은 가능).
+                </Text>
               ) : (
                 <Text style={styles.smallNote}>
                   💰 내기 한잔은 다함께·누구나 방에서 열려요 (정식 출시 후 실결제).
@@ -597,8 +618,76 @@ function SimpleCalendarModal({
 }
 
 // ─── Step 4: 인증 빈도 ───
+// 🚀 0041: 목표 유형 토글 — 주기형 vs 목표 횟수형
+function GoalTypeToggle({
+  value, setValue,
+}: {
+  value: 'cadence' | 'count';
+  setValue: (v: 'cadence' | 'count') => void;
+}) {
+  const opts = [
+    { value: 'cadence' as const, icon: '📆', label: '주기형',     desc: '매일·주 N회 꾸준히 인증' },
+    { value: 'count'   as const, icon: '🎯', label: '목표 횟수형', desc: '기간 내 N개 달성 (100대명산·올레 완주 등)' },
+  ];
+  return (
+    <View style={{ gap: 12 }}>
+      {opts.map(o => {
+        const active = value === o.value;
+        return (
+          <Pressable key={o.value} style={[styles.option, active && styles.optionActive]} onPress={() => setValue(o.value)}>
+            <Text style={styles.optionIcon}>{o.icon}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.optionTitle, active && styles.optionTitleActive]}>{o.label}</Text>
+              <Text style={styles.optionDesc}>{o.desc}</Text>
+            </View>
+            {active && <Text style={styles.optionCheck}>✓</Text>}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+// 🚀 0041: 목표 개수 입력 (count 유형) — 직접 입력 + 프리셋 칩
+function TargetCountField({
+  value, setValue,
+}: {
+  value: number;
+  setValue: (n: number) => void;
+}) {
+  const presets = [10, 16, 27, 30, 50, 100];
+  return (
+    <View style={{ gap: 12 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <TextInput
+          value={value > 0 ? String(value) : ''}
+          onChangeText={(t) => {
+            const n = parseInt(t.replace(/[^0-9]/g, ''), 10);
+            setValue(Number.isNaN(n) ? 0 : Math.min(n, 9999));
+          }}
+          placeholder="예: 16"
+          placeholderTextColor={colors.primary300}
+          style={[styles.bigInput, { flex: 1 }]}
+          keyboardType="number-pad"
+          maxLength={4}
+        />
+        <Text style={styles.optionTitle}>개</Text>
+      </View>
+      <View style={styles.chipWrap}>
+        {presets.map(p => (
+          <Pressable key={p} style={styles.chip} onPress={() => setValue(p)}>
+            <Text style={styles.chipText}>{p}개</Text>
+          </Pressable>
+        ))}
+      </View>
+      <Text style={styles.smallNote}>기간 안에 이 개수만큼 인증하면 완주예요. 하루에 여러 개도 OK · 다 채우면 즉시 완주!</Text>
+    </View>
+  );
+}
+
 function Step4Frequency({
   value, setValue, durationDays, kind, startDate, setStartDate,
+  goalType, targetCount, setTargetCount,
 }: {
   value: CreateChallengeFrequency;
   setValue: (v: CreateChallengeFrequency) => void;
@@ -606,6 +695,9 @@ function Step4Frequency({
   kind: ChallengeKind;
   startDate: string;
   setStartDate: (s: string) => void;
+  goalType: 'cadence' | 'count';
+  targetCount: number;
+  setTargetCount: (n: number) => void;
 }) {
   const [calendarOpen, setCalendarOpen] = useState(false);
 
@@ -673,7 +765,9 @@ function Step4Frequency({
 
   return (
     <View style={{ gap: 12 }}>
-      {options.map(f => {
+      {goalType === 'count' ? (
+        <TargetCountField value={targetCount} setValue={setTargetCount} />
+      ) : options.map(f => {
         const active = value === f.value;
         return (
           <Pressable

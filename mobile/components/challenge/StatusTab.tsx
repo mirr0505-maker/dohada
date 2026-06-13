@@ -19,15 +19,22 @@ export function StatusTab({ challenge, members, proofs, myUserId, betSlot }: Pro
   // 멤버별 통계 (인증한 고유 날짜 수 / 본인 진행일수)
   // 분모는 합류일 기준 — 시작 후 합류한 동료도 자기 출발선으로 공정하게 계산 (v2.8)
   const rows = useMemo(() => {
+    const isCount = challenge.goal_type === 'count';
     return members.map(m => {
       const myProofs = proofs.filter(p => p.user_id === m.id);
       const uniqDays = new Set(myProofs.map(p => p.created_at.slice(0, 10))).size;
-      const myDays = memberPassedDays(challenge, m.joined_at);
-      const denom = Math.max(1, myDays);
-      const rate = Math.min(100, Math.round((uniqDays / denom) * 100));
       const streak = computeStreak(myProofs);
       const todayChecked = m.today_checked;
-      return { member: m, uniqDays, myDays, rate, streak, todayChecked };
+      if (isCount) {
+        // 🚀 0041: count 유형 — 분자=총 인증 수, 분모=target_count(고정), 늦합류 비례 없음
+        const target = challenge.target_count ?? 0;
+        const current = myProofs.length;
+        const rate = Math.min(100, Math.round((current / Math.max(1, target)) * 100));
+        return { member: m, isCount: true, uniqDays: current, myDays: target, rate, streak, todayChecked };
+      }
+      const myDays = memberPassedDays(challenge, m.joined_at);
+      const rate = Math.min(100, Math.round((uniqDays / Math.max(1, myDays)) * 100));
+      return { member: m, isCount: false, uniqDays, myDays, rate, streak, todayChecked };
     });
   }, [members, proofs, challenge]);
 
@@ -103,10 +110,10 @@ function formatDate(dateStr: string): string {
 function StatusCard({
   row, isMine,
 }: {
-  row: { member: MemberWithToday; uniqDays: number; myDays: number; rate: number; streak: number; todayChecked: boolean };
+  row: { member: MemberWithToday; isCount: boolean; uniqDays: number; myDays: number; rate: number; streak: number; todayChecked: boolean };
   isMine: boolean;
 }) {
-  const { member, uniqDays, myDays, rate, streak, todayChecked } = row;
+  const { member, isCount, uniqDays, myDays, rate, streak, todayChecked } = row;
   const gaveUp = !!member.gave_up_at;
   return (
     <View style={[styles.card, isMine && styles.cardMine, gaveUp && styles.cardGaveUp]}>
@@ -132,14 +139,16 @@ function StatusCard({
           </Text>
           {gaveUp ? (
             <Text style={styles.gaveUpTag}>포기</Text>
-          ) : streak > 0 ? (
+          ) : !isCount && streak > 0 ? (
             <Text style={styles.streak}>🔥 {streak}</Text>
           ) : null}
         </View>
         <Text style={styles.subtext}>
           {gaveUp
             ? '도전을 포기했어요'
-            : `${uniqDays}/${myDays}일${isMine && !todayChecked ? '  · 오늘 인증 전 ⚠️' : ''}`}
+            : isCount
+              ? `${uniqDays}/${myDays}개 달성`
+              : `${uniqDays}/${myDays}일${isMine && !todayChecked ? '  · 오늘 인증 전 ⚠️' : ''}`}
         </Text>
         {!gaveUp && (
           <View style={styles.track}>
