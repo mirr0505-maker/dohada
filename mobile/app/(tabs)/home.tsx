@@ -127,7 +127,7 @@ export default function HomeScreen() {
       setError(null);
       const [mine, fellows, recentDone, interesting, opens] = await Promise.all([
         fetchMyChallengesWithDetails(myUserId),
-        fetchFellowProofs(myUserId, 10),
+        fetchFellowProofs(myUserId, 100),   // 🚀 챌린지별 그룹+더보기 위해 넉넉히 (오늘분만 필터됨)
         fetchPublicCompletionStories({ limit: 5 }).catch(() => []),
         fetchInterestingOpenChallenges(myUserId, 5).catch(() => []),
         fetchOpenChallenges(myUserId),
@@ -175,7 +175,7 @@ export default function HomeScreen() {
       setTodayProofs(fellows.filter(p => {
         const t = Date.parse(p.created_at);
         return t >= dayStartMs && t < dayEndMs;
-      }).slice(0, 5));
+      }));   // 🚀 상한 slice 제거 — 챌린지별 묶고 그룹마다 인라인 더보기로 노출
       
       // 🚀 클라이언트 단 더블 가드 필터링: 이미 가입하고 포기 안 한 내 챌린지 제외
       const myActiveChIds = new Set(mine.filter(c => c.gave_up_at === null).map(c => c.id));
@@ -229,6 +229,22 @@ export default function HomeScreen() {
 
   // 🚀 미인증 챌린지 (인증 의무 있는 것만 — count형·cheered 응원자·시작 전 모집 기간 방은 제외)
   const uncheckedChs = activeChs.filter(needsTodayCheck);
+
+  // 🚀 오늘 동료 인증을 챌린지별로 묶음 — 새 인증이 옛 인증을 홈에서 밀어내던 문제 해소 (그룹 + 인라인 더보기)
+  //    todayProofs 는 최신순 → Map 삽입 순서가 곧 그룹 최신순, 그룹 내부도 최신순
+  const todayProofGroups = React.useMemo(() => {
+    const map = new Map<string, FellowProof[]>();
+    for (const p of todayProofs) {
+      const arr = map.get(p.challenge_id);
+      if (arr) arr.push(p);
+      else map.set(p.challenge_id, [p]);
+    }
+    return Array.from(map.values()).map(proofs => ({
+      challengeId: proofs[0].challenge_id,
+      title: proofs[0].challenge_title,
+      proofs,
+    }));
+  }, [todayProofs]);
   const [checkinPickerOpen, setCheckinPickerOpen] = useState(false);
 
   // 오늘 인증 액션 — 0개면 완료 안내, 1개면 즉시 인증, 여러 개면 선택 모달
@@ -416,9 +432,14 @@ export default function HomeScreen() {
               {completions.map(c => (
                 <CompletionRibbon key={c.id} story={c} />
               ))}
-              {/* 2. 📸 오늘의 인증 — 동료 사진 카드 */}
-              {todayProofs.map(p => (
-                <TodayProofCard key={p.id} proof={p} onViewPhoto={setViewerUri} />
+              {/* 2. 📸 오늘의 인증 — 챌린지별 묶음 + 인라인 더보기 (옛 인증이 밀려 안 보이던 문제 해소) */}
+              {todayProofGroups.map(g => (
+                <TodayChallengeProofGroup
+                  key={g.challengeId}
+                  title={g.title}
+                  proofs={g.proofs}
+                  onViewPhoto={setViewerUri}
+                />
               ))}
             </>
           ) : (
@@ -562,6 +583,37 @@ function CompletionRibbon({ story }: { story: CompletionStoryCard }) {
   );
 }
 
+// ─── 카드 2 묶음: 📸 오늘의 인증 (챌린지별 + 인라인 더보기) ──────
+function TodayChallengeProofGroup({
+  title, proofs, onViewPhoto,
+}: {
+  title: string;
+  proofs: FellowProof[];
+  onViewPhoto: (uri: string) => void;
+}) {
+  const INITIAL = 2;   // 기본 노출 개수, 나머지는 '더 보기'로 펼침
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? proofs : proofs.slice(0, INITIAL);
+  const hidden = proofs.length - INITIAL;
+  return (
+    <View style={styles.proofGroup}>
+      <Text style={styles.proofGroupHead} numberOfLines={1}>
+        📸 {title} · 오늘 {proofs.length}명 인증
+      </Text>
+      {visible.map(p => (
+        <TodayProofCard key={p.id} proof={p} onViewPhoto={onViewPhoto} />
+      ))}
+      {hidden > 0 && (
+        <Pressable style={styles.moreToggle} onPress={() => { haptic.tap(); setExpanded(e => !e); }}>
+          <Text style={styles.moreToggleText}>
+            {expanded ? '▲ 접기' : `▼ ${hidden}명 더 보기`}
+          </Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
 // ─── 카드 2: 📸 오늘의 인증 ───────────────────────────────
 function TodayProofCard({ proof, onViewPhoto }: { proof: FellowProof; onViewPhoto: (uri: string) => void }) {
   return (
@@ -580,9 +632,6 @@ function TodayProofCard({ proof, onViewPhoto }: { proof: FellowProof; onViewPhot
         <View style={{ flex: 1 }}>
           <Text style={styles.who}>{proof.nickname}</Text>
           <Text style={styles.sub}>{relTime(proof.created_at)} · 오늘의 인증</Text>
-        </View>
-        <View style={styles.tag}>
-          <Text style={styles.tagText} numberOfLines={1}>{proof.challenge_title}</Text>
         </View>
       </View>
       <Pressable onPress={() => onViewPhoto(proof.photo_url)}>
@@ -1053,6 +1102,23 @@ const styles = StyleSheet.create({
   cheerHint: {
     fontSize: fontSize.xs, color: colors.primary500,
     fontFamily: fontFamily.regular,
+  },
+
+  // 오늘의 인증 — 챌린지별 묶음 + 더보기
+  proofGroup: { marginBottom: 6 },
+  proofGroupHead: {
+    marginHorizontal: 16, marginTop: 2, marginBottom: 4,
+    fontSize: fontSize.sm, color: colors.primary700,
+    fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
+  },
+  moreToggle: {
+    marginHorizontal: 16, marginBottom: 10,
+    alignItems: 'center', paddingVertical: 8,
+    backgroundColor: colors.primary50, borderRadius: radius.lg,
+  },
+  moreToggleText: {
+    fontSize: fontSize.sm, color: colors.primary700,
+    fontFamily: fontFamily.medium, fontWeight: fontWeight.medium,
   },
 
   // 리본
