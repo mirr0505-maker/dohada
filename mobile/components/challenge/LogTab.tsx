@@ -23,6 +23,7 @@ type Props = {
   challengeStartDate: string;        // YYYY-MM-DD
   myUserId: string | undefined;
   isMember: boolean;
+  onRequireJoin?: () => void;        // 🚀 비멤버가 좋아요·댓글 시도 시 합류 유도
   canComment: boolean;               // solo 방은 false — 기록 댓글 숨김
   composerOpen: boolean;             // 기록 모달 — 부모(room) FAB 가 트리거
   onComposerClose: () => void;
@@ -33,7 +34,7 @@ type Props = {
 };
 
 export function LogTab({
-  challengeId, challengeStartDate, myUserId, isMember, canComment,
+  challengeId, challengeStartDate, myUserId, isMember, onRequireJoin, canComment,
   composerOpen, onComposerClose, writeLocked = false, farewellDaysLeft = 0,
   focusLogId = null, focusComments = false,
 }: Props) {
@@ -181,8 +182,8 @@ export function LogTab({
             startDate={challengeStartDate}
             canComment={canComment}
             isMine={!writeLocked && item.user_id === myUserId}   /* 박제 후엔 수정/삭제 메뉴 잠금 */
-            onLike={() => onLike(item.id)}
-            onComment={() => { haptic.tap(); setActiveLogId(item.id); }}
+            onLike={() => { if (!isMember) return onRequireJoin?.(); onLike(item.id); }}
+            onComment={() => { if (!isMember) return onRequireJoin?.(); haptic.tap(); setActiveLogId(item.id); }}
             onEdit={() => { haptic.tap(); setEditingLog(item); }}
             onDelete={() => {
               Alert.alert('기록 삭제', '이 기록을 삭제할까요?\n좋아요·댓글도 같이 사라져요.', [

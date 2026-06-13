@@ -351,6 +351,12 @@ export default function ChallengeRoom() {
     [members, myUserId],
   );
   const isMember = Boolean(me);
+  // 🚀 비멤버(누구나 미리보기)가 딥링크(?tab=status 등)로 막힌 탭에 진입하면 인증 탭으로 강제
+  useEffect(() => {
+    if (challenge && !isMember && activeTab !== 'proof' && activeTab !== 'log') {
+      setActiveTab('proof');
+    }
+  }, [challenge, isMember, activeTab]);
 
   // 🚀 포기한 멤버 = 조용한 보관 + 전면 읽기 전용 (v2.8 — 0034 가 SELECT 만 허용)
   // 진입 차단하던 기존 Alert 제거 — 열람·회고는 허용, 쓰기는 전면 잠금.
@@ -578,6 +584,16 @@ export default function ChallengeRoom() {
   // 포기한 멤버는 즉시 전면 읽기 전용 (완주 유예보다 강한 잠금 — 서버는 0034 가 보장)
   const iGaveUp = Boolean(me?.gave_up_at);
   const writeLocked = iGaveUp || (farewell.finished && !farewell.canWrite);
+  // 🚀 비멤버가 막힌 탭/응원/댓글/좋아요 시도 시 — 합류 유도
+  const onJoinNotice = () => {
+    haptic.tap();
+    Alert.alert(
+      '합류하면 함께할 수 있어요',
+      '이 도전에 합류하면 대화·응원·댓글·현황·박제까지 함께할 수 있어요.',
+      [{ text: '둘러보기', style: 'cancel' }, { text: '참여하기', onPress: onJoin }],
+    );
+  };
+
   const onLockedNotice = () => {
     haptic.tap();
     if (iGaveUp) {
@@ -796,11 +812,16 @@ export default function ChallengeRoom() {
       <View style={styles.tabsBar}>
         {ROOM_TABS.map(t => {
           const active = activeTab === t.key;
+          // 🚀 비멤버(누구나 미리보기)는 인증·기록만 열람 — 대화/현황/박제 탭은 합류 유도
+          const lockedForGuest = !isMember && t.key !== 'proof' && t.key !== 'log';
           return (
             <Pressable
               key={t.key}
-              style={[styles.tabItem, active && styles.tabItemActive]}
-              onPress={() => { haptic.tap(); setActiveTab(t.key); }}
+              style={[styles.tabItem, active && styles.tabItemActive, lockedForGuest && { opacity: 0.4 }]}
+              onPress={() => {
+                if (lockedForGuest) { onJoinNotice(); return; }
+                haptic.tap(); setActiveTab(t.key);
+              }}
             >
               <Text style={[styles.tabText, active && styles.tabTextActive]} numberOfLines={1}>
                 {t.emoji} {t.label}
@@ -848,9 +869,9 @@ export default function ChallengeRoom() {
               proof={item}
               onViewPhoto={setViewerUri}
               mine={item.user_id === myUserId}
-              locked={writeLocked}
-              onCheer={(type) => (writeLocked ? onLockedNotice() : onCheer(item.id, type))}
-              onComments={() => { haptic.tap(); setActiveProofId(item.id); }}
+              locked={writeLocked || !isMember}
+              onCheer={(type) => (!isMember ? onJoinNotice() : writeLocked ? onLockedNotice() : onCheer(item.id, type))}
+              onComments={() => { if (!isMember) return onJoinNotice(); haptic.tap(); setActiveProofId(item.id); }}
               // ☕ 응원 한잔 — 전체 오픈 (Stage 4, 2026-06-13). mock·실제 결제 없음(GiftSheet 디스클레이머).
               // 동료의 인증에만 노출 (솔로 방·본인 인증·종료 방 제외 — 서버 정책과 동일 잣대)
               onGift={
@@ -892,6 +913,7 @@ export default function ChallengeRoom() {
           challengeStartDate={challenge.start_date}
           myUserId={myUserId}
           isMember={isMember}
+          onRequireJoin={onJoinNotice}
           canComment={challenge.kind !== 'solo'}
           composerOpen={logComposerOpen}
           onComposerClose={() => setLogComposerOpen(false)}
