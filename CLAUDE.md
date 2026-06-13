@@ -3,8 +3,9 @@
 이 파일은 Claude Code가 이 저장소에서 작업할 때 **반드시 따라야 하는 지침**이다.
 서브에이전트 위임 없이 메인 세션이 코드 작성·검증·정책 검토까지 직접 수행한다.
 
-**Phase 1 MVP 의 단일 진실원천은 [`MVP_SCOPE.md`](MVP_SCOPE.md) (v2.5) 이다.**
-**베타 모집 HTML 의 청사진은 [`BLUEPRINT.md`](BLUEPRINT.md) — 정체성·기존 SNS 극복 메시지 정리.**
+**Phase 1 MVP 의 단일 진실원천은 [`MVP_SCOPE.md`](docs/MVP_SCOPE.md) (v2.5) 이다.**
+**제품·비전 전체 청사진은 [`BLUEPRINT.md`](BLUEPRINT.md) (구 PITCH 흡수, 2026-06-13).**
+**베타 모집 랜딩 기획은 [`docs/beta-landing-plan.md`](docs/beta-landing-plan.md) — 정체성·기존 SNS 극복 메시지 정리.**
 장기 비전·정책·DB 설계는 [`Do_하다_통합기획서_v4_0_1.pdf`](Do_하다_통합기획서_v4_0_1.pdf) 를 참조.
 **UI/UX 의 절대 기준은 [`prototype/do-hada-app-v4.html`](prototype/do-hada-app-v4.html)** — 화면 디자인 결정 시 반드시 해당 화면의 HTML/CSS 를 먼저 본다 (v4 = 28화면).
 작업 단위는 부록 E.8의 **Week** 단위(Day는 작업 덩어리 예시).
@@ -79,8 +80,16 @@
 - **본인인증 입력 UX**: [`GiftSheet`](mobile/components/challenge/GiftSheet.tsx)·[`BetSheet`](mobile/components/challenge/BetSheet.tsx) 바텀시트를 `KeyboardAvoidingView` 로 감싸 키보드 가림 해소 + 생년월일 숫자만 입력→하이픈 자동(`formatBirthDateInput` in payments.ts, 숫자패드). ※ 현재 본인인증은 mock(형식·만19세만 검사) — 진짜 PASS 는 Stage 3 에서 화면째 교체, 이 수동 입력 UX 는 그때 사라짐
 - **운영 반영 (2026-06-12)**: 0037 운영 DB 적용 완료 + OTA 배포(preview·production 양 채널). Edge Function 변경 없음
 
+### 신규 코드 위치 (v2.10 — 목표 횟수형 도전, 0041, 2026-06-13)
+**매일 인증이 아닌 "기간 내 N개 달성" 유형 (100대명산·제주올레·둘레길/자전거길 스탬프).** 기존 = 주기형(cadence: 기간×빈도), 신규 = 목표 횟수형(count: target_count 개).
+- DB: [`0041_goal_count_type.sql`](supabase/migrations/0041_goal_count_type.sql) — `challenges.goal_type`('cadence'|'count') + `target_count`. `create_challenge`(12→14인자)·`get_invite_info` 확장. **count형은 서버에서 내기 강제 비활성**(bet_tier null). ⚠️ **migration 먼저** — 미적용 시 14인자 RPC 불일치로 모든 챌린지 생성이 깨짐 (2026-06-13 운영 적용 완료)
+- 완주 판정 단일 소스: [`stats.ts`](mobile/lib/stats.ts) `goalStatus` — count = **총 인증 수 ≥ N (종료 무관·조기 완주 인정·하루 다회 OK)**, cadence = 기존(고유 날짜수 ≥ 기간×빈도). `isCompleted`/`isFailed` 위임
+- 생성: [`create.tsx`](mobile/app/create.tsx) step4 유형 토글(`GoalTypeToggle`) + 목표 개수 입력(`TargetCountField`). count형은 내기 스텝 스킵
+- 표시 분기 (일일 의무 없음 → "진행 N/목표"): 홈 미인증 잔소리 제외([`home.tsx`](mobile/app/(tabs)/home.tsx)) · FAB·BetCard 차단([`room/[id].tsx`](mobile/app/room/[id].tsx)) · 현황 분모 "개"([`StatusTab.tsx`](mobile/components/challenge/StatusTab.tsx)) · 완주([`complete/[id].tsx`](mobile/app/complete/[id].tsx)) · 박제 조기완주 노출([`ArchiveTab.tsx`](mobile/components/challenge/ArchiveTab.tsx)) · 내도전 배지([`my-challenges.tsx`](mobile/app/(tabs)/my-challenges.tsx))
+- 결정(2026-06-13): ① 일일 의무 없음 ② 하루 다회 인증 ③ 늦합류 목표 고정(비례 X) ④ count형 내기 보류(응원만, betOutcome 미지원). 스탬프 명단·중복방지(진짜 스탬프북)는 [공식 미션](docs/MVP_SCOPE.md) 트랙으로 후속
+
 ### 신규 코드 위치 (Phase 2 Stage 1 — 핀테크 골격, 2026-06-11, 실돈 0원)
-**단일 진실원천: [`PHASE2_FINTECH_PLAN.md`](PHASE2_FINTECH_PLAN.md) (v0.4)** — 응원 한잔/내기 한잔/기부 허브.
+**단일 진실원천: [`PHASE2_FINTECH_PLAN.md`](docs/PHASE2_FINTECH_PLAN.md) (v0.4)** — 응원 한잔/내기 한잔/기부 허브.
 - 결제 순수 로직: [`supabase/functions/_shared/payments/`](supabase/functions/_shared/payments/) — catalog(금액 단일소스)·giftStateMachine·orderPolicy·verifyPayment·betSettlement·providers(PG/기프티콘/본인인증 mock, 주입 구조)
 - Edge Functions: `verify-identity` / `create-gift-order` / `confirm-gift-payment` — gift_orders 쓰기는 이 경로 전용 (RLS 에 클라 쓰기 정책 없음)
 - DB: [`supabase/migrations/0032_identity_gift_orders.sql`](supabase/migrations/0032_identity_gift_orders.sql) — `user_verifications`(본인만 조회) + `gift_orders` + `is_adult_verified`/`challenge_bet_allowed`
@@ -89,7 +98,7 @@
 - **응원 한잔 UI (Stage 1.5)**: 보내기 = [`mobile/components/challenge/GiftSheet.tsx`](mobile/components/challenge/GiftSheet.tsx) (티어→본인인증→mock결제), 수령 = `mobile/app/gift/[id].tsx` (받기/기부 2택 → 발신자 피드백 알림), 클라 함수 = [`mobile/lib/payments.ts`](mobile/lib/payments.ts). 인증 카드 ☕ 버튼은 **전체 사용자 오픈 (Stage 4, 2026-06-13)** — `isGiftPilot` 게이트 제거(응원만). 디스클레이머 "🧪 실제 결제·계좌 연결 없음 · 베타 모의 결제" 를 보내기·결제확인·받기 화면에 명시. **내기(BetCard/BetConfig/fetchMyBet)는 `isGiftPilot` 파일럿 유지 — 앱스토어 도박 오인·법률 자문(⑤b) 전까지.** 수령 선택 시 발급 (claim-gift), 알림 kind 4종 + 기부 집계는 0033
 
 ### 신규 코드 위치 (Phase 2 Stage 5 ⑤a — 나와의 내기, mock·파일럿, 2026-06-12)
-**단일 진실원천: [`PHASE2_FINTECH_PLAN.md`](PHASE2_FINTECH_PLAN.md) 2.1-3 + Stage 5 ⑤a.** 나홀로(solo)·응원받기(cheered) 방의 도전자가 자기 한잔을 선주문 결제 → **완주=본전(받기/기부 선택)·실패=기부 확정**. 다인 내기(group)는 ⑤c 게이트 전까지 차단.
+**단일 진실원천: [`PHASE2_FINTECH_PLAN.md`](docs/PHASE2_FINTECH_PLAN.md) 2.1-3 + Stage 5 ⑤a.** 나홀로(solo)·응원받기(cheered) 방의 도전자가 자기 한잔을 선주문 결제 → **완주=본전(받기/기부 선택)·실패=기부 확정**. 다인 내기(group)는 ⑤c 게이트 전까지 차단.
 - **완주 판정 순수 로직**: [`supabase/functions/_shared/payments/betOutcome.ts`](supabase/functions/_shared/payments/betOutcome.ts) `computeSelfBetOutcome` — `lib/stats.ts`(isCompleted/memberTargetProofCount) 미러. KST·frequency·늦합류 비례. **결제 로직 = 자동 테스트 의무**라 SQL 아닌 TS 로 둠 (npm test 검증 위해). 테스트 = [`__tests__/self-bet-outcome.test.ts`](__tests__/self-bet-outcome.test.ts)
 - **주문 경로 개방**: [`create-gift-order`](supabase/functions/create-gift-order/index.ts) 가 `orderType='bet'` 수용 — solo/cheered + 개설자 본인 + recipient=sender 강제 + 종료 전 + 1인 1내기 중복 차단(서버 게이트). `confirm-gift-payment` 는 order_type 무관 재사용
 - **받기 게이트**: [`claim-gift`](supabase/functions/claim-gift/index.ts) 가 bet+receive 시 `selfBetOutcome` 로 완주 확인 — **미완주자 본전 회수 백도어 차단** (실돈 전환 후에도 안전). 기부는 언제나 허용

@@ -6,6 +6,9 @@
 
 > *Beta 30명 검증판 출시 (2026.06)*
 
+> **이 문서 = Do:하다 전체 청사진 (제품·비전·로드맵·사업).** 구 `PITCH.md` 를 흡수해 이름에 맞게 통합 (2026-06-13).
+> 라이브 작업 문서는 분리 유지 — Phase 1 스펙 [`docs/MVP_SCOPE.md`](docs/MVP_SCOPE.md) · Phase 2 핀테크 [`docs/PHASE2_FINTECH_PLAN.md`](docs/PHASE2_FINTECH_PLAN.md) · 베타 랜딩 기획 [`docs/beta-landing-plan.md`](docs/beta-landing-plan.md).
+
 ---
 
 ## 1. The One-Liner

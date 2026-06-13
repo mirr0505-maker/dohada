@@ -244,10 +244,10 @@ claude code .
 
 ### ⏳ 검증 / 모집
 - [ ] 본인 며칠 풀 검증 (응원받기 방 + 알림 + 5탭 + 정체성)
-- [ ] [`BLUEPRINT.md`](BLUEPRINT.md) 기반 베타 모집 HTML 작성
+- [ ] [`beta-landing-plan.md`](beta-landing-plan.md) 기반 베타 모집 HTML 작성
 - [ ] production 빌드 + TestFlight 업로드
 - [ ] 클로즈드 베타 30명 모집 (TestFlight + 카카오 채널 / Google Form)
-- [ ] 1주일 인터뷰 (BLUEPRINT §8 질문지)
+- [ ] 1주일 인터뷰 (beta-landing-plan §8 질문지)
 
 ---
 
