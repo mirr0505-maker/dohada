@@ -760,7 +760,7 @@ export default function ChallengeRoom() {
             )}
           </View>
         </View>
-        {challenge.kind !== 'solo' ? (
+        {challenge.kind !== 'solo' && isMember ? (
           <Pressable
             onPress={headerLocked ? onHeaderLockedNotice : onShareInvite}
             hitSlop={12}
@@ -770,6 +770,7 @@ export default function ChallengeRoom() {
             <Text style={[styles.share, headerLocked && styles.shareDisabled]}>초대</Text>
           </Pressable>
         ) : (
+          // 🚀 비멤버(누구나 미리보기)는 초대 불가 — 자리만 비워 헤더 정렬 유지
           <View style={{ width: 32 }} />
         )}
       </View>
