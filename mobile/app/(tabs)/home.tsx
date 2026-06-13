@@ -26,6 +26,7 @@ import {
 import { ErrorState } from '@/components/ErrorState';
 import { ChallengeCardSkeleton } from '@/components/Skeleton';
 import { OpenJoinPreviewSheet } from '@/components/home/OpenJoinPreviewSheet';
+import { PhotoViewer } from '@/components/PhotoViewer';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import type { CompletionStoryCard, OpenChallengeCard } from '@/lib/types';
@@ -45,6 +46,7 @@ export default function HomeScreen() {
   const [myChs, setMyChs]                   = useState<MyChallengeDetail[]>([]);
   const [completions, setCompletions]       = useState<CompletionStoryCard[]>([]);
   const [todayProofs, setTodayProofs]       = useState<FellowProof[]>([]);
+  const [viewerUri, setViewerUri]           = useState<string | null>(null);   // 🚀 사진 전체보기 뷰어
   const [interestingChs, setInteresting]    = useState<InterestingChallenge[]>([]);
   const [openChs, setOpenChs]               = useState<OpenChallengeCard[]>([]);
   const [loading, setLoading]               = useState(true);
@@ -416,7 +418,7 @@ export default function HomeScreen() {
               ))}
               {/* 2. 📸 오늘의 인증 — 동료 사진 카드 */}
               {todayProofs.map(p => (
-                <TodayProofCard key={p.id} proof={p} />
+                <TodayProofCard key={p.id} proof={p} onViewPhoto={setViewerUri} />
               ))}
             </>
           ) : (
@@ -490,6 +492,8 @@ export default function HomeScreen() {
         </ScrollView>
       )}
 
+      <PhotoViewer uri={viewerUri} onClose={() => setViewerUri(null)} />
+
       {/* 🚀 미인증 챌린지 선택 모달 — 인증할 도전이 여러 개일 때 */}
       <Modal
         visible={checkinPickerOpen}
@@ -559,7 +563,7 @@ function CompletionRibbon({ story }: { story: CompletionStoryCard }) {
 }
 
 // ─── 카드 2: 📸 오늘의 인증 ───────────────────────────────
-function TodayProofCard({ proof }: { proof: FellowProof }) {
+function TodayProofCard({ proof, onViewPhoto }: { proof: FellowProof; onViewPhoto: (uri: string) => void }) {
   return (
     <Pressable
       style={styles.card}
@@ -581,7 +585,9 @@ function TodayProofCard({ proof }: { proof: FellowProof }) {
           <Text style={styles.tagText} numberOfLines={1}>{proof.challenge_title}</Text>
         </View>
       </View>
-      <Image source={{ uri: proof.photo_url }} style={styles.proofPhoto} />
+      <Pressable onPress={() => onViewPhoto(proof.photo_url)}>
+        <Image source={{ uri: proof.photo_url }} style={styles.proofPhoto} />
+      </Pressable>
       {proof.caption && (
         <Text style={styles.caption} numberOfLines={2}>{proof.caption}</Text>
       )}

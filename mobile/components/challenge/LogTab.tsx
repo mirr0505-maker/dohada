@@ -13,6 +13,7 @@ import {
   fetchLogs, createLog, updateLog, deleteLog, toggleLogLike, type LogWithAuthor,
 } from '@/lib/db';
 import { uploadProofImage } from '@/lib/upload';
+import { PhotoViewer } from '@/components/PhotoViewer';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { haptic } from '@/lib/haptics';
 import { LogCommentsSheet } from './LogCommentsSheet';
@@ -40,6 +41,7 @@ export function LogTab({
   const [loading, setLoading] = useState(true);
   const [activeLogId, setActiveLogId] = useState<string | null>(null);   // 댓글 시트 대상
   const [editingLog, setEditingLog] = useState<LogWithAuthor | null>(null);   // 본인 글 수정 (v2.2)
+  const [viewerUri, setViewerUri] = useState<string | null>(null);   // 🚀 사진 전체보기 뷰어
 
   const load = useCallback(async () => {
     if (!challengeId || !myUserId) return;
@@ -175,6 +177,7 @@ export function LogTab({
         renderItem={({ item }) => (
           <LogCard
             log={item}
+            onViewPhoto={setViewerUri}
             startDate={challengeStartDate}
             canComment={canComment}
             isMine={!writeLocked && item.user_id === myUserId}   /* 박제 후엔 수정/삭제 메뉴 잠금 */
@@ -239,15 +242,18 @@ export function LogTab({
           ));
         }}
       />
+
+      <PhotoViewer uri={viewerUri} onClose={() => setViewerUri(null)} />
     </View>
   );
 }
 
 // ─── 기록 카드 ──────────────────────────
 function LogCard({
-  log, startDate, canComment, isMine, onLike, onComment, onEdit, onDelete,
+  log, onViewPhoto, startDate, canComment, isMine, onLike, onComment, onEdit, onDelete,
 }: {
   log: LogWithAuthor;
+  onViewPhoto: (uri: string) => void;
   startDate: string;
   canComment: boolean;
   isMine: boolean;
@@ -290,7 +296,9 @@ function LogCard({
       </View>
 
       {log.photo_url ? (
-        <LogPhoto uri={log.photo_url} style={styles.photo} />
+        <Pressable onPress={() => onViewPhoto(log.photo_url!)}>
+          <LogPhoto uri={log.photo_url} style={styles.photo} />
+        </Pressable>
       ) : null}
 
       <Text style={styles.title}>{log.title}</Text>

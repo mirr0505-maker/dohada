@@ -23,6 +23,7 @@ import { InviteConfirmModal } from '@/components/challenge/InviteConfirmModal';
 import { GiftSheet } from '@/components/challenge/GiftSheet';
 import { BetSheet } from '@/components/challenge/BetSheet';
 import { BetCard } from '@/components/challenge/BetCard';
+import { PhotoViewer } from '@/components/PhotoViewer';
 import {
   isGiftPilotEmail, fetchMyReceivedGifts, GIFT_TIERS, GIFT_STATUS_LABEL, type ReceivedGift,
   fetchMyBet, claimGift, type MyBet, type BetTier, type BetDonationMode,
@@ -83,6 +84,7 @@ export default function ChallengeRoom() {
   const [inviteConfirmOpen, setInviteConfirmOpen] = useState(false);          // 🚀 초대 메시지 첨부 확인 모달 열림 여부
   const [inviteLetterOpen, setInviteLetterOpen] = useState(false);            // 🚀 초대 편지글 모달 열림 여부
   const [giftTarget, setGiftTarget] = useState<{ id: string; nickname: string; proofId?: string } | null>(null);   // ☕ 응원 한잔 대상
+  const [viewerUri, setViewerUri] = useState<string | null>(null);   // 🚀 사진 전체보기 뷰어 (인증)
 
   const myUserId = session?.user?.id;
   // ☕ 파일럿 게이트 — 개발 모드이거나 지정 계정일 때만 한잔 버튼 노출
@@ -844,6 +846,7 @@ export default function ChallengeRoom() {
           renderItem={({ item }) => (
             <ProofCard
               proof={item}
+              onViewPhoto={setViewerUri}
               mine={item.user_id === myUserId}
               locked={writeLocked}
               onCheer={(type) => (writeLocked ? onLockedNotice() : onCheer(item.id, type))}
@@ -1046,6 +1049,8 @@ export default function ChallengeRoom() {
         );
       })()}
 
+      <PhotoViewer uri={viewerUri} onClose={() => setViewerUri(null)} />
+
       <CommentsSheet
         proofId={activeProofId}
         writeLocked={writeLocked}
@@ -1168,9 +1173,10 @@ const CHEER_OPTIONS: { type: CheerType; emoji: string; label: string }[] = [
 ];
 
 function ProofCard({
-  proof, onCheer, onComments, locked = false, onGift = null, onGiftArrived = null, mine = false,
+  proof, onViewPhoto, onCheer, onComments, locked = false, onGift = null, onGiftArrived = null, mine = false,
 }: {
   proof: ProofWithRelations;
+  onViewPhoto: (uri: string) => void;
   onCheer: (type: CheerType) => void;
   onComments: () => void;
   locked?: boolean;   // 박제(쓰기 잠금) — 응원 칩 회색 처리
@@ -1194,7 +1200,10 @@ function ProofCard({
         </View>
       </View>
 
-      <Image source={{ uri: proof.photo_url }} style={styles.proofPhoto} resizeMode="cover" />
+      <Pressable onPress={() => onViewPhoto(proof.photo_url)}>
+        <Image source={{ uri: proof.photo_url }} style={styles.proofPhoto} resizeMode="cover" />
+        <View style={styles.zoomHint}><Text style={styles.zoomHintText}>🔍</Text></View>
+      </Pressable>
 
       {proof.caption ? (
         <Text style={styles.proofCaption}>{proof.caption}</Text>
@@ -1497,6 +1506,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.primary50,
   },
+  zoomHint: {
+    position: 'absolute', bottom: 8, right: 8,
+    backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: radius.pill,
+    paddingHorizontal: 8, paddingVertical: 3,
+  },
+  zoomHintText: { fontSize: 12 },
   proofCaption: {
     fontSize: fontSize.base,
     color: colors.primary,
