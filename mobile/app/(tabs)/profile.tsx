@@ -346,9 +346,9 @@ export default function ProfileScreen() {
             <View style={styles.roadmapRow}>
               <Text style={styles.roadmapEmoji}>💸</Text>
               <View style={{ flex: 1 }}>
-                <Text style={styles.roadmapLabel}>내기 시스템 (에스크로 정산)</Text>
+                <Text style={styles.roadmapLabel}>내기 한잔 — 개발 완료 ✅</Text>
                 <Text style={styles.roadmapDesc}>
-                  챌린지 개설 시 보석금(1만/5만/10만)을 걸고 도전하는 에스크로 기반의 상호 정산 시스템이 추가됩니다.
+                  완주하면 본전, 실패하면 기부 — 나·동료와 거는 "내기 한잔"(가상 교환권). 받기·기부·환불 정산까지 개발을 마쳤어요. 법률 자문을 거쳐 오픈되며, 실제 결제·계좌 연결은 정식 출시 후예요.
                 </Text>
               </View>
             </View>
@@ -374,11 +374,21 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.roadmapDivider} />
             <View style={styles.roadmapRow}>
-              <Text style={styles.roadmapEmoji}>🎁</Text>
+              <Text style={styles.roadmapEmoji}>☕</Text>
               <View style={{ flex: 1 }}>
-                <Text style={styles.roadmapLabel}>선물 응원 및 인증 수단 확장</Text>
+                <Text style={styles.roadmapLabel}>응원 한잔 — 베타 체험 중</Text>
                 <Text style={styles.roadmapDesc}>
-                  인증 피드 내에서 기프티콘 등 실물 선물을 보내는 응원 기능과 GPS 기반의 위치 인증 수단이 도입됩니다.
+                  동료의 인증에 "한잔"을 보내 응원해요. 베타에선 가상 교환권(모의 결제 · 실제 결제·계좌 연결 없음)으로 미리 체험하고, 정식 출시 때 실물 기프티콘으로 열려요.
+                </Text>
+              </View>
+            </View>
+            <View style={styles.roadmapDivider} />
+            <View style={styles.roadmapRow}>
+              <Text style={styles.roadmapEmoji}>💚</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.roadmapLabel}>함께 만든 변화 — 기부 허브</Text>
+                <Text style={styles.roadmapDesc}>
+                  받은 응원을 "기부로 돌리기", 완주 못 한 내기 한잔은 기부로 — 내 한 잔이 누군가의 한 잔이 돼요. "더 나은 나, 더 나은 세상"이 실제 기부로 이어집니다.
                 </Text>
               </View>
             </View>
