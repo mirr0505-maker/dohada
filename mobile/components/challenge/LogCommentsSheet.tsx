@@ -197,7 +197,7 @@ export function LogCommentsSheet({ logId, myUserId, onClose, onCountChange, writ
           {writeLocked ? (
             /* 박제 — 새 댓글 작성 잠금 */
             <View style={styles.lockedBar}>
-              <Text style={styles.lockedText}>🏁 박제된 도전이에요 — 댓글은 보존만 됩니다.</Text>
+              <Text style={styles.lockedText}>🏁 박제된 하다예요 — 댓글은 보존만 됩니다.</Text>
             </View>
           ) : (
           <>

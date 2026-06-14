@@ -30,7 +30,7 @@ type Step = 'tier' | 'verify' | 'confirm' | 'done';
 const REASON_LABEL: Record<string, string> = {
   identity_not_verified: '본인인증이 필요해요.',
   invalid_tier: '지금은 보낼 수 없는 상품이에요.',
-  not_a_member: '같은 챌린지의 동료에게만 보낼 수 있어요.',
+  not_a_member: '같은 하다의 동료에게만 보낼 수 있어요.',
   self_cheer_not_allowed: '나에게는 보낼 수 없어요.',
   daily_limit_exceeded: '응원 한잔은 하루 3건까지 보낼 수 있어요.',
   amount_mismatch: '결제 금액이 맞지 않아 취소했어요.',

@@ -115,6 +115,36 @@
 - **방 노출**: BetCard 가 self(개설자)·group(활성 멤버) 양쪽. group BetSheet 은 `fixedTier`·`fixedMode` 로 선택 생략
 - **운영 반영 완료 (2026-06-13)**: 0039·0040 적용 + `claim-gift`·`create-gift-order` 배포. 클라는 빌드/OTA 대기. (배포 시 ⚠️ **migration 먼저** 원칙 — 미적용 상태로 EF 배포 시 donation_mode 컬럼 없어 응원 한잔까지 깨짐)
 
+### 신규 코드 위치 (v2.11 — 누구나 방 모집 마감, 0043, 2026-06-13)
+**누구나(open) 방은 "서로를 목격하는 동료" 경험이 핵심 → 군중이 되면 정체성 붕괴.** 강제 캡 대신 ① 개설자 수동 잠금 ② 50명·100명 도달 시 1회씩 넛지 알림 ③ 도전 기간 50% 경과 시 자동 마감. **"모집 마감" ≠ "종료"** — 신규 합류만 막히고 기존 멤버 인증·기록·대화·응원·완주는 그대로(다함께처럼). open 전용. 공식미션은 별도 트랙(캡 없음).
+- 판정 단일 소스: [`stats.ts`](mobile/lib/stats.ts) `isRecruiting`(open + 미잠금 + 기간 50% 전) / `recruitCloseAtMs`(시작 00:00~종료 24:00 KST 중간). DB `recruit_close_at` 와 동일 계산. **마감 동작은 날짜 파생이라 cron 불필요** — 알림만 cron.
+- DB: [`0043_recruit_lock.sql`](supabase/migrations/0043_recruit_lock.sql) — `challenges.recruit_locked`·`recruit_warn_level`(0/50/100 1회성)·`recruit_autoclose_notified` + `is_recruiting()`/`set_recruit_lock()`(해제는 50% 전만, 후엔 `auto_closed` 거부) RPC + `members_self_insert` 가드(open 은 모집중만) + 50/100 임계 트리거(`enqueue_recruit_milestone`) + 자동마감 알림 함수(`notify_recruit_autoclose`). 알림 kind 2종 추가
+- 합류 차단 이중: [`joinChallenge`](mobile/lib/invite.ts)(클라) + `members_self_insert`(RLS). 노출 제거: [`db.ts`](mobile/lib/db.ts) `fetchInterestingOpenChallenges`·`fetchOpenChallenges` 가 `isRecruiting` 필터. 잠금 RPC = `setRecruitLock`
+- UI: [`StatusTab`](mobile/components/challenge/StatusTab.tsx) 모집 상태 카드 + 개설자 "모집 잠그기/다시 열기" 토글(→`onRecruitLock` in [`room/[id].tsx`](mobile/app/room/[id].tsx)). 비멤버 FAB·헤더 초대 = recruit 마감 시 회색 "마감". 알림 라우팅 `recruit_milestone`·`recruit_autoclosed` → 현황 탭([`push.ts`](mobile/lib/push.ts)·[`AppHeader`](mobile/components/AppHeader.tsx)·[`flush-notifications`](supabase/functions/flush-notifications/index.ts) cron 이 `notify_recruit_autoclose` 호출)
+- 결정(2026-06-13): ① 다시 열기는 50% 전만(후엔 고정) ② 자동마감도 개설자 알림 ③ 잠금 토글=현황 탭 ④ 개설 시 설정 없음(방 안에서만) ⑤ 임계는 50·100 고정 1회성. count형(0041)도 동일 적용
+- **운영 반영 완료 (2026-06-13)**: 0043 적용 + `flush-notifications` EF 재배포(autoclose RPC 호출 추가) + 클라 OTA(preview·production). 네이티브 빌드 불필요(JS만 변경). (⚠️ kind 제약은 0033 gift 4종 포함 전체 목록 — 빠뜨리면 23514)
+
+### 신규 코드 위치 (v2.12 — 비멤버 헤더 정직화 + 참가자/오늘 인증 수 정확화 + 워드마크, 2026-06-13)
+- **참가자 수·오늘 인증 수 정확화 (RLS users-join 언더카운트 수정)**: 비멤버는 `users_self_read`(`shares_challenge_with`) 때문에 다른 멤버 프로필(users)을 못 읽어, [`fetchRoomData`](mobile/lib/db.ts) 의 `users(*)` 조인 + `.filter(m=>m.users)` 가 멤버 수를 깎았음(홈 카드는 `challenge_members` 행만 세 정확 → "홈 3명 vs 방 1명" 불일치). 수정: `fetchRoomData` 가 프로필 가시성과 분리한 `memberCount`(활성)·`todayCheckedCount`(활성 멤버 user_id 집합 × proofs — open 방은 비멤버도 proofs 열람 가능) 반환 + challenge_members select 에 `user_id` 직접 포함. 방 부제·`📸 N/N 인증`·헤더 아바타 +N·드롭업 제목 모두 이 값 사용 ([`room/[id].tsx`](mobile/app/room/[id].tsx)). 판정은 클라 단순 카운트(자동테스트 의무영역 아님)
+- **비멤버 헤더 정직화**: 헤더 초대 버튼 = 비멤버·종료·포기·**모집 마감** 시 숨기지 않고 **회색 비활성**(누르면 합류/마감 안내). 아바타 드롭업([`MemberSheet`](mobile/components/challenge/MemberSheet.tsx)) = 비멤버에겐 **인원 수만, 이름 명단 비공개**(현황 탭 잠금과 동일 기준). 포기 멤버는 활성 명단에서 제외(헤더 인원수와 일치)
+- **워드마크**: [`AppHeader`](mobile/components/AppHeader.tsx) "Do:**하다**" — 콜론은 검정, 한국어 브랜드명 '하다'를 로고색(주황)으로 (`brandName`, Option B)
+
+### 신규 코드 위치 (v2.13 — 연속 인증 마일스톤 메달, 0044, 2026-06-13)
+**인증 게시글에 "연속 N일" 오각형 메달.** 사람(아바타/닉네임) 아닌 **게시글**에 부착 → 비교/줄세우기 아닌 자기 여정 자축(조용한 SNS). 유튜브 골드 버튼 톤. 마일스톤 8단계: 3·7·21·49·99·180·365·730일.
+- DB: [`0044_proof_streak.sql`](supabase/migrations/0044_proof_streak.sql) — `proofs.streak_count` + BEFORE INSERT 트리거 `set_proof_streak`(같은 챌린지 KST 연속 일수, **같은 날 2번째+ 인증은 0** → 메달 중복 방지) + 기존 인증 백필(gaps-and-islands). 인증 시점에 고정(박제 성격)
+- 판정: [`stats.ts`](mobile/lib/stats.ts) `STREAK_MILESTONES`·`streakMilestone(count)` → `{day,label,color}` (마일스톤일 때만 non-null, 아니면 메달 X). 색 = [`tokens.ts`](mobile/lib/tokens.ts) `streakTier` 8색(초록→…→실버·골드·다이아, 인덱스 1:1)
+- UI: [`StreakMedal.tsx`](mobile/components/challenge/StreakMedal.tsx) — `react-native-svg` Polygon 오각형 + 흰 숫자(의미 라벨은 a11y). 노출 = 방 인증 탭 ProofCard([`room/[id].tsx`](mobile/app/room/[id].tsx)) + 홈 오늘 인증 카드([`home.tsx`](mobile/app/(tabs)/home.tsx)) 사진 우상단. 데이터 = `fetchRoomData`·`fetchFellowProofs` 가 `streak_count` 반환
+- 결정(2026-06-13): 전체 챌린지 적용 · 마일스톤 달성 게시글에만(상시 숫자 노출 X — 거대숫자 금지 정체성) · 저장 방식(트리거) · 49=강력한 습관/365=1년/730=2년. count형도 동일(연속 올린 날 기준)
+- **배포 (⚠️ migration 먼저)**: 0044 적용 → 클라 OTA. EF·네이티브 빌드 불필요(`react-native-svg` 는 초기 커밋 cfd0ad3부터 빌드 포함). 미적용 상태로 OTA 시 streak_count 없어 메달만 미노출(무해)
+
+### 신규 코드 위치 (v2.14 — 인증/기록 사진 여러 장 + 좌우 넘기기, 0045, 2026-06-13)
+**인증 최대 3장 · 기록 최대 4장.** 카드에서 인라인 좌우 스와이프, 탭하면 전체화면에서도 좌우 스와이프(+핀치줌). 전부 OTA 가능(네이티브 추가 없음 — picker 다중선택 옵션 + 기존 gesture/reanimated).
+- DB: [`0045_multi_photo.sql`](supabase/migrations/0045_multi_photo.sql) — `proofs.photo_urls text[]`(≤3) + `logs.photo_urls text[]`(≤4) + 백필 `[photo_url]`. **`photo_url` 은 커버(=첫 장)로 유지** → 기존 피드·홈·연속 메달·완주 통계 무탈. CHECK 로 장수 가드
+- 데이터: [`db.ts`](mobile/lib/db.ts) `fetchRoomData`·`fetchFellowProofs`·`fetchLogs`·`fetchRecentLogs` 가 `photo_urls` 반환(빈 배열이면 `[photo_url]` 폴백). `createLog`/`updateLog` 는 `photoUrls: string[]`(커버 자동). 타입: `DbProof.photo_urls`·`LogWithAuthor.photo_urls`·`FellowProof.photo_urls`
+- 표시: [`PhotoCarousel`](mobile/components/PhotoCarousel.tsx)(신규) — 카드 인라인 가로 페이저(점·"N/M" 배지, 우상단 슬롯=연속 메달). [`PhotoViewer`](mobile/components/PhotoViewer.tsx) = `photos[]`+`initialIndex`, FlatList 페이징 + 장별 핀치줌(줌 중 페이징 잠금). 적용: 방 인증 ProofCard(정사각) · 홈 오늘 인증(4:3) · 기록 카드(여러 장이면 캐러셀, 1장이면 기존 원본비율 LogPhoto)
+- 업로드: 인증([`checkin/[id].tsx`](mobile/app/checkin/[id].tsx)) = 카메라/보관함 다중선택→썸네일 검토(추가·제거·더찍기), 기록([`LogTab`](mobile/components/challenge/LogTab.tsx)) = 썸네일 줄(최대 4). picker `allowsMultipleSelection`+`selectionLimit`
+- **배포 (⚠️ migration 먼저)**: 0045 적용 → 클라 OTA. 미적용 OTA 시 photo_urls 없어 폴백(`[photo_url]`)으로 1장만 — 무해. ※ 전체화면 좌우 페이징+핀치 제스처는 실기기 확인 필요(정적 검증만 됨)
+
 ### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.
 - 인증 완료 Alert / 카톡 초대 / 생성 후 Alert / 챌린지방 헤더 부제 / FAB 라벨 — 모두 분류별 분기 완료

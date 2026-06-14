@@ -12,6 +12,8 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   members: MemberWithToday[];
+  memberCount: number;   // 🚀 실제 참가자 수 (프로필 가시성과 분리 — 비멤버도 정확한 인원 표시)
+  isMember: boolean;     // 🚀 비멤버는 동료 명단(이름) 비공개 — 인원 수만 노출 (현황 탭 잠금과 동일 기준)
   myUserId: string | undefined;
   creatorId: string;
 };
@@ -20,11 +22,16 @@ export function MemberSheet({
   visible,
   onClose,
   members,
+  memberCount,
+  isMember,
   myUserId,
   creatorId,
 }: Props) {
+  // 포기한 멤버는 조용한 보관 — 활성 명단에서 제외 (헤더 memberCount 와 동일 기준)
   // 본인을 맨 위로, 나머지는 가입 순
-  const ordered = [...members].sort((a, b) => {
+  const ordered = members
+    .filter(m => !m.gave_up_at)
+    .sort((a, b) => {
     if (a.id === myUserId) return -1;
     if (b.id === myUserId) return 1;
     return (a.joined_at ?? '').localeCompare(b.joined_at ?? '');
@@ -36,12 +43,20 @@ export function MemberSheet({
         <Pressable style={styles.sheet} onPress={() => {}}>
           <View style={styles.handle} />
           <View style={styles.header}>
-            <Text style={styles.title}>함께하는 동료 {members.length}명</Text>
+            <Text style={styles.title}>함께하는 동료 {memberCount}명</Text>
             <Pressable onPress={onClose} hitSlop={12}>
               <Text style={styles.close}>닫기</Text>
             </Pressable>
           </View>
-          
+
+          {/* 🚀 비멤버는 동료 명단 비공개 — 인원 수만 보고 합류 유도 (현황 탭 잠금과 동일 기준) */}
+          {!isMember ? (
+            <View style={styles.guestNote}>
+              <Text style={styles.guestNoteText}>
+                합류하면 함께하는 동료들을 볼 수 있어요.
+              </Text>
+            </View>
+          ) : (
           <FlatList
             data={ordered}
             keyExtractor={m => m.id}
@@ -78,6 +93,7 @@ export function MemberSheet({
               );
             }}
           />
+          )}
         </Pressable>
       </Pressable>
     </Modal>
@@ -130,6 +146,17 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.medium,
   },
   list: { paddingHorizontal: 20, paddingTop: 8 },
+  guestNote: {
+    paddingHorizontal: 24,
+    paddingVertical: 28,
+    alignItems: 'center',
+  },
+  guestNoteText: {
+    fontSize: fontSize.sm,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+    textAlign: 'center',
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -24,7 +24,7 @@ export default function SplashScreen() {
           <BrandMark size="xl" color={colors.surface} />
           <Text style={styles.title}>Do : 하다</Text>
           <Text style={styles.tagline}>더 나은 나, 더 나은 세상</Text>
-          <Text style={styles.subTagline}>나의 도전이 나와 세상을 바꾼다</Text>
+          <Text style={styles.subTagline}>내가 하는 것이 나와 세상을 바꾼다</Text>
         </View>
         <View style={styles.bottomActions}>
           <Text style={styles.tap}>탭하여 시작 →</Text>

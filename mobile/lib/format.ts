@@ -30,7 +30,7 @@ export function getKstTodayRange(): { startUtc: string; endUtc: string; kstDateS
 export function getChallengeDDay(startStr: string, endStr: string): string {
   const today = new Date().toISOString().slice(0, 10);
   if (today < startStr) return '시작 대기';
-  if (today > endStr) return '도전 종료';
+  if (today > endStr) return '하다 종료';
   
   const t = new Date(today + 'T00:00:00');
   const s = new Date(startStr + 'T00:00:00');

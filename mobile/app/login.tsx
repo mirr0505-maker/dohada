@@ -114,7 +114,7 @@ export default function LoginScreen() {
 
         <View style={styles.greetingBlock}>
           <Text style={styles.greeting}>시작해볼까요?</Text>
-          <Text style={styles.greetingSub}>3초만에 가입하고 첫 챌린지 시작</Text>
+          <Text style={styles.greetingSub}>3초만에 가입하고 첫 하다 시작</Text>
         </View>
 
         <View style={styles.providers}>

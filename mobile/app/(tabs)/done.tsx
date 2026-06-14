@@ -119,7 +119,7 @@ function StoryCard({ story }: { story: CompletionStoryCard }) {
         <View style={{ flex: 1 }}>
           <Text style={styles.who} numberOfLines={1}>{story.author.nickname}</Text>
           <Text style={styles.sub2} numberOfLines={1}>
-            {categoryEmoji} {story.challenge.category?.name ?? '도전'}
+            {categoryEmoji} {story.challenge.category?.name ?? '하다'}
           </Text>
         </View>
         <Text style={styles.trophy}>🏆</Text>

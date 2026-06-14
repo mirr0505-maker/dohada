@@ -119,7 +119,7 @@ export default function DiscoverScreen() {
       <View style={styles.curationInfo}>
         <Text style={styles.curationEmoji}>🔥</Text>
         <Text style={styles.curationText}>
-          <Text style={styles.curationStrong}>지금 핫한</Text> · 최근 만들어진 공개 챌린지
+          <Text style={styles.curationStrong}>지금 핫한</Text> · 최근 만들어진 공개 하다
         </Text>
       </View>
 
@@ -178,8 +178,8 @@ export default function DiscoverScreen() {
               <Text style={styles.emptyEmoji}>🌍</Text>
               <Text style={styles.emptyText}>
                 {categoryFilter
-                  ? `${categoryFilter} 분류의 공개 챌린지가 없어요.`
-                  : '아직 공개 챌린지가 없어요.\n하단 + 로 첫 공개 챌린지를 만들어볼까요?'}
+                  ? `${categoryFilter} 분류의 공개 하다가 없어요.`
+                  : '아직 공개 하다가 없어요.\n하단 + 로 첫 공개 하다를 만들어볼까요?'}
               </Text>
             </View>
           }
@@ -279,7 +279,7 @@ function DiscCard({
         </Text>
         <View style={[styles.joinBtn, isImpact && styles.joinBtnImpact]}>
           <Text style={[styles.joinBtnText, isImpact && styles.joinBtnTextImpact]}>
-            {isImpact ? '+ 동참' : '+ 도전'}
+            {isImpact ? '+ 동참' : '+ 하다'}
           </Text>
         </View>
       </View>

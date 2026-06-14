@@ -40,7 +40,7 @@ export default function MyChallengesScreen() {
       fetchMyGivenUpChallenges(session.user.id).then(setGaveUpChs).catch(() => {});
     } catch (e: any) {
       reportError(e, { where: 'my-challenges/fetch' });
-      setError(e?.message ?? '챌린지 목록을 불러오지 못했어요.');
+      setError(e?.message ?? '하다 목록을 불러오지 못했어요.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -58,11 +58,11 @@ export default function MyChallengesScreen() {
     <Screen backgroundColor={colors.background}>
       <AppHeader />
       <View style={styles.subHeader}>
-        <Text style={styles.subTitle}>🚩 내 도전</Text>
+        <Text style={styles.subTitle}>🚩 내 하다</Text>
         <Text style={styles.subDesc}>
           {challenges.length === 0
-            ? '아직 도전이 없어요. 하단 ⊕ 로 시작해볼까요?'
-            : `함께 가고 있는 도전 ${challenges.length}개`}
+            ? '아직 하다가 없어요. 하단 ⊕ 로 시작해볼까요?'
+            : `함께 가고 있는 하다 ${challenges.length}개`}
         </Text>
       </View>
 
@@ -93,7 +93,7 @@ export default function MyChallengesScreen() {
                 <View style={styles.empty}>
                   <Text style={styles.emptyEmoji}>🌱</Text>
                   <Text style={styles.emptyText}>
-                    참여 중인 챌린지가 없어요.{'\n'}하단 + 로 첫 챌린지를 만들어볼까요?
+                    참여 중인 하다가 없어요.{'\n'}하단 + 로 첫 하다를 만들어볼까요?
                   </Text>
                 </View>
               }
@@ -108,7 +108,7 @@ export default function MyChallengesScreen() {
                         fontWeight: fontWeight.bold,
                         paddingHorizontal: 4,
                       }}>
-                        🏆 끝낸 도전
+                        🏆 끝낸 하다
                       </Text>
                       {finished.map(item => (
                         <View key={item.id} style={{ opacity: 0.85 }}>
@@ -125,10 +125,10 @@ export default function MyChallengesScreen() {
                         onPress={() => { haptic.tap(); setGaveUpOpen(o => !o); }}
                         hitSlop={6}
                         accessibilityRole="button"
-                        accessibilityLabel={`지난 도전 ${gaveUpChs.length}개 ${gaveUpOpen ? '접기' : '펼치기'}`}
+                        accessibilityLabel={`지난 하다 ${gaveUpChs.length}개 ${gaveUpOpen ? '접기' : '펼치기'}`}
                       >
                         <Text style={styles.gaveUpToggle}>
-                          🕊️ 지난 도전 {gaveUpChs.length}개 {gaveUpOpen ? '접기 ▲' : '보기 ▼'}
+                          🕊️ 지난 하다 {gaveUpChs.length}개 {gaveUpOpen ? '접기 ▲' : '보기 ▼'}
                         </Text>
                       </Pressable>
                       {gaveUpOpen && gaveUpChs.map(item => (

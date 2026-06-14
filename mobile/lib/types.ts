@@ -43,6 +43,8 @@ export type DbChallenge = {
   bet_donation_mode?: string | null;  // 🚀 0040: 다인 내기 기부 모드 (commitment/pledge/always)
   goal_type?: ChallengeGoalType;      // 🚀 0041: 목표 유형 (기본 cadence)
   target_count?: number | null;       // 🚀 0041: count 유형의 목표 개수 (cadence 는 null)
+  recruit_locked?: boolean;           // 🚀 0043: 누구나 방 개설자 수동 모집 잠금 (기간 50% 자동마감과 합쳐 isRecruiting 으로 판정)
+  recruit_warn_level?: number;        // 🚀 0043: 인원 임계 알림 단계 (0/50/100, 1회성)
   gave_up_at: string | null; // 🚀 개설자가 챌린지 포기한 시각 (비활성화 판단용)
 };
 
@@ -50,9 +52,11 @@ export type DbProof = {
   id: string;
   challenge_id: string;
   user_id: string;
-  photo_url: string;
+  photo_url: string;        // 커버(=첫 장). 기존 피드·메달·완주 통계 호환용 유지
+  photo_urls?: string[];    // 🚀 0045: 인증 사진 전체 (최대 3장). 빈 배열이면 photo_url 단독
   caption: string | null;
   created_at: string;
+  streak_count?: number;   // 🚀 0044: 같은 챌린지 연속 인증 일수(이 인증 날 기준, 같은날 2번째+는 0). 마일스톤 메달용
 };
 
 // 인증 응원 4가지 (0007 cheers.cheer_type 컬럼)

@@ -45,7 +45,7 @@ export default function InviteScreen() {
       setStatus('confirming');
     } catch (e: any) {
       setStatus('error');
-      setErrorMsg(e?.message ?? '챌린지 정보를 불러오지 못했습니다.');
+      setErrorMsg(e?.message ?? '하다 정보를 불러오지 못했습니다.');
     }
   };
 
@@ -59,14 +59,14 @@ export default function InviteScreen() {
       await clearPendingInvite().catch(() => {});
       haptic.success();
       const msg = result === 'already_member'
-        ? '이미 참여 중인 챌린지입니다. 챌린지방으로 이동합니다.'
-        : '챌린지에 참여했습니다! 매일 함께 도전해요.';
+        ? '이미 참여 중인 하다입니다. 하다 방으로 이동합니다.'
+        : '하다에 참여했습니다! 매일 함께 해요.';
       Alert.alert('합류 완료', msg);
       router.replace(`/room/${id}`);
     } catch (e: any) {
       if (e?.message === 'adult_required') {
         setStatus('confirming');   // 화면 유지 — 다시 시도 가능
-        Alert.alert('성인 인증이 필요해요', '내기가 걸린 도전이라 성인 본인인증을 마친 분만 합류할 수 있어요.\n응원 한잔/내기에서 본인인증을 먼저 진행해주세요.');
+        Alert.alert('성인 인증이 필요해요', '내기가 걸린 하다라 성인 본인인증을 마친 분만 합류할 수 있어요.\n응원 한잔/내기에서 본인인증을 먼저 진행해주세요.');
         return;
       }
       setStatus('error');
@@ -77,7 +77,7 @@ export default function InviteScreen() {
   const handleReject = () => {
     haptic.tap();
     Alert.alert(
-      '도전 거절',
+      '하다 거절',
       '초대를 거절하시겠습니까? 홈 화면으로 이동합니다.',
       [
         { text: '취소', style: 'cancel' },
@@ -108,7 +108,7 @@ export default function InviteScreen() {
         {status === 'confirming' && challenge && (
           <View style={styles.card}>
             <Text style={styles.cardHeaderEmoji}>🌍</Text>
-            <Text style={styles.cardCuration}>도전 인연 초대장</Text>
+            <Text style={styles.cardCuration}>하다 인연 초대장</Text>
             
             <Text style={styles.title}>{challenge.title}</Text>
             
@@ -158,7 +158,7 @@ export default function InviteScreen() {
               </View>
             ) : (
               <View style={styles.emptyMessageBox}>
-                <Text style={styles.emptyMessageText}>새로운 도전을 함께 개시해보세요! 🌱</Text>
+                <Text style={styles.emptyMessageText}>새로운 하다를 함께 개시해보세요! 🌱</Text>
               </View>
             )}
 
@@ -167,7 +167,7 @@ export default function InviteScreen() {
                 <Text style={styles.btnRejectText}>나중에 하기</Text>
               </Pressable>
               <Pressable style={[styles.btn, styles.btnAccept]} onPress={handleAccept}>
-                <Text style={styles.btnAcceptText}>함께 도전하기</Text>
+                <Text style={styles.btnAcceptText}>함께 하기</Text>
               </Pressable>
             </View>
           </View>
@@ -176,7 +176,7 @@ export default function InviteScreen() {
         {status === 'joining' && (
           <View style={styles.loadingBox}>
             <ActivityIndicator color={colors.accent} size="large" />
-            <Text style={styles.title}>챌린지에 참여하는 중…</Text>
+            <Text style={styles.title}>하다에 참여하는 중…</Text>
           </View>
         )}
 

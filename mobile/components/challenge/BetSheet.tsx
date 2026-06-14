@@ -31,11 +31,11 @@ type Step = 'intro' | 'tier' | 'mode' | 'verify' | 'confirm' | 'done';
 const REASON_LABEL: Record<string, string> = {
   identity_not_verified: '본인인증이 필요해요.',
   invalid_tier: '지금은 걸 수 없는 금액이에요.',
-  not_a_member: '이 도전의 멤버만 걸 수 있어요.',
+  not_a_member: '이 하다의 멤버만 걸 수 있어요.',
   bet_room_not_allowed: '나와의 내기는 나혼자·응원받기 방에서만 걸 수 있어요.',
-  bet_challenger_only: '도전을 시작한 본인만 걸 수 있어요.',
-  bet_challenge_finished: '이미 종료된 도전에는 걸 수 없어요.',
-  bet_already_exists: '이미 이 도전에 한잔을 걸어두었어요.',
+  bet_challenger_only: '하다를 시작한 본인만 걸 수 있어요.',
+  bet_challenge_finished: '이미 종료된 하다에는 걸 수 없어요.',
+  bet_already_exists: '이미 이 하다에 한잔을 걸어두었어요.',
   amount_mismatch: '결제 금액이 맞지 않아 취소했어요.',
 };
 
@@ -131,11 +131,11 @@ export function BetSheet({ visible, onClose, challengeId, myUserId, fixedTier = 
           {step === 'intro' && (
             <>
               <Text style={styles.emojiBig}>🎯</Text>
-              <Text style={styles.title}>{isGroup ? '이 방의 내기에 참여하기' : '이 도전, 한잔 걸기'}</Text>
+              <Text style={styles.title}>{isGroup ? '이 방의 내기에 참여하기' : '이 하다, 한잔 걸기'}</Text>
               {isGroup && selectedTier ? (
                 <Text style={styles.sub}>
                   이 방에 <Text style={styles.bold}>{selectedTier.label} {selectedTier.price.toLocaleString()}원</Text> 내기가 걸려 있어요.{'\n'}
-                  참여자 전원이 같은 한잔을 걸고 함께 도전해요.
+                  참여자 전원이 같은 한잔을 걸고 함께 해요.
                 </Text>
               ) : (
                 <Text style={styles.sub}>
@@ -228,7 +228,7 @@ export function BetSheet({ visible, onClose, challengeId, myUserId, fixedTier = 
             <>
               <Text style={styles.title}>{selectedTier.label} 걸기</Text>
               <Text style={styles.sub}>
-                이 도전에 {selectedTier.price.toLocaleString()}원의 한잔을 겁니다.
+                이 하다에 {selectedTier.price.toLocaleString()}원의 한잔을 겁니다.
               </Text>
               <View style={styles.promiseBox}>
                 <Text style={styles.promiseText}>

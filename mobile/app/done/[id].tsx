@@ -28,7 +28,7 @@ const FIELD_ORDER: { key: keyof CompletionStoryCard; label: string }[] = [
   { key: 'helped_when_giving_up', label: '포기하고 싶을 때 뭐가 도왔나?' },
   { key: 'advice_to_starters',    label: '시작하는 사람에게 한마디' },
   { key: 'own_tip',               label: '나만의 방법 · 꿀팁' },
-  { key: 'what_changed',          label: '이 도전으로 무엇이 달라졌나?' },
+  { key: 'what_changed',          label: '이 하다로 무엇이 달라졌나?' },
 ];
 
 export default function CompletionStoryDetailScreen() {
@@ -145,7 +145,7 @@ export default function CompletionStoryDetailScreen() {
   }
 
   const year = new Date(story.created_at).getFullYear();
-  const categoryName = story.challenge.category?.name ?? '도전';
+  const categoryName = story.challenge.category?.name ?? '하다';
 
   return (
     <Screen backgroundColor={colors.background}>
@@ -229,7 +229,7 @@ export default function CompletionStoryDetailScreen() {
         {!isMine && (
           <View style={styles.ctaWrap}>
             <Pressable style={styles.ctaBtn} onPress={onStartSimilar}>
-              <Text style={styles.ctaText}>나도 {categoryName} 도전 시작하기</Text>
+              <Text style={styles.ctaText}>나도 {categoryName} 하다 시작하기</Text>
             </Pressable>
             <Text style={styles.ctaHint}>
               이 이야기에 닿았다면, 다음은 당신 차례예요.

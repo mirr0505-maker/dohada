@@ -8,7 +8,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
-import { fetchRoomData, toggleCheer, pauseMembership, resumeMembership, giveUpMembership } from '@/lib/db';
+import { fetchRoomData, toggleCheer, pauseMembership, resumeMembership, giveUpMembership, setRecruitLock } from '@/lib/db';
 import type { CheerType } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 import { ErrorState } from '@/components/ErrorState';
@@ -24,6 +24,7 @@ import { GiftSheet } from '@/components/challenge/GiftSheet';
 import { BetSheet } from '@/components/challenge/BetSheet';
 import { BetCard } from '@/components/challenge/BetCard';
 import { PhotoViewer } from '@/components/PhotoViewer';
+import { PhotoCarousel } from '@/components/PhotoCarousel';
 import {
   isGiftPilotEmail, fetchMyReceivedGifts, GIFT_TIERS, GIFT_STATUS_LABEL, type ReceivedGift,
   fetchMyBet, claimGift, type MyBet, type BetTier, type BetDonationMode,
@@ -32,7 +33,8 @@ import { InviteLetterModal } from '@/components/challenge/InviteLetterModal';
 import { ImpactModal } from '@/components/challenge/ImpactModal';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
-import { computeProgress, computeStreak, isCompleted, isFinished, getFarewellState } from '@/lib/stats';
+import { computeProgress, computeStreak, isCompleted, isFinished, getFarewellState, isRecruiting, streakMilestone } from '@/lib/stats';
+import { StreakMedal } from '@/components/challenge/StreakMedal';
 import * as SecureStore from 'expo-secure-store';
 import { joinChallenge } from '@/lib/invite';
 import { formatCheerCount, getKstTodayRange } from '@/lib/format';
@@ -53,9 +55,9 @@ const ROOM_TABS: { key: RoomTab; emoji: string; label: string }[] = [
 // 방 종류 메타 라벨 — 분류 용어 X, 사람 단위 톤
 function roomKindLabel(kind: ChallengeKind, memberCount: number): string {
   if (kind === 'solo') return '혼자만의 다짐';
-  if (kind === 'cheered') return `응원받는 도전 · 함께 ${memberCount}명`;
+  if (kind === 'cheered') return `응원받는 하다 · 함께 ${memberCount}명`;
   if (kind === 'open') return `누구나 합류 가능 · 함께 ${memberCount}명`;
-  return `함께 도전하는 ${memberCount}명`;
+  return `함께 하는 ${memberCount}명`;
 }
 
 export default function ChallengeRoom() {
@@ -69,6 +71,10 @@ export default function ChallengeRoom() {
 
   const [challenge, setChallenge] = useState<DbChallenge | null>(null);
   const [members, setMembers] = useState<MemberWithToday[]>([]);
+  // 🚀 정확한 참가자 수 / 오늘 인증 수 — 프로필 가시성(RLS)과 분리. 비멤버는 members(프로필 보이는 멤버)가
+  // 적게 잡혀도 이 값들로 실제 인원·오늘 인증 수를 표시한다 (홈 카드와 동일 기준, 분모·분자 모두 정확).
+  const [memberCount, setMemberCount] = useState(0);
+  const [todayCheckedCount, setTodayCheckedCount] = useState(0);
   const [proofs, setProofs] = useState<ProofWithRelations[]>([]);
   const [totalLogs, setTotalLogs] = useState(0);   // 박제 통계·ImpactModal 용 기록 수
   const [loading, setLoading] = useState(true);
@@ -84,7 +90,7 @@ export default function ChallengeRoom() {
   const [inviteConfirmOpen, setInviteConfirmOpen] = useState(false);          // 🚀 초대 메시지 첨부 확인 모달 열림 여부
   const [inviteLetterOpen, setInviteLetterOpen] = useState(false);            // 🚀 초대 편지글 모달 열림 여부
   const [giftTarget, setGiftTarget] = useState<{ id: string; nickname: string; proofId?: string } | null>(null);   // ☕ 응원 한잔 대상
-  const [viewerUri, setViewerUri] = useState<string | null>(null);   // 🚀 사진 전체보기 뷰어 (인증)
+  const [viewer, setViewer] = useState<{ photos: string[]; index: number } | null>(null);   // 🚀 사진 전체보기 뷰어 (인증, 여러 장)
 
   const myUserId = session?.user?.id;
   // ☕ 파일럿 게이트 — 개발 모드이거나 지정 계정일 때만 한잔 버튼 노출
@@ -130,6 +136,8 @@ export default function ChallengeRoom() {
       const data = await fetchRoomData(id, myUserId);
       setChallenge(data.challenge);
       setMembers(data.members);
+      setMemberCount(data.memberCount);
+      setTodayCheckedCount(data.todayCheckedCount);
       setProofs(data.proofs);
       setTotalLogs(data.totalLogs);
       // 받은 한잔은 부가 정보 — 실패해도 방 로딩을 막지 않음
@@ -138,7 +146,7 @@ export default function ChallengeRoom() {
       if (isGiftPilot) fetchMyBet(id, myUserId).then(setMyBet).catch(() => {});
     } catch (e: any) {
       reportError(e, { where: 'room/fetchRoomData', challengeId: id });
-      setError(e?.message ?? '챌린지를 불러오지 못했어요.');
+      setError(e?.message ?? '하다를 불러오지 못했어요.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -301,8 +309,8 @@ export default function ChallengeRoom() {
 
         // 응원받기 방은 응원 요청 톤, 그 외는 함께 도전 톤
         const intro = challenge.kind === 'cheered'
-          ? `"${challenge.title}" 챌린지를 시작합니다.\n와서 응원해주세요! 💛`
-          : `"${challenge.title}" 챌린지에 함께해요!`;
+          ? `"${challenge.title}" 하다를 시작합니다.\n와서 응원해주세요! 💛`
+          : `"${challenge.title}" 하다에 함께해요!`;
 
         // 시작 전(모집 기간)이면 시작일을 초대글에 명시 — 합류자가 출발선을 알고 들어오게 (v2.8)
         const kstTodayStr = getKstTodayRange().kstDateStr;
@@ -315,7 +323,7 @@ export default function ChallengeRoom() {
             `${messageText}` +
             `${intro}\n\n` +
             `${startLine}` +
-            `📱 아래 링크를 눌러 챌린지에 합류하세요:\n${link}`,
+            `📱 아래 링크를 눌러 하다에 합류하세요:\n${link}`,
         });
       } catch (e) {
         Alert.alert('공유 실패', String(e));
@@ -337,7 +345,7 @@ export default function ChallengeRoom() {
     Alert.alert(
       'Do : 하다',
       isCheered
-        ? '응원받는 도전!\n지인들에게 응원을 부탁해보세요'
+        ? '응원받는 하다!\n지인들에게 응원을 부탁해보세요'
         : '더 나은 나 더 나은 세상\n함께하면 완주 성공 3배',
       [
         { text: '나중에', style: 'cancel' },
@@ -367,8 +375,8 @@ export default function ChallengeRoom() {
       // 종료일이 지난 방은 개설자가 포기했어도 제거 유도 X — 멤버의 박제 접근 보존 (박제=영구 원칙)
       enterAlertShownRef.current = true;
       Alert.alert(
-        '도전 종료',
-        '개설자가 포기 선택하였습니다. 확인을 누르시면 내 챌린지에서 제거됩니다',
+        '하다 종료',
+        '개설자가 포기 선택하였습니다. 확인을 누르시면 내 하다에서 제거됩니다',
         [
           {
             text: '확인',
@@ -479,7 +487,7 @@ export default function ChallengeRoom() {
     if (isCheeredCheerOnly) {
       Alert.alert(
         '응원 그만하기',
-        '이 챌린지의 응원을 그만둘까요?\n내 목록에서 챌린지가 사라집니다.',
+        '이 하다의 응원을 그만둘까요?\n내 목록에서 하다가 사라집니다.',
         [
           { text: '취소', style: 'cancel' },
           {
@@ -503,13 +511,13 @@ export default function ChallengeRoom() {
       return;
     }
     Alert.alert(
-      '잠시 멈춤 / 도전 포기',
-      '며칠 쉴까요? 또는 완전히 포기할 수 있어요.',
+      '잠시 멈춤 / 그만두기',
+      '며칠 쉴까요? 또는 완전히 그만둘 수 있어요.',
       [
         { text: '취소', style: 'cancel' },
         { text: '3일 쉼', onPress: () => doPause(3) },
         { text: '7일 쉼', onPress: () => doPause(7) },
-        { text: '🚫 도전 포기', style: 'destructive', onPress: confirmGiveUp },
+        { text: '🚫 그만두기', style: 'destructive', onPress: confirmGiveUp },
       ],
     );
 
@@ -527,12 +535,12 @@ export default function ChallengeRoom() {
 
     function confirmGiveUp() {
       Alert.alert(
-        '도전 포기',
-        '정말 포기할까요?\n이 챌린지가 내 목록에서 사라져요.\n작성한 인증·기록은 보존돼요.',
+        '그만두기',
+        '정말 그만둘까요?\n이 하다가 내 목록에서 사라져요.\n작성한 인증·기록은 보존돼요.',
         [
           { text: '취소', style: 'cancel' },
           {
-            text: '포기',
+            text: '그만두기',
             style: 'destructive',
             onPress: () => {
               giveUpMembership({ challengeId: challenge!.id, userId: myUserId! })
@@ -561,7 +569,7 @@ export default function ChallengeRoom() {
     return (
       <Screen backgroundColor={colors.background}>
         <ErrorState
-          message={error ?? '챌린지를 찾을 수 없어요.'}
+          message={error ?? '하다를 찾을 수 없어요.'}
           onRetry={() => { setLoading(true); load(); }}
         />
       </Screen>
@@ -575,7 +583,7 @@ export default function ChallengeRoom() {
   const onFinishedNotice = () => {
     haptic.tap();
     Alert.alert(
-      '이미 종료된 도전이에요',
+      '이미 종료된 하다예요',
       '종료된 방은 초대·멈춤·메시지 발송을 사용할 수 없어요.\n남긴 인증과 기록은 박제에 영구 보존됩니다.',
     );
   };
@@ -589,7 +597,7 @@ export default function ChallengeRoom() {
     haptic.tap();
     Alert.alert(
       '합류하면 함께할 수 있어요',
-      '이 도전에 합류하면 대화·응원·댓글·현황·박제까지 함께할 수 있어요.',
+      '이 하다에 합류하면 대화·응원·댓글·현황·박제까지 함께할 수 있어요.',
       [{ text: '둘러보기', style: 'cancel' }, { text: '참여하기', onPress: onJoin }],
     );
   };
@@ -598,19 +606,50 @@ export default function ChallengeRoom() {
     haptic.tap();
     if (iGaveUp) {
       Alert.alert(
-        '포기한 도전이에요',
-        '남긴 흔적은 열람만 가능해요.\n언제든 새 도전으로 다시 시작할 수 있어요.',
+        '그만둔 하다예요',
+        '남긴 흔적은 열람만 가능해요.\n언제든 새 하다로 다시 시작할 수 있어요.',
       );
       return;
     }
     Alert.alert(
-      '박제된 도전이에요',
+      '박제된 하다예요',
       '마무리 기간이 끝나 대화·응원·기록은 보존만 됩니다.',
     );
   };
   // 헤더 액션(초대·발송메시지·멈춤) 잠금 — 종료 방 + 포기 멤버 공통
   const headerLocked = finished || iGaveUp;
   const onHeaderLockedNotice = iGaveUp ? onLockedNotice : onFinishedNotice;
+  // 🚀 0043: 누구나 방 모집 마감(개설자 잠금 / 기간 50% 경과) — 신규 합류·초대 차단 (종료는 아님)
+  const recruitClosed = challenge.kind === 'open' && !isRecruiting(challenge);
+  const onRecruitClosedNotice = () => {
+    haptic.tap();
+    Alert.alert('모집 마감', '모집이 마감돼 새로 초대·합류할 수 없어요.\n지금 멤버들과 함께 진행 중이에요.');
+  };
+  // 개설자 모집 잠금/해제 (현황 탭 토글) — 잠금은 확인 후, 해제는 즉시 (50% 후 해제는 서버가 거부)
+  const onRecruitLock = (locked: boolean) => {
+    const apply = () => {
+      setRecruitLock(challenge.id, locked)
+        .then(() => { haptic.success(); load(); })
+        .catch((e: any) => {
+          const msg = e?.message === 'auto_closed'
+            ? '기간 절반이 지나 모집이 자동 마감됐어요. 다시 열 수 없어요.'
+            : (e?.message ?? String(e));
+          Alert.alert('모집 설정 실패', msg);
+        });
+    };
+    if (locked) {
+      Alert.alert(
+        '모집 잠그기',
+        '새 합류를 그만 받을까요?\n지금 멤버들과 함께 진행하게 돼요.\n(기간 절반이 지나기 전이면 다시 열 수 있어요)',
+        [
+          { text: '취소', style: 'cancel' },
+          { text: '잠그기', style: 'destructive', onPress: apply },
+        ],
+      );
+    } else {
+      apply();
+    }
+  };
   // ☕ 한잔 도착 — 미수령이 있으면 수령 화면으로, 전부 처리됐으면 내역 팝업 (숫자 카운팅 표기 없음)
   const onGiftArrivedPress = (gifts: ReceivedGift[]) => {
     haptic.tap();
@@ -631,7 +670,6 @@ export default function ChallengeRoom() {
     g => g.status === 'paid' && (!g.proof_id || !visibleProofIds.has(g.proof_id)),
   );
   const daysLeft = progress ? Math.max(0, progress.totalDays - progress.passedDays) : 0;
-  const todayCheckedCount = members.filter(m => m.today_checked).length;
   // 🚀 모집 기간 — 시작일 전이면 인증 대신 동료 모집 모드 (다함께·누구나 시작일 지정, v2.8)
   const kstToday = getKstTodayRange().kstDateStr;
   const notStarted = kstToday < challenge.start_date;
@@ -678,7 +716,7 @@ export default function ChallengeRoom() {
     const action: 'donate' | 'refund' = myBet.donation_mode === 'pledge' ? 'refund' : 'donate';
     const consequence = myBet.donation_mode === 'pledge' ? '걸어둔 한잔은 환불돼요' : '걸어둔 한잔은 기부로 마무리돼요';
     Alert.alert(
-      '도전 포기 — 실패 인증',
+      '그만두기 — 실패 인증',
       `포기하면 이 내기는 '실패'로 처리되고, ${consequence}.\n되돌릴 수 없어요.`,
       [
         { text: '취소', style: 'cancel' },
@@ -739,13 +777,13 @@ export default function ChallengeRoom() {
               onPress={() => { haptic.tap(); setMemberSheetOpen(true); }}
               hitSlop={6}
               accessibilityRole="button"
-              accessibilityLabel={`멤버 ${members.length}명 보기`}
+              accessibilityLabel={`멤버 ${memberCount}명 보기`}
             >
-              <StackedAvatars members={members} />
+              <StackedAvatars members={members} totalCount={memberCount} />
             </Pressable>
           </View>
           <View style={styles.headerSubtitleRow}>
-            <Text style={styles.subtitle}>{roomKindLabel(challenge.kind, members.length)}</Text>
+            <Text style={styles.subtitle}>{roomKindLabel(challenge.kind, memberCount)}</Text>
             {/* 🚀 개설자 전체 메시지 발송 버튼 — 종료 방은 초대·멈춤과 동일하게 회색 비활성 */}
             {isCreator && challenge.kind !== 'solo' && (
               <Pressable
@@ -760,17 +798,30 @@ export default function ChallengeRoom() {
             )}
           </View>
         </View>
-        {challenge.kind !== 'solo' && isMember ? (
+        {challenge.kind !== 'solo' ? (
+          // 🚀 비멤버는 초대 불가지만 숨기지 않고 회색 비활성으로 노출. 모집 마감/종료 방도 회색.
           <Pressable
-            onPress={headerLocked ? onHeaderLockedNotice : onShareInvite}
+            onPress={
+              !isMember
+                ? (recruitClosed ? onRecruitClosedNotice : onJoinNotice)
+                : headerLocked
+                  ? onHeaderLockedNotice
+                  : recruitClosed
+                    ? onRecruitClosedNotice
+                    : onShareInvite
+            }
             hitSlop={12}
             accessibilityRole="button"
-            accessibilityLabel={headerLocked ? '초대 — 사용 불가' : '동료 초대'}
+            accessibilityLabel={
+              !isMember ? '초대 — 합류 후 가능'
+              : (headerLocked || recruitClosed) ? '초대 — 사용 불가'
+              : '동료 초대'
+            }
           >
-            <Text style={[styles.share, headerLocked && styles.shareDisabled]}>초대</Text>
+            <Text style={[styles.share, (!isMember || headerLocked || recruitClosed) && styles.shareDisabled]}>초대</Text>
           </Pressable>
         ) : (
-          // 🚀 비멤버(누구나 미리보기)는 초대 불가 — 자리만 비워 헤더 정렬 유지
+          // 솔로 방은 초대 개념 없음 — 자리만 비워 헤더 정렬 유지
           <View style={{ width: 32 }} />
         )}
       </View>
@@ -779,7 +830,7 @@ export default function ChallengeRoom() {
       <View style={styles.infoBar}>
         <View style={styles.infoStats}>
           <Text style={[styles.infoStatItem, finished && styles.infoStatItemDone]}>🔥 {progress?.passedDays ?? 0}/{progress?.totalDays ?? 0}일</Text>
-          <Text style={[styles.infoStatItem, finished && styles.infoStatItemDone]}>📸 {todayCheckedCount}/{Math.max(1, members.length)} 인증</Text>
+          <Text style={[styles.infoStatItem, finished && styles.infoStatItemDone]}>📸 {todayCheckedCount}/{Math.max(1, memberCount)} 인증</Text>
         </View>
         <View style={styles.infoRight}>
           <Pressable onPress={() => { haptic.tap(); setImpactModalOpen(true); }} hitSlop={6}>
@@ -868,7 +919,7 @@ export default function ChallengeRoom() {
           renderItem={({ item }) => (
             <ProofCard
               proof={item}
-              onViewPhoto={setViewerUri}
+              onViewPhoto={(photos, index) => setViewer({ photos, index })}
               mine={item.user_id === myUserId}
               locked={writeLocked || !isMember}
               onCheer={(type) => (!isMember ? onJoinNotice() : writeLocked ? onLockedNotice() : onCheer(item.id, type))}
@@ -931,6 +982,7 @@ export default function ChallengeRoom() {
           proofs={proofs}
           myUserId={myUserId}
           betSlot={betSlot}
+          onRecruitLock={onRecruitLock}
         />
       )}
       {activeTab === 'archive' && (
@@ -950,10 +1002,18 @@ export default function ChallengeRoom() {
          - 일반 멤버: 인증 탭(카메라) / 기록 탭(컴포저). 채팅·현황·박제는 숨김 (작업 흐름 방해 방지) */}
       {(() => {
         if (!isMember) {
+          // 🚀 0043: 모집 마감된 누구나 방 — 합류 대신 마감 안내 (홈/둘러보기엔 이미 안 뜨고, 초대 링크 잔존분 대비)
+          if (recruitClosed) {
+            return (
+              <Pressable style={[styles.fab, styles.fabPaused]} onPress={onRecruitClosedNotice}>
+                <Text style={styles.fabLabel}>🔒 모집 마감된 하다</Text>
+              </Pressable>
+            );
+          }
           return (
             <Pressable style={[styles.fab, styles.fabJoin]} onPress={onJoin}>
               <Text style={styles.fabLabel}>
-                {joining ? '참여 중…' : '🌍 이 챌린지에 참여하기'}
+                {joining ? '참여 중…' : '🌍 이 하다에 참여하기'}
               </Text>
             </Pressable>
           );
@@ -969,7 +1029,7 @@ export default function ChallengeRoom() {
                 router.push(`/create?title=${encodeURIComponent(challenge.title)}` as any);
               }}
             >
-              <Text style={styles.fabLabel}>🔄 이 도전, 다시 시작하기</Text>
+              <Text style={styles.fabLabel}>🔄 이 하다, 다시 시작하기</Text>
             </Pressable>
           );
         }
@@ -1003,7 +1063,7 @@ export default function ChallengeRoom() {
               style={[styles.fab, styles.fabDone]}
               onPress={() => { haptic.tap(); setActiveTab('archive'); }}
             >
-              <Text style={styles.fabLabel}>🏁 도전 종료 · 박제 보기</Text>
+              <Text style={styles.fabLabel}>🏁 하다 종료 · 박제 보기</Text>
             </Pressable>
           );
         }
@@ -1072,7 +1132,7 @@ export default function ChallengeRoom() {
         );
       })()}
 
-      <PhotoViewer uri={viewerUri} onClose={() => setViewerUri(null)} />
+      <PhotoViewer photos={viewer?.photos ?? null} initialIndex={viewer?.index ?? 0} onClose={() => setViewer(null)} />
 
       <CommentsSheet
         proofId={activeProofId}
@@ -1092,6 +1152,8 @@ export default function ChallengeRoom() {
         visible={memberSheetOpen}
         onClose={() => setMemberSheetOpen(false)}
         members={members}
+        memberCount={memberCount}
+        isMember={isMember}
         myUserId={myUserId}
         creatorId={challenge.creator_id}
       />
@@ -1151,10 +1213,13 @@ export default function ChallengeRoom() {
 }
 
 // 헤더 stacked avatars — 최대 4개 + "+N"
-function StackedAvatars({ members }: { members: MemberWithToday[] }) {
+// totalCount = 실제 참가자 수(프로필 RLS 와 무관). 비멤버는 프로필 보이는 멤버만 아바타로 뜨고
+// 나머지는 "+N" 으로 합산해 실제 인원을 헤더에서 알 수 있게 한다.
+function StackedAvatars({ members, totalCount }: { members: MemberWithToday[]; totalCount?: number }) {
   const MAX_VISIBLE = 4;
   const visible = members.slice(0, MAX_VISIBLE);
-  const remaining = Math.max(0, members.length - MAX_VISIBLE);
+  const total = Math.max(totalCount ?? members.length, visible.length);
+  const remaining = Math.max(0, total - visible.length);
   return (
     <View style={styles.stackedRow}>
       {visible.map((m, i) => (
@@ -1199,7 +1264,7 @@ function ProofCard({
   proof, onViewPhoto, onCheer, onComments, locked = false, onGift = null, onGiftArrived = null, mine = false,
 }: {
   proof: ProofWithRelations;
-  onViewPhoto: (uri: string) => void;
+  onViewPhoto: (photos: string[], index: number) => void;
   onCheer: (type: CheerType) => void;
   onComments: () => void;
   locked?: boolean;   // 박제(쓰기 잠금) — 응원 칩 회색 처리
@@ -1223,10 +1288,19 @@ function ProofCard({
         </View>
       </View>
 
-      <Pressable onPress={() => onViewPhoto(proof.photo_url)}>
-        <Image source={{ uri: proof.photo_url }} style={styles.proofPhoto} resizeMode="cover" />
-        <View style={styles.zoomHint}><Text style={styles.zoomHintText}>🔍</Text></View>
-      </Pressable>
+      {(() => {
+        // 🚀 0045: 사진 여러 장 — 카드에서 좌우 스와이프, 탭하면 전체화면. 연속 메달은 우상단 슬롯.
+        const photos = proof.photo_urls?.length ? proof.photo_urls : [proof.photo_url];
+        const m = streakMilestone(proof.streak_count);
+        return (
+          <PhotoCarousel
+            photos={photos}
+            aspectRatio={1}
+            onPressPhoto={(i) => onViewPhoto(photos, i)}
+            topRight={m ? <StreakMedal day={m.day} color={m.color} /> : undefined}
+          />
+        );
+      })()}
 
       {proof.caption ? (
         <Text style={styles.proofCaption}>{proof.caption}</Text>
@@ -1535,6 +1609,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 3,
   },
   zoomHintText: { fontSize: 12 },
+  streakMedalWrap: { position: 'absolute', top: 10, right: 10 },
   proofCaption: {
     fontSize: fontSize.base,
     color: colors.primary,

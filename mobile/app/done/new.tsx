@@ -34,7 +34,7 @@ const FIELDS: { key: FieldKey; label: string; ph: string; maxLen: number; multil
   { key: 'helped',      label: '포기하고 싶을 때 뭐가 도왔나요?', ph: '예: 방 동료들이 솔직히 털어놔서 다 같이 버텼어요.', maxLen: 1500, multiline: true  },
   { key: 'advice',      label: '시작하는 사람에게 한마디',      ph: '예: 딱 3일만 버텨봐요. 그 다음은 쉬워져요.',          maxLen: 1000, multiline: true  },
   { key: 'ownTip',      label: '나만의 방법 · 꿀팁',           ph: '예: 알람을 신발 옆에 두면 안 일어날 수가 없어요.',    maxLen: 1000, multiline: true  },
-  { key: 'whatChanged', label: '이 도전으로 무엇이 달라졌나요?', ph: '예: 아침 시간이 늘어났고, 가족과 시간이 생겼어요.',  maxLen: 1500, multiline: true  },
+  { key: 'whatChanged', label: '이 하다로 무엇이 달라졌나요?', ph: '예: 아침 시간이 늘어났고, 가족과 시간이 생겼어요.',  maxLen: 1500, multiline: true  },
 ];
 
 type Stats = {
@@ -86,7 +86,7 @@ export default function NewCompletionStoryScreen() {
         if (existing) {
           Alert.alert(
             '이미 이야기가 있어요',
-            '이 도전의 완주 이야기는 이미 작성하셨어요.',
+            '이 하다의 완주 이야기는 이미 작성하셨어요.',
             [{ text: '확인', onPress: () => router.back() }],
           );
           return;
@@ -223,7 +223,7 @@ export default function NewCompletionStoryScreen() {
     return (
       <Screen backgroundColor={colors.background}>
         <View style={[styles.center, { flex: 1, paddingHorizontal: 24 }]}>
-          <Text style={styles.errText}>{error ?? '챌린지 정보를 불러오지 못했어요.'}</Text>
+          <Text style={styles.errText}>{error ?? '하다 정보를 불러오지 못했어요.'}</Text>
           <Pressable style={styles.errBtn} onPress={() => router.back()}>
             <Text style={styles.errBtnText}>돌아가기</Text>
           </Pressable>
@@ -336,8 +336,8 @@ export default function NewCompletionStoryScreen() {
             >
               <View style={[styles.radioCircle, visibility === 'allies' && styles.radioCircleOn]} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.radioLabel}>🙋 도전 인연에게만</Text>
-                <Text style={styles.radioDesc}>같은 챌린지 멤버에게만 보여요</Text>
+                <Text style={styles.radioLabel}>🙋 하다 인연에게만</Text>
+                <Text style={styles.radioDesc}>같은 하다 멤버에게만 보여요</Text>
               </View>
             </Pressable>
           </View>

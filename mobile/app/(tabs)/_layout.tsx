@@ -75,7 +75,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="my-challenges"
         options={{
-          title: '내 챌린지',
+          title: '내 하다',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'flag' : 'flag-outline'} size={TAB_ICON_SIZE} color={color} />
           ),
@@ -85,7 +85,7 @@ export default function TabsLayout() {
         name="create-tab"
         options={{
           title: '',
-          tabBarAccessibilityLabel: '챌린지 만들기',
+          tabBarAccessibilityLabel: '하다 만들기',
           tabBarIcon: () => (
             <View style={{
               width: 52,

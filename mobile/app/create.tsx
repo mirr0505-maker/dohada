@@ -58,8 +58,8 @@ const PROOF_TYPES = [
 
 const ROOM_TYPES: { value: ChallengeKind; label: string; desc: string; icon: string }[] = [
   { value: 'solo',    label: '혼자만의 다짐',  desc: '나만 보는 조용한 기록',              icon: '🤫' },
-  { value: 'cheered', label: '응원받기',       desc: '나 혼자 도전, 지인들이 응원해줘요',   icon: '🙋' },
-  { value: 'closed',  label: '함께 도전하기',  desc: '초대한 사람들이 같이 도전',            icon: '🤝' },
+  { value: 'cheered', label: '응원받기',       desc: '나 혼자 하다, 지인들이 응원해줘요',   icon: '🙋' },
+  { value: 'closed',  label: '함께 하기',      desc: '초대한 사람들이 같이 하다',            icon: '🤝' },
   { value: 'open',    label: '누구나 합류',    desc: '둘러보기 공개 · 아무나 참여',          icon: '🌍' },
 ];
 
@@ -152,7 +152,7 @@ export default function CreateChallenge() {
       if (modErr) throw modErr;
       if (!mod || mod.verdict === 'block') {
         haptic.warning();
-        Alert.alert('챌린지 생성이 차단됐어요', mod?.reason ?? '부적절한 내용이 포함되어 있어요.');
+        Alert.alert('하다 생성이 차단됐어요', mod?.reason ?? '부적절한 내용이 포함되어 있어요.');
         return;
       }
 
@@ -335,10 +335,10 @@ export default function CreateChallenge() {
 
 // ─── 각 step 메타 ───
 const STEP_META: Record<number, { label: string; question: string; hint: string }> = {
-  1: { label: 'CHALLENGE TITLE',      question: '어떤 도전을\n해보고 싶어요?',       hint: '짧고 명확한 문장이 좋아요.' },
-  2: { label: 'CATEGORY',             question: '어떤 분야의\n도전인가요?',         hint: '대분류를 먼저 고르면 세부 분야가 나타나요.' },
-  3: { label: 'ROOM TYPE',            question: '누구와 함께\n도전할까요?',         hint: '방 타입에 따라 둘러보기 노출이 달라져요.' },
-  4: { label: 'DURATION & FREQUENCY', question: '얼마 동안, 얼마나 자주\n도전할까요?', hint: '길수록 박제 가치가 커지고, 빈도가 강도를 결정해요.' },
+  1: { label: 'CHALLENGE TITLE',      question: '어떤 하다를\n해보고 싶어요?',       hint: '짧고 명확한 문장이 좋아요.' },
+  2: { label: 'CATEGORY',             question: '어떤 분야의\n하다인가요?',         hint: '대분류를 먼저 고르면 세부 분야가 나타나요.' },
+  3: { label: 'ROOM TYPE',            question: '누구와 함께\n할까요?',             hint: '방 타입에 따라 둘러보기 노출이 달라져요.' },
+  4: { label: 'DURATION & FREQUENCY', question: '얼마 동안, 얼마나 자주\n할까요?',   hint: '길수록 박제 가치가 커지고, 빈도가 강도를 결정해요.' },
   5: { label: 'PROOF TYPE',           question: '어떻게\n인증할까요?',              hint: '사진 인증과 앱 스크린샷 둘 다 가능해요.' },
 };
 
@@ -349,7 +349,7 @@ function Step1Title({ title, setTitle }: { title: string; setTitle: (s: string) 
       <TextInput
         value={title}
         onChangeText={setTitle}
-        placeholder="예: 100일 금연 챌린지"
+        placeholder="예: 100일 금연 하다"
         placeholderTextColor={colors.primary300}
         style={styles.bigInput}
         maxLength={40}
@@ -358,7 +358,7 @@ function Step1Title({ title, setTitle }: { title: string; setTitle: (s: string) 
       />
       <Text style={styles.counterSmall}>{title.length} / 40</Text>
 
-      <Text style={styles.subSectionTitle}>💡 인기 챌린지에서 골라보기</Text>
+      <Text style={styles.subSectionTitle}>💡 인기 하다에서 골라보기</Text>
       <View style={styles.chipWrap}>
         {SUGGESTIONS.map(s => (
           <Pressable key={s} style={styles.chip} onPress={() => setTitle(s)}>
@@ -485,7 +485,7 @@ function Step3Duration({
                 )}
               </View>
               <Text style={styles.optionDesc}>
-                {isDisabled ? '1일 도전은 다같이 도전/누구나 합류 방에서만 가능해요.' : d.desc}
+                {isDisabled ? '1일 하다는 다같이 하다/누구나 합류 방에서만 가능해요.' : d.desc}
               </Text>
             </View>
             {active && <Text style={styles.optionCheck}>✓</Text>}
@@ -821,7 +821,7 @@ function Step4Frequency({
       {/* 🚀 당일 챌린지일 경우, 언제 도전할지 날짜 선택 UI 추가 */}
       {durationDays === 1 && (
         <View style={{ marginTop: 24, gap: 12 }}>
-          <Text style={styles.subSectionTitle}>📅 당일 도전 날짜를 선택해 주세요 (최대 100일 뒤까지)</Text>
+          <Text style={styles.subSectionTitle}>📅 당일 하다 날짜를 선택해 주세요 (최대 100일 뒤까지)</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -946,12 +946,12 @@ function Step6RoomType({
                 </Text>
                 {isDisabled && (
                   <Text style={{ fontSize: 11, color: colors.primary500, fontFamily: fontFamily.medium }}>
-                    (1일 도전 불가 🔒)
+                    (1일 하다 불가 🔒)
                   </Text>
                 )}
               </View>
               <Text style={styles.optionDesc}>
-                {isDisabled ? '1일 도전은 다같이 도전하는 방에서만 가능해요.' : r.desc}
+                {isDisabled ? '1일 하다는 다같이 하는 방에서만 가능해요.' : r.desc}
               </Text>
             </View>
             {active && <Text style={styles.optionCheck}>✓</Text>}
@@ -999,7 +999,7 @@ function IntroEditor({
       <TextInput
         value={description}
         onChangeText={setDescription}
-        placeholder={'이 도전이 어떤 도전인지, 어떤 마음으로 함께하면 좋을지 알려주세요.'}
+        placeholder={'이 하다가 어떤 하다인지, 어떤 마음으로 함께하면 좋을지 알려주세요.'}
         placeholderTextColor={colors.primary300}
         style={styles.introInput}
         multiline

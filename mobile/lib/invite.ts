@@ -6,6 +6,7 @@
 import * as SecureStore from 'expo-secure-store';
 import { supabase } from './supabase';
 import { getKstTodayRange } from './format';
+import { isRecruiting } from './stats';   // 🚀 0043: 누구나 방 모집 마감 시 신규 합류 차단
 
 const PENDING_KEY = 'pending_invite_id';
 
@@ -29,11 +30,11 @@ export async function joinChallenge(challengeId: string, userId: string): Promis
   //    단, 이미 멤버라면 방(박제) 진입은 허용.
   const { data: ch, error: chErr } = await supabase
     .from('challenges')
-    .select('end_date, gave_up_at, bet_tier')
+    .select('kind, start_date, end_date, gave_up_at, bet_tier, recruit_locked')
     .eq('id', challengeId)
     .maybeSingle();
   if (chErr) throw chErr;
-  if (!ch) throw new Error('챌린지를 찾을 수 없어요.');
+  if (!ch) throw new Error('하다를 찾을 수 없어요.');
 
   const isOver = ch.gave_up_at != null || getKstTodayRange().kstDateStr > ch.end_date;
   if (isOver) {
@@ -44,7 +45,20 @@ export async function joinChallenge(challengeId: string, userId: string): Promis
       .eq('user_id', userId)
       .maybeSingle();
     if (mem) return 'already_member';
-    throw new Error('이미 종료된 도전이에요.\n새로 합류할 수 없어요.');
+    throw new Error('이미 종료된 하다예요.\n새로 합류할 수 없어요.');
+  }
+
+  // 🚀 0043: 누구나 방 모집 마감(개설자 잠금 / 기간 50% 경과) 시 신규 합류 차단 (서버 RLS 와 이중).
+  //    이미 멤버면 위 INSERT 23505 로 already_member 처리되므로 신규만 막힘.
+  if (!isRecruiting({ kind: ch.kind, start_date: ch.start_date, end_date: ch.end_date, recruit_locked: ch.recruit_locked })) {
+    const { data: mem } = await supabase
+      .from('challenge_members')
+      .select('user_id')
+      .eq('challenge_id', challengeId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (mem) return 'already_member';
+    throw new Error('모집이 마감된 하다예요.\n이미 시작돼 멤버들끼리 진행 중이에요.');
   }
 
   // 🚀 내기 걸린 방(bet_tier != null)은 성인 본인인증된 사람만 합류 — 미성년/미인증 차단(처음부터)

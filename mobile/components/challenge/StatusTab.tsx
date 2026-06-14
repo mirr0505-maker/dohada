@@ -1,9 +1,9 @@
 // 🚀 챌린지방 - 현황 탭 (멤버별 인증률 + 연속)
 // v4: 카드 = 아바타 + 닉네임 + 연속 일수 + 인증률 % + 진행률 바. 본인 강조.
 import React, { useMemo } from 'react';
-import { View, Text, FlatList, StyleSheet, Image } from 'react-native';
+import { View, Text, FlatList, StyleSheet, Image, Pressable } from 'react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
-import { computeStreak, memberPassedDays } from '@/lib/stats';
+import { computeStreak, memberPassedDays, isRecruiting, recruitCloseAtMs } from '@/lib/stats';
 import type { DbChallenge, MemberWithToday, ProofWithRelations } from '@/lib/types';
 
 type Props = {
@@ -12,9 +12,18 @@ type Props = {
   proofs: ProofWithRelations[];
   myUserId: string | undefined;
   betSlot?: React.ReactNode;   // 🎯 나와의 내기 카드 (도전자 본인에게만, 부모가 구성) — 없으면 미노출
+  onRecruitLock?: (locked: boolean) => void;   // 🚀 0043: 개설자 모집 잠금/해제 (누구나 방 전용)
 };
 
-export function StatusTab({ challenge, members, proofs, myUserId, betSlot }: Props) {
+export function StatusTab({ challenge, members, proofs, myUserId, betSlot, onRecruitLock }: Props) {
+
+  // 🚀 0043: 누구나 방 모집 상태 — 모집 중 / 수동 잠금 / 기간 50% 자동 마감.
+  // "모집 마감" 은 신규 합류만 막음(종료 아님). 잠금 토글은 개설자 본인만, 다시 열기는 50% 경과 전까지만.
+  const isOpenKind = challenge.kind === 'open';
+  const isCreator = myUserId != null && myUserId === challenge.creator_id;
+  const recruiting = isRecruiting(challenge);
+  const manualLocked = !!challenge.recruit_locked;
+  const beforeMidpoint = Date.now() < recruitCloseAtMs(challenge.start_date, challenge.end_date);
 
   // 멤버별 통계 (인증한 고유 날짜 수 / 본인 진행일수)
   // 분모는 합류일 기준 — 시작 후 합류한 동료도 자기 출발선으로 공정하게 계산 (v2.8)
@@ -84,6 +93,39 @@ export function StatusTab({ challenge, members, proofs, myUserId, betSlot }: Pro
             </View>
           ) : null}
         </View>
+
+        {/* 🚀 0043: 누구나 방 모집 상태 + 개설자 잠금 토글 (open 전용) */}
+        {isOpenKind && (
+          <View style={styles.recruitCard}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.recruitState}>
+                {recruiting
+                  ? '🟢 모집 중'
+                  : manualLocked
+                    ? '🔒 모집 잠금'
+                    : '🔒 모집 마감 (기간 절반 경과)'}
+              </Text>
+              <Text style={styles.recruitDesc}>
+                {recruiting
+                  ? '누구나 합류할 수 있어요'
+                  : '새 합류를 받지 않고 지금 멤버끼리 진행해요'}
+              </Text>
+            </View>
+            {isCreator && recruiting && (
+              <Pressable style={styles.recruitBtn} onPress={() => onRecruitLock?.(true)} hitSlop={6}>
+                <Text style={styles.recruitBtnText}>모집 잠그기</Text>
+              </Pressable>
+            )}
+            {isCreator && manualLocked && beforeMidpoint && (
+              <Pressable style={[styles.recruitBtn, styles.recruitBtnReopen]} onPress={() => onRecruitLock?.(false)} hitSlop={6}>
+                <Text style={[styles.recruitBtnText, styles.recruitBtnReopenText]}>다시 열기</Text>
+              </Pressable>
+            )}
+            {isCreator && !recruiting && !beforeMidpoint && (
+              <Text style={styles.recruitFixed}>기간 절반{'\n'}경과로 고정</Text>
+            )}
+          </View>
+        )}
         </>
       }
       renderItem={({ item }) => (
@@ -145,7 +187,7 @@ function StatusCard({
         </View>
         <Text style={styles.subtext}>
           {gaveUp
-            ? '도전을 포기했어요'
+            ? '그만뒀어요'
             : isCount
               ? `${uniqDays}/${myDays}개 달성`
               : `${uniqDays}/${myDays}일${isMine && !todayChecked ? '  · 오늘 인증 전 ⚠️' : ''}`}
@@ -264,6 +306,54 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     gap: 10,
     ...shadow.sm,
+  },
+  recruitCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: 14,
+    marginBottom: 16,
+    ...shadow.sm,
+  },
+  recruitState: {
+    fontSize: fontSize.base,
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  recruitDesc: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+    marginTop: 2,
+  },
+  recruitBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: colors.accent,
+    borderRadius: radius.pill,
+  },
+  recruitBtnText: {
+    fontSize: fontSize.sm,
+    color: colors.surface,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  recruitBtnReopen: {
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+  },
+  recruitBtnReopenText: {
+    color: colors.accent,
+  },
+  recruitFixed: {
+    fontSize: fontSize.xs,
+    color: colors.primary300,
+    fontFamily: fontFamily.medium,
+    textAlign: 'center',
   },
   infoCardHeader: {
     flexDirection: 'row',

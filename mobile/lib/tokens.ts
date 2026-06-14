@@ -31,6 +31,19 @@ export const colors = {
   typePublic: '#22C55E',
 } as const;
 
+// 🚀 연속 인증 마일스톤 메달 색 (3·7·21·49·99·180·365·730일 순, stats.STREAK_MILESTONES 와 인덱스 일치).
+// 초반 비비드 → 후반 금속(실버·골드·다이아)으로 격상 — 유튜브 골드 버튼 톤. 게시글 오각형 메달에만 사용.
+export const streakTier = [
+  '#22C55E',  // 3일  — 초록 (작심삼일 돌파)
+  '#14B8A6',  // 7일  — 청록
+  '#3B82F6',  // 21일 — 파랑 (습관 형성)
+  '#8B5CF6',  // 49일 — 보라 (강력한 습관)
+  '#EC4899',  // 99일 — 핑크 (백일의 약속)
+  '#9CA3AF',  // 180일 — 실버
+  '#EAB308',  // 365일 — 골드 (1년)
+  '#22D3EE',  // 730일 — 다이아 (2년)
+] as const;
+
 // ─── 폰트 ─────────────────────────────────────
 // Pretendard OTF 3개를 _layout.tsx 의 useFonts 에서 로드. iOS/Android 동일 이름.
 export const fontFamily = {

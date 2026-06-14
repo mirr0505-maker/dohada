@@ -172,7 +172,7 @@ export function CommentsSheet({ proofId, myUserId, onClose, onCountChange, write
           {/* 입력 — 키보드 표시 시 8px, 숨김 시 home indicator 영역 확보. 박제 후엔 잠금 안내 */}
           {writeLocked ? (
             <View style={styles.lockedBar}>
-              <Text style={styles.lockedText}>🏁 박제된 도전이에요 — 댓글은 보존만 됩니다.</Text>
+              <Text style={styles.lockedText}>🏁 박제된 하다예요 — 댓글은 보존만 됩니다.</Text>
             </View>
           ) : (
           <View style={[

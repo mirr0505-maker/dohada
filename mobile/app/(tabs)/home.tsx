@@ -27,6 +27,9 @@ import { ErrorState } from '@/components/ErrorState';
 import { ChallengeCardSkeleton } from '@/components/Skeleton';
 import { OpenJoinPreviewSheet } from '@/components/home/OpenJoinPreviewSheet';
 import { PhotoViewer } from '@/components/PhotoViewer';
+import { PhotoCarousel } from '@/components/PhotoCarousel';
+import { StreakMedal } from '@/components/challenge/StreakMedal';
+import { streakMilestone } from '@/lib/stats';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import type { CompletionStoryCard, OpenChallengeCard } from '@/lib/types';
@@ -46,7 +49,7 @@ export default function HomeScreen() {
   const [myChs, setMyChs]                   = useState<MyChallengeDetail[]>([]);
   const [completions, setCompletions]       = useState<CompletionStoryCard[]>([]);
   const [todayProofs, setTodayProofs]       = useState<FellowProof[]>([]);
-  const [viewerUri, setViewerUri]           = useState<string | null>(null);   // 🚀 사진 전체보기 뷰어
+  const [viewer, setViewer]                 = useState<{ photos: string[]; index: number } | null>(null);   // 🚀 사진 전체보기 뷰어 (여러 장)
   const [interestingChs, setInteresting]    = useState<InterestingChallenge[]>([]);
   const [openChs, setOpenChs]               = useState<OpenChallengeCard[]>([]);
   const [loading, setLoading]               = useState(true);
@@ -70,8 +73,8 @@ export default function HomeScreen() {
     if (isAlreadyMember) {
       haptic.warning();
       Alert.alert(
-        '참여 중인 도전',
-        '이미 참여 중인 챌린지입니다. 챌린지방으로 이동하시겠습니까?',
+        '참여 중인 하다',
+        '이미 참여 중인 하다입니다. 하다 방으로 이동하시겠습니까?',
         [
           { text: '취소', style: 'cancel' },
           {
@@ -94,7 +97,7 @@ export default function HomeScreen() {
       return;
     }
     // 카드 정보를 못 찾는 예외 케이스만 기존 즉시 합류 폴백
-    Alert.alert('도전 합류', '정말 개설자와 함께 도전하시겠습니까?', [
+    Alert.alert('하다 합류', '정말 개설자와 함께 하시겠습니까?', [
       { text: '취소', style: 'cancel' },
       { text: '확인', onPress: () => doJoin(challengeId) },
     ]);
@@ -108,11 +111,11 @@ export default function HomeScreen() {
       await joinChallenge(challengeId, myUserId);
       haptic.success();
       setPreviewCard(null);
-      Alert.alert('합류 완료', '챌린지에 성공적으로 합류했습니다!');
+      Alert.alert('합류 완료', '하다에 성공적으로 합류했습니다!');
       await load();
     } catch (err: any) {
       if (err?.message === 'adult_required') {
-        Alert.alert('성인 인증이 필요해요', '내기가 걸린 도전이라 성인 본인인증을 마친 분만 합류할 수 있어요.\n응원 한잔/내기에서 본인인증을 먼저 진행해주세요.');
+        Alert.alert('성인 인증이 필요해요', '내기가 걸린 하다라 성인 본인인증을 마친 분만 합류할 수 있어요.\n응원 한잔/내기에서 본인인증을 먼저 진행해주세요.');
       } else {
         Alert.alert('합류 실패', err?.message ?? String(err));
       }
@@ -142,8 +145,8 @@ export default function HomeScreen() {
       if (abandoned) {
         abandonedAlertShownRef.current.add(abandoned.id);
         Alert.alert(
-          '도전 종료',
-          '개설자가 포기 선택하였습니다. 확인을 누르시면 내 챌린지에서 제거됩니다',
+          '하다 종료',
+          '개설자가 포기 선택하였습니다. 확인을 누르시면 내 하다에서 제거됩니다',
           [
             {
               text: '확인',
@@ -285,7 +288,7 @@ export default function HomeScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* [구조 1] 오늘, 나의 도전 섹션 — 진행 중만 노출 */}
-          <Text style={styles.sectionLabel}>오늘, 나의 도전</Text>
+          <Text style={styles.sectionLabel}>오늘, 나의 하다</Text>
           {activeChs.length > 0 ? (
             <View style={styles.myChallengeList}>
               {visibleActiveChs.map(c => {
@@ -367,7 +370,7 @@ export default function HomeScreen() {
                   style={styles.moreLink}
                   onPress={() => { haptic.tap(); router.push('/(tabs)/my-challenges' as any); }}
                 >
-                  <Text style={styles.moreLinkText}>내 도전 {activeChs.length}개 모두 보기 →</Text>
+                  <Text style={styles.moreLinkText}>내 하다 {activeChs.length}개 모두 보기 →</Text>
                 </Pressable>
               )}
             </View>
@@ -378,12 +381,12 @@ export default function HomeScreen() {
               onPress={() => { haptic.tap(); router.push('/create' as any); }}
             >
               <Text style={styles.emptyEmoji}>🌱</Text>
-              <Text style={styles.emptyTitle}>아직 진행 중인 도전이 없어요</Text>
+              <Text style={styles.emptyTitle}>아직 진행 중인 하다가 없어요</Text>
               <Text style={styles.emptyDesc}>
                 조용히 응원받는 첫 한 걸음,{'\n'}시작해볼까요?
               </Text>
               <View style={styles.emptyCtaBox}>
-                <Text style={styles.emptyCtaText}>+ 첫 도전 선언하기</Text>
+                <Text style={styles.emptyCtaText}>+ 첫 하다 선언하기</Text>
               </View>
             </Pressable>
           )}
@@ -391,7 +394,7 @@ export default function HomeScreen() {
           {/* 🚀 P-⑤ 종료된 도전 분리 섹션 — 박제·회고용 */}
           {finishedChs.length > 0 && (
             <>
-              <Text style={[styles.sectionLabel, { marginTop: 24 }]}>🏆 끝낸 도전</Text>
+              <Text style={[styles.sectionLabel, { marginTop: 24 }]}>🏆 끝낸 하다</Text>
               <View style={styles.myChallengeList}>
                 {visibleFinishedChs.map(c => (
                   <Pressable
@@ -417,7 +420,7 @@ export default function HomeScreen() {
                     style={styles.moreLink}
                     onPress={() => { haptic.tap(); router.push('/(tabs)/my-challenges' as any); }}
                   >
-                    <Text style={styles.moreLinkText}>끝낸 도전 {finishedChs.length}개 모두 보기 →</Text>
+                    <Text style={styles.moreLinkText}>끝낸 하다 {finishedChs.length}개 모두 보기 →</Text>
                   </Pressable>
                 )}
               </View>
@@ -425,7 +428,7 @@ export default function HomeScreen() {
           )}
 
           {/* [구조 2] 오늘, 도전 인연들의 하루 섹션 */}
-          <Text style={styles.sectionLabel}>오늘, 도전 인연들의 하루</Text>
+          <Text style={styles.sectionLabel}>오늘, 하다 인연들의 하루</Text>
           {completions.length > 0 || todayProofs.length > 0 ? (
             <>
               {/* 1. 🎉 완주 리본 — 최근 공개 완주 이야기 */}
@@ -438,7 +441,7 @@ export default function HomeScreen() {
                   key={g.challengeId}
                   title={g.title}
                   proofs={g.proofs}
-                  onViewPhoto={setViewerUri}
+                  onViewPhoto={(photos, index) => setViewer({ photos, index })}
                 />
               ))}
             </>
@@ -448,7 +451,7 @@ export default function HomeScreen() {
               <Text style={styles.emptyFellowEmoji}>👣</Text>
               <Text style={styles.emptyFellowTitle}>아직 오늘 올라온 동료들의 인증이 없어요</Text>
               <Text style={styles.emptyFellowDesc}>
-                혼자보다 함께할 때 완주 확률이 3배 높아집니다. 내 챌린지에 친구나 동료를 초대해 보거나, 아래 '누구나 합류'에서 함께 달릴 첫 도전 인연을 만들어보세요!
+                혼자보다 함께할 때 완주 확률이 3배 높아집니다. 내 하다에 친구나 동료를 초대해 보거나, 아래 '누구나 합류'에서 함께 달릴 첫 하다 인연을 만들어보세요!
               </Text>
             </View>
           )}
@@ -463,9 +466,9 @@ export default function HomeScreen() {
             /* 빈 상태 카드 — 응원받기 챌린지 없음 */
             <View style={styles.emptyCheerCard}>
               <Text style={styles.emptyCheerEmoji}>🙋</Text>
-              <Text style={styles.emptyCheerTitle}>오늘 응원할 수 있는 챌린지가 없어요</Text>
+              <Text style={styles.emptyCheerTitle}>오늘 응원할 수 있는 하다가 없어요</Text>
               <Text style={styles.emptyCheerDesc}>
-                현재 가입된 응원받기 챌린지가 없거나, 이미 모든 동료들에게 오늘 자 응원을 완료했습니다.
+                현재 가입된 응원받기 하다가 없거나, 이미 모든 동료들에게 오늘 자 응원을 완료했습니다.
               </Text>
             </View>
           )}
@@ -480,15 +483,15 @@ export default function HomeScreen() {
             /* 빈 상태 카드 — 공개 챌린지 없음 */
             <View style={styles.emptyOpenCard}>
               <Text style={styles.emptyOpenEmoji}>🌍</Text>
-              <Text style={styles.emptyOpenTitle}>현재 합류 가능한 공개 챌린지가 없어요</Text>
+              <Text style={styles.emptyOpenTitle}>현재 합류 가능한 공개 하다가 없어요</Text>
               <Text style={styles.emptyOpenDesc}>
-                직접 새로운 공개 챌린지를 개설하여 첫 번째 동료들을 모집해 볼까요?
+                직접 새로운 공개 하다를 개설하여 첫 번째 동료들을 모집해 볼까요?
               </Text>
             </View>
           )}
 
           {/* [구조 5] 내 관심 분야 도전 섹션 */}
-          <Text style={styles.sectionLabel}>내 관심 분야 도전 (관심 추천)</Text>
+          <Text style={styles.sectionLabel}>내 관심 분야 하다 (관심 추천)</Text>
           {interestingChs.length > 0 ? (
             interestingChs.slice(0, 5).map(c => (
               <InterestCard key={c.id} challenge={c} />
@@ -497,9 +500,9 @@ export default function HomeScreen() {
             /* 빈 상태 카드 — 관심사 매칭 챌린지 없음 */
             <View style={styles.emptyInterestCard}>
               <Text style={styles.emptyInterestEmoji}>✨</Text>
-              <Text style={styles.emptyInterestTitle}>관심 분야의 추천 챌린지가 없어요</Text>
+              <Text style={styles.emptyInterestTitle}>관심 분야의 추천 하다가 없어요</Text>
               <Text style={styles.emptyInterestDesc}>
-                프로필 설정에서 관심 카테고리를 더 추가해 보시거나, 직접 나만의 멋진 관심 분야 챌린지를 개설해 보세요!
+                프로필 설정에서 관심 카테고리를 더 추가해 보시거나, 직접 나만의 멋진 관심 분야 하다를 개설해 보세요!
               </Text>
             </View>
           )}
@@ -513,7 +516,7 @@ export default function HomeScreen() {
         </ScrollView>
       )}
 
-      <PhotoViewer uri={viewerUri} onClose={() => setViewerUri(null)} />
+      <PhotoViewer photos={viewer?.photos ?? null} initialIndex={viewer?.index ?? 0} onClose={() => setViewer(null)} />
 
       {/* 🚀 미인증 챌린지 선택 모달 — 인증할 도전이 여러 개일 때 */}
       <Modal
@@ -524,7 +527,7 @@ export default function HomeScreen() {
       >
         <Pressable style={styles.pickerOverlay} onPress={() => setCheckinPickerOpen(false)}>
           <Pressable style={styles.pickerCard} onPress={() => {}}>
-            <Text style={styles.pickerTitle}>📸 어떤 도전을 인증할까요?</Text>
+            <Text style={styles.pickerTitle}>📸 어떤 하다를 인증할까요?</Text>
             <View style={{ gap: 8 }}>
               {uncheckedChs.map(c => (
                 <Pressable
@@ -589,7 +592,7 @@ function TodayChallengeProofGroup({
 }: {
   title: string;
   proofs: FellowProof[];
-  onViewPhoto: (uri: string) => void;
+  onViewPhoto: (photos: string[], index: number) => void;
 }) {
   const INITIAL = 2;   // 기본 노출 개수, 나머지는 '더 보기'로 펼침
   const [expanded, setExpanded] = useState(false);
@@ -615,7 +618,7 @@ function TodayChallengeProofGroup({
 }
 
 // ─── 카드 2: 📸 오늘의 인증 ───────────────────────────────
-function TodayProofCard({ proof, onViewPhoto }: { proof: FellowProof; onViewPhoto: (uri: string) => void }) {
+function TodayProofCard({ proof, onViewPhoto }: { proof: FellowProof; onViewPhoto: (photos: string[], index: number) => void }) {
   return (
     <Pressable
       style={styles.card}
@@ -634,13 +637,24 @@ function TodayProofCard({ proof, onViewPhoto }: { proof: FellowProof; onViewPhot
           <Text style={styles.sub}>{relTime(proof.created_at)} · 오늘의 인증</Text>
         </View>
       </View>
-      <Pressable onPress={() => onViewPhoto(proof.photo_url)}>
-        <Image source={{ uri: proof.photo_url }} style={styles.proofPhoto} />
-      </Pressable>
+      {(() => {
+        // 🚀 0045: 사진 여러 장 — 카드 좌우 스와이프 + 탭하면 전체화면. 연속 메달은 우상단.
+        const photos = proof.photo_urls?.length ? proof.photo_urls : [proof.photo_url];
+        const m = streakMilestone(proof.streak_count);
+        return (
+          <PhotoCarousel
+            photos={photos}
+            aspectRatio={4 / 3}
+            borderRadius={radius.md}
+            onPressPhoto={(i) => onViewPhoto(photos, i)}
+            topRight={m ? <StreakMedal day={m.day} color={m.color} /> : undefined}
+          />
+        );
+      })()}
       {proof.caption && (
         <Text style={styles.caption} numberOfLines={2}>{proof.caption}</Text>
       )}
-      <Text style={styles.cheerHint}>도전 인연들이 응원했어요 →</Text>
+      <Text style={styles.cheerHint}>하다 인연들이 응원했어요 →</Text>
     </Pressable>
   );
 }
@@ -697,14 +711,14 @@ function InterestCard({ challenge }: { challenge: InterestingChallenge }) {
               {/* 추론 매칭은 "관심 등록한 적 없는데?" 혼란 방지 — 매칭 이유를 정직하게 표기 */}
               {challenge.matched_by === 'explicit'
                 ? `${challenge.matched_category.emoji} ${challenge.matched_category.name} 관심 · 함께 ${challenge.member_count}명`
-                : `${challenge.matched_category.emoji} 내 도전과 같은 ${challenge.matched_category.name} 분야 · 함께 ${challenge.member_count}명`}
+                : `${challenge.matched_category.emoji} 내 하다와 같은 ${challenge.matched_category.name} 분야 · 함께 ${challenge.member_count}명`}
             </Text>
           )}
         </View>
       </View>
       <View style={[styles.joinBtn, { marginTop: 6 }]}>
         <Text style={styles.joinBtnText}>
-          {challenge.matched_by === 'explicit' ? '관심 도전 살펴보기 →' : '비슷한 도전 살펴보기 →'}
+          {challenge.matched_by === 'explicit' ? '관심 하다 살펴보기 →' : '비슷한 하다 살펴보기 →'}
         </Text>
       </View>
     </Pressable>
@@ -1095,6 +1109,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.primary100,
   },
+  streakMedalWrap: { position: 'absolute', top: 10, right: 10 },
   caption: {
     fontSize: fontSize.sm, color: colors.primary,
     fontFamily: fontFamily.regular, lineHeight: 20,

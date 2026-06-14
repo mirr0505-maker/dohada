@@ -36,7 +36,7 @@ export function BetCard(props: Props) {
     if (!canPlace) return null;
     return (
       <View style={styles.card}>
-        <Text style={styles.headline}>🎯 이 도전, 한잔 걸기</Text>
+        <Text style={styles.headline}>🎯 이 하다, 한잔 걸기</Text>
         <Text style={styles.body}>완주하면 본전, 실패를 인정하면 기부 — 기부 방식은 걸 때 골라요. 나 자신과의 약속에 한 잔을 걸어보세요.</Text>
         <Pressable style={styles.primaryBtn} onPress={onPlace} disabled={busy}>
           <Text style={styles.primaryBtnText}>한잔 걸기</Text>
@@ -111,7 +111,7 @@ export function BetCard(props: Props) {
     : '완주하면 이 한잔을 받아요.';
   return (
     <View style={styles.card}>
-      <Text style={styles.headline}>🎯 한잔 걸린 도전</Text>
+      <Text style={styles.headline}>🎯 한잔 걸린 하다</Text>
       <Text style={styles.body}>{meta} — {hint} 끝까지 가봐요!</Text>
       {onGiveUp && (
         <Pressable onPress={onGiveUp} disabled={busy} hitSlop={6} style={{ alignSelf: 'flex-start' }}>

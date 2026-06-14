@@ -2,6 +2,7 @@
 // RLS 가 알아서 가드해주니까 여기선 단순 fetch/insert/delete.
 import { supabase } from './supabase';
 import { getKstTodayRange } from './format';
+import { isRecruiting } from './stats';   // 🚀 0043: 누구나 방 모집 마감(수동 잠금/기간 50%) 판정 — 목록 노출 필터
 import type {
   ChallengeWithCount, ChallengeKind, ChallengeGoalType, MemberWithToday, ProofWithRelations, DbChallenge,
   CommentWithAuthor, CheerType,
@@ -16,10 +17,12 @@ import type {
 export type FellowProof = {
   id: string;
   photo_url: string;
+  photo_urls?: string[];   // 🚀 0045: 인증 사진 전체 (최대 3장)
   caption: string | null;
   created_at: string;
   challenge_id: string;
   challenge_title: string;
+  streak_count?: number;   // 🚀 0044: 연속 인증 일수 (마일스톤 메달용)
   user_id: string;
   nickname: string;
   avatar_url: string | null;
@@ -41,7 +44,7 @@ export async function fetchFellowProofs(myUserId: string, limit = 10): Promise<F
   const { data, error } = await supabase
     .from('proofs')
     .select(`
-      id, photo_url, caption, created_at, challenge_id, user_id,
+      id, photo_url, photo_urls, caption, created_at, challenge_id, user_id, streak_count,
       users (nickname, avatar_url),
       challenges!inner (title, creator_id, gave_up_at)
     `)
@@ -55,10 +58,12 @@ export async function fetchFellowProofs(myUserId: string, limit = 10): Promise<F
   return (data ?? []).map((p: any) => ({
     id: p.id,
     photo_url: p.photo_url,
+    photo_urls: (p.photo_urls?.length ? p.photo_urls : (p.photo_url ? [p.photo_url] : [])),
     caption: p.caption,
     created_at: p.created_at,
     challenge_id: p.challenge_id,
     challenge_title: p.challenges?.title ?? '',
+    streak_count: p.streak_count ?? 0,
     user_id: p.user_id,
     nickname: p.users?.nickname ?? '',
     avatar_url: p.users?.avatar_url ?? null,
@@ -476,6 +481,8 @@ export async function fetchInterestingOpenChallenges(
 
   return (opens ?? [])
     .filter((c: any) => {
+      // 🚀 0043: 모집 마감(개설자 수동 잠금 / 기간 50% 경과)된 방은 관심 도전에서 제외
+      if (!isRecruiting(c)) return false;
       // 본인이 개설한 방 제외
       if (c.creator_id === userId) return false;
       // 본인이 이미 가입하고 포기 안 한 방 제외
@@ -550,7 +557,8 @@ export async function fetchOpenChallenges(myUserId: string | undefined): Promise
 
   if (error) throw error;
 
-  const rawList = data ?? [];
+  // 🚀 0043: 모집 마감(개설자 수동 잠금 / 기간 50% 경과)된 방은 둘러보기에서 제외 (로그인 무관)
+  const rawList = (data ?? []).filter((c: any) => isRecruiting(c));
   // 2. 이미 참여 중인 방은 필터링하여 제외 (대소문자/타입 싱크 등 완벽 보장)
   const filteredList = myUserId
     ? rawList.filter((c: any) => {
@@ -660,7 +668,8 @@ export type LogWithAuthor = {
   user_id: string;
   title: string;
   content: string;
-  photo_url: string | null;
+  photo_url: string | null;     // 커버(=첫 장)
+  photo_urls: string[];         // 🚀 0045: 기록 사진 전체 (최대 4장)
   created_at: string;
   author: { id: string; nickname: string; avatar_url: string | null };
   like_count: number;
@@ -672,7 +681,7 @@ export async function fetchLogs(challengeId: string, myUserId: string, limit = 3
   const { data, error } = await supabase
     .from('logs')
     .select(`
-      id, challenge_id, user_id, title, content, photo_url, created_at,
+      id, challenge_id, user_id, title, content, photo_url, photo_urls, created_at,
       users:user_id(id, nickname, avatar_url),
       log_likes(user_id),
       log_comments(count)
@@ -690,6 +699,7 @@ export async function fetchLogs(challengeId: string, myUserId: string, limit = 3
       title: l.title,
       content: l.content,
       photo_url: l.photo_url,
+      photo_urls: (l.photo_urls?.length ? l.photo_urls : (l.photo_url ? [l.photo_url] : [])),
       created_at: l.created_at,
       author: {
         id: l.users?.id ?? l.user_id,
@@ -714,7 +724,7 @@ export async function fetchRecentLogs(myUserId: string, limit = 30): Promise<Log
   const { data, error } = await supabase
     .from('logs')
     .select(`
-      id, challenge_id, user_id, title, content, photo_url, created_at,
+      id, challenge_id, user_id, title, content, photo_url, photo_urls, created_at,
       users:user_id(id, nickname, avatar_url),
       log_likes(user_id),
       log_comments(count),
@@ -735,6 +745,7 @@ export async function fetchRecentLogs(myUserId: string, limit = 30): Promise<Log
       title: l.title,
       content: l.content,
       photo_url: l.photo_url,
+      photo_urls: (l.photo_urls?.length ? l.photo_urls : (l.photo_url ? [l.photo_url] : [])),
       created_at: l.created_at,
       author: {
         id: l.users?.id ?? l.user_id,
@@ -809,7 +820,7 @@ export async function createLog(args: {
   userId: string;
   title: string;
   content: string;
-  photoUrl?: string | null;
+  photoUrls?: string[];   // 🚀 0045: 기록 사진 (최대 4장). photo_url 은 커버(첫 장)
 }): Promise<void> {
   const title = args.title.trim();
   const content = args.content.trim();
@@ -818,12 +829,14 @@ export async function createLog(args: {
   if (!content) throw new Error('내용을 입력해주세요.');
   if (content.length > 4000) throw new Error('내용은 4000자 이내로 적어주세요.');
 
+  const photos = (args.photoUrls ?? []).slice(0, 4);
   const { error } = await supabase.from('logs').insert({
     challenge_id: args.challengeId,
     user_id: args.userId,
     title,
     content,
-    photo_url: args.photoUrl ?? null,
+    photo_url: photos[0] ?? null,
+    photo_urls: photos,
   });
   if (error) throw error;
 }
@@ -833,7 +846,7 @@ export async function updateLog(args: {
   logId: string;
   title: string;
   content: string;
-  photoUrl?: string | null;
+  photoUrls?: string[];   // 🚀 0045: 기록 사진 (최대 4장). photo_url 은 커버(첫 장)
 }): Promise<void> {
   const title = args.title.trim();
   const content = args.content.trim();
@@ -842,9 +855,10 @@ export async function updateLog(args: {
   if (!content) throw new Error('내용을 입력해주세요.');
   if (content.length > 4000) throw new Error('내용은 4000자 이내로 적어주세요.');
 
+  const photos = (args.photoUrls ?? []).slice(0, 4);
   const { error } = await supabase
     .from('logs')
-    .update({ title, content, photo_url: args.photoUrl ?? null })
+    .update({ title, content, photo_url: photos[0] ?? null, photo_urls: photos })
     .eq('id', args.logId);
   if (error) throw error;
 }
@@ -968,12 +982,23 @@ export async function fetchChallengeDetailForInvite(challengeId: string): Promis
 }
 
 // ─── 챌린지 방 1개 + 멤버 + 인증 피드 (room/[id]) ──────
+// 🚀 0043: 누구나 방 개설자 — 모집 잠금/해제.
+// 해제(locked=false)는 기간 50% 자동마감 전까지만 가능 — 서버 RPC(set_recruit_lock)가 'auto_closed' 로 강제.
+export async function setRecruitLock(challengeId: string, locked: boolean): Promise<void> {
+  const { error } = await supabase.rpc('set_recruit_lock', {
+    p_challenge_id: challengeId,
+    p_locked: locked,
+  });
+  if (error) throw error;
+}
+
 export async function fetchRoomData(challengeId: string, myUserId: string) {
   const [resChallenge, resMembers, resProofs, resLogCount] = await Promise.all([
     supabase.from('challenges').select('*').eq('id', challengeId).single(),
     supabase
       .from('challenge_members')
-      .select('paused_until, joined_at, gave_up_at, users(*)')
+      // user_id 직접 포함 — 비멤버는 users(*) 조인이 RLS 로 null 이라 프로필 없이도 멤버를 식별해야 함
+      .select('user_id, paused_until, joined_at, gave_up_at, users(*)')
       .eq('challenge_id', challengeId)
       .order('joined_at', { ascending: true }),
     supabase
@@ -997,6 +1022,26 @@ export async function fetchRoomData(challengeId: string, myUserId: string) {
   const todayStartMs = Date.parse(startUtc);
   const todayEndMs = Date.parse(endUtc);
   const proofsRaw = resProofs.data ?? [];
+
+  // 🚀 참가자 수는 프로필 가시성과 분리해 센다.
+  // 비멤버는 다른 멤버의 users(프로필) 행을 RLS(users_self_read)로 못 읽어 아래 members 가 적게 잡히지만,
+  // challenge_members 행 자체는 open 방에서 열람 가능하므로 여기서 활성(포기 안 함) 수를 직접 센다.
+  // (홈 '관심 도전' 카드의 member_count 와 같은 기준 — 홈/방 인원 표시 일치)
+  const activeMembers = (resMembers.data ?? []).filter((m: any) => m.gave_up_at === null);
+  const memberCount = activeMembers.length;
+
+  // 🚀 오늘 인증한 활성 멤버 수도 프로필 가시성과 분리해 센다.
+  // 비멤버는 members(프로필 보이는 멤버)가 깎여 numerator 가 낮게 보이므로,
+  // 활성 멤버 user_id 집합 × proofs(open 방은 비멤버도 열람 가능)로 직접 카운트 (KST 오늘 범위).
+  const activeMemberIds = new Set(activeMembers.map((m: any) => m.user_id));
+  const checkedTodayIds = new Set<string>();
+  for (const p of proofsRaw) {
+    const t = Date.parse(p.created_at);
+    if (activeMemberIds.has(p.user_id) && t >= todayStartMs && t < todayEndMs) {
+      checkedTodayIds.add(p.user_id);
+    }
+  }
+  const todayCheckedCount = checkedTodayIds.size;
 
   const members: MemberWithToday[] = (resMembers.data ?? [])
     .filter((m: any) => m.users)
@@ -1026,8 +1071,10 @@ export async function fetchRoomData(challengeId: string, myUserId: string) {
       challenge_id: p.challenge_id,
       user_id: p.user_id,
       photo_url: p.photo_url,
+      photo_urls: (p.photo_urls?.length ? p.photo_urls : (p.photo_url ? [p.photo_url] : [])),
       caption: p.caption,
       created_at: p.created_at,
+      streak_count: p.streak_count ?? 0,
       author: p.users,
       cheer_count: cheers.length,
       cheered_by_me: myCheers.length > 0,
@@ -1040,6 +1087,8 @@ export async function fetchRoomData(challengeId: string, myUserId: string) {
   return {
     challenge: resChallenge.data as DbChallenge,
     members,
+    memberCount,
+    todayCheckedCount,
     proofs,
     totalLogs: resLogCount.count ?? 0,
   };
@@ -1091,7 +1140,7 @@ export async function createChallenge(args: {
   });
 
   if (error) throw error;
-  if (!data) throw new Error('챌린지 생성 응답이 비어있어요.');
+  if (!data) throw new Error('하다 생성 응답이 비어있어요.');
   return data as DbChallenge;
 }
 

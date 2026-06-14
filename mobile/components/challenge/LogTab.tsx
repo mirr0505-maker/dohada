@@ -14,6 +14,7 @@ import {
 } from '@/lib/db';
 import { uploadProofImage } from '@/lib/upload';
 import { PhotoViewer } from '@/components/PhotoViewer';
+import { PhotoCarousel } from '@/components/PhotoCarousel';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { haptic } from '@/lib/haptics';
 import { LogCommentsSheet } from './LogCommentsSheet';
@@ -42,7 +43,7 @@ export function LogTab({
   const [loading, setLoading] = useState(true);
   const [activeLogId, setActiveLogId] = useState<string | null>(null);   // 댓글 시트 대상
   const [editingLog, setEditingLog] = useState<LogWithAuthor | null>(null);   // 본인 글 수정 (v2.2)
-  const [viewerUri, setViewerUri] = useState<string | null>(null);   // 🚀 사진 전체보기 뷰어
+  const [viewer, setViewer] = useState<{ photos: string[]; index: number } | null>(null);   // 🚀 사진 전체보기 뷰어 (여러 장)
 
   const load = useCallback(async () => {
     if (!challengeId || !myUserId) return;
@@ -125,7 +126,7 @@ export function LogTab({
     if (!myUserId) return;
     if (writeLocked) {
       haptic.tap();
-      Alert.alert('박제된 도전이에요', '마무리 기간이 끝나 반응은 보존만 됩니다.');
+      Alert.alert('박제된 하다예요', '마무리 기간이 끝나 반응은 보존만 됩니다.');
       return;
     }
     const target = logs.find(l => l.id === logId);
@@ -159,7 +160,7 @@ export function LogTab({
       {farewellDaysLeft > 0 && (
         <View style={styles.farewellBar}>
           <Text style={styles.farewellText}>
-            🏁 도전 종료 — 마무리 인사 기간이 {farewellDaysLeft}일 남았어요
+            🏁 하다 종료 — 마무리 인사 기간이 {farewellDaysLeft}일 남았어요
           </Text>
         </View>
       )}
@@ -178,7 +179,7 @@ export function LogTab({
         renderItem={({ item }) => (
           <LogCard
             log={item}
-            onViewPhoto={setViewerUri}
+            onViewPhoto={(photos, index) => setViewer({ photos, index })}
             startDate={challengeStartDate}
             canComment={canComment}
             isMine={!writeLocked && item.user_id === myUserId}   /* 박제 후엔 수정/삭제 메뉴 잠금 */
@@ -214,7 +215,7 @@ export function LogTab({
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>🎥</Text>
               <Text style={styles.emptyText}>
-                아직 기록이 없어요.{'\n'}이 챌린지의 첫 추억을 남겨볼까요?
+                아직 기록이 없어요.{'\n'}이 하다의 첫 추억을 남겨볼까요?
               </Text>
             </View>
           )
@@ -244,7 +245,7 @@ export function LogTab({
         }}
       />
 
-      <PhotoViewer uri={viewerUri} onClose={() => setViewerUri(null)} />
+      <PhotoViewer photos={viewer?.photos ?? null} initialIndex={viewer?.index ?? 0} onClose={() => setViewer(null)} />
     </View>
   );
 }
@@ -254,7 +255,7 @@ function LogCard({
   log, onViewPhoto, startDate, canComment, isMine, onLike, onComment, onEdit, onDelete,
 }: {
   log: LogWithAuthor;
-  onViewPhoto: (uri: string) => void;
+  onViewPhoto: (photos: string[], index: number) => void;
   startDate: string;
   canComment: boolean;
   isMine: boolean;
@@ -296,8 +297,16 @@ function LogCard({
         </View>
       </View>
 
-      {log.photo_url ? (
-        <Pressable onPress={() => onViewPhoto(log.photo_url!)}>
+      {/* 🚀 0045: 여러 장이면 카드 캐러셀(좌우 스와이프), 1장이면 기존 원본비율 표시 */}
+      {log.photo_urls.length > 1 ? (
+        <PhotoCarousel
+          photos={log.photo_urls}
+          aspectRatio={4 / 3}
+          borderRadius={radius.lg}
+          onPressPhoto={(i) => onViewPhoto(log.photo_urls, i)}
+        />
+      ) : log.photo_url ? (
+        <Pressable onPress={() => onViewPhoto([log.photo_url!], 0)}>
           <LogPhoto uri={log.photo_url} style={styles.photo} />
         </Pressable>
       ) : null}
@@ -355,17 +364,18 @@ function LogComposer({
   const insets = useSafeAreaInsets();         // status bar 와 겹침 방지
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [photoUri, setPhotoUri] = useState<string | null>(null);   // 선택 이미지 (v2.2)
+  const [photoUris, setPhotoUris] = useState<string[]>([]);   // 🚀 0045: 기록 사진 최대 4장
   const [saving, setSaving] = useState(false);
 
-  const reset = () => { setTitle(''); setContent(''); setPhotoUri(null); };
+  const MAX_LOG_PHOTOS = 4;
+  const reset = () => { setTitle(''); setContent(''); setPhotoUris([]); };
 
   // 수정 모드 진입 시 기존 값 채우기
   useEffect(() => {
     if (editingLog) {
       setTitle(editingLog.title);
       setContent(editingLog.content);
-      setPhotoUri(editingLog.photo_url);
+      setPhotoUris(editingLog.photo_urls?.length ? editingLog.photo_urls : (editingLog.photo_url ? [editingLog.photo_url] : []));
     } else if (visible) {
       reset();
     }
@@ -382,14 +392,18 @@ function LogComposer({
         );
         return;
       }
+      const remaining = MAX_LOG_PHOTOS - photoUris.length;
+      if (remaining <= 0) return;
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],   // v18 호환 — MediaTypeOptions 는 deprecated
         quality: 0.85,
         exif: false,
+        allowsMultipleSelection: true,
+        selectionLimit: remaining,
       });
       if (result.canceled) return;
-      const uri = result.assets?.[0]?.uri;
-      if (uri) setPhotoUri(uri);
+      const uris = (result.assets ?? []).map(a => a.uri).filter(Boolean) as string[];
+      if (uris.length) setPhotoUris(prev => [...prev, ...uris].slice(0, MAX_LOG_PHOTOS));
     } catch (e: any) {
       Alert.alert('사진 선택 실패', e?.message ?? String(e));
     }
@@ -407,13 +421,14 @@ function LogComposer({
         );
         return;
       }
+      if (photoUris.length >= MAX_LOG_PHOTOS) return;
       const result = await ImagePicker.launchCameraAsync({
         quality: 0.85,
         exif: false,
       });
       if (result.canceled) return;
       const uri = result.assets?.[0]?.uri;
-      if (uri) setPhotoUri(uri);
+      if (uri) setPhotoUris(prev => [...prev, uri].slice(0, MAX_LOG_PHOTOS));
     } catch (e: any) {
       Alert.alert('촬영 실패', e?.message ?? String(e));
     }
@@ -423,14 +438,15 @@ function LogComposer({
     if (!myUserId || saving) return;
     setSaving(true);
     try {
-      // photoUri 가 이미 http(s) URL 이면 기존 사진 그대로, 아니면 R2 업로드
-      const photoUrl = photoUri
-        ? (photoUri.startsWith('http') ? photoUri : await uploadProofImage(photoUri, 'jpg'))
-        : null;
+      // 각 사진: 이미 http(s) URL 이면 그대로, 아니면 R2 업로드 (순서 보존)
+      const photoUrls: string[] = [];
+      for (const u of photoUris) {
+        photoUrls.push(u.startsWith('http') ? u : await uploadProofImage(u, 'jpg'));
+      }
       if (editingLog) {
-        await updateLog({ logId: editingLog.id, title, content, photoUrl });
+        await updateLog({ logId: editingLog.id, title, content, photoUrls });
       } else {
-        await createLog({ challengeId, userId: myUserId, title, content, photoUrl });
+        await createLog({ challengeId, userId: myUserId, title, content, photoUrls });
       }
       haptic.success();
       reset();
@@ -485,19 +501,25 @@ function LogComposer({
             editable={!saving}
           />
 
-          {photoUri ? (
-            <View style={styles.photoBox}>
-              <LogPhoto uri={photoUri} style={styles.photoPreview} />
-              <Pressable
-                style={styles.photoRemove}
-                onPress={() => setPhotoUri(null)}
-                disabled={saving}
-                hitSlop={8}
-              >
-                <Text style={styles.photoRemoveText}>✕</Text>
-              </Pressable>
+          {/* 🚀 0045: 최대 4장 — 선택한 썸네일 줄 + (4장 미만이면) 추가 버튼 */}
+          {photoUris.length > 0 && (
+            <View style={styles.photoStrip}>
+              {photoUris.map((uri, i) => (
+                <View key={`${uri}-${i}`} style={styles.photoThumbWrap}>
+                  <Image source={{ uri }} style={styles.photoThumb} resizeMode="cover" />
+                  <Pressable
+                    style={styles.photoRemove}
+                    onPress={() => setPhotoUris(prev => prev.filter((_, j) => j !== i))}
+                    disabled={saving}
+                    hitSlop={8}
+                  >
+                    <Text style={styles.photoRemoveText}>✕</Text>
+                  </Pressable>
+                </View>
+              ))}
             </View>
-          ) : (
+          )}
+          {photoUris.length < MAX_LOG_PHOTOS && (
             <View style={styles.photoBtnRow}>
               <Pressable style={[styles.photoAddBtn, { flex: 1 }]} onPress={onTakePhoto} disabled={saving}>
                 <Text style={styles.photoAddText}>📷 사진 찍기</Text>
@@ -506,6 +528,9 @@ function LogComposer({
                 <Text style={styles.photoAddText}>🖼️ 보관함에서</Text>
               </Pressable>
             </View>
+          )}
+          {photoUris.length > 0 && (
+            <Text style={styles.photoCountHint}>사진 {photoUris.length}/{MAX_LOG_PHOTOS}</Text>
           )}
 
           <TextInput
@@ -708,17 +733,36 @@ const styles = StyleSheet.create({
   },
   photoRemove: {
     position: 'absolute',
-    top: 8, right: 8,
-    width: 28, height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    top: 2, right: 2,
+    width: 22, height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(0,0,0,0.6)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   photoRemoveText: {
     color: colors.surface,
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
+  },
+  // 🚀 0045: 기록 작성 — 선택 사진 썸네일 줄 (최대 4장)
+  photoStrip: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  photoThumbWrap: { position: 'relative' },
+  photoThumb: {
+    width: 76, height: 76,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary100,
+  },
+  photoCountHint: {
+    marginTop: 8,
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
   },
 });

@@ -33,15 +33,15 @@ export default function WelcomeScreen() {
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.emoji}>🎉</Text>
         <Text style={styles.title}>
-          환영합니다,{'\n'}
-          <Text style={styles.accent}>도전자</Text>님!
+          Do:<Text style={styles.accent}>하다</Text>에 오신 여러분{'\n'}
+          환영합니다.
         </Text>
         <Text style={styles.sub}>비교에 지친 SNS 와 작별,{'\n'}오늘도 한 걸음 나아가는 곳</Text>
 
         {/* 슬로건 카드 */}
         <View style={styles.sloganCard}>
           <Text style={styles.sloganTitle}>더 나은 나, 더 나은 세상</Text>
-          <Text style={styles.sloganDesc}>나의 도전이 나와 세상을 바꾼다</Text>
+          <Text style={styles.sloganDesc}>내가 하는 것이 나와 세상을 바꾼다</Text>
         </View>
 
         {/* 약관 동의 */}

@@ -72,11 +72,19 @@
       "Read(//c/Users/kidoo kim/.claude/projects/e--dohada//**)",
       "Bash(git remote *)",
       "Bash(ls e:/dohada/mobile -la 2>nul | head -50)",
-      "Bash(eas build *)",
       "Bash(gh search *)",
-      "Bash(eas submit *)",
-      "Bash(npx eas-cli *)",
       "Bash(npx supabase *)"
+    ],
+    "ask": [
+      "Bash(eas update *)",
+      "Bash(eas build *)",
+      "Bash(eas submit *)",
+      "Bash(npx eas update *)",
+      "Bash(npx eas build *)",
+      "Bash(npx eas submit *)",
+      "Bash(npx eas-cli update *)",
+      "Bash(npx eas-cli build *)",
+      "Bash(npx eas-cli submit *)"
     ],
     "additionalDirectories": [
       "E:\\dohada"

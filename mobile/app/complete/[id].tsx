@@ -70,7 +70,7 @@ export default function CompleteScreen() {
       await Share.share({
         message: isCount
           ? `🏆 "${title}" 목표 ${targetDays}개 달성!\n\n더 나은 나, 더 나은 세상.`
-          : `🏆 "${title}" 챌린지 ${totalDays}일 완주!\n\n더 나은 나, 더 나은 세상.`,
+          : `🏆 "${title}" 하다 ${totalDays}일 완주!\n\n더 나은 나, 더 나은 세상.`,
       });
     } catch (e) {
       Alert.alert('공유 실패', String(e));
@@ -108,7 +108,7 @@ export default function CompleteScreen() {
 
         <Animated.View entering={FadeInUp.springify().delay(700)} style={styles.sloganBox}>
           <Text style={styles.slogan}>더 나은 나, 더 나은 세상</Text>
-          <Text style={styles.sloganSub}>나의 도전이 나와 세상을 바꿨다</Text>
+          <Text style={styles.sloganSub}>내가 하는 것이 나와 세상을 바꿨다</Text>
         </Animated.View>
       </View>
 

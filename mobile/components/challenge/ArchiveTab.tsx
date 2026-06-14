@@ -53,7 +53,7 @@ export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs, myUserId
         ListHeaderComponent={
           <View style={styles.placeholder}>
             <Text style={styles.placeholderEmoji}>🏆</Text>
-            <Text style={styles.placeholderTitle}>박제는 챌린지 종료 후</Text>
+            <Text style={styles.placeholderTitle}>박제는 하다 종료 후</Text>
             <Text style={styles.placeholderDesc}>
               {challenge.title} 이(가) 끝나면{'\n'}
               여기에 모든 추억이 박제됩니다.
@@ -64,7 +64,7 @@ export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs, myUserId
                 <Text style={styles.previewItem}>📸 모든 인증 사진 ({proofs.length}장)</Text>
                 <Text style={styles.previewItem}>💬 동료들의 응원 ({totalCheers}번)</Text>
                 <Text style={styles.previewItem}>🎥 기록 (Vlog) ({totalLogs}개)</Text>
-                <Text style={styles.previewItem}>🏆 완주 인증 (도전 끝까지 함께한 분들)</Text>
+                <Text style={styles.previewItem}>🏆 완주 인증 (하다 끝까지 함께한 분들)</Text>
               </View>
             </View>
             <ArchiveTiersCard />
@@ -100,7 +100,7 @@ export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs, myUserId
               <Text style={styles.statLabel}>
                 {challenge.goal_type === 'count'
                   ? (completed ? '개 달성' : '개 목표')
-                  : (completed ? '일 완주' : '일 도전')}
+                  : (completed ? '일 완주' : '일 하다')}
               </Text>
             </View>
             <View style={styles.statItem}>
@@ -120,7 +120,7 @@ export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs, myUserId
           {completed ? (
             <>
               <Text style={styles.heroMessage}>
-                도전, 그냥 하다.{'\n'}더 나은 나, 더 나은 세상.
+                그냥, 하다.{'\n'}더 나은 나, 더 나은 세상.
               </Text>
               {/* 완주 이야기 작성은 도전 주체만 — cheered 방 응원자는 축하 톤만 보고 작성 X */}
               {myUserId === subjectUserId && (
@@ -142,7 +142,7 @@ export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs, myUserId
             </>
           ) : (
             <View style={styles.failBox}>
-              <Text style={styles.failTitle}>도전이 종료되었어요</Text>
+              <Text style={styles.failTitle}>하다가 종료되었어요</Text>
               <Text style={styles.failDesc}>
                 완주 기준에 못 닿았지만, 시작한 것 자체가 한 걸음이에요.{'\n'}
                 남긴 인증·기록은 그대로 박제됩니다.

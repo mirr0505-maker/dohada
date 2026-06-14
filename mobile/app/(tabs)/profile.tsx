@@ -217,7 +217,7 @@ export default function ProfileScreen() {
             <View style={styles.interestRow}>
               {interests.length === 0 ? (
                 <Text style={styles.interestHint}>
-                  관심 분야를 등록하면 매칭되는 오픈 도전이 홈에 올라와요
+                  관심 분야를 등록하면 매칭되는 오픈 하다가 홈에 올라와요
                 </Text>
               ) : (
                 <View style={styles.chipsWrap}>
@@ -232,7 +232,7 @@ export default function ProfileScreen() {
             </View>
           </Pressable>
           <Text style={styles.notifNote}>
-            🎯 등록한 관심 분야의 오픈 도전이 만들어지면 홈의 "✨ 관심 도전" 에 자동으로 올라와요.
+            🎯 등록한 관심 분야의 오픈 하다가 만들어지면 홈의 "✨ 관심 하다" 에 자동으로 올라와요.
           </Text>
         </View>
 
@@ -243,7 +243,7 @@ export default function ProfileScreen() {
             <View style={styles.notifCard}>
               <ToggleRow
                 label="채팅"
-                desc="챌린지방 새 메시지 (즉시)"
+                desc="하다 방 새 메시지 (즉시)"
                 value={prefs.chat_enabled}
                 onChange={(v) => togglePref('chat_enabled', v)}
               />
@@ -306,7 +306,7 @@ export default function ProfileScreen() {
               fontSize: 12, color: colors.primary500, fontFamily: 'Pretendard-Regular',
               marginBottom: 12,
             }}>
-              종료된 모든 도전은 영구히 박제됩니다 · 탭하여 박제 보기
+              종료된 모든 하다는 영구히 박제됩니다 · 탭하여 박제 보기
             </Text>
             <View style={{ gap: 8 }}>
               {finishedChs.map(c => (
@@ -356,9 +356,9 @@ export default function ProfileScreen() {
             <View style={styles.roadmapRow}>
               <Text style={styles.roadmapEmoji}>🤝</Text>
               <View style={{ flex: 1 }}>
-                <Text style={styles.roadmapLabel}>도전 인연 ×횟수 누적 시스템</Text>
+                <Text style={styles.roadmapLabel}>하다 인연 ×횟수 누적 시스템</Text>
                 <Text style={styles.roadmapDesc}>
-                  함께 도전한 동료들과의 누적 횟수(×횟수)가 기록되며, QR 명함 및 연락처 매칭 기능이 추가됩니다.
+                  함께 한 동료들과의 누적 횟수(×횟수)가 기록되며, QR 명함 및 연락처 매칭 기능이 추가됩니다.
                 </Text>
               </View>
             </View>
@@ -368,7 +368,7 @@ export default function ProfileScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.roadmapLabel}>완주 박제 자산화 (실물 인쇄)</Text>
                 <Text style={styles.roadmapDesc}>
-                  100일 완주 성공 시 나의 도전 이야기를 책(인쇄/제본)으로 영구 소장할 수 있는 실물 인프라 결제 시스템이 연동됩니다.
+                  100일 완주 성공 시 나의 하다 이야기를 책(인쇄/제본)으로 영구 소장할 수 있는 실물 인프라 결제 시스템이 연동됩니다.
                 </Text>
               </View>
             </View>
@@ -417,7 +417,7 @@ export default function ProfileScreen() {
               ? `업데이트 ${Updates.updateId.slice(0, 8)} · ${formatUpdateTime(Updates.createdAt)} 적용`
               : '업데이트: 빌드 내장 버전'}
           </Text>
-          <Text style={styles.tagline}>같이 도전하는 사람의 응원이 진짜 힘이에요</Text>
+          <Text style={styles.tagline}>같이 하는 사람의 응원이 진짜 힘이에요</Text>
         </View>
       </ScrollView>
 
@@ -511,7 +511,7 @@ function InterestEditModal({
         </View>
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
           <Text style={styles.modalHint}>
-            관심 분야의 오픈 도전이 만들어지면 홈에서 발견할 수 있어요.{'\n'}
+            관심 분야의 오픈 하다가 만들어지면 홈에서 발견할 수 있어요.{'\n'}
             여러 개 선택 가능.
           </Text>
           <View style={styles.catGrid}>
@@ -615,7 +615,7 @@ function NicknameEditModal({
               editable={!saving}
             />
             <Text style={styles.modalHint}>
-              챌린지방·대화·기록에 표시돼요. 최대 20자.
+              하다 방·대화·기록에 표시돼요. 최대 20자.
             </Text>
           </View>
         </KeyboardAvoidingView>

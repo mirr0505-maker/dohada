@@ -2,6 +2,23 @@
 // 날짜 판정은 모두 KST(Asia/Seoul) 기준 — UTC 기준이면 한국 사용자는 오전 9시까지 어제로 판정됨.
 import type { DbChallenge, ProofWithRelations, ChallengeFrequency } from './types';
 import { getKstTodayRange } from './format';
+import { streakTier } from './tokens';
+
+// 🚀 연속 인증 마일스톤 (게시글 메달) — proofs.streak_count(연속 일수)가 이 값일 때만 메달 노출.
+// 사람 아닌 게시글에 부착 → 비교/줄세우기 아님. 색은 tokens.streakTier 와 인덱스 1:1.
+export const STREAK_MILESTONES = [3, 7, 21, 49, 99, 180, 365, 730] as const;
+const STREAK_LABELS = [
+  '작심삼일 돌파', '일주일 연속', '습관 형성', '강력한 습관 형성',
+  '백일의 약속', '반년 연속', '1년 성공', '2년 성공',
+];
+
+// streak_count → 마일스톤 메달 정보 (해당 일수가 마일스톤일 때만, 아니면 null)
+export function streakMilestone(streakCount?: number | null): { day: number; label: string; color: string } | null {
+  if (!streakCount) return null;
+  const i = (STREAK_MILESTONES as readonly number[]).indexOf(streakCount);
+  if (i < 0) return null;
+  return { day: streakCount, label: STREAK_LABELS[i], color: streakTier[i] };
+}
 
 // ISO timestamp → KST 날짜 문자열 (YYYY-MM-DD). 인증을 "어느 날" 했는지 묶을 때 사용.
 function toKstDateStr(iso: string): string {
@@ -17,6 +34,27 @@ export function targetProofCount(totalDays: number, frequency: ChallengeFrequenc
   if (frequency === 'weekly3') return Math.ceil(totalDays * 3 / 7);
   if (frequency === 'weekly1') return Math.ceil(totalDays / 7);
   return totalDays;
+}
+
+// 🚀 누구나(open) 방 모집 마감 시점(KST) — 시작일 00:00 ~ 종료일 24:00 구간의 중간 지점(ms).
+// 이 지점을 지나면 신규 합류 자동 마감(누구나 영역에서 제거 + 다함께처럼 진행). DB recruit_close_at 과 동일 계산.
+export function recruitCloseAtMs(startDate: string, endDate: string): number {
+  const startMs = Date.parse(`${startDate}T00:00:00+09:00`);
+  // end_date 는 그날 24시까지 운영 → (end_date + 1일) 00:00 KST 가 구간 끝
+  const endMs = Date.parse(`${endDate}T00:00:00+09:00`) + 86_400_000;
+  return startMs + (endMs - startMs) / 2;
+}
+
+// 누구나 방 신규 합류 가능 여부 = 모집 중인가.
+//   마감 조건: 개설자 수동 잠금(recruit_locked) 또는 도전 기간 50% 경과.
+//   open 외 종류엔 이 개념이 없음 → true (호출부에서 open 카드/방에만 사용).
+export function isRecruiting(
+  challenge: { kind: string; start_date: string; end_date: string; recruit_locked?: boolean | null },
+  nowMs: number = Date.now(),
+): boolean {
+  if (challenge.kind !== 'open') return true;
+  if (challenge.recruit_locked) return false;
+  return nowMs < recruitCloseAtMs(challenge.start_date, challenge.end_date);
 }
 
 // 진행률: 시작일~종료일 중 오늘까지 며칠 지났는지 %

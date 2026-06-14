@@ -57,7 +57,7 @@ function CheeredCard({ challenge, onPress }: { challenge: MyChallengeDetail; onP
       {challenge.top_members.length > 1 && (
         <StackedAvatars members={challenge.top_members.slice(1)} max={4} />
       )}
-      <Text style={styles.metaSmall}>응원받는 도전 · {dayN}/{totalDays}일</Text>
+      <Text style={styles.metaSmall}>응원받는 하다 · {dayN}/{totalDays}일</Text>
       <View style={styles.track}>
         <View style={[styles.fill, { width: `${progress * 100}%`, backgroundColor: colors.accent }]} />
       </View>
@@ -82,7 +82,7 @@ function ClosedCard({ challenge, onPress }: { challenge: MyChallengeDetail; onPr
           {todayN > 0 ? `오늘 ${todayN}/${total} 인증` : `오늘 0/${total} 시작 전`}
         </Text>
       </View>
-      <Text style={styles.metaSmall}>함께 도전 · {dayN}/{totalDays}일</Text>
+      <Text style={styles.metaSmall}>함께 하다 · {dayN}/{totalDays}일</Text>
       <View style={styles.track}>
         <View style={[styles.fill, { width: `${progress * 100}%`, backgroundColor: colors.accent }]} />
       </View>

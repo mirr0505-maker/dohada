@@ -46,6 +46,12 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   );
 
+  // 🚀 0043: 도전 기간 50% 지난 누구나 방의 "모집 자동 마감" 안내를 큐에 1회 적재.
+  //   마감 동작 자체는 날짜 파생이라 cron 불필요하지만, 개설자 안내 알림만 여기서 발생시킨다.
+  //   (scheduled_for=now() 로 들어가 아래 일반 발송 플로우가 같은 실행에서 이어서 처리)
+  const { error: acErr } = await supabase.rpc('notify_recruit_autoclose');
+  if (acErr) console.error('[flush] autoclose notify failed', acErr);
+
   const nowUtc = new Date();
   const nowKst = new Date(nowUtc.getTime() + KST_OFFSET_MIN * 60_000);
   const kstHour = nowKst.getUTCHours();   // KST 시 (now+9 가 UTCHours 가 됨)
@@ -236,6 +242,8 @@ function composeMessage(kind: string, rows: any[]): { title: string; body: strin
   if (kind === 'log_comment') return { title: '기록에 댓글', body: head.preview ?? '동료가 댓글을 남겼어요' };
   if (kind === 'proof')       return { title: '📸 동료 인증', body: head.preview ?? '동료가 오늘 인증을 남겼어요' };
   if (kind === 'log')         return { title: '🎥 새 기록', body: head.preview ?? '동료가 새 기록을 남겼어요' };
+  if (kind === 'recruit_milestone')  return { title: '👥 참가 인원 도달', body: head.preview ?? '참가 인원이 도달했어요' };
+  if (kind === 'recruit_autoclosed') return { title: '🔒 모집 자동 마감', body: head.preview ?? '도전 기간 절반이 지나 모집이 마감됐어요' };
   return { title: 'Do : 하다', body: head.preview ?? '' };
 }
 

@@ -31,6 +31,8 @@ const KIND_LABEL: Record<string, string> = {
   gift_received: '☕ 한잔 받음',
   gift_donated: '💚 한잔 기부',
   gift_refund: '↩️ 한잔 환불',
+  recruit_milestone: '👥 참가 인원 도달',
+  recruit_autoclosed: '🔒 모집 자동 마감',
 };
 
 export function AppHeader() {
@@ -86,7 +88,7 @@ export function AppHeader() {
       <View style={styles.brand}>
         <BrandMark size="md" color={colors.accent} />
         <Text style={styles.brandText}>
-          Do<Text style={styles.brandColon}>:</Text>하다
+          Do:<Text style={styles.brandName}>하다</Text>
         </Text>
       </View>
 
@@ -220,7 +222,8 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
     letterSpacing: -0.4,
   },
-  brandColon: {
+  brandName: {
+    // 🚀 한국어 브랜드명 '하다' = 로고색(주황) 포인트. 콜론은 brandText 기본색(검정) 유지 (Option B)
     color: colors.accent,
   },
   rightGroup: {

@@ -53,7 +53,7 @@ export default function RecordScreen() {
 
       <View style={styles.intro}>
         <Text style={styles.title}>🎥 기록</Text>
-        <Text style={styles.sub}>도전 인연들의 여정 이야기</Text>
+        <Text style={styles.sub}>하다 인연들의 여정 이야기</Text>
       </View>
 
       {loading ? (
@@ -67,7 +67,7 @@ export default function RecordScreen() {
           <Text style={styles.emptyEmoji}>📓</Text>
           <Text style={styles.emptyTitle}>아직 쌓인 기록이 없어요</Text>
           <Text style={styles.emptyDesc}>
-            챌린지 방의 기록 탭에서{'\n'}
+            하다 방의 기록 탭에서{'\n'}
             여정의 한 장면을 남겨보세요.
           </Text>
         </View>

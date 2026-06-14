@@ -16,6 +16,7 @@ import { uploadProofImage } from '@/lib/upload';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { haptic } from '@/lib/haptics';
 import { getKstTodayRange } from '@/lib/format';
+import { streakMilestone } from '@/lib/stats';
 import type { ChallengeKind } from '@/lib/types';
 
 export default function CheckinScreen() {
@@ -23,10 +24,13 @@ export default function CheckinScreen() {
   const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
 
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [photoUris, setPhotoUris] = useState<string[]>([]);   // 🚀 0045: 인증 사진 최대 3장
+  const [cameraMode, setCameraMode] = useState(true);         // 카메라 촬영 vs 선택 사진 검토
+  const [reviewIndex, setReviewIndex] = useState(0);          // 검토 중 보고 있는 장
   const [caption, setCaption] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [pickerBusy, setPickerBusy] = useState(false);   // ImagePicker 호출 동안 CameraView unmount (native UI 충돌 방지)
+  const MAX_PROOF_PHOTOS = 3;
   const [challengeKind, setChallengeKind] = useState<ChallengeKind | null>(null);   // 인증 완료 메시지 분류별 분기
 
   // 진입 시 challenge.kind 한 번 fetch — 분류별 톤
@@ -39,8 +43,8 @@ export default function CheckinScreen() {
         if (data.kind) setChallengeKind(data.kind as ChallengeKind);
         if (data.end_date && getKstTodayRange().kstDateStr > data.end_date) {
           Alert.alert(
-            '도전 종료',
-            '이미 종료된 도전이에요.\n남긴 인증은 챌린지방 박제 탭에서 볼 수 있어요.',
+            '하다 종료',
+            '이미 종료된 하다예요.\n남긴 인증은 하다 방 박제 탭에서 볼 수 있어요.',
             [{ text: '확인', onPress: () => router.back() }],
             { cancelable: false },
           );
@@ -53,15 +57,29 @@ export default function CheckinScreen() {
     try {
       haptic.medium();
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.8 });
-      if (photo?.uri) setPhotoUri(photo.uri);
+      if (photo?.uri) {
+        setPhotoUris(prev => [...prev, photo.uri].slice(0, MAX_PROOF_PHOTOS));
+        setCameraMode(false);   // 한 장 찍으면 검토 화면으로 (더 찍기는 버튼으로)
+      }
     } catch (e) {
       Alert.alert('촬영 실패', String(e));
     }
   };
 
   const onRetake = () => {
-    setPhotoUri(null);
+    setPhotoUris([]);
+    setReviewIndex(0);
     setCaption('');
+    setCameraMode(true);
+  };
+
+  const removePhoto = (i: number) => {
+    setPhotoUris(prev => {
+      const next = prev.filter((_, j) => j !== i);
+      if (next.length === 0) setCameraMode(true);
+      return next;
+    });
+    setReviewIndex(0);
   };
 
   // 보관함에서 스크린샷 선택 (v2.2 — 운동/걷기 앱 기록 화면 활용)
@@ -75,23 +93,22 @@ export default function CheckinScreen() {
         Alert.alert('보관함 접근 권한이 필요해요', '설정 → Do:하다 → 사진 에서 켜주세요.');
         return;
       }
+      const remaining = MAX_PROOF_PHOTOS - photoUris.length;
+      if (remaining <= 0) return;
       // CameraView unmount 가 commit 될 시간 한 박자
       await new Promise(r => setTimeout(r, 80));
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],   // v18 호환 — MediaTypeOptions 는 deprecated
         quality: 0.85,
         exif: false,
+        allowsMultipleSelection: true,
+        selectionLimit: remaining,
       });
-      console.log('[checkin/picker]', JSON.stringify({
-        canceled: result.canceled,
-        count: result.assets?.length ?? 0,
-        uri: result.assets?.[0]?.uri?.slice(0, 60),
-      }));
       if (result.canceled) return;
-      const uri = result.assets?.[0]?.uri;
-      if (uri) {
-        console.log('[checkin/setPhotoUri] calling with', uri.slice(0, 80));
-        setPhotoUri(uri);
+      const uris = (result.assets ?? []).map(a => a.uri).filter(Boolean) as string[];
+      if (uris.length) {
+        setPhotoUris(prev => [...prev, ...uris].slice(0, MAX_PROOF_PHOTOS));
+        setCameraMode(false);
       } else {
         Alert.alert('사진을 못 가져왔어요', '다시 시도해주세요.');
       }
@@ -103,27 +120,34 @@ export default function CheckinScreen() {
   };
 
   const onSubmit = async () => {
-    if (!photoUri) return;
+    if (photoUris.length === 0) return;
     setSubmitting(true);
     try {
-      // 1) R2 업로드 (Supabase 미연동 시 로컬 URI 그대로 반환)
-      const photoUrl = await uploadProofImage(photoUri, 'jpg');
+      // 1) R2 업로드 — 장수만큼 순서 보존 (Supabase 미연동 시 로컬 URI 그대로 반환)
+      const urls: string[] = [];
+      for (const u of photoUris) urls.push(await uploadProofImage(u, 'jpg'));
 
-      // 2) Supabase 가 구성된 경우만 proofs insert
+      // 2) Supabase 가 구성된 경우만 proofs insert (photo_url = 커버, photo_urls = 전체)
+      //    streak_count 는 서버 BEFORE INSERT 트리거(0044)가 등록 시점에 계산 → 돌려받아 즉시 축하.
+      let milestoneLine = '';
       if (isSupabaseConfigured) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('로그인이 필요합니다.');
-        const { error } = await supabase.from('proofs').insert({
+        const { data: inserted, error } = await supabase.from('proofs').insert({
           challenge_id: id,
           user_id: user.id,
-          photo_url: photoUrl,
+          photo_url: urls[0],
+          photo_urls: urls,
           caption: caption.trim() || null,
-        });
+        }).select('streak_count').maybeSingle();   // maybeSingle: RLS 로 못 돌려받아도 인증 자체는 성공 처리
         if (error) throw error;
+        // 🚀 연속 인증 마일스톤(3·7·21…)이면 등록 즉시 알럿에서 축하 — 메달은 게시글에도 그대로 부착
+        const milestone = streakMilestone(inserted?.streak_count);
+        if (milestone) milestoneLine = `🔥 ${milestone.day}일 연속 — ${milestone.label}!\n\n`;
       }
 
       haptic.success();
-      Alert.alert('인증 완료!', kindCompleteMessage(challengeKind), [
+      Alert.alert('인증 완료!', milestoneLine + kindCompleteMessage(challengeKind), [
         { text: '확인', onPress: () => router.back() },
       ]);
     } catch (e: any) {
@@ -181,22 +205,36 @@ export default function CheckinScreen() {
       </View>
 
       <View style={styles.viewfinder}>
-        {photoUri ? (
-          <Image
-            source={{ uri: photoUri }}
-            style={styles.preview}
-            resizeMode="cover"
-            onLoad={() => console.log('[checkin/Image] loaded', photoUri.slice(0, 60))}
-            onError={e => console.log('[checkin/Image] error', e.nativeEvent?.error ?? 'unknown')}
-          />
-        ) : pickerBusy ? (
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0A0A0A' }]} />
+        {cameraMode ? (
+          pickerBusy ? (
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0A0A0A' }]} />
+          ) : (
+            <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" />
+          )
         ) : (
-          <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" />
+          <>
+            <Image source={{ uri: photoUris[reviewIndex] }} style={styles.preview} resizeMode="cover" />
+            {photoUris.length > 1 && (
+              <View style={styles.reviewBadge}>
+                <Text style={styles.reviewBadgeText}>{reviewIndex + 1}/{photoUris.length}</Text>
+              </View>
+            )}
+            {/* 선택한 사진 썸네일 줄 — 탭하여 보기, ✕ 로 제거 */}
+            <View style={styles.thumbRow}>
+              {photoUris.map((uri, i) => (
+                <Pressable key={`${uri}-${i}`} onPress={() => setReviewIndex(i)} style={styles.thumbWrap}>
+                  <Image source={{ uri }} style={[styles.thumb, i === reviewIndex && styles.thumbActive]} />
+                  <Pressable style={styles.thumbX} onPress={() => removePhoto(i)} hitSlop={6} disabled={submitting}>
+                    <Text style={styles.thumbXText}>✕</Text>
+                  </Pressable>
+                </Pressable>
+              ))}
+            </View>
+          </>
         )}
       </View>
 
-      {photoUri && (
+      {!cameraMode && photoUris.length > 0 && (
         <View style={styles.captionBox}>
           <TextInput
             value={caption}
@@ -211,19 +249,27 @@ export default function CheckinScreen() {
       )}
 
       <View style={styles.bottom}>
-        {photoUri ? (
+        {!cameraMode && photoUris.length > 0 ? (
           <View style={{ gap: 8 }}>
             <Button
-              label={submitting ? '업로드 중…' : '이 사진으로 인증'}
+              label={submitting ? '업로드 중…' : `이 사진으로 인증${photoUris.length > 1 ? ` (${photoUris.length}장)` : ''}`}
               size="xl"
               block
               disabled={submitting}
               onPress={onSubmit}
             />
+            {photoUris.length < MAX_PROOF_PHOTOS && (
+              <View style={styles.addRow}>
+                <Pressable style={styles.addBtn} onPress={() => setCameraMode(true)} disabled={submitting}>
+                  <Text style={styles.addBtnText}>📷 더 찍기</Text>
+                </Pressable>
+                <Pressable style={styles.addBtn} onPress={onPickFromLibrary} disabled={submitting}>
+                  <Text style={styles.addBtnText}>🖼️ 보관함</Text>
+                </Pressable>
+              </View>
+            )}
             <Pressable style={styles.retake} onPress={onRetake} disabled={submitting}>
-              <Text style={[styles.retakeText, submitting && { opacity: 0.4 }]}>
-                다시 선택
-              </Text>
+              <Text style={[styles.retakeText, submitting && { opacity: 0.4 }]}>처음부터 다시</Text>
             </Pressable>
           </View>
         ) : (
@@ -234,9 +280,13 @@ export default function CheckinScreen() {
             <Pressable style={styles.libBtn} onPress={onPickFromLibrary}>
               <Text style={styles.libBtnText}>🖼️ 보관함 (앱 스샷)</Text>
             </Pressable>
-            <Text style={styles.libHint}>
-              운동·걷기 앱 기록 화면 — 시간 표시 보이게
-            </Text>
+            {photoUris.length > 0 ? (
+              <Pressable onPress={() => setCameraMode(false)} hitSlop={8}>
+                <Text style={styles.libHint}>← 선택한 {photoUris.length}장 보기</Text>
+              </Pressable>
+            ) : (
+              <Text style={styles.libHint}>운동·걷기 앱 기록 화면 — 시간 표시 보이게</Text>
+            )}
           </View>
         )}
       </View>
@@ -276,6 +326,34 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   preview: { flex: 1, width: '100%', height: '100%' },
+  reviewBadge: {
+    position: 'absolute', top: 12, left: 12,
+    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: radius.pill,
+    paddingHorizontal: 10, paddingVertical: 4,
+  },
+  reviewBadgeText: { color: colors.surface, fontSize: 12, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
+  thumbRow: {
+    position: 'absolute', bottom: 12, left: 12, right: 12,
+    flexDirection: 'row', gap: 8,
+  },
+  thumbWrap: { position: 'relative' },
+  thumb: {
+    width: 56, height: 56, borderRadius: radius.sm,
+    borderWidth: 2, borderColor: 'transparent',
+  },
+  thumbActive: { borderColor: colors.surface },
+  thumbX: {
+    position: 'absolute', top: -6, right: -6,
+    width: 20, height: 20, borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center',
+  },
+  thumbXText: { color: colors.surface, fontSize: 11, fontWeight: fontWeight.bold },
+  addRow: { flexDirection: 'row', gap: 8 },
+  addBtn: {
+    flex: 1, alignItems: 'center', paddingVertical: 11,
+    backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: radius.pill,
+  },
+  addBtnText: { color: colors.surface, fontSize: fontSize.sm, fontFamily: fontFamily.medium, fontWeight: fontWeight.medium },
   captionBox: { paddingHorizontal: 16, paddingBottom: 12 },
   captionInput: {
     backgroundColor: 'rgba(255,255,255,0.08)',

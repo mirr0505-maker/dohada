@@ -275,7 +275,7 @@ export function ChatTab({ challengeId, myUserId, isMember, farewellDaysLeft = 0,
       {writeLocked ? (
         /* 박제 — 마무리 기간 종료 후 읽기 전용 */
         <View style={styles.guestBar}>
-          <Text style={styles.guestText}>🏁 박제된 도전이에요 — 대화는 보존만 됩니다.</Text>
+          <Text style={styles.guestText}>🏁 박제된 하다예요 — 대화는 보존만 됩니다.</Text>
         </View>
       ) : isMember ? (
         <>
@@ -283,7 +283,7 @@ export function ChatTab({ challengeId, myUserId, isMember, farewellDaysLeft = 0,
           /* 마무리 인사 유예 — 잔여일 안내 */
           <View style={styles.farewellBar}>
             <Text style={styles.farewellText}>
-              🏁 도전 종료 — 마무리 인사 기간이 {farewellDaysLeft}일 남았어요
+              🏁 하다 종료 — 마무리 인사 기간이 {farewellDaysLeft}일 남았어요
             </Text>
           </View>
         )}
