@@ -216,7 +216,7 @@
       <p>앱이 실행되지 않았다면 아래 버튼을 눌러주세요.</p>
       
       <button class="btn btn-primary" onclick="openApp()">Do : 하다 앱 실행하기</button>
-      <a id="store-link" class="btn btn-secondary" href="#" target="_blank">앱 다운로드 받기</a>
+      <a id="store-link" class="btn btn-secondary" href="#" target="_blank">📲 설치 안내 보기</a>
 
       <div class="guide-box">
         <div class="guide-title">
@@ -289,8 +289,9 @@
       const iosDeeplink = "dohada://invite/" + challengeId;
       const androidDeeplink = "intent://invite/" + challengeId + "#Intent;scheme=dohada;package=app.dohada.beta;end;";
       
-      const appStoreUrl = "https://testflight.apple.com/join/jXrf3QpW";
-      const playStoreUrl = "https://expo.dev/accounts/mirr0505/projects/do-hada/builds/1315cf48-3e9d-4ad6-936e-51dda858b284";
+      // 설치 폴백은 guide.html 단일 소스로 — 빌드마다 여기 고칠 필요 없음 (guide 가 OS 감지 + 최신 링크 유지)
+      const appStoreUrl = "https://mirr0505-maker.github.io/dohada/guide.html";
+      const playStoreUrl = "https://mirr0505-maker.github.io/dohada/guide.html";
 
       // 스토어 버튼 링크 설정
       const storeLink = document.getElementById('store-link');
