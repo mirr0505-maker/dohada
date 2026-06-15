@@ -16,6 +16,12 @@
 //   FLUSH_NOTIFICATIONS_SECRET 환경 변수와 Authorization 헤더 (Bearer ...) 일치 필수.
 //   미일치 시 401. cron 호출 시 헤더에 동일 secret 포함시키도록 대시보드에서 설정.
 //
+// ⚠️ 배포는 반드시 --no-verify-jwt 로:
+//     supabase functions deploy flush-notifications --no-verify-jwt --project-ref <ref>
+//   게이트웨이 JWT 검증을 끄고 위 "자체 secret 인증"을 쓴다. 이 플래그를 빠뜨리면
+//   cron(net.http_post)이 보내는 secret-Bearer 가 게이트웨이에서 JWT 형식 아님(401)으로 막혀
+//   함수가 한 번도 안 돌고 → 푸시 전부 안 나감(알림함만 살아남음). (2026-06-13~15 실장애)
+//
 // 환경변수 (supabase secrets):
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY  (자동 주입)
 //   FLUSH_NOTIFICATIONS_SECRET              (수동 설정 필요)
