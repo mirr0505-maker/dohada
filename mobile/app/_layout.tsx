@@ -12,6 +12,7 @@ import { initSentry } from '@/lib/sentry';
 import { scheduleDailyReminder, cancelDailyReminder } from '@/lib/notifications';
 import { registerExpoPushToken, ensureNotificationPrefs } from '@/lib/push';
 import { useSession } from '@/lib/session';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import * as SecureStore from 'expo-secure-store';
 
 // Sentry — module load 시점에 한 번
@@ -148,6 +149,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StatusBar style="auto" />
+        <ErrorBoundary>
         <Stack
           screenOptions={{
             headerShown: false,
@@ -172,6 +174,7 @@ export default function RootLayout() {
           <Stack.Screen name="invite/[id]" />
           <Stack.Screen name="complete/[id]" options={{ gestureEnabled: false }} />
         </Stack>
+        </ErrorBoundary>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

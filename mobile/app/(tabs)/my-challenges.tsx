@@ -19,6 +19,7 @@ import { getKstTodayRange } from '@/lib/format';
 
 export default function MyChallengesScreen() {
   const session = useSession();
+  const myUserId = session?.user?.id;
   const [challenges, setChallenges] = useState<ChallengeWithCount[]>([]);
   const [gaveUpChs, setGaveUpChs] = useState<GivenUpChallenge[]>([]);   // 🚀 조용한 보관함 (v2.8)
   const [gaveUpOpen, setGaveUpOpen] = useState(false);                  // 기본 접힘 — 포기를 들이밀지 않기
@@ -76,10 +77,14 @@ export default function MyChallengesScreen() {
         <ErrorState message={error} onRetry={() => { setLoading(true); load(); }} />
       ) : (
         (() => {
-          // 🚀 P-⑤: 진행 중 vs 종료 분리 (KST 자정 기준)
+          // 🚀 내가 하는 하다(나홀로·다함께·누구나·응원받기 개설자) vs 내가 응원하는 하다(응원하기로 들어간 cheered) 분리
+          const isCheererRoom = (c: ChallengeWithCount) => c.kind === 'cheered' && c.creator_id !== myUserId;
+          const doing    = challenges.filter(c => !isCheererRoom(c));
+          const cheering = challenges.filter(c => isCheererRoom(c));
+          // 🚀 P-⑤: 진행 중 vs 종료 분리 (KST 자정 기준) — '내가 하는 하다' 기준
           const todayStr = getKstTodayRange().kstDateStr;
-          const active   = challenges.filter(c => todayStr <= c.end_date);
-          const finished = challenges.filter(c => todayStr >  c.end_date);
+          const active   = doing.filter(c => todayStr <= c.end_date);
+          const finished = doing.filter(c => todayStr >  c.end_date);
           return (
             <FlatList
               data={active}
@@ -88,7 +93,7 @@ export default function MyChallengesScreen() {
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
               }
-              renderItem={({ item }) => <Card challenge={item} />}
+              renderItem={({ item }) => <Card challenge={item} myUserId={myUserId} />}
               ListEmptyComponent={
                 <View style={styles.empty}>
                   <Text style={styles.emptyEmoji}>🌱</Text>
@@ -99,6 +104,21 @@ export default function MyChallengesScreen() {
               }
               ListFooterComponent={
                 <>
+                  {/* 💛 내가 응원하는 하다 — '내가 하는 하다'와 '끝낸 하다' 사이 (도전자 아닌 응원자 역할) */}
+                  {cheering.length > 0 && (
+                    <View style={{ marginTop: 24, gap: 12 }}>
+                      <Text style={styles.footerSectionTitle}>💛 응원하는 하다</Text>
+                      {cheering.map(item => {
+                        const isFin = todayStr > item.end_date;
+                        return (
+                          <View key={item.id} style={isFin ? { opacity: 0.85 } : undefined}>
+                            <Card challenge={item} myUserId={myUserId} finished={isFin} />
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
+
                   {finished.length > 0 && (
                     <View style={{ marginTop: 24, gap: 12 }}>
                       <Text style={{
@@ -112,7 +132,7 @@ export default function MyChallengesScreen() {
                       </Text>
                       {finished.map(item => (
                         <View key={item.id} style={{ opacity: 0.85 }}>
-                          <Card challenge={item} finished />
+                          <Card challenge={item} myUserId={myUserId} finished />
                         </View>
                       ))}
                     </View>
@@ -163,11 +183,14 @@ export default function MyChallengesScreen() {
   );
 }
 
-function Card({ challenge, finished = false }: { challenge: ChallengeWithCount; finished?: boolean }) {
+function Card({ challenge, myUserId, finished = false }: { challenge: ChallengeWithCount; myUserId?: string; finished?: boolean }) {
   const { daysLeft, progress, dayN, totalDays } = computeProgress(challenge.start_date, challenge.end_date);
 
   // 🚀 날짜 포맷 예쁘게 변환 (YYYY-MM-DD -> YYYY.MM.DD)
   const formatDt = (d: string) => d.replace(/-/g, '.');
+
+  // 🚀 cheered(응원받기) 응원 동료 — 인증 주체가 아님. '오늘 인증 전' 대신 '응원하기' 로.
+  const isCheeredParticipant = challenge.kind === 'cheered' && challenge.creator_id !== myUserId;
 
   return (
     <Pressable
@@ -215,8 +238,12 @@ function Card({ challenge, finished = false }: { challenge: ChallengeWithCount; 
             </>
           ) : (
             <>
-              {/* 🚀 오늘 인증 상태 배지 */}
-              {challenge.is_today_checked ? (
+              {/* 🚀 오늘 인증 상태 배지 — 응원받기 동료는 인증 대신 응원 */}
+              {isCheeredParticipant ? (
+                <View style={[styles.checkinBadge, styles.cheerBadge]}>
+                  <Text style={[styles.checkinBadgeText, styles.cheerBadgeText]}>💛 응원하기</Text>
+                </View>
+              ) : challenge.is_today_checked ? (
                 <View style={[styles.checkinBadge, styles.checkedBadge]}>
                   <Text style={[styles.checkinBadgeText, styles.checkedBadgeText]}>✓ 오늘 인증 완료</Text>
                 </View>
@@ -297,6 +324,13 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.medium,
     fontWeight: fontWeight.medium,
     marginTop: 4,
+  },
+  footerSectionTitle: {
+    fontSize: fontSize.base,
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    paddingHorizontal: 4,
   },
   list: {
     paddingHorizontal: 24,
@@ -408,6 +442,9 @@ const styles = StyleSheet.create({
   uncheckedBadge: {
     backgroundColor: 'rgba(255, 107, 53, 0.08)', // 🚀 accent 컬러 연한 배경
   },
+  cheerBadge: {
+    backgroundColor: colors.accent50,   // 🚀 응원받기 동료 — 인증 의무 없음, 응원 톤
+  },
   finishedBadge: {
     backgroundColor: colors.primary100,   // 종료 카드 — 차분한 회색 톤
   },
@@ -421,6 +458,9 @@ const styles = StyleSheet.create({
   },
   uncheckedBadgeText: {
     color: colors.accent,
+  },
+  cheerBadgeText: {
+    color: colors.accent700,
   },
   finishedBadgeText: {
     color: colors.primary700,

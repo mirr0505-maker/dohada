@@ -16,6 +16,7 @@ type Props = {
   isMember: boolean;     // 🚀 비멤버는 동료 명단(이름) 비공개 — 인원 수만 노출 (현황 탭 잠금과 동일 기준)
   myUserId: string | undefined;
   creatorId: string;
+  onBlock?: (userId: string, nickname: string) => void;   // 🚀 3b: 차단 (부모가 confirm+차단+새로고침)
 };
 
 export function MemberSheet({
@@ -26,6 +27,7 @@ export function MemberSheet({
   isMember,
   myUserId,
   creatorId,
+  onBlock,
 }: Props) {
   // 포기한 멤버는 조용한 보관 — 활성 명단에서 제외 (헤더 memberCount 와 동일 기준)
   // 본인을 맨 위로, 나머지는 가입 순
@@ -89,6 +91,11 @@ export function MemberSheet({
                       {paused ? '⏸ 잠시 멈춤 중' : item.today_checked ? '✓ 오늘 인증' : '오늘 미인증'}
                     </Text>
                   </View>
+                  {!isMe && onBlock && (
+                    <Pressable onPress={() => onBlock(item.id, item.nickname)} hitSlop={8}>
+                      <Text style={styles.blockBtn}>차단</Text>
+                    </Pressable>
+                  )}
                 </View>
               );
             }}
@@ -213,5 +220,13 @@ const styles = StyleSheet.create({
     color: colors.primary500,
     fontFamily: fontFamily.regular,
     marginTop: 2,
+  },
+  blockBtn: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
+    textDecorationLine: 'underline',
+    paddingHorizontal: 6,
   },
 });

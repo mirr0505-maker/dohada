@@ -145,6 +145,34 @@
 - 업로드: 인증([`checkin/[id].tsx`](mobile/app/checkin/[id].tsx)) = 카메라/보관함 다중선택→썸네일 검토(추가·제거·더찍기), 기록([`LogTab`](mobile/components/challenge/LogTab.tsx)) = 썸네일 줄(최대 4). picker `allowsMultipleSelection`+`selectionLimit`
 - **배포 (⚠️ migration 먼저)**: 0045 적용 → 클라 OTA. 미적용 OTA 시 photo_urls 없어 폴백(`[photo_url]`)으로 1장만 — 무해. ※ 전체화면 좌우 페이징+핀치 제스처는 실기기 확인 필요(정적 검증만 됨)
 
+### 신규 코드 위치 (v2.15 — 다짐(무현금 사회적 스테이크) + 일반 UGC 검수, 0046, 2026-06-16)
+**"내기 한잔"(mock 결제·법률 게이트)과 분리된 무현금 약속 = "다짐".** 앱으로 돈이 흐르지 않음(명예제도) → 결제·도박 규제 무관, 베타부터 영구 기능. 실돈 내기는 출시 후 법률 자문(⑤b) 게이트 유지.
+- **콘텐츠 검수 일반화**: [`_shared/moderation/moderation.ts`](supabase/functions/_shared/moderation/moderation.ts) — 순수 로직(금액 사전탐지·응답 파싱·모드별 프롬프트, **자동 테스트 의무영역** → [`__tests__/moderation.test.ts`](__tests__/moderation.test.ts)) + EF [`moderate-text`](supabase/functions/moderate-text/index.ts)(`text`/`pledge` 모드, Haiku 4.5, JWT ON). 기존 `moderate-challenge`는 그대로.
+- **다짐(pledge)**: DB [`0046_pledges.sql`](supabase/migrations/0046_pledges.sql) — `pledges`(direction `lose`(실패 시)/`win`(성공 시) + 자유 content 200자 + fulfilled, 멤버당 방향별 1개). RLS = 조회 `is_viewer_of`/쓰기 `is_member_of`+본인.
+  - UI: [`PledgeSheet`](mobile/components/challenge/PledgeSheet.tsx)(트리거 토글 + **자유 문구** + `moderate-text(pledge)` 동기 차단 — 금액 표기 일절 금지·고가·신체/성적·강요) · [`PledgeCard`](mobile/components/challenge/PledgeCard.tsx)(완주/실패 맞춤 정산 "지킬 시간"·"지켰어요" 명예제도) · [`FellowPledges`](mobile/components/challenge/FellowPledges.tsx)(동료 다짐 공개·읽기전용 — 목격 정체성, 비교/랭킹 X)
+  - 클라: [`db.ts`](mobile/lib/db.ts) `fetchChallengePledges`(방 전체→본인/동료 분리)·`createPledge`·`togglePledgeFulfilled`·`deletePledge`·`moderatePledge`. room [`room/[id].tsx`](mobile/app/room/[id].tsx) `pledgeSlot`(현황 탭 betSlot 옆)
+  - 결정(2026-06-16): ① 이름 "다짐"(내기 단어 회피 = 법적 분리) ② 문구 자유·트리거만 실패/성공 이진 ③ 정산 명예제도(돈 안 거침) ④ 동료 다짐 공개 + 정산공개 ⑤ 전체 챌린지 유형(count 포함)
+- **일반 UGC 검수 (3a, block 티어)**: [`db.ts`](mobile/lib/db.ts) `moderateUgcText` → 댓글(`addComment`)·기록댓글(`addLogComment`)·기록(`createLog`)·완주이야기(`createCompletionStory`)·대화(`sendChatMessage`) **+ 편집 경로**(`updateLog`·`updateLogComment`·`updateCompletionStory` — 수정 우회 차단)에서 `moderate-text(text)` 동기 차단. 명백한 위반만, 우회 분기 없음. **flag(애매→자동숨김)는 3b(신고·차단)와 인프라 공유 → 3b로 이월**
+- **배포 (⚠️ migration 먼저)**: 0046 적용 + `moderate-text` EF 배포(`ANTHROPIC_API_KEY` 공유) 완료 → 클라 OTA(preview·production). 나머지 순수 JS
+
+### 신규 코드 위치 (v2.16 — 신고·차단 + flag 자동숨김 (UGC), 0047, 2026-06-16)
+**애플/구글 UGC 4종(신고·차단·필터링·연락수단) 충족 + AI flag/신고누적 자동숨김.** 출시 차단 #2 해소.
+- **DB [`0047_reports_blocks.sql`](supabase/migrations/0047_reports_blocks.sql)**: `reports`(사유 6종 spam·abuse·sexual·violence·impersonation·other, `unique(reporter,target)` 중복방지) + `blocks`(본인 outgoing RLS) + `blocked_user_ids()` RPC(양방향 id, 방향 비노출) + `hidden` 6테이블(proofs·comments·log_comments·logs·completion_stories·chat_messages) + **신고 3건 누적 → 자동숨김 트리거**
+- **검수 flag 티어**: [`moderation.ts`](supabase/functions/_shared/moderation/moderation.ts) text 모드 allow/**flag**/block 3단. flag → 작성 시 `hidden=true`(`moderateUgcText` boolean 반환, 8곳 threading). block 은 등록 차단(3a)
+- **신고·차단·필터 (클라)**: [`db.ts`](mobile/lib/db.ts) `createReport`·`blockUser`·`unblockUser`·`fetchBlockedUserIds`. **필터링** = hidden(서버 `.eq('hidden',false)`) + 차단 양방향 제외(JS) — 8 surface(방/피드 인증·방/피드 기록·기록댓글·채팅·인증댓글·완주이야기). 베타는 클라 필터, 정식은 RLS 격상
+- **UI**: [`ReportSheet`](mobile/components/challenge/ReportSheet.tsx)(사유 6종 칩 + 상세) · 인증 ProofCard ⋯ → 신고/차단([`room/[id].tsx`](mobile/app/room/[id].tsx) `openProofActions`·`handleBlock`) · [`MemberSheet`](mobile/components/challenge/MemberSheet.tsx) 멤버별 차단 · 프로필 "문의·신고 (운영팀)" mailto([`profile.tsx`](mobile/app/(tabs)/profile.tsx) + [`support.ts`](mobile/lib/support.ts) `SUPPORT_EMAIL` 단일 상수, 법인 후 교체)
+- 결정(2026-06-16): ① 사유 6종 ② 자동숨김 신고 3건 / AI flag 1건 즉시 ③ 차단=양방향 콘텐츠 숨김·알림 X ④ 문의=화면엔 "운영팀" ⑤ flag→자동숨김(ⓑ)
+- **배포 (⚠️ migration 먼저)**: 0047 적용 + `moderate-text` EF 재배포 완료 → 클라 OTA(preview·production). 차단목록 관리 UI·완전 RLS 격상은 후속
+
+### 신규 코드 위치 (v2.17 — 응원받기(cheered) vs 다함께 구분 + 응원자 시선 정리, 0048, 2026-06-16)
+**cheered(응원받기) = 도전자(개설자) 1명만 도전, 나머지는 응원 동료(응원·댓글·채팅·선물만).** 권한(RLS `can_create_in_challenge`·FAB·내기·다짐 주체)은 이미 막혀 있었으나 **요약 UI 가 cheered 를 closed(다함께)처럼 "전원 인증"으로 표시**해 정체성이 흐려지고, 응원자가 방 안에서 자기 역할을 모르던 문제 정리. (FEEDBACK #40)
+- **요약 UI 구분**: 홈 카드([home.tsx](mobile/app/(tabs)/home.tsx)) — 응원자=`💛 응원` 버튼·`🙋 도전자 응원하기` 메타, 도전자=`💛 받은 응원 N개`(인증 버튼 유지). 방 인포바([room/[id].tsx](mobile/app/room/[id].tsx)) — cheered 인증 분모를 전원이 아닌 **도전자 1명 기준**(`📸 1/1`, `cheeredCreatorCheckedToday`). 현황 탭([StatusTab.tsx](mobile/components/challenge/StatusTab.tsx)) — 응원 동료는 인증률 바 없이 `💛 응원 중`(`isCheerer`), **도전자 최상단 고정** + closed infoKindTag '🌍누구나'→'🤝다함께' 오타 수정. 내하다 배지([my-challenges.tsx](mobile/app/(tabs)/my-challenges.tsx)) — 응원자=`💛 응원하기`
+- **응원자 5탭 시선**: 인증·기록 탭 상단 역할 배너 `💛 OO님의 하다예요 · 응원과 댓글로 함께해요`(인증=room ListHeader / 기록=[LogTab.tsx](mobile/components/challenge/LogTab.tsx) `cheerOnlyOf` prop). 빈 상태 응원자용 문구("아직 OO님의 인증이 없어요 · 곧 올라올 거예요"). **응원자 FAB 전면 제거**(대화로 점프하던 기록 탭 FAB 삭제 — 카드별 응원/댓글/좋아요가 행동, 미사용 `fabCheer` 정리). 대화=응원자 홈(변경 없음)·박제=도전자 기준(이미 분기됨, `subjectUserId`)
+- **홈/내하다 IA**: 홈([home.tsx](mobile/app/(tabs)/home.tsx)) `myDoingChs`(응원방 제외)로 '오늘 나의 하다'·'끝낸 하다' 구성 → 응원방은 '오늘 응원으로 힘주기'(`cheeredRooms`)에만 노출(섹션 중복 제거). 내하다 탭([my-challenges.tsx](mobile/app/(tabs)/my-challenges.tsx)) — `내 하다(내가 하는: 나홀로·다함께·누구나·응원받기 개설자) → 💛 응원하는 하다 → 🏆 끝낸 하다` 3밴드 분리
+- **DB [0048_pledge_cheered_gate.sql](supabase/migrations/0048_pledge_cheered_gate.sql)**: 다짐(pledge) INSERT 정책을 `is_member_of` → `can_create_in_challenge`(0008)로 교체 — cheered 방은 **개설자만 다짐 작성**(인증/기록과 동일 잣대). 응원 동료가 DB 레벨에선 다짐 insert 가능하던 방어선 공백 메움. UPDATE/DELETE 는 본인 행 한정이라 유지
+- 결정(2026-06-16): ① 도전자 카드는 '받은 응원 N개'(my_cheers_count) ② 응원자 역할 안내=콘텐츠 탭 상단 슬림 배너 ③ 응원자 기록 탭 FAB 제거 ④ 응원방은 홈/내하다에서 '응원' 섹션으로만 ⑤ 다짐 DB 게이트 추가
+- **배포 (⚠️ migration 먼저)**: 0048 적용 완료(운영 ✓) → 클라 OTA(preview·production 양 채널). EF·네이티브 빌드 불필요(JS만, RLS 1개). 검증 tsc 0 + npm test 71/71
+
 ### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.
 - 인증 완료 Alert / 카톡 초대 / 생성 후 Alert / 챌린지방 헤더 부제 / FAB 라벨 — 모두 분류별 분기 완료

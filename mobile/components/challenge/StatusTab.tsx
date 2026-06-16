@@ -12,10 +12,11 @@ type Props = {
   proofs: ProofWithRelations[];
   myUserId: string | undefined;
   betSlot?: React.ReactNode;   // 🎯 나와의 내기 카드 (도전자 본인에게만, 부모가 구성) — 없으면 미노출
+  pledgeSlot?: React.ReactNode;   // 💛 다짐 카드 (무현금 사회적 스테이크, 멤버 본인 — 부모가 구성)
   onRecruitLock?: (locked: boolean) => void;   // 🚀 0043: 개설자 모집 잠금/해제 (누구나 방 전용)
 };
 
-export function StatusTab({ challenge, members, proofs, myUserId, betSlot, onRecruitLock }: Props) {
+export function StatusTab({ challenge, members, proofs, myUserId, betSlot, pledgeSlot, onRecruitLock }: Props) {
 
   // 🚀 0043: 누구나 방 모집 상태 — 모집 중 / 수동 잠금 / 기간 50% 자동 마감.
   // "모집 마감" 은 신규 합류만 막음(종료 아님). 잠금 토글은 개설자 본인만, 다시 열기는 50% 경과 전까지만.
@@ -29,7 +30,11 @@ export function StatusTab({ challenge, members, proofs, myUserId, betSlot, onRec
   // 분모는 합류일 기준 — 시작 후 합류한 동료도 자기 출발선으로 공정하게 계산 (v2.8)
   const rows = useMemo(() => {
     const isCount = challenge.goal_type === 'count';
+    const isCheered = challenge.kind === 'cheered';
     return members.map(m => {
+      // 🚀 cheered(응원받기) = 도전자(개설자)만 도전 — 응원 동료는 인증 주체가 아님.
+      // 인증률(0%)로 표시하면 '실패하는 도전자'처럼 보이므로 '응원 중' 으로 구분.
+      const isCheerer = isCheered && m.id !== challenge.creator_id;
       const myProofs = proofs.filter(p => p.user_id === m.id);
       const uniqDays = new Set(myProofs.map(p => p.created_at.slice(0, 10))).size;
       const streak = computeStreak(myProofs);
@@ -39,24 +44,31 @@ export function StatusTab({ challenge, members, proofs, myUserId, betSlot, onRec
         const target = challenge.target_count ?? 0;
         const current = myProofs.length;
         const rate = Math.min(100, Math.round((current / Math.max(1, target)) * 100));
-        return { member: m, isCount: true, uniqDays: current, myDays: target, rate, streak, todayChecked };
+        return { member: m, isCheerer, isCount: true, uniqDays: current, myDays: target, rate, streak, todayChecked };
       }
       const myDays = memberPassedDays(challenge, m.joined_at);
       const rate = Math.min(100, Math.round((uniqDays / Math.max(1, myDays)) * 100));
-      return { member: m, isCount: false, uniqDays, myDays, rate, streak, todayChecked };
+      return { member: m, isCheerer, isCount: false, uniqDays, myDays, rate, streak, todayChecked };
     });
   }, [members, proofs, challenge]);
 
   // 시간의 흐름 정렬 — 가입 순 (members 가 이미 joined_at asc).
   // 본인만 맨 위로 옮김. 인증률 desc 정렬 X (비교 압박 회피, v3.5 조용한 SNS).
   const sorted = useMemo(() => {
+    // 🚀 cheered(응원받기) = 도전자(개설자)가 방의 주인공 → 최상단 고정, 그 다음 본인(응원자), 나머지.
+    if (challenge.kind === 'cheered') {
+      const creator = rows.find(r => r.member.id === challenge.creator_id);
+      const me = (myUserId && myUserId !== challenge.creator_id) ? rows.find(r => r.member.id === myUserId) : undefined;
+      const rest = rows.filter(r => r.member.id !== challenge.creator_id && r.member.id !== myUserId);
+      return [...(creator ? [creator] : []), ...(me ? [me] : []), ...rest];
+    }
     const me = rows.find(r => r.member.id === myUserId);
     if (me) {
       const rest = rows.filter(r => r.member.id !== myUserId);
       return [me, ...rest];
     }
     return rows;
-  }, [rows, myUserId]);
+  }, [rows, myUserId, challenge]);
 
   return (
     <FlatList
@@ -66,10 +78,14 @@ export function StatusTab({ challenge, members, proofs, myUserId, betSlot, onRec
       ListHeaderComponent={
         <>
         {betSlot}
+        {pledgeSlot}
         <View style={styles.infoCard}>
           <View style={styles.infoCardHeader}>
             <Text style={styles.infoKindTag}>
-              {challenge.kind === 'solo' ? '🤫 나혼자' : challenge.kind === 'cheered' ? '🙋 응원받기' : '🌍 누구나'}
+              {challenge.kind === 'solo' ? '🤫 나혼자'
+                : challenge.kind === 'cheered' ? '🙋 응원받기'
+                : challenge.kind === 'open' ? '🌍 누구나'
+                : '🤝 다함께'}
             </Text>
             <Text style={styles.infoPeriod}>
               🗓️ {formatDate(challenge.start_date)} ~ {formatDate(challenge.end_date)}
@@ -152,10 +168,10 @@ function formatDate(dateStr: string): string {
 function StatusCard({
   row, isMine,
 }: {
-  row: { member: MemberWithToday; isCount: boolean; uniqDays: number; myDays: number; rate: number; streak: number; todayChecked: boolean };
+  row: { member: MemberWithToday; isCheerer: boolean; isCount: boolean; uniqDays: number; myDays: number; rate: number; streak: number; todayChecked: boolean };
   isMine: boolean;
 }) {
-  const { member, isCount, uniqDays, myDays, rate, streak, todayChecked } = row;
+  const { member, isCheerer, isCount, uniqDays, myDays, rate, streak, todayChecked } = row;
   const gaveUp = !!member.gave_up_at;
   return (
     <View style={[styles.card, isMine && styles.cardMine, gaveUp && styles.cardGaveUp]}>
@@ -181,6 +197,8 @@ function StatusCard({
           </Text>
           {gaveUp ? (
             <Text style={styles.gaveUpTag}>포기</Text>
+          ) : isCheerer ? (
+            <Text style={styles.cheererTag}>💛 응원</Text>
           ) : !isCount && streak > 0 ? (
             <Text style={styles.streak}>🔥 {streak}</Text>
           ) : null}
@@ -188,11 +206,14 @@ function StatusCard({
         <Text style={styles.subtext}>
           {gaveUp
             ? '그만뒀어요'
-            : isCount
-              ? `${uniqDays}/${myDays}개 달성`
-              : `${uniqDays}/${myDays}일${isMine && !todayChecked ? '  · 오늘 인증 전 ⚠️' : ''}`}
+            : isCheerer
+              ? '응원으로 함께하고 있어요'
+              : isCount
+                ? `${uniqDays}/${myDays}개 달성`
+                : `${uniqDays}/${myDays}일${isMine && !todayChecked ? '  · 오늘 인증 전 ⚠️' : ''}`}
         </Text>
-        {!gaveUp && (
+        {/* 응원 동료는 인증률 바 없음 — 도전 주체가 아니므로 (비교 압박·실패 표시 회피) */}
+        {!gaveUp && !isCheerer && (
           <View style={styles.track}>
             <View
               style={[
@@ -271,6 +292,16 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
+  },
+  cheererTag: {
+    fontSize: fontSize.xs,
+    color: colors.accent700,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    backgroundColor: colors.accent50,
+    borderRadius: radius.pill,
   },
   subtext: {
     fontSize: fontSize.xs,

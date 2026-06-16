@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, Pressable, StyleSheet, Alert, Switch, ScrollView,
-  Modal, TextInput, KeyboardAvoidingView, Platform, Image,
+  Modal, TextInput, KeyboardAvoidingView, Platform, Image, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -10,6 +10,7 @@ import { router } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { AppHeader } from '@/components/AppHeader';
 import { Button } from '@/components/Button';
+import { SUPPORT_EMAIL } from '@/lib/support';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import { signOut } from '@/lib/auth';
@@ -158,6 +159,12 @@ export default function ProfileScreen() {
   // Apple Hide My Email 은 표시 안 함 (의미 없는 privaterelay 주소)
   const visibleEmail = email.endsWith('@privaterelay.appleid.com') ? '' : email;
 
+  // 🚀 3b 운영팀 문의 (UGC 연락수단) — 화면엔 "운영팀", mailto 는 상수(법인 후 교체)
+  const onContact = () => {
+    haptic.tap();
+    Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('[Do:하다] 문의·신고')}`)
+      .catch(() => Alert.alert('문의', `메일 앱을 열 수 없어요. ${SUPPORT_EMAIL} 로 보내주세요.`));
+  };
   const onLogout = () => {
     Alert.alert('로그아웃', '다음에 또 만나요. 로그아웃할까요?', [
       { text: '취소', style: 'cancel' },
@@ -406,6 +413,7 @@ export default function ProfileScreen() {
               onPress={() => { haptic.tap(); router.push('/gifts' as any); }}
             />
           )}
+          <Button label="문의·신고 (운영팀)" variant="ghost" block onPress={onContact} />
           <Button label="로그아웃" variant="ghost" block onPress={onLogout} />
         </View>
 

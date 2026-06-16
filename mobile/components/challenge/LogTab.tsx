@@ -32,12 +32,13 @@ type Props = {
   farewellDaysLeft?: number;         // 마무리 인사 유예 잔여일 (유예 중일 때만 1~7) — ChatTab 과 동일 배너
   focusLogId?: string | null;        // 알림 딥링크 — 해당 기록 카드로 스크롤 포커스
   focusComments?: boolean;           // 알림 딥링크 — 댓글 시트까지 자동 오픈 (log_comment)
+  cheerOnlyOf?: string | null;       // 응원받기 방의 응원자일 때 도전자 닉네임 (역할 배너 + 빈상태 문구)
 };
 
 export function LogTab({
   challengeId, challengeStartDate, myUserId, isMember, onRequireJoin, canComment,
   composerOpen, onComposerClose, writeLocked = false, farewellDaysLeft = 0,
-  focusLogId = null, focusComments = false,
+  focusLogId = null, focusComments = false, cheerOnlyOf = null,
 }: Props) {
   const [logs, setLogs] = useState<LogWithAuthor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -164,6 +165,14 @@ export function LogTab({
           </Text>
         </View>
       )}
+      {/* 🚀 응원자 시선 — 기록은 도전자의 것, 나는 좋아요·댓글로 함께하는 응원군 */}
+      {cheerOnlyOf && (
+        <View style={styles.cheerRoleBanner}>
+          <Text style={styles.cheerRoleBannerText}>
+            💛 {cheerOnlyOf}님의 하다예요 · 기록에 좋아요와 댓글로 함께해요
+          </Text>
+        </View>
+      )}
       <FlatList
         ref={listRef}
         data={logs}
@@ -215,7 +224,9 @@ export function LogTab({
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>🎥</Text>
               <Text style={styles.emptyText}>
-                아직 기록이 없어요.{'\n'}이 하다의 첫 추억을 남겨볼까요?
+                {cheerOnlyOf
+                  ? `아직 기록이 없어요.\n${cheerOnlyOf}님의 기록이 올라오면 응원해주세요 💛`
+                  : '아직 기록이 없어요.\n이 하다의 첫 추억을 남겨볼까요?'}
               </Text>
             </View>
           )
@@ -582,6 +593,24 @@ const styles = StyleSheet.create({
     color: colors.accent700,
     fontFamily: fontFamily.medium,
     fontWeight: fontWeight.medium,
+  },
+  // 🚀 응원자 시선 — 기록 탭 상단 역할 안내 슬림 배너
+  cheerRoleBanner: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    backgroundColor: colors.accent50,
+    borderRadius: radius.md,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: colors.accent100,
+  },
+  cheerRoleBannerText: {
+    fontSize: fontSize.sm,
+    color: colors.accent700,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.semibold,
+    textAlign: 'center',
   },
   list: { padding: 16, gap: 12, flexGrow: 1, paddingBottom: 80 },
   card: {

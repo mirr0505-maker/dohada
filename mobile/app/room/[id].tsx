@@ -8,7 +8,11 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
-import { fetchRoomData, toggleCheer, pauseMembership, resumeMembership, giveUpMembership, setRecruitLock } from '@/lib/db';
+import {
+  fetchRoomData, toggleCheer, pauseMembership, resumeMembership, giveUpMembership, setRecruitLock,
+  fetchChallengePledges, togglePledgeFulfilled, deletePledge, type ChallengePledge,
+  blockUser, type ReportTargetType,
+} from '@/lib/db';
 import type { CheerType } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 import { ErrorState } from '@/components/ErrorState';
@@ -23,6 +27,10 @@ import { InviteConfirmModal } from '@/components/challenge/InviteConfirmModal';
 import { GiftSheet } from '@/components/challenge/GiftSheet';
 import { BetSheet } from '@/components/challenge/BetSheet';
 import { BetCard } from '@/components/challenge/BetCard';
+import { PledgeSheet } from '@/components/challenge/PledgeSheet';
+import { PledgeCard } from '@/components/challenge/PledgeCard';
+import { FellowPledges } from '@/components/challenge/FellowPledges';
+import { ReportSheet } from '@/components/challenge/ReportSheet';
 import { PhotoViewer } from '@/components/PhotoViewer';
 import { PhotoCarousel } from '@/components/PhotoCarousel';
 import {
@@ -33,7 +41,7 @@ import { InviteLetterModal } from '@/components/challenge/InviteLetterModal';
 import { ImpactModal } from '@/components/challenge/ImpactModal';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
-import { computeProgress, computeStreak, isCompleted, isFinished, getFarewellState, isRecruiting, streakMilestone } from '@/lib/stats';
+import { computeProgress, computeStreak, isCompleted, isFailed, isFinished, getFarewellState, isRecruiting, streakMilestone } from '@/lib/stats';
 import { StreakMedal } from '@/components/challenge/StreakMedal';
 import * as SecureStore from 'expo-secure-store';
 import { joinChallenge } from '@/lib/invite';
@@ -86,6 +94,9 @@ export default function ChallengeRoom() {
   const [activeTab, setActiveTab] = useState<RoomTab>((tab === 'chat' || tab === 'log' || tab === 'status' || tab === 'archive') ? tab : 'proof');               // v4 5탭 활성 탭
   const [logComposerOpen, setLogComposerOpen] = useState(false);              // 기록 탭 FAB → LogTab 컴포저
   const [memberSheetOpen, setMemberSheetOpen] = useState(false);              // 헤더 avatars → 멤버 시트
+  // 🚀 3b 신고 — 대상(타입+id) 잡고 ReportSheet 오픈
+  const [reportSheetOpen, setReportSheetOpen] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{ type: ReportTargetType; id: string } | null>(null);
   const [impactModalOpen, setImpactModalOpen] = useState(false);              // info-bar 💚 → 함께 만든 변화 팝업
   const [inviteConfirmOpen, setInviteConfirmOpen] = useState(false);          // 🚀 초대 메시지 첨부 확인 모달 열림 여부
   const [inviteLetterOpen, setInviteLetterOpen] = useState(false);            // 🚀 초대 편지글 모달 열림 여부
@@ -101,6 +112,10 @@ export default function ChallengeRoom() {
   const [myBet, setMyBet] = useState<MyBet | null>(null);
   const [betSheetOpen, setBetSheetOpen] = useState(false);
   const [betBusy, setBetBusy] = useState(false);
+  // 💛 다짐(무현금 사회적 스테이크, 0046) — 이 방의 모든 다짐 (본인/동료 분리는 파생에서)
+  const [allPledges, setAllPledges] = useState<ChallengePledge[]>([]);
+  const [pledgeSheetOpen, setPledgeSheetOpen] = useState(false);
+  const [pledgeBusy, setPledgeBusy] = useState(false);
 
   useEffect(() => {
     if (session === null) router.replace('/login');
@@ -144,6 +159,8 @@ export default function ChallengeRoom() {
       fetchMyReceivedGifts(id, myUserId).then(setReceivedGifts).catch(() => {});
       // 🎯 내가 건 내기 — 파일럿 계정만. RLS 가 sender 본인만 조회라 비도전자는 자연히 null
       if (isGiftPilot) fetchMyBet(id, myUserId).then(setMyBet).catch(() => {});
+      // 💛 이 방의 다짐 전체 (본인+동료 목격). RLS is_viewer_of 가 같은 방 멤버로 제한
+      fetchChallengePledges(id).then(setAllPledges).catch(() => {});
     } catch (e: any) {
       reportError(e, { where: 'room/fetchRoomData', challengeId: id });
       setError(e?.message ?? '하다를 불러오지 못했어요.');
@@ -398,6 +415,8 @@ export default function ChallengeRoom() {
   const isCreator = challenge?.creator_id === myUserId;
   // cheered 방은 creator 만 인증/기록 가능, 나머지 멤버는 응원만
   const isCheeredCheerOnly = challenge?.kind === 'cheered' && isMember && !isCreator;
+  // 응원자 시선 안내용 — 이 방의 도전자(개설자) 닉네임
+  const creatorNickname = members.find(m => m.id === challenge?.creator_id)?.nickname ?? '도전자';
   const [joining, setJoining] = useState(false);
 
   // 비멤버가 공개 챌린지에서 "참여하기" 누름 → DB insert → 다시 load
@@ -677,6 +696,14 @@ export default function ChallengeRoom() {
     ? Math.max(1, Math.round((new Date(challenge.start_date + 'T00:00:00').getTime() - new Date(kstToday + 'T00:00:00').getTime()) / 86_400_000))
     : 0;
 
+  // 🚀 cheered(응원받기) = 도전자(개설자) 1명만 인증 — 인포바 분모를 전원이 아닌 도전자 1명 기준으로.
+  // 응원자는 인증 주체가 아니므로 분모에 포함하면 다함께처럼 '인증 1/2' 로 보여 정체성이 무너짐.
+  const cheeredCreatorCheckedToday = challenge.kind === 'cheered'
+    ? (members.find(m => m.id === challenge.creator_id)?.today_checked ?? false)
+    : false;
+  const checkinNumer = challenge.kind === 'cheered' ? (cheeredCreatorCheckedToday ? 1 : 0) : todayCheckedCount;
+  const checkinDenom = challenge.kind === 'cheered' ? 1 : Math.max(1, memberCount);
+
   // 🎯 내기 — 나와의 내기(solo·cheered 개설자) / 다인 내기(closed·open 멤버, 챌린지에 bet_tier 걸림)
   const isSelfBetRoom = challenge.kind === 'solo' || challenge.kind === 'cheered';
   const hasGroupBet = (challenge.kind === 'closed' || challenge.kind === 'open') && !!challenge.bet_tier;
@@ -750,6 +777,114 @@ export default function ChallengeRoom() {
       onGiveUp={onBetGiveUp}
     />
   ) : null;
+
+  // 💛 다짐(무현금) — allPledges 에서 본인/동료 분리. solo/cheered=개설자 / 다함께·누구나=활성 멤버.
+  const isPledgeSubject = isSelfBetRoom ? isCreator : isMember;
+  const myPledges = allPledges.filter(p => p.user_id === myUserId);
+  const fellowPledges = allPledges.filter(p => p.user_id !== myUserId);
+  const myCompletedForPledge = isCompleted(challenge, myProofs, me?.joined_at);
+  const myFailedForPledge = isFailed(challenge, myProofs, me?.joined_at);
+  const usedPledgeDirections = myPledges.map(p => p.direction);
+  const canManagePledge = isPledgeSubject && isMember && !iGaveUp;
+  const canAddPledge = canManagePledge && !finished && usedPledgeDirections.length < 2;
+  const showPledgeCard = isPledgeSubject && (myPledges.length > 0 || canAddPledge);
+  // 동료 다짐 (목격) — 멤버 닉네임/아바타 매핑, 읽기 전용
+  const fellowPledgeRows = fellowPledges.map(p => {
+    const m = members.find(mm => mm.id === p.user_id);
+    return {
+      id: p.id,
+      nickname: m?.nickname ?? '동료',
+      avatarUrl: m?.avatar_url ?? null,
+      direction: p.direction,
+      content: p.content,
+      fulfilled: p.fulfilled,
+    };
+  });
+  const reloadPledges = async () => {
+    setAllPledges(await fetchChallengePledges(challenge.id));
+  };
+  const onTogglePledge = async (id: string, next: boolean) => {
+    if (pledgeBusy) return;
+    setPledgeBusy(true);
+    try {
+      await togglePledgeFulfilled(id, next);
+      haptic.success();
+      await reloadPledges();
+    } catch (e: any) {
+      Alert.alert('다짐', e?.message ?? String(e));
+    } finally {
+      setPledgeBusy(false);
+    }
+  };
+  const onDeletePledge = (id: string) => {
+    if (pledgeBusy) return;
+    Alert.alert('다짐 거두기', '이 다짐을 거둘까요?', [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '거두기', style: 'destructive',
+        onPress: async () => {
+          setPledgeBusy(true);
+          try {
+            await deletePledge(id);
+            haptic.tap();
+            await reloadPledges();
+          } catch (e: any) {
+            Alert.alert('다짐', e?.message ?? String(e));
+          } finally {
+            setPledgeBusy(false);
+          }
+        },
+      },
+    ]);
+  };
+  const showFellowPledges = fellowPledgeRows.length > 0;
+  const pledgeSlot = (showPledgeCard || showFellowPledges) ? (
+    <>
+      {showPledgeCard ? (
+        <PledgeCard
+          pledges={myPledges}
+          canAdd={canAddPledge}
+          canManage={canManagePledge}
+          myCompleted={myCompletedForPledge}
+          myFailed={myFailedForPledge}
+          busy={pledgeBusy}
+          onAdd={() => { haptic.tap(); setPledgeSheetOpen(true); }}
+          onToggleFulfilled={onTogglePledge}
+          onDelete={onDeletePledge}
+        />
+      ) : null}
+      {showFellowPledges ? <FellowPledges rows={fellowPledgeRows} /> : null}
+    </>
+  ) : null;
+
+  // 🚀 3b 신고·차단 (UGC)
+  const handleBlock = (userId: string, nickname: string) => {
+    if (!myUserId || userId === myUserId) return;
+    Alert.alert('차단', `${nickname}님을 차단할까요?\n서로의 인증·댓글·기록·대화가 안 보이게 돼요.`, [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '차단', style: 'destructive',
+        onPress: async () => {
+          try {
+            await blockUser(myUserId, userId);
+            haptic.warning();
+            setMemberSheetOpen(false);
+            await load();
+          } catch (e: any) {
+            Alert.alert('차단 실패', e?.message ?? String(e));
+          }
+        },
+      },
+    ]);
+  };
+  const openProofActions = (proof: ProofWithRelations) => {
+    const nickname = proof.author?.nickname ?? '이 사용자';
+    Alert.alert('이 인증', undefined, [
+      { text: '신고하기', onPress: () => { setReportTarget({ type: 'proof', id: proof.id }); setReportSheetOpen(true); } },
+      { text: `${nickname} 차단`, style: 'destructive', onPress: () => handleBlock(proof.user_id, nickname) },
+      { text: '취소', style: 'cancel' },
+    ]);
+  };
 
   return (
     <Screen
@@ -830,7 +965,7 @@ export default function ChallengeRoom() {
       <View style={styles.infoBar}>
         <View style={styles.infoStats}>
           <Text style={[styles.infoStatItem, finished && styles.infoStatItemDone]}>🔥 {progress?.passedDays ?? 0}/{progress?.totalDays ?? 0}일</Text>
-          <Text style={[styles.infoStatItem, finished && styles.infoStatItemDone]}>📸 {todayCheckedCount}/{Math.max(1, memberCount)} 인증</Text>
+          <Text style={[styles.infoStatItem, finished && styles.infoStatItemDone]}>📸 {checkinNumer}/{checkinDenom} 인증</Text>
         </View>
         <View style={styles.infoRight}>
           <Pressable onPress={() => { haptic.tap(); setImpactModalOpen(true); }} hitSlop={6}>
@@ -905,16 +1040,26 @@ export default function ChallengeRoom() {
             />
           }
           ListHeaderComponent={
-            orphanUnclaimedGift ? (
-              <Pressable
-                style={styles.giftArrivedBanner}
-                onPress={() => { haptic.tap(); router.push(`/gift/${orphanUnclaimedGift.id}` as any); }}
-                accessibilityRole="button"
-                accessibilityLabel="받지 않은 한잔 확인하기"
-              >
-                <Text style={styles.giftArrivedBannerText}>☕ 받지 않은 한잔이 있어요 — 눌러서 확인하기</Text>
-              </Pressable>
-            ) : null
+            <>
+              {/* 🚀 응원자 시선 — 이 방은 도전자의 무대, 나는 응원군임을 일관되게 안내 */}
+              {isCheeredCheerOnly && (
+                <View style={styles.cheerRoleBanner}>
+                  <Text style={styles.cheerRoleBannerText}>
+                    💛 {creatorNickname}님의 하다예요 · 사진에 응원과 댓글로 함께해요
+                  </Text>
+                </View>
+              )}
+              {orphanUnclaimedGift ? (
+                <Pressable
+                  style={styles.giftArrivedBanner}
+                  onPress={() => { haptic.tap(); router.push(`/gift/${orphanUnclaimedGift.id}` as any); }}
+                  accessibilityRole="button"
+                  accessibilityLabel="받지 않은 한잔 확인하기"
+                >
+                  <Text style={styles.giftArrivedBannerText}>☕ 받지 않은 한잔이 있어요 — 눌러서 확인하기</Text>
+                </Pressable>
+              ) : null}
+            </>
           }
           renderItem={({ item }) => (
             <ProofCard
@@ -937,13 +1082,16 @@ export default function ChallengeRoom() {
                 const gifts = receivedGifts.filter(g => g.proof_id === item.id);
                 return gifts.length > 0 ? () => onGiftArrivedPress(gifts) : null;
               })()}
+              onMore={isMember && item.user_id !== myUserId ? () => openProofActions(item) : null}
             />
           )}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>📸</Text>
               <Text style={styles.emptyText}>
-                아직 인증이 없어요.{'\n'}오늘 어떤 한 걸음을 남기셨어요?
+                {isCheeredCheerOnly
+                  ? `아직 ${creatorNickname}님의 인증이 없어요.\n곧 올라올 거예요 💛`
+                  : '아직 인증이 없어요.\n오늘 어떤 한 걸음을 남기셨어요?'}
               </Text>
             </View>
           }
@@ -973,6 +1121,7 @@ export default function ChallengeRoom() {
           farewellDaysLeft={farewell.farewellDaysLeft}
           focusLogId={typeof logId === 'string' ? logId : null}
           focusComments={comments === '1'}
+          cheerOnlyOf={isCheeredCheerOnly ? creatorNickname : null}
         />
       )}
       {activeTab === 'status' && (
@@ -982,6 +1131,7 @@ export default function ChallengeRoom() {
           proofs={proofs}
           myUserId={myUserId}
           betSlot={betSlot}
+          pledgeSlot={pledgeSlot}
           onRecruitLock={onRecruitLock}
         />
       )}
@@ -998,7 +1148,7 @@ export default function ChallengeRoom() {
 
       {/* 탭별 적응형 FAB
          - 비멤버: 모든 탭에서 참여 권유
-         - 응원받기 응원자: 기록 탭에서만 노출
+         - 응원받기 응원자: FAB 없음 (응원은 카드별 응원/댓글, 역할 안내는 인증·기록 탭 상단 배너)
          - 일반 멤버: 인증 탭(카메라) / 기록 탭(컴포저). 채팅·현황·박제는 숨김 (작업 흐름 방해 방지) */}
       {(() => {
         if (!isMember) {
@@ -1033,17 +1183,8 @@ export default function ChallengeRoom() {
             </Pressable>
           );
         }
-        if (isCheeredCheerOnly) {
-          if (activeTab !== 'log') return null;
-          return (
-            <Pressable
-              style={[styles.fab, styles.fabCheer]}
-              onPress={() => { haptic.tap(); setActiveTab('chat'); }}
-            >
-              <Text style={styles.fabLabel}>💛 응원으로 함께해요</Text>
-            </Pressable>
-          );
-        }
+        // 응원자(응원 동료) = 관객·응원군 — 작성 FAB 없음. 응원은 카드별 응원/댓글, 역할 안내는 상단 배너가 담당.
+        if (isCheeredCheerOnly) return null;
         if (activeTab === 'log') {
           if (writeLocked) return null;   // 박제 후엔 새 기록 작성 X
           return (
@@ -1156,6 +1297,16 @@ export default function ChallengeRoom() {
         isMember={isMember}
         myUserId={myUserId}
         creatorId={challenge.creator_id}
+        onBlock={isMember ? handleBlock : undefined}
+      />
+
+      {/* 🚀 3b 신고 시트 — 인증 ⋯메뉴에서 진입 */}
+      <ReportSheet
+        visible={reportSheetOpen}
+        onClose={() => setReportSheetOpen(false)}
+        reporterId={myUserId}
+        targetType={reportTarget?.type ?? 'proof'}
+        targetId={reportTarget?.id ?? null}
       />
 
       <InviteLetterModal
@@ -1207,6 +1358,18 @@ export default function ChallengeRoom() {
         myUserId={myUserId}
         fixedTier={hasGroupBet ? (challenge.bet_tier as BetTier) : null}
         fixedMode={hasGroupBet ? ((challenge.bet_donation_mode ?? 'commitment') as BetDonationMode) : null}
+      />
+
+      {/* 💛 다짐 걸기 시트 — 닫힐 때 목록 새로고침 */}
+      <PledgeSheet
+        visible={pledgeSheetOpen}
+        onClose={() => {
+          setPledgeSheetOpen(false);
+          reloadPledges().catch(() => {});
+        }}
+        challengeId={challenge.id}
+        myUserId={myUserId}
+        usedDirections={usedPledgeDirections}
       />
     </Screen>
   );
@@ -1261,7 +1424,7 @@ const CHEER_OPTIONS: { type: CheerType; emoji: string; label: string }[] = [
 ];
 
 function ProofCard({
-  proof, onViewPhoto, onCheer, onComments, locked = false, onGift = null, onGiftArrived = null, mine = false,
+  proof, onViewPhoto, onCheer, onComments, locked = false, onGift = null, onGiftArrived = null, mine = false, onMore = null,
 }: {
   proof: ProofWithRelations;
   onViewPhoto: (photos: string[], index: number) => void;
@@ -1271,6 +1434,7 @@ function ProofCard({
   onGift?: (() => void) | null;          // ☕ 응원 한잔 보내기 — 동료 카드 (파일럿)
   onGiftArrived?: (() => void) | null;   // ☕ 한잔 도착 — 본인 카드, 받은 적 있으면 표시 (카운팅 없음)
   mine?: boolean;                        // 본인 카드 — 🎁 선물 자리표시 제거
+  onMore?: (() => void) | null;          // 🚀 3b: ⋯ 신고·차단 (비본인)
 }) {
   return (
     <View style={styles.proofCard}>
@@ -1286,6 +1450,11 @@ function ProofCard({
           <Text style={styles.proofAuthor}>{proof.author?.nickname ?? '익명'}</Text>
           <Text style={styles.proofTime}>{formatTime(proof.created_at)}</Text>
         </View>
+        {!mine && onMore && (
+          <Pressable onPress={onMore} hitSlop={8} accessibilityRole="button" accessibilityLabel="더보기 (신고·차단)">
+            <Text style={{ fontSize: fontSize.xl, color: colors.primary300, paddingHorizontal: 4 }}>⋯</Text>
+          </Pressable>
+        )}
       </View>
 
       {(() => {
@@ -1893,7 +2062,23 @@ const styles = StyleSheet.create({
   fabDone: { backgroundColor: colors.success },
   fabPaused: { backgroundColor: colors.primary500 },
   fabJoin: { backgroundColor: colors.info },
-  fabCheer: { backgroundColor: colors.accent700 },     // 응원받기 방의 응원자용 (도전자 아닌 사람)
+  // 🚀 응원자 시선 — 인증 탭 상단 역할 안내 슬림 배너 (도전자의 무대, 나는 응원군)
+  cheerRoleBanner: {
+    backgroundColor: colors.accent50,
+    borderRadius: radius.md,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.accent100,
+  },
+  cheerRoleBannerText: {
+    fontSize: fontSize.sm,
+    color: colors.accent700,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.semibold,
+    textAlign: 'center',
+  },
   fabLabel: {
     color: colors.surface,
     fontSize: fontSize.lg,

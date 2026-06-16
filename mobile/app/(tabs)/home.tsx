@@ -33,7 +33,7 @@ import { streakMilestone } from '@/lib/stats';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import type { CompletionStoryCard, OpenChallengeCard } from '@/lib/types';
-import { getChallengeDDay, getKstTodayRange } from '@/lib/format';
+import { getChallengeDDay, getKstTodayRange, formatCheerCount } from '@/lib/format';
 
 // ─── 🚀 오늘 나의 도전용 헬퍼 및 메타 ─────────────────
 const KIND_META: Record<string, { label: string; bg: string; text: string }> = {
@@ -203,12 +203,16 @@ export default function HomeScreen() {
 
   // ─── me-strip 카피 ───
   const totalCount = myChs.length;
+  // 🚀 응원하기로만 들어간 cheered 방 = "내가 하는 하다"가 아니라 "내가 응원하는 하다".
+  //   '오늘, 나의 하다'(myDoingChs)에서 빼고 아래 '오늘, 응원으로 힘주기'(cheeredRooms)에서만 노출
+  //   → 두 섹션 중복 + 도전자/응원자 역할 혼선 제거.
   const cheeredRooms = myChs.filter(c => c.kind === 'cheered' && c.creator_id !== myUserId);
+  const myDoingChs = myChs.filter(c => !(c.kind === 'cheered' && c.creator_id !== myUserId));
 
   // 🚀 P-⑤: 진행 중 vs 종료된 챌린지 분리 (KST 자정 기준).
   const todayStr = getKstTodayRange().kstDateStr;
-  const activeChs   = myChs.filter(c => todayStr <= c.end_date);
-  const finishedChs = myChs.filter(c => todayStr >  c.end_date);
+  const activeChs   = myDoingChs.filter(c => todayStr <= c.end_date);
+  const finishedChs = myDoingChs.filter(c => todayStr >  c.end_date);
 
   // 🚀 홈 노출 상한 — 참여 방이 많아도 홈 스크롤 폭증 방지 (전체는 내도전 탭에서)
   const HOME_ACTIVE_LIMIT = 5;
@@ -297,6 +301,10 @@ export default function HomeScreen() {
                 if (c.kind === 'cheered') {
                   km = c.creator_id === myUserId ? KIND_META.cheered_creator : KIND_META.cheered_participant;
                 }
+                // 🚀 cheered(응원받기) = 도전자 1명만 인증, 나머지는 응원 동료.
+                // 다함께처럼 '동료 N/N 완료'·'인증' 버튼을 보이면 안 됨 (정체성 분리).
+                const isCheeredParticipant = c.kind === 'cheered' && c.creator_id !== myUserId;
+                const isCheeredCreator     = c.kind === 'cheered' && c.creator_id === myUserId;
                 return (
                   <View key={c.id} style={styles.myChallengeCard}>
                     <Pressable
@@ -329,6 +337,18 @@ export default function HomeScreen() {
                           <View style={styles.metaBadge}>
                             <Text style={styles.metaBadgeText}>🎯 진행 {c.my_proof_count}/{c.target_count ?? 0}</Text>
                           </View>
+                        ) : isCheeredParticipant ? (
+                          // 응원 동료 — 인증 진척이 아니라 '도전자 응원' 이 할 일
+                          <View style={styles.metaBadge}>
+                            <Text style={styles.metaBadgeText}>🙋 도전자 응원하기</Text>
+                          </View>
+                        ) : isCheeredCreator ? (
+                          // 도전자 — 응원받는 무대. '동료 완료' 대신 받은 응원을 강조
+                          <View style={styles.metaBadge}>
+                            <Text style={styles.metaBadgeText}>
+                              {c.my_cheers_count > 0 ? `💛 받은 응원 ${formatCheerCount(c.my_cheers_count)}개` : '💛 응원 기다리는 중'}
+                            </Text>
+                          </View>
                         ) : c.kind !== 'solo' ? (
                           <View style={styles.metaBadge}>
                             <Text style={styles.metaBadgeText}>👥 동료 {c.today_check_count}/{c.member_count} 완료</Text>
@@ -336,7 +356,15 @@ export default function HomeScreen() {
                         ) : null}
                       </View>
                     </Pressable>
-                    {isCountGoal(c) ? (
+                    {isCheeredParticipant ? (
+                      // 응원 동료는 인증하지 않음 — '인증' 대신 '응원' (방에서 응원)
+                      <Pressable
+                        style={[styles.quickCheckinBtn, styles.quickCheerBtn]}
+                        onPress={() => { haptic.tap(); router.push(`/room/${c.id}` as any); }}
+                      >
+                        <Text style={styles.quickCheckinBtnText}>💛 응원</Text>
+                      </Pressable>
+                    ) : isCountGoal(c) ? (
                       goalDone(c) ? (
                         <View style={styles.quickCheckedBadge}>
                           <Text style={styles.quickCheckedText}>✓ 달성</Text>
@@ -854,6 +882,9 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },
+  quickCheerBtn: { backgroundColor: colors.accent700 },   // 응원받기 동료용 — 인증(주황)과 구분
+
+
   quickCheckedBadge: {
     paddingHorizontal: 14,
     paddingVertical: 10,
