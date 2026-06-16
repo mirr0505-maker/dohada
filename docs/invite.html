@@ -285,13 +285,20 @@
         window.location.href = "kakaotalk://web/openExternal?url=" + encodeURIComponent(window.location.href);
       }
 
+      // 설치 폴백은 guide.html 단일 소스로 — 빌드마다 여기 고칠 필요 없음 (guide 가 OS 감지 + 최신 링크 유지)
+      const guideUrl = "https://mirr0505-maker.github.io/dohada/guide.html";
+
       // 딥링크 및 스토어 URL 설정
       const iosDeeplink = "dohada://invite/" + challengeId;
-      const androidDeeplink = "intent://invite/" + challengeId + "#Intent;scheme=dohada;package=app.dohada.beta;end;";
-      
-      // 설치 폴백은 guide.html 단일 소스로 — 빌드마다 여기 고칠 필요 없음 (guide 가 OS 감지 + 최신 링크 유지)
-      const appStoreUrl = "https://mirr0505-maker.github.io/dohada/guide.html";
-      const playStoreUrl = "https://mirr0505-maker.github.io/dohada/guide.html";
+      // 🚀 앱 미설치 시: package= 만 있는 intent 는 안드로이드가 Play 스토어로 튕긴다.
+      //    우리 앱은 Play 스토어 미등록(베타=APK 직배포)이라 "항목을 찾을 수 없습니다"가 떴다.
+      //    S.browser_fallback_url 로 앱이 없으면 스토어 대신 guide.html(APK 안내)로 떨어지게 한다.
+      const androidDeeplink = "intent://invite/" + challengeId
+        + "#Intent;scheme=dohada;package=app.dohada.beta;"
+        + "S.browser_fallback_url=" + encodeURIComponent(guideUrl) + ";end;";
+
+      const appStoreUrl = guideUrl;
+      const playStoreUrl = guideUrl;
 
       // 스토어 버튼 링크 설정
       const storeLink = document.getElementById('store-link');
