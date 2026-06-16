@@ -4,7 +4,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, Pressable, TextInput, StyleSheet, Alert, Image,
-  ActivityIndicator,
+  ActivityIndicator, AppState, Platform,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -52,6 +52,38 @@ export default function CheckinScreen() {
       });
   }, [id]);
 
+  // 🚀 안드로이드 보관함 결과 복구 — MainActivity 파괴로 유실된 선택을 되살림
+  // 보관함(별도 액티비티)이 떠 있는 동안 안드로이드가 메모리를 회수하려고 MainActivity 를
+  // 파괴하면, launchImageLibraryAsync 가 await 하던 결과가 통째로 유실된다(고른 사진이 안 들어옴).
+  // expo 권장대로 getPendingResultAsync 로 보류된 결과를 받아 적용한다.
+  //  - 마운트 시:        JS 가 리로드되며 이 화면으로 복귀한 경우
+  //  - 포그라운드 복귀 시: JS 는 살아남고 액티비티만 재생성된 경우 (AppState 'active')
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const recoverPendingPick = async () => {
+      try {
+        const pending = await ImagePicker.getPendingResultAsync();
+        // null(보류 없음) / 에러 결과(code 보유) / 취소는 복구 대상 아님
+        if (!pending || 'code' in pending || pending.canceled) return;
+        const uris = (pending.assets ?? []).map(a => a.uri).filter(Boolean) as string[];
+        if (uris.length) {
+          setPhotoUris(prev => [...prev, ...uris].slice(0, MAX_PROOF_PHOTOS));
+          setCameraMode(false);
+        }
+      } catch {
+        // 복구 실패는 조용히 무시 — 사용자는 다시 선택하면 됨
+      } finally {
+        // 유실로 picker await 가 영영 안 풀려 black 화면에 갇히는 것 방지
+        setPickerBusy(false);
+      }
+    };
+    recoverPendingPick();
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') recoverPendingPick();
+    });
+    return () => sub.remove();
+  }, []);
+
   const onCapture = async () => {
     if (!cameraRef.current) return;
     try {
@@ -95,8 +127,9 @@ export default function CheckinScreen() {
       }
       const remaining = MAX_PROOF_PHOTOS - photoUris.length;
       if (remaining <= 0) return;
-      // CameraView unmount 가 commit 될 시간 한 박자
-      await new Promise(r => setTimeout(r, 80));
+      // CameraView unmount commit + (안드로이드) 카메라 네이티브 자원 해제까지 한 박자 더.
+      // 카메라가 메모리를 쥐고 있으면 보관함 도중 MainActivity 가 회수돼 결과가 유실되기 쉬움.
+      await new Promise(r => setTimeout(r, Platform.OS === 'android' ? 250 : 80));
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],   // v18 호환 — MediaTypeOptions 는 deprecated
         quality: 0.85,
