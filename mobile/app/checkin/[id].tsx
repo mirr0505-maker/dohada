@@ -184,7 +184,16 @@ export default function CheckinScreen() {
         { text: '확인', onPress: () => router.back() },
       ]);
     } catch (e: any) {
-      Alert.alert('인증 실패', e?.message ?? String(e));
+      // 같은 KST 날 이미 인증한 경우(서버 1일 1회 제약, cadence) — 날것 SQL 대신 친절 안내
+      const dup = e?.code === '23505'
+        || String(e?.message ?? '').includes('uniq_proofs_per_day');
+      if (dup) {
+        Alert.alert('오늘은 이미 인증했어요', '오늘 몫의 인증은 이미 완료됐어요.\n내일 또 만나요!', [
+          { text: '확인', onPress: () => router.back() },
+        ]);
+      } else {
+        Alert.alert('인증 실패', e?.message ?? String(e));
+      }
     } finally {
       setSubmitting(false);
     }
