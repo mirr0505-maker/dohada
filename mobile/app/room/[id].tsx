@@ -34,7 +34,7 @@ import { ReportSheet } from '@/components/challenge/ReportSheet';
 import { PhotoViewer } from '@/components/PhotoViewer';
 import { PhotoCarousel } from '@/components/PhotoCarousel';
 import {
-  isGiftPilotEmail, fetchMyReceivedGifts, GIFT_TIERS, GIFT_STATUS_LABEL, type ReceivedGift,
+  isBetVisible, fetchMyReceivedGifts, GIFT_TIERS, GIFT_STATUS_LABEL, type ReceivedGift,
   fetchMyBet, claimGift, type MyBet, type BetTier, type BetDonationMode,
 } from '@/lib/payments';
 import { InviteLetterModal } from '@/components/challenge/InviteLetterModal';
@@ -104,8 +104,8 @@ export default function ChallengeRoom() {
   const [viewer, setViewer] = useState<{ photos: string[]; index: number } | null>(null);   // 🚀 사진 전체보기 뷰어 (인증, 여러 장)
 
   const myUserId = session?.user?.id;
-  // ☕ 파일럿 게이트 — 개발 모드이거나 지정 계정일 때만 한잔 버튼 노출
-  const isGiftPilot = isGiftPilotEmail(session?.user?.email);
+  // 🎯 내기 노출 게이트 (출시 후 BET_ENABLED, 현재 dev 전용) — BetCard/내기 정산만 제어. 응원 한잔은 게이트 없음
+  const betVisible = isBetVisible();
   // ☕ 내가 받은 한잔들 — 본인 인증 카드 도착 버튼 + 폴백 배너 (수신은 게이트 없음)
   const [receivedGifts, setReceivedGifts] = useState<ReceivedGift[]>([]);
   // 🎯 나와의 내기 — 내가 이 방에 건 한잔 (도전자 본인만, RLS 가 sender 본인만 조회)
@@ -158,7 +158,7 @@ export default function ChallengeRoom() {
       // 받은 한잔은 부가 정보 — 실패해도 방 로딩을 막지 않음
       fetchMyReceivedGifts(id, myUserId).then(setReceivedGifts).catch(() => {});
       // 🎯 내가 건 내기 — 파일럿 계정만. RLS 가 sender 본인만 조회라 비도전자는 자연히 null
-      if (isGiftPilot) fetchMyBet(id, myUserId).then(setMyBet).catch(() => {});
+      if (betVisible) fetchMyBet(id, myUserId).then(setMyBet).catch(() => {});
       // 💛 이 방의 다짐 전체 (본인+동료 목격). RLS is_viewer_of 가 같은 방 멤버로 제한
       fetchChallengePledges(id).then(setAllPledges).catch(() => {});
     } catch (e: any) {
@@ -708,11 +708,11 @@ export default function ChallengeRoom() {
   const isSelfBetRoom = challenge.kind === 'solo' || challenge.kind === 'cheered';
   const hasGroupBet = (challenge.kind === 'closed' || challenge.kind === 'open') && !!challenge.bet_tier;
   const isBetSubject = isSelfBetRoom ? isCreator : hasGroupBet;   // self=개설자 / group=활성 멤버 누구나
-  const canPlaceBet = isGiftPilot && isBetSubject && isMember && !iGaveUp && !finished && !myBet;
+  const canPlaceBet = betVisible && isBetSubject && isMember && !iGaveUp && !finished && !myBet;
   // 정산 표시용 완주 판정 — badgeProofs/subjectJoinedAt 가 self=개설자/group=본인으로 이미 매핑됨
   const challengerCompleted = isCompleted(challenge, badgeProofs, subjectJoinedAt);
   // 🚀 0041: 목표 횟수형(count)은 베타에서 내기 비활성 — betOutcome 미지원(응원만)
-  const showBetCard = isGiftPilot && isBetSubject && isMember && challenge.goal_type !== 'count' && (myBet !== null || canPlaceBet);
+  const showBetCard = betVisible && isBetSubject && isMember && challenge.goal_type !== 'count' && (myBet !== null || canPlaceBet);
   const onSettleBet = async (action: 'receive' | 'donate' | 'refund') => {
     if (!myBet || betBusy) return;
     haptic.tap();
@@ -1059,6 +1059,17 @@ export default function ChallengeRoom() {
                   <Text style={styles.giftArrivedBannerText}>☕ 받지 않은 한잔이 있어요 — 눌러서 확인하기</Text>
                 </Pressable>
               ) : null}
+              {/* 💛 다짐 걸기 — 다짐 주체이고 아직 안 건 사람에게만 (나그 방지). 내용·관리는 현황 탭 */}
+              {canAddPledge && myPledges.length === 0 ? (
+                <Pressable
+                  style={styles.pledgeEntryBanner}
+                  onPress={() => { haptic.tap(); setPledgeSheetOpen(true); }}
+                  accessibilityRole="button"
+                  accessibilityLabel="다짐 걸기"
+                >
+                  <Text style={styles.pledgeEntryText}>💛 이 하다에 다짐을 걸어볼까요? — 나와의 약속</Text>
+                </Pressable>
+              ) : null}
             </>
           }
           renderItem={({ item }) => (
@@ -1352,7 +1363,7 @@ export default function ChallengeRoom() {
         visible={betSheetOpen}
         onClose={() => {
           setBetSheetOpen(false);
-          if (isGiftPilot) fetchMyBet(challenge.id, myUserId).then(setMyBet).catch(() => {});
+          if (betVisible) fetchMyBet(challenge.id, myUserId).then(setMyBet).catch(() => {});
         }}
         challengeId={challenge.id}
         myUserId={myUserId}
@@ -2073,6 +2084,24 @@ const styles = StyleSheet.create({
     borderColor: colors.accent100,
   },
   cheerRoleBannerText: {
+    fontSize: fontSize.sm,
+    color: colors.accent700,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.semibold,
+    textAlign: 'center',
+  },
+  // 💛 다짐 걸기 진입 배너 (인증 탭) — 다짐 발견성. 디자인 토큰 내
+  pledgeEntryBanner: {
+    backgroundColor: colors.accent50,
+    borderRadius: radius.md,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.accent,
+  },
+  pledgeEntryText: {
     fontSize: fontSize.sm,
     color: colors.accent700,
     fontFamily: fontFamily.medium,

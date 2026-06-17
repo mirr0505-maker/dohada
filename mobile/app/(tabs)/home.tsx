@@ -20,6 +20,7 @@ import { useSession } from '@/lib/session';
 import {
   fetchMyChallengesWithDetails, fetchOpenChallenges, fetchInterestingOpenChallenges,
   fetchPublicCompletionStories, fetchFellowProofs, giveUpMembership,
+  fetchChallengeIdsWithPledges,
   type MyChallengeDetail, type InterestingChallenge,
   type FellowProof,
 } from '@/lib/db';
@@ -61,6 +62,8 @@ export default function HomeScreen() {
   // 🚀 콜드스타트 온램프 — '둘러보고 합류' 버튼이 합류 섹션으로 스크롤하도록 ref + 섹션 y 측정
   const scrollRef = useRef<ScrollView>(null);
   const [joinSectionY, setJoinSectionY] = useState(0);
+  // 💛 다짐 배지 — 내 방 중 다짐이 걸린 challenge_id 집합 (홈 '오늘 나의 하다' 카드)
+  const [pledgeChIds, setPledgeChIds] = useState<Set<string>>(new Set());
 
   const myUserId = session?.user?.id;
   // 🚀 같은 세션에서 한 챌린지에 대해 포기 Alert 중복 표시 차단 (P1-12 안전망).
@@ -118,7 +121,7 @@ export default function HomeScreen() {
       await load();
     } catch (err: any) {
       if (err?.message === 'adult_required') {
-        Alert.alert('성인 인증이 필요해요', '내기가 걸린 하다라 성인 본인인증을 마친 분만 합류할 수 있어요.\n응원 한잔/내기에서 본인인증을 먼저 진행해주세요.');
+        Alert.alert('성인 인증이 필요해요', '성인 전용 하다라 성인 본인인증을 마친 분만 합류할 수 있어요.\n본인인증을 먼저 진행해주세요.');
       } else {
         Alert.alert('합류 실패', err?.message ?? String(err));
       }
@@ -187,6 +190,8 @@ export default function HomeScreen() {
       const myActiveChIds = new Set(mine.filter(c => c.gave_up_at === null).map(c => c.id));
       setInteresting(interesting.filter(c => !myActiveChIds.has(c.id)));
       setOpenChs(opens.filter(c => !myActiveChIds.has(c.id)));
+      // 💛 다짐 배지용 — 내 방 중 다짐 걸린 방 id (RLS로 내가 볼 수 있는 것만). 비핵심이라 실패 무시.
+      fetchChallengeIdsWithPledges(mine.map(c => c.id)).then(setPledgeChIds).catch(() => {});
     } catch (e: any) {
       reportError(e, { where: 'home/load' });
       setError(e?.message ?? '불러오지 못했어요.');
@@ -437,6 +442,16 @@ export default function HomeScreen() {
                         <View style={styles.metaBadge}>
                           <Text style={styles.metaBadgeText}>{ddayText}</Text>
                         </View>
+                        {/* 💛 다짐 배지 — 이 방에 다짐 있으면. 탭 시 방 현황 탭으로(다짐 내용은 방에서) */}
+                        {pledgeChIds.has(c.id) && (
+                          <Pressable
+                            style={[styles.metaBadge, { backgroundColor: colors.accent50 }]}
+                            onPress={(e) => { e.stopPropagation(); haptic.tap(); router.push(`/room/${c.id}?tab=status` as any); }}
+                            hitSlop={6}
+                          >
+                            <Text style={[styles.metaBadgeText, { color: colors.accent700 }]}>💛 다짐</Text>
+                          </Pressable>
+                        )}
                         {isCountGoal(c) ? (
                           <View style={styles.metaBadge}>
                             <Text style={styles.metaBadgeText}>🎯 진행 {c.my_proof_count}/{c.target_count ?? 0}</Text>

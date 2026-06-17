@@ -66,7 +66,7 @@ export default function InviteScreen() {
     } catch (e: any) {
       if (e?.message === 'adult_required') {
         setStatus('confirming');   // 화면 유지 — 다시 시도 가능
-        Alert.alert('성인 인증이 필요해요', '내기가 걸린 하다라 성인 본인인증을 마친 분만 합류할 수 있어요.\n응원 한잔/내기에서 본인인증을 먼저 진행해주세요.');
+        Alert.alert('성인 인증이 필요해요', '성인 전용 하다라 성인 본인인증을 마친 분만 합류할 수 있어요.\n본인인증을 먼저 진행해주세요.');
         return;
       }
       setStatus('error');

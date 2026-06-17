@@ -10,7 +10,7 @@ import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import { fetchRoomData } from '@/lib/db';
 import { computeProgress, memberTargetProofCount, uniqueProofDays } from '@/lib/stats';
-import { fetchMyBet, isGiftPilotEmail } from '@/lib/payments';
+import { fetchMyBet, isBetVisible } from '@/lib/payments';
 import { haptic } from '@/lib/haptics';
 
 export default function CompleteScreen() {
@@ -51,8 +51,8 @@ export default function CompleteScreen() {
             setTargetDays(memberTargetProofCount(data.challenge, myJoinedAt));
           }
           haptic.success();
-          // 정산 대기 내기 확인 — 파일럿 도전자만 (fetchMyBet 은 RLS 로 본인 주문만)
-          if (isGiftPilotEmail(session.user.email)) {
+          // 정산 대기 내기 확인 — 내기 노출 시에만 (fetchMyBet 은 RLS 로 본인 주문만). 베타엔 미노출
+          if (isBetVisible()) {
             const bet = await fetchMyBet(id, session.user.id);
             if (bet && bet.status === 'paid') setSettleBetPending(true);
           }

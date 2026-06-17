@@ -11,6 +11,20 @@ export function isGiftPilotEmail(email: string | undefined | null): boolean {
   return __DEV__ || GIFT_PILOT_EMAILS.includes(email ?? '');
 }
 
+// 🎯 내기(bet) 출시 게이트 — 법률 자문(⑤b) 전까지 베타·심사에 완전 비노출.
+//   코드·테스트(__tests__/*-bet-*, _shared/payments)는 그대로 보존 → 출시 후 켜기만.
+//   출시 후 활성화 체크리스트:
+//     ① 법률 sign-off (자기 한잔=자기가 받기/기부 → 참여자 간 이전 0, 도박 구성요건 회피 확인)
+//     ② providers.ts mock → 실 PG 교체 + `npm test` 재통과
+//     ③ BET_ENABLED = true (이 한 줄)
+//     ④ "내기" 카피 복원 (create step5·profile 로드맵·betBadgeText·adult alert)
+export const BET_ENABLED = false;
+
+// 내기 노출 = 출시 플래그 ON 또는 dev 빌드(내부 QA). 베타(preview/production)엔 항상 비노출.
+export function isBetVisible(): boolean {
+  return __DEV__ || BET_ENABLED;
+}
+
 // 상태 → 사용자 문구 (수령 화면·내역 화면 공용)
 export const GIFT_STATUS_LABEL: Record<string, string> = {
   created: '결제 대기 중',
@@ -52,7 +66,7 @@ export const BET_DONATION_MODES: { mode: BetDonationMode; label: string; desc: s
 export function betBadgeText(betTier: string | null | undefined): string | null {
   if (!betTier) return null;
   const t = BET_TIERS.find(x => x.tier === betTier);
-  return `🎯 ${t?.label ?? '한잔'} ${t ? t.price.toLocaleString() + '원' : ''} 내기 · 성인 인증 필요`;
+  return `🎯 ${t?.label ?? '한잔'} ${t ? t.price.toLocaleString() + '원' : ''} · 성인 전용`;
 }
 
 export type GiftOrderRow = {

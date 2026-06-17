@@ -19,7 +19,7 @@ import { supabase } from '@/lib/supabase';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadProofImage } from '@/lib/upload';
 import {
-  isGiftPilotEmail, BET_TIERS, BET_DONATION_MODES, type BetTier, type BetDonationMode,
+  isBetVisible, BET_TIERS, BET_DONATION_MODES, type BetTier, type BetDonationMode,
 } from '@/lib/payments';
 import type { ChallengeKind } from '@/lib/types';
 
@@ -91,7 +91,7 @@ export default function CreateChallenge() {
   // 🚀 다인 내기 (다함께·누구나, 파일럿) — 개설 시 티어+모드 고정. null = 내기 없음
   const [betTier, setBetTier] = useState<BetTier | null>(null);
   const [betDonationMode, setBetDonationMode] = useState<BetDonationMode>('commitment');
-  const isBetPilot = isGiftPilotEmail(session?.user?.email);
+  const betVisible = isBetVisible();   // 🎯 내기 노출 게이트 (출시 후 BET_ENABLED, 현재 dev 전용)
   // 🚀 0041: 목표 유형 — cadence(주기형: 매일/주N회) / count(목표 횟수형: 기간 내 N개)
   const [goalType, setGoalType] = useState<'cadence' | 'count'>('cadence');
   const [targetCount, setTargetCount] = useState<number>(10);
@@ -294,18 +294,18 @@ export default function CreateChallenge() {
             <View style={{ gap: 12 }}>
               <Step5ProofType value={proofType} setValue={setProofType} />
               {/* 🚀 다인 내기 — 다함께·누구나 + 파일럿만 (베타는 mock·실돈 0원) */}
-              {isBetPilot && (kind === 'closed' || kind === 'open') && goalType !== 'count' ? (
+              {betVisible && (kind === 'closed' || kind === 'open') && goalType !== 'count' ? (
                 <BetConfig
                   betTier={betTier} setBetTier={setBetTier}
                   betDonationMode={betDonationMode} setBetDonationMode={setBetDonationMode}
                 />
               ) : goalType === 'count' ? (
                 <Text style={styles.smallNote}>
-                  🎯 목표 횟수형은 내기 없이 진행해요 (응원 한잔은 가능).
+                  🎯 목표 횟수형은 응원 한잔으로 함께할 수 있어요.
                 </Text>
               ) : (
                 <Text style={styles.smallNote}>
-                  💰 내기 한잔은 다함께·누구나 방에서 열려요 (정식 출시 후 실결제).
+                  💛 응원 한잔으로 서로의 하다를 응원할 수 있어요.
                 </Text>
               )}
             </View>

@@ -29,7 +29,7 @@ import { scheduleDailyReminder, cancelDailyReminder } from '@/lib/notifications'
 import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
-import { isGiftPilotEmail } from '@/lib/payments';
+import { isGiftPilotEmail, isBetVisible } from '@/lib/payments';
 
 export default function ProfileScreen() {
   const session = useSession();
@@ -350,16 +350,21 @@ export default function ProfileScreen() {
         <View style={styles.roadmapSection}>
           <Text style={styles.sectionTitle}>로드맵 예고 🔒</Text>
           <View style={styles.roadmapCard}>
-            <View style={styles.roadmapRow}>
-              <Text style={styles.roadmapEmoji}>💸</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.roadmapLabel}>내기 한잔 — 개발 완료 ✅</Text>
-                <Text style={styles.roadmapDesc}>
-                  완주하면 본전, 실패하면 기부 — 나·동료와 거는 "내기 한잔"(가상 교환권). 받기·기부·환불 정산까지 개발을 마쳤어요. 법률 자문을 거쳐 오픈되며, 실제 결제·계좌 연결은 정식 출시 후예요.
-                </Text>
-              </View>
-            </View>
-            <View style={styles.roadmapDivider} />
+            {/* 🎯 내기 한잔 — 법률 자문(⑤b) 전까지 베타 비노출 (출시 후 BET_ENABLED 시 다시 노출) */}
+            {isBetVisible() && (
+              <>
+                <View style={styles.roadmapRow}>
+                  <Text style={styles.roadmapEmoji}>💸</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.roadmapLabel}>내기 한잔 — 개발 완료 ✅</Text>
+                    <Text style={styles.roadmapDesc}>
+                      완주하면 본전, 실패하면 기부 — 나·동료와 거는 "내기 한잔"(가상 교환권). 받기·기부·환불 정산까지 개발을 마쳤어요. 법률 자문을 거쳐 오픈되며, 실제 결제·계좌 연결은 정식 출시 후예요.
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.roadmapDivider} />
+              </>
+            )}
             <View style={styles.roadmapRow}>
               <Text style={styles.roadmapEmoji}>🤝</Text>
               <View style={{ flex: 1 }}>
@@ -395,7 +400,7 @@ export default function ProfileScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.roadmapLabel}>함께 만든 변화 — 기부 허브</Text>
                 <Text style={styles.roadmapDesc}>
-                  받은 응원을 "기부로 돌리기", 완주 못 한 내기 한잔은 기부로 — 내 한 잔이 누군가의 한 잔이 돼요. "더 나은 나, 더 나은 세상"이 실제 기부로 이어집니다.
+                  받은 응원을 "기부로 돌리기" — 내 한 잔이 누군가의 한 잔이 돼요. "더 나은 나, 더 나은 세상"이 실제 기부로 이어집니다.
                 </Text>
               </View>
             </View>

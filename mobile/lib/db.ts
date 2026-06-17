@@ -1602,6 +1602,25 @@ export async function fetchChallengePledges(challengeId: string): Promise<Challe
   return (data ?? []) as ChallengePledge[];
 }
 
+// 🚀 다짐 배지 — 내가 속한 방 중 (내가 볼 수 있는) 다짐이 하나라도 걸린 challenge_id 집합.
+//    홈 '오늘 나의 하다' 카드 '💛 다짐' 배지용. RLS is_viewer_of 라 내 방으로 자연 제한.
+//    차단(양방향) 사용자의 다짐은 제외 — 홈 노출 범위가 방보다 넓어지므로 fellow proof 와 동일 기준.
+export async function fetchChallengeIdsWithPledges(challengeIds: string[]): Promise<Set<string>> {
+  if (!challengeIds.length) return new Set();
+  const { data, error } = await supabase
+    .from('pledges')
+    .select('challenge_id, user_id')
+    .in('challenge_id', challengeIds);
+  if (error) throw error;
+  const blocked = await fetchBlockedUserIds();
+  const set = new Set<string>();
+  for (const p of (data ?? []) as any[]) {
+    if (blocked.has(p.user_id)) continue;
+    set.add(p.challenge_id);
+  }
+  return set;
+}
+
 // 다짐 검수 — moderate-text(pledge 모드). 금액 표기·고가·신체/성적·강요 차단 (생성 전 동기 게이트).
 export async function moderatePledge(
   content: string,
