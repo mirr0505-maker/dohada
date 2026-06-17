@@ -261,6 +261,10 @@ export function LogTab({
   );
 }
 
+// 저장 후 기록 카드 본문 기본 노출 줄 수 — 긴 글은 '더 보기'로 펼침
+// (방 기록 탭은 '읽는 자리'라 앱 전체 피드 3줄보다 넉넉하게 6줄)
+const CONTENT_COLLAPSED_LINES = 6;
+
 // ─── 기록 카드 ──────────────────────────
 function LogCard({
   log, onViewPhoto, startDate, canComment, isMine, onLike, onComment, onEdit, onDelete,
@@ -276,6 +280,14 @@ function LogCard({
   onDelete: () => void;
 }) {
   const dayN = computeDayN(startDate, log.created_at);
+  // 🚀 긴 본문 접기/펼치기 — 6줄 초과면 '더 보기' 노출, 카드 안에서 인라인 토글(상세 페이지 없음).
+  //    보이는 본문은 깜빡임 없이 접힌 채 시작하고, 숨은 측정용 Text(opacity 0·absolute)로
+  //    전체 줄 수를 한 번만 재서 토글 노출 여부를 결정한다.
+  const [expanded, setExpanded] = useState(false);
+  const [contentOverflows, setContentOverflows] = useState(false);
+  const [measured, setMeasured] = useState(false);
+  // 수정으로 본문이 바뀌면 같은 카드 인스턴스가 유지되므로 — 다시 재서 토글 여부를 갱신하고 접은 상태로 되돌린다.
+  useEffect(() => { setMeasured(false); setExpanded(false); }, [log.content]);
   const onLongPress = () => {
     if (!isMine) return;
     Alert.alert(
@@ -323,7 +335,27 @@ function LogCard({
       ) : null}
 
       <Text style={styles.title}>{log.title}</Text>
-      <Text style={styles.content}>{log.content}</Text>
+      <Text style={styles.content} numberOfLines={expanded ? undefined : CONTENT_COLLAPSED_LINES}>
+        {log.content}
+      </Text>
+      {/* 숨은 측정용 — 전체 본문 줄 수를 한 번만 재서 '더 보기' 노출 여부 결정.
+          absolute·opacity 0 이라 레이아웃에 영향 없고, 보이는 본문은 처음부터 접힌 채라 깜빡임 없음. */}
+      {!measured && (
+        <Text
+          style={[styles.content, styles.contentMeasure]}
+          onTextLayout={(e) => {
+            setContentOverflows(e.nativeEvent.lines.length > CONTENT_COLLAPSED_LINES);
+            setMeasured(true);
+          }}
+        >
+          {log.content}
+        </Text>
+      )}
+      {contentOverflows && (
+        <Pressable onPress={() => setExpanded(v => !v)} hitSlop={6}>
+          <Text style={styles.moreToggle}>{expanded ? '접기' : '⋯ 더 보기'}</Text>
+        </Pressable>
+      )}
 
       <View style={styles.actions}>
         <Pressable style={styles.likeBtn} onPress={onLike} hitSlop={6}>
@@ -652,6 +684,14 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontFamily: fontFamily.regular,
     lineHeight: 22,
+  },
+  // 숨은 측정용 — 흐름 밖(absolute)·투명. 보이는 본문과 같은 폭으로 전체 줄 수만 잼.
+  contentMeasure: { position: 'absolute', left: 0, right: 0, top: 0, opacity: 0, zIndex: -1 },
+  moreToggle: {
+    fontSize: fontSize.sm,
+    color: colors.primary500,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
   },
   actions: { flexDirection: 'row', gap: 16, paddingTop: 4 },
   likeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },

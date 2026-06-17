@@ -73,7 +73,8 @@
       "Bash(git remote *)",
       "Bash(ls e:/dohada/mobile -la 2>nul | head -50)",
       "Bash(gh search *)",
-      "Bash(npx supabase *)"
+      "Bash(npx supabase *)",
+      "Bash(grep -v -E \"eas-cli@|upgrade|npm install|Proceeding|^$\")"
     ],
     "ask": [
       "Bash(eas update *)",

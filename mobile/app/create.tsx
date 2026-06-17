@@ -56,9 +56,11 @@ const PROOF_TYPES = [
   { value: 'gps',        label: 'GPS 위치 인증', desc: 'Phase 2 출시 예정',               icon: '📍', enabled: false },
 ];
 
-const ROOM_TYPES: { value: ChallengeKind; label: string; desc: string; icon: string }[] = [
+// 🚀 cheered(응원받기) 최상단 + 추천 — "선언하면 지인이 응원" 을 첫 생성자의 기본 시나리오로.
+//    solo("혼자만의 다짐")는 한 칸 아래로 그대로 유지 (제거 금지).
+const ROOM_TYPES: { value: ChallengeKind; label: string; desc: string; icon: string; recommended?: boolean }[] = [
+  { value: 'cheered', label: '응원받기',       desc: '나 혼자 하다, 지인들이 응원해줘요',   icon: '🙋', recommended: true },
   { value: 'solo',    label: '혼자만의 다짐',  desc: '나만 보는 조용한 기록',              icon: '🤫' },
-  { value: 'cheered', label: '응원받기',       desc: '나 혼자 하다, 지인들이 응원해줘요',   icon: '🙋' },
   { value: 'closed',  label: '함께 하기',      desc: '초대한 사람들이 같이 하다',            icon: '🤝' },
   { value: 'open',    label: '누구나 합류',    desc: '둘러보기 공개 · 아무나 참여',          icon: '🌍' },
 ];
@@ -67,7 +69,7 @@ export default function CreateChallenge() {
   const session = useSession();
   const [step, setStep] = useState(1);
   // 🚀 재도전 프리필 — 포기한 방의 "다시 시작하기" 가 ?title= 로 제목을 넘김
-  const { title: titleParam } = useLocalSearchParams<{ title?: string }>();
+  const { title: titleParam, kind: kindParam } = useLocalSearchParams<{ title?: string; kind?: string }>();
 
   // 폼 state
   const [title, setTitle] = useState(typeof titleParam === 'string' ? titleParam : '');
@@ -76,7 +78,12 @@ export default function CreateChallenge() {
   const [durationDays, setDurationDays] = useState<number>(100);   // 기본 100일 (v4 추천)
   const [frequency, setFrequency] = useState<CreateChallengeFrequency>('daily');
   const [proofType, setProofType] = useState<CreateChallengeProofType>('photo');   // v2.2
-  const [kind, setKind] = useState<ChallengeKind>('solo');
+  // 🚀 기본 방타입 = cheered(응원받기). 홈 온램프·빈상태 '선언하기'가 ?kind= 로 넘긴 값이 있으면 그 값 우선.
+  const [kind, setKind] = useState<ChallengeKind>(
+    kindParam === 'solo' || kindParam === 'cheered' || kindParam === 'closed' || kindParam === 'open'
+      ? kindParam
+      : 'cheered',
+  );
   const [startDate, setStartDate] = useState<string>(toLocalDateStr(new Date())); // 🚀 당일 챌린지용 시작일 (로컬 기준 — 타임존 밀림 방지)
   // 🚀 안내문 (나홀로 제외) — 합류 전 미리보기·방 현황에 노출. 텍스트 + 보관함 이미지(선택)
   const [description, setDescription] = useState('');
@@ -944,6 +951,11 @@ function Step6RoomType({
                 ]}>
                   {r.label}
                 </Text>
+                {r.recommended && !isDisabled && (
+                  <View style={styles.recommendBadge}>
+                    <Text style={styles.recommendBadgeText}>추천</Text>
+                  </View>
+                )}
                 {isDisabled && (
                   <Text style={{ fontSize: 11, color: colors.primary500, fontFamily: fontFamily.medium }}>
                     (1일 하다 불가 🔒)
@@ -1244,6 +1256,19 @@ const styles = StyleSheet.create({
   optionCheck: {
     fontSize: 18,
     color: colors.accent,
+    fontWeight: fontWeight.bold,
+  },
+  // 🚀 방타입 '추천' 배지 (cheered) — 디자인 토큰 내 accent 필 배지
+  recommendBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+    backgroundColor: colors.accent,
+  },
+  recommendBadgeText: {
+    fontSize: 10,
+    color: colors.surface,
+    fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },
   smallNote: {

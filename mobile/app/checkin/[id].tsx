@@ -4,7 +4,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, Pressable, TextInput, StyleSheet, Alert, Image,
-  ActivityIndicator, AppState, Platform,
+  ActivityIndicator, AppState, Platform, KeyboardAvoidingView,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -238,6 +238,12 @@ export default function CheckinScreen() {
   // ─── 본 화면 ────────────────────────────────────────
   return (
     <Screen backgroundColor={colors.primary} statusBarStyle="light">
+      {/* 🚀 키보드가 캡션 입력 줄을 가리는 문제 해소 — 본문을 KeyboardAvoidingView 로 감쌈 (v2.9 GiftSheet 패턴).
+          viewfinder(flex:1)가 키보드만큼 줄고 캡션·인증 버튼이 키보드 위로 올라온다. */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12} disabled={submitting}>
           <Text style={styles.close}>✕</Text>
@@ -332,6 +338,7 @@ export default function CheckinScreen() {
           </View>
         )}
       </View>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }

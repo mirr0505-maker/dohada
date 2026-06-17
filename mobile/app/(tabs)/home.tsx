@@ -58,7 +58,10 @@ export default function HomeScreen() {
   // 🚀 누구나 합류 — 합류 전 안내문 미리보기 시트 대상 (null = 닫힘)
   const [previewCard, setPreviewCard]       = useState<OpenChallengeCard | null>(null);
   const [joiningPreview, setJoiningPreview]  = useState(false);
-  
+  // 🚀 콜드스타트 온램프 — '둘러보고 합류' 버튼이 합류 섹션으로 스크롤하도록 ref + 섹션 y 측정
+  const scrollRef = useRef<ScrollView>(null);
+  const [joinSectionY, setJoinSectionY] = useState(0);
+
   const myUserId = session?.user?.id;
   // 🚀 같은 세션에서 한 챌린지에 대해 포기 Alert 중복 표시 차단 (P1-12 안전망).
   // P0-2 정책 추가로 challenges.gave_up_at 갱신이 정상 동작하면 자연 해소되지만,
@@ -203,14 +206,20 @@ export default function HomeScreen() {
 
   // ─── me-strip 카피 ───
   const totalCount = myChs.length;
+  // 🚀 콜드스타트(도전 0개) = 빈 카드 스택 대신 살아있는 온램프 한 장으로 분기
+  const isColdStart = totalCount === 0;
+  // 🚀 P-⑤: 진행 중 vs 종료된 챌린지 분리 (KST 자정 기준).
+  const todayStr = getKstTodayRange().kstDateStr;
   // 🚀 응원하기로만 들어간 cheered 방 = "내가 하는 하다"가 아니라 "내가 응원하는 하다".
   //   '오늘, 나의 하다'(myDoingChs)에서 빼고 아래 '오늘, 응원으로 힘주기'(cheeredRooms)에서만 노출
   //   → 두 섹션 중복 + 도전자/응원자 역할 혼선 제거.
-  const cheeredRooms = myChs.filter(c => c.kind === 'cheered' && c.creator_id !== myUserId);
+  //   ⚠️ 종료된 응원방은 '오늘 응원' 섹션에서 제외 — 종료일이 지나면 '오늘 응원' 맥락이 아니다
+  //     (완주·미완주 무관, finishedChs 와 동일한 todayStr <= end_date 기준). 종료 방은 내하다 탭에서 열람.
+  const cheeredRooms = myChs.filter(
+    c => c.kind === 'cheered' && c.creator_id !== myUserId && todayStr <= c.end_date,
+  );
   const myDoingChs = myChs.filter(c => !(c.kind === 'cheered' && c.creator_id !== myUserId));
 
-  // 🚀 P-⑤: 진행 중 vs 종료된 챌린지 분리 (KST 자정 기준).
-  const todayStr = getKstTodayRange().kstDateStr;
   const activeChs   = myDoingChs.filter(c => todayStr <= c.end_date);
   const finishedChs = myDoingChs.filter(c => todayStr >  c.end_date);
 
@@ -285,12 +294,107 @@ export default function HomeScreen() {
         <ErrorState message={error} onRetry={() => { setLoading(true); load(); }} />
       ) : (
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={styles.scroll}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
           }
           showsVerticalScrollIndicator={false}
         >
+          {isColdStart ? (
+            /* 🚀 콜드스타트(도전 0개): 빈 카드 스택 → 살아있는 온램프 한 장 + 합류 우선 + 접힌 힌트 */
+            <>
+              {/* 온램프 카드 — ① 첫 걸음(선언) ② 둘러보고 합류 */}
+              <View style={styles.onrampCard}>
+                <Text style={styles.onrampTitle}>오늘, 첫 걸음을 떼어볼까요?</Text>
+                <Text style={styles.onrampSub}>선언하면 지인들이 응원으로 함께해요.</Text>
+                <Pressable
+                  style={styles.onrampPrimaryBtn}
+                  onPress={() => { haptic.tap(); router.push('/create?kind=cheered' as any); }}
+                >
+                  <Text style={styles.onrampPrimaryText}>✍️ 첫 하다 선언하기</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.onrampSecondaryBtn}
+                  onPress={() => { haptic.tap(); scrollRef.current?.scrollTo({ y: Math.max(0, joinSectionY - 12), animated: true }); }}
+                >
+                  <Text style={styles.onrampSecondaryText}>🔍 둘러보고 합류하기</Text>
+                </Pressable>
+              </View>
+
+              {/* 함께 합류하기 — 콜드스타트엔 만들기보다 합류 먼저 (평균 멤버 3명 유리) */}
+              <View onLayout={(e) => setJoinSectionY(e.nativeEvent.layout.y)}>
+                <Text style={styles.sectionLabel}>함께 합류하기 (누구나 합류)</Text>
+                {openChs.length > 0 ? (
+                  openChs.slice(0, 5).map(c => (
+                    <JoinCard key={c.id} challenge={c} onJoin={handleJoinChallenge} />
+                  ))
+                ) : (
+                  <View style={styles.emptyOpenCard}>
+                    <Text style={styles.emptyOpenEmoji}>🌍</Text>
+                    <Text style={styles.emptyOpenTitle}>현재 합류 가능한 공개 하다가 없어요</Text>
+                    <Text style={styles.emptyOpenDesc}>
+                      직접 새로운 공개 하다를 개설하여 첫 번째 동료들을 모집해 볼까요?
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* 오늘, 하다 인연들의 하루 — 실데이터(완주·동료 인증)가 있으면 그대로 노출 (절대 숨기지 않음) */}
+              {(completions.length > 0 || todayProofs.length > 0) && (
+                <>
+                  <Text style={styles.sectionLabel}>오늘, 하다 인연들의 하루</Text>
+                  {completions.map(c => (
+                    <CompletionRibbon key={c.id} story={c} />
+                  ))}
+                  {todayProofGroups.map(g => (
+                    <TodayChallengeProofGroup
+                      key={g.challengeId}
+                      title={g.title}
+                      proofs={g.proofs}
+                      onViewPhoto={(photos, index) => setViewer({ photos, index })}
+                    />
+                  ))}
+                </>
+              )}
+
+              {/* 오늘, 응원으로 힘주기 — 응원 중인 방이 있으면 그대로 노출 */}
+              {cheeredRooms.length > 0 && (
+                <>
+                  <Text style={styles.sectionLabel}>오늘, 응원으로 힘주기</Text>
+                  {cheeredRooms.slice(0, 5).map(c => (
+                    <CheeredCard key={c.id} challenge={c} />
+                  ))}
+                </>
+              )}
+
+              {/* 내 관심 분야 하다 — 추천이 있으면 그대로 노출 */}
+              {interestingChs.length > 0 && (
+                <>
+                  <Text style={styles.sectionLabel}>내 관심 분야 하다 (관심 추천)</Text>
+                  {interestingChs.slice(0, 5).map(c => (
+                    <InterestCard key={c.id} challenge={c} />
+                  ))}
+                </>
+              )}
+
+              {/* 접힌 힌트 한 줄 — '동료의 하루'가 비었을 때만 (실데이터 있으면 위에서 노출되므로 생략) */}
+              {completions.length === 0 && todayProofs.length === 0 && (
+                <View style={styles.onrampHint}>
+                  <Text style={styles.onrampHintText}>도전을 시작하면 동료들의 하루가 여기 채워져요</Text>
+                  <Text style={styles.onrampHintChevron}>›</Text>
+                </View>
+              )}
+
+              {/* 🌙 끝 마커 — 무한 스크롤 의도적 차단 */}
+              <View style={styles.endMarker}>
+                <Text style={styles.endMoon}>🌙</Text>
+                <Text style={styles.endLine1}>오늘은 여기까지예요.</Text>
+                <Text style={styles.endLine2}>내일 또, 한 걸음.</Text>
+              </View>
+            </>
+          ) : (
+          <>
           {/* [구조 1] 오늘, 나의 도전 섹션 — 진행 중만 노출 */}
           <Text style={styles.sectionLabel}>오늘, 나의 하다</Text>
           {activeChs.length > 0 ? (
@@ -406,7 +510,7 @@ export default function HomeScreen() {
             /* 빈 상태 카드 — 본인 도전 0개 */
             <Pressable
               style={styles.emptyCard}
-              onPress={() => { haptic.tap(); router.push('/create' as any); }}
+              onPress={() => { haptic.tap(); router.push('/create?kind=cheered' as any); }}
             >
               <Text style={styles.emptyEmoji}>🌱</Text>
               <Text style={styles.emptyTitle}>아직 진행 중인 하다가 없어요</Text>
@@ -541,6 +645,8 @@ export default function HomeScreen() {
             <Text style={styles.endLine1}>오늘은 여기까지예요.</Text>
             <Text style={styles.endLine2}>내일 또, 한 걸음.</Text>
           </View>
+          </>
+          )}
         </ScrollView>
       )}
 
@@ -1317,5 +1423,61 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.primary500,
     fontFamily: fontFamily.medium,
+  },
+
+  // 🚀 콜드스타트 온램프 카드 (accent50 + accent 보더, 디자인 토큰 내)
+  onrampCard: {
+    marginHorizontal: 20, marginTop: 16,
+    paddingVertical: 24, paddingHorizontal: 20,
+    backgroundColor: colors.accent50,
+    borderRadius: radius.xl,
+    borderWidth: 1, borderColor: colors.accent,
+    gap: 8,
+  },
+  onrampTitle: {
+    fontSize: fontSize.lg, color: colors.primary,
+    fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
+    textAlign: 'center', letterSpacing: -0.3,
+  },
+  onrampSub: {
+    fontSize: fontSize.sm, color: colors.primary500,
+    fontFamily: fontFamily.regular,
+    textAlign: 'center', lineHeight: 20, marginBottom: 8,
+  },
+  onrampPrimaryBtn: {
+    width: '100%', paddingVertical: 14,
+    backgroundColor: colors.accent,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+  },
+  onrampPrimaryText: {
+    fontSize: fontSize.base, color: colors.surface,
+    fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
+  },
+  onrampSecondaryBtn: {
+    width: '100%', paddingVertical: 14, marginTop: 8,
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
+    borderWidth: 1.5, borderColor: colors.accent,
+    alignItems: 'center',
+  },
+  onrampSecondaryText: {
+    fontSize: fontSize.base, color: colors.accent700,
+    fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
+  },
+  onrampHint: {
+    marginHorizontal: 20, marginTop: 20,
+    paddingVertical: 14, paddingHorizontal: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: colors.primary50,
+    borderRadius: radius.lg,
+  },
+  onrampHintText: {
+    fontSize: fontSize.sm, color: colors.primary500,
+    fontFamily: fontFamily.medium, fontWeight: fontWeight.medium,
+  },
+  onrampHintChevron: {
+    fontSize: fontSize.base, color: colors.primary300,
+    fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
   },
 });
