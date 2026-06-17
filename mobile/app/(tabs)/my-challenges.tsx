@@ -173,6 +173,35 @@ export default function MyChallengesScreen() {
                       )}
                     </View>
                   )}
+
+                  {/* 🔭 하다 구경 진입 — 내하다 맨 아래 (남들 하다 살펴보고 따라하기) */}
+                  <Pressable
+                    style={{
+                      marginTop: 28,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 12,
+                      padding: 16,
+                      backgroundColor: colors.accent50,
+                      borderRadius: radius.xl,
+                      borderWidth: 1,
+                      borderColor: colors.accent100,
+                    }}
+                    onPress={() => { haptic.tap(); router.push('/discover' as any); }}
+                    accessibilityRole="button"
+                    accessibilityLabel="하다 구경 — 남들은 무슨 하다 하나 살펴보기"
+                  >
+                    <Text style={{ fontSize: 26 }}>🔭</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: fontSize.base, color: colors.primary, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold }}>
+                        하다 구경
+                      </Text>
+                      <Text style={{ fontSize: fontSize.sm, color: colors.primary500, fontFamily: fontFamily.regular, marginTop: 2 }}>
+                        남들은 무슨 하다 하나 — 살펴보고 따라해 보세요
+                      </Text>
+                    </View>
+                    <Text style={{ fontSize: fontSize.lg, color: colors.accent700, fontFamily: fontFamily.bold }}>→</Text>
+                  </Pressable>
                 </>
               }
             />

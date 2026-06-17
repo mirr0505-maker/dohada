@@ -6,7 +6,7 @@ import { isRecruiting } from './stats';   // 🚀 0043: 누구나 방 모집 마
 import type {
   ChallengeWithCount, ChallengeKind, ChallengeGoalType, MemberWithToday, ProofWithRelations, DbChallenge,
   CommentWithAuthor, CheerType,
-  OpenChallengeCard, ChallengeVoteType, ChallengeVoteCounts,
+  OpenChallengeCard, ChallengeVoteType, ChallengeVoteCounts, BrowseChallengeCard,
   DbCompletionStory, CompletionStoryCard, StoryVisibility,
 } from './types';
 
@@ -188,6 +188,7 @@ export async function fetchMyChallenges(myUserId?: string): Promise<ChallengeWit
       goal_type: (c.goal_type ?? 'cadence') as ChallengeGoalType,   // 🚀 0041
       target_count: c.target_count ?? null,
       my_proof_count: myDates.length,
+      reference_count: c.reference_count ?? 0,   // 🚀 0050: 따라하기 참조 횟수
       gave_up_at: c.gave_up_at ?? null,
     };
   });
@@ -386,6 +387,7 @@ export async function fetchMyChallengesWithDetails(myUserId: string): Promise<My
     goal_type: (c.goal_type ?? 'cadence') as ChallengeGoalType,
     target_count: c.target_count ?? null,
     my_proof_count: myProofCountMap.get(c.id) ?? 0,
+    reference_count: c.reference_count ?? 0,   // 🚀 0050: 따라하기 참조 횟수
     gave_up_at: c.gave_up_at ?? null,
   }));
 }
@@ -622,6 +624,50 @@ export async function toggleChallengeVote(args: {
       .insert({ challenge_id: args.challengeId, user_id: args.userId, vote_type: args.voteType });
     if (error) throw error;
   }
+}
+
+// 🚀 하다 구경 (익명 발상 라이브러리, 0050) — 전체 유형 익명 목록.
+//   browse_challenges RPC 가 신원 컬럼(creator_id·user_id)을 안 내려주므로 여기서도 신원을 다루지 않는다.
+//   정렬은 RPC 가 최신순 고정 (참조수·평가수 desc 줄세우기 금지).
+export async function fetchBrowseChallenges(limit = 60): Promise<BrowseChallengeCard[]> {
+  const { data, error } = await supabase.rpc('browse_challenges', { p_limit: limit });
+  if (error) throw error;
+
+  return (data ?? []).map((r: any) => {
+    // RPC 의 votes 는 jsonb 객체 {creative: n, ...} — 4종 카운트로 정규화
+    const votesByType: ChallengeVoteCounts = { creative: 0, hard: 0, touching: 0, fresh: 0 };
+    const raw = r.votes ?? {};
+    for (const k of Object.keys(raw)) {
+      if (k in votesByType) votesByType[k as ChallengeVoteType] = Number(raw[k]) || 0;
+    }
+    return {
+      id: r.id,
+      kind: r.kind as ChallengeKind,
+      title: r.title,
+      description: r.description ?? null,
+      intro_image_url: r.intro_image_url ?? null,
+      goal_type: (r.goal_type ?? 'cadence') as ChallengeGoalType,
+      target_count: r.target_count ?? null,
+      frequency: r.frequency,
+      start_date: r.start_date,
+      end_date: r.end_date,
+      category_id: r.category_id ?? null,
+      category: r.category_name
+        ? { emoji: r.category_emoji ?? '✨', name: r.category_name, is_impact: !!r.category_is_impact }
+        : null,
+      reference_count: r.reference_count ?? 0,
+      created_at: r.created_at,
+      votes_by_type: votesByType,
+      my_votes: (r.my_votes ?? []) as ChallengeVoteType[],
+    };
+  });
+}
+
+// 🚀 따라하기 — 원본 하다를 1회 참조했음을 기록 (멱등, 1인1회). 따라한 새 하다가 '생성 완료'된 직후 호출.
+//   탭만 하고 안 만들면 호출하지 않음 = 참조수 정직.
+export async function referenceChallenge(sourceChallengeId: string): Promise<void> {
+  const { error } = await supabase.rpc('reference_challenge', { p_challenge_id: sourceChallengeId });
+  if (error) throw error;
 }
 
 // ─── 카테고리 시스템 (0007 categories + subcategories) ─

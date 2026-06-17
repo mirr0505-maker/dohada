@@ -173,6 +173,15 @@
 - 결정(2026-06-16): ① 도전자 카드는 '받은 응원 N개'(my_cheers_count) ② 응원자 역할 안내=콘텐츠 탭 상단 슬림 배너 ③ 응원자 기록 탭 FAB 제거 ④ 응원방은 홈/내하다에서 '응원' 섹션으로만 ⑤ 다짐 DB 게이트 추가
 - **배포 (⚠️ migration 먼저)**: 0048 적용 완료(운영 ✓) → 클라 OTA(preview·production 양 채널). EF·네이티브 빌드 불필요(JS만, RLS 1개). 검증 tsc 0 + npm test 71/71
 
+### 신규 코드 위치 (v2.18 — 하다 구경 (익명 발상 라이브러리) + 따라하기 참조수, 0050, 2026-06-17)
+**discover(둘러보기)가 진입점 0개로 묻혀 4평가(✨😱🥹💫)까지 통째로 사장 → "하다 구경"으로 재설계.** 개설자·참여자 신원을 지운 익명 카드(제목·내용·인증방식·타입·평가·참조수만) = 탐색이 아니라 '참조'(살펴보고→평가→따라하기). 신원 제거 = 비교/줄세우기 대상 자체가 없음(조용한 SNS 강화). (FEEDBACK: UIUX_AUDIT 부록 '동선 단절(중요)')
+- **DB [`0050_browse_anonymous_library.sql`](supabase/migrations/0050_browse_anonymous_library.sql)**: ① `challenge_references`(따라하기 **1인1회** PK) + `reference_count` 캐시 컬럼 + 트리거 + `reference_challenge()` RPC(멱등) ② `browse_visible`·`browse_image_visible` opt-out 컬럼(둘 다 디폴트 ON, 수정=0022 개설자 UPDATE 정책) ③ `browse_challenges()` RPC — **신원 컬럼(creator_id·user_id) 일절 미반환**(SECURITY DEFINER + 화이트리스트 컬럼으로 누수 차단), 4평가 집계·내 평가 동봉(challenge_votes RLS 안 넓힘), **최신순 고정**(참조수·평가수 desc 줄세우기 금지), `browse_visible`+확정미성년+종료방(`gave_up_at`) 제외
+- **범위 = 전체 유형 익명 노출(C)**: 익명이라 신원 특정 불가 + 흔한 도전("금연 100일")은 군중에 묻힘. RLS상 비멤버가 못 읽는 solo/cheered/closed 를 보여주려면 RPC 우회가 필수 = C의 핵심 비용. **미성년 가드는 부분만** — 가입 시 생년 미수집이라 '결제 본인인증 확정 미성년'만 제외(거의 0명). 실질 미성년 보호 = 익명화 + opt-out, **진짜 차단은 가입 생년 수집 백로그**(메모리 `project_minor-protection-gap`)
+- **클라**: 익명 카드 화면([`discover.tsx`](mobile/app/(tabs)/discover.tsx) 재설계 — 타입 4색 배지·이모지+두글자 평가 라벨(기발/대단/뭉클/새로움)·정형 기간/인증방식·🔁참조수·따라하기, **카드 탭→방 이동 없음**=익명 보존) · db `fetchBrowseChallenges`·`referenceChallenge`([`db.ts`](mobile/lib/db.ts)) · 타입 `BrowseChallengeCard`([`types.ts`](mobile/lib/types.ts)). 따라하기 = [`create.tsx`](mobile/app/create.tsx) `?ref=`+프리필(제목·방타입·분류·기간유형·빈도·내용), **생성 완료 시점에** 참조 +1(탭만 하고 안 만들면 카운트 X)
+- **진입점 + 참조수 노출**: 내하다 맨 아래 "🔭 하다 구경" 카드([`my-challenges.tsx`](mobile/app/(tabs)/my-challenges.tsx)) + 홈 끝마커 직전 링크([`home.tsx`](mobile/app/(tabs)/home.tsx)). 내가 하는 하다가 참조되면 "🔁 N번 참조"(99+ 캡) 배지 — 조용한 목격받기 (`fetchMyChallenges`·`fetchMyChallengesWithDetails` 가 `reference_count` 반환)
+- 결정(2026-06-17): ① 범위 C(전체 익명) ② 분류 4종 뚜렷 구분 ③ 참조 1인1회 테이블 ④ 안내문 이미지 디폴트 노출+opt-out ⑤ 평가는 구경 카드에 유지(익명화로 사람→'발상' 평가가 됨) ⑥ 종료/포기방 구경 제외(기본값, RPC 한 줄로 완화 가능)
+- **배포 (⚠️ migration 먼저)**: 0050 적용 완료(운영 ✓) → 클라 OTA(preview·production 양 채널). EF·네이티브 빌드 불필요(JS만, 새 의존성 없음). 검증 tsc 0 + npm test 71/71
+
 ### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.
 - 인증 완료 Alert / 카톡 초대 / 생성 후 Alert / 챌린지방 헤더 부제 / FAB 라벨 — 모두 분류별 분기 완료

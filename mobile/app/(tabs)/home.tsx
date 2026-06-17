@@ -473,6 +473,12 @@ export default function HomeScreen() {
                             <Text style={styles.metaBadgeText}>👥 동료 {c.today_check_count}/{c.member_count} 완료</Text>
                           </View>
                         ) : null}
+                        {/* 🔁 0050: 내 하다가 '하다 구경'에서 따라하기로 참조된 횟수 (조용한 목격받기) */}
+                        {(c.reference_count ?? 0) > 0 && (
+                          <View style={styles.metaBadge}>
+                            <Text style={styles.metaBadgeText}>🔁 {formatCheerCount(c.reference_count ?? 0)}번 참조</Text>
+                          </View>
+                        )}
                       </View>
                     </Pressable>
                     {isCheeredParticipant ? (
@@ -653,6 +659,19 @@ export default function HomeScreen() {
               </Text>
             </View>
           )}
+
+          {/* 🔭 하다 구경 보조 진입 — 끝 마커 직전 (남들 하다 살펴보고 따라하기) */}
+          <Pressable
+            onPress={() => { haptic.tap(); router.push('/discover' as any); }}
+            style={{ alignSelf: 'center', marginTop: 4, paddingVertical: 10, paddingHorizontal: 16 }}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel="하다 구경 — 남들은 무슨 하다 하나 살펴보기"
+          >
+            <Text style={{ fontSize: fontSize.sm, color: colors.accent700, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold }}>
+              🔭 남들은 무슨 하다 하나, 구경하기 →
+            </Text>
+          </Pressable>
 
           {/* 🌙 끝 마커 — 무한 스크롤 의도적 차단 */}
           <View style={styles.endMarker}>

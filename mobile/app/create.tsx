@@ -10,7 +10,7 @@ import { Screen } from '@/components/Screen';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import {
-  createChallenge, fetchCategoryTree,
+  createChallenge, fetchCategoryTree, referenceChallenge,
   type CreateChallengeFrequency, type CreateChallengeProofType,
   type DbCategory, type DbSubcategory,
 } from '@/lib/db';
@@ -68,15 +68,32 @@ const ROOM_TYPES: { value: ChallengeKind; label: string; desc: string; icon: str
 export default function CreateChallenge() {
   const session = useSession();
   const [step, setStep] = useState(1);
-  // 🚀 재도전 프리필 — 포기한 방의 "다시 시작하기" 가 ?title= 로 제목을 넘김
-  const { title: titleParam, kind: kindParam } = useLocalSearchParams<{ title?: string; kind?: string }>();
+  // 🚀 프리필 — ① 포기한 방 "다시 시작하기"(?title=) ② 하다 구경 "따라하기"(?ref= + 제목·분류·기간유형·빈도·내용)
+  const {
+    title: titleParam, kind: kindParam, ref: refParam,
+    categoryId: categoryIdParam, goalType: goalTypeParam,
+    frequency: frequencyParam, targetCount: targetCountParam, desc: descParam,
+  } = useLocalSearchParams<{
+    title?: string; kind?: string; ref?: string; categoryId?: string;
+    goalType?: string; frequency?: string; targetCount?: string; desc?: string;
+  }>();
+  // 숫자 파라미터 안전 파싱 (NaN 방지)
+  const parseIntParam = (v?: string): number | null => {
+    if (typeof v !== 'string' || v.trim() === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
 
   // 폼 state
   const [title, setTitle] = useState(typeof titleParam === 'string' ? titleParam : '');
-  const [categoryId, setCategoryId] = useState<number | null>(null);
+  const [categoryId, setCategoryId] = useState<number | null>(parseIntParam(categoryIdParam));
   const [subcategoryId, setSubcategoryId] = useState<number | null>(null);
   const [durationDays, setDurationDays] = useState<number>(100);   // 기본 100일 (v4 추천)
-  const [frequency, setFrequency] = useState<CreateChallengeFrequency>('daily');
+  const [frequency, setFrequency] = useState<CreateChallengeFrequency>(
+    frequencyParam === 'daily' || frequencyParam === 'weekly3' || frequencyParam === 'weekly1'
+      ? frequencyParam
+      : 'daily',
+  );
   const [proofType, setProofType] = useState<CreateChallengeProofType>('photo');   // v2.2
   // 🚀 기본 방타입 = cheered(응원받기). 홈 온램프·빈상태 '선언하기'가 ?kind= 로 넘긴 값이 있으면 그 값 우선.
   const [kind, setKind] = useState<ChallengeKind>(
@@ -86,15 +103,17 @@ export default function CreateChallenge() {
   );
   const [startDate, setStartDate] = useState<string>(toLocalDateStr(new Date())); // 🚀 당일 챌린지용 시작일 (로컬 기준 — 타임존 밀림 방지)
   // 🚀 안내문 (나홀로 제외) — 합류 전 미리보기·방 현황에 노출. 텍스트 + 보관함 이미지(선택)
-  const [description, setDescription] = useState('');
+  const [description, setDescription] = useState(typeof descParam === 'string' ? descParam : '');
   const [introImageUri, setIntroImageUri] = useState<string | null>(null);
   // 🚀 다인 내기 (다함께·누구나, 파일럿) — 개설 시 티어+모드 고정. null = 내기 없음
   const [betTier, setBetTier] = useState<BetTier | null>(null);
   const [betDonationMode, setBetDonationMode] = useState<BetDonationMode>('commitment');
   const betVisible = isBetVisible();   // 🎯 내기 노출 게이트 (출시 후 BET_ENABLED, 현재 dev 전용)
   // 🚀 0041: 목표 유형 — cadence(주기형: 매일/주N회) / count(목표 횟수형: 기간 내 N개)
-  const [goalType, setGoalType] = useState<'cadence' | 'count'>('cadence');
-  const [targetCount, setTargetCount] = useState<number>(10);
+  const [goalType, setGoalType] = useState<'cadence' | 'count'>(goalTypeParam === 'count' ? 'count' : 'cadence');
+  const [targetCount, setTargetCount] = useState<number>(
+    (parseIntParam(targetCountParam) ?? 0) >= 1 ? parseIntParam(targetCountParam)! : 10,
+  );
   // bet 은 'none' 고정.
 
   const [submitting, setSubmitting] = useState(false);
@@ -185,6 +204,10 @@ export default function CreateChallenge() {
         betTier: (kind === 'closed' || kind === 'open') ? betTier : null,
         betDonationMode,
       });
+      // 🚀 하다 구경 "따라하기"로 만든 하다면 원본에 참조 1회 기록 (멱등 — 실패해도 생성 흐름엔 영향 없음)
+      if (typeof refParam === 'string' && refParam) {
+        try { await referenceChallenge(refParam); } catch { /* 참조수는 부가 표시 — 무시 */ }
+      }
       haptic.success();
       // 응원자를 초대해야 의미 있는 방 = closed (함께 도전) + cheered (응원받기)
       const needsInvitation = kind === 'closed' || kind === 'cheered';

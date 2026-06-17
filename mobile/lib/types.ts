@@ -101,6 +101,7 @@ export type ChallengeWithCount = DbChallenge & {
   has_new_chat?: boolean;
   has_new_log?: boolean;
   my_proof_count?: number;   // 🚀 0041: 내 총 인증 수 (count 유형 진행도 N/목표)
+  reference_count?: number;  // 🚀 0050: 하다 구경에서 따라하기로 참조된 횟수 (조용한 목격받기)
 };
 
 export type MemberWithToday = DbUser & {
@@ -128,6 +129,27 @@ export type OpenChallengeCard = ChallengeWithCount & {
   creator: { nickname: string };
   category: { emoji: string; name: string; is_impact: boolean } | null;
   subcategory: { name: string } | null;
+  votes_by_type: ChallengeVoteCounts;
+  my_votes: ChallengeVoteType[];
+};
+
+// 🚀 하다 구경 (익명 발상 라이브러리, 0050) 카드 — browse_challenges RPC 반환.
+//   개설자·참여자 등 신원 정보는 일절 없음(익명). 제목·내용·인증방식·타입·평가·참조수만.
+export type BrowseChallengeCard = {
+  id: string;
+  kind: ChallengeKind;
+  title: string;
+  description: string | null;
+  intro_image_url: string | null;     // 안내문 이미지 (개설자가 opt-out 하면 RPC 가 null 로 내려줌)
+  goal_type: ChallengeGoalType;
+  target_count: number | null;
+  frequency: ChallengeFrequency;
+  start_date: string;
+  end_date: string;
+  category_id: number | null;         // 따라하기 프리필용 (표시는 category 객체)
+  category: { emoji: string; name: string; is_impact: boolean } | null;
+  reference_count: number;            // 따라하기 참조 횟수 (조용한 사회적 증거)
+  created_at: string;
   votes_by_type: ChallengeVoteCounts;
   my_votes: ChallengeVoteType[];
 };
