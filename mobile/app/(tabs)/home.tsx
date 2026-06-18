@@ -61,7 +61,6 @@ export default function HomeScreen() {
   const [joiningPreview, setJoiningPreview]  = useState(false);
   // 🚀 콜드스타트 온램프 — '둘러보고 합류' 버튼이 합류 섹션으로 스크롤하도록 ref + 섹션 y 측정
   const scrollRef = useRef<ScrollView>(null);
-  const [joinSectionY, setJoinSectionY] = useState(0);
   // 💛 다짐 배지 — 내 방 중 다짐이 걸린 challenge_id 집합 (홈 '오늘 나의 하다' 카드)
   const [pledgeChIds, setPledgeChIds] = useState<Set<string>>(new Set());
 
@@ -321,14 +320,14 @@ export default function HomeScreen() {
                 </Pressable>
                 <Pressable
                   style={styles.onrampSecondaryBtn}
-                  onPress={() => { haptic.tap(); scrollRef.current?.scrollTo({ y: Math.max(0, joinSectionY - 12), animated: true }); }}
+                  onPress={() => { haptic.tap(); router.push('/discover' as any); }}
                 >
-                  <Text style={styles.onrampSecondaryText}>🔍 둘러보고 합류하기</Text>
+                  <Text style={styles.onrampSecondaryText}>🔭 하다 구경 — 이런 것도 하는구나</Text>
                 </Pressable>
               </View>
 
-              {/* 함께 합류하기 — 콜드스타트엔 만들기보다 합류 먼저 (평균 멤버 3명 유리) */}
-              <View onLayout={(e) => setJoinSectionY(e.nativeEvent.layout.y)}>
+              {/* 함께 합류하기 — 신규에게 '즉시 동료가 생기는' 길 (선언·구경과 균형, 제거 안 함) */}
+              <View>
                 <Text style={styles.sectionLabel}>함께 합류하기 (누구나 합류)</Text>
                 {openChs.length > 0 ? (
                   openChs.slice(0, 5).map(c => (
