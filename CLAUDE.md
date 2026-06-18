@@ -181,7 +181,7 @@
 - **진입점 + 참조수 노출**: 내하다 맨 아래 "🔭 하다 구경" 카드([`my-challenges.tsx`](mobile/app/(tabs)/my-challenges.tsx)) + 홈 끝마커 직전 링크([`home.tsx`](mobile/app/(tabs)/home.tsx)). 내가 하는 하다가 참조되면 "🔁 N번 참조"(99+ 캡) 배지 — 조용한 목격받기 (`fetchMyChallenges`·`fetchMyChallengesWithDetails` 가 `reference_count` 반환)
 - 결정(2026-06-17): ① 범위 C(전체 익명) ② 분류 4종 뚜렷 구분 ③ 참조 1인1회 테이블 ④ 안내문 이미지 디폴트 노출+opt-out ⑤ 평가는 구경 카드에 유지(익명화로 사람→'발상' 평가가 됨) ⑥ 종료/포기방 구경 제외(기본값, RPC 한 줄로 완화 가능)
 - **배포 (⚠️ migration 먼저)**: 0050 적용 완료(운영 ✓) → 클라 OTA(preview·production 양 채널). EF·네이티브 빌드 불필요(JS만, 새 의존성 없음). 검증 tsc 0 + npm test 71/71
-- **후속 버그픽스 (0051, 2026-06-17)**: 하다 구경 4평가 INSERT 가 비멤버 + open외(다함께/응원받기/나홀로)에서 RLS 거부됨 — `votes_self_insert`(0007)가 **멤버 OR open** 만 허용했기 때문(누구나·내가 멤버인 방만 됐음). `browse_visible` 챌린지면 평가 허용을 추가([`0051_browse_vote_rls.sql`](supabase/migrations/0051_browse_vote_rls.sql)). **DB(RLS)만 수정 — 클라/OTA 불필요**, 운영 적용 완료(운영 ✓)
+- **후속 버그픽스 (0051→0052, 2026-06-17)**: 하다 구경 4평가 INSERT 가 비멤버 + open외(다함께/응원받기/나홀로)에서 RLS 거부됨 — `votes_self_insert`(0007)가 **멤버 OR open** 만 허용(누구나·내가 멤버인 방만 됐음). ⚠️ [`0051`](supabase/migrations/0051_browse_vote_rls.sql)의 inline `exists(select … from challenges …)`는 **호출자 권한으로 평가돼 challenges 의 SELECT RLS(멤버만)에 막혀 무효** → 비멤버는 행 자체를 못 봐서 여전히 거부. [`0052`](supabase/migrations/0052_browse_vote_rls_fix.sql)에서 **SECURITY DEFINER 헬퍼 `is_browse_visible()`**로 교체(`is_member_of`/`is_open_challenge`와 동일 패턴)해 해결. 교훈: RLS 정책 안 서브쿼리는 SECURITY DEFINER 헬퍼로. **DB(RLS)만 수정 — 클라/OTA 불필요**, 운영 적용·검증 완료(운영 ✓)
 
 ### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.
