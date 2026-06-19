@@ -320,6 +320,14 @@ function LogCard({
         </View>
       </View>
 
+      {/* 🚀 숨김 기록: 증발시키지 않고 자리에 '숨김 처리됨' 메시지 — 참여/응원 인원이 모두 본다(2026-06-18) */}
+      {log.hidden ? (
+        <View style={styles.hiddenBox}>
+          <Text style={styles.hiddenTitle}>🙈 숨김 처리된 기록이에요</Text>
+          <Text style={styles.hiddenDesc}>운영 검토 중이라 내용이 잠시 가려졌어요.</Text>
+        </View>
+      ) : (
+        <>
       {/* 🚀 0045: 여러 장이면 카드 캐러셀(좌우 스와이프), 1장이면 기존 원본비율 표시 */}
       {log.photo_urls.length > 1 ? (
         <PhotoCarousel
@@ -373,6 +381,8 @@ function LogCard({
           </Pressable>
         )}
       </View>
+        </>
+      )}
     </Pressable>
   );
 }
@@ -687,6 +697,27 @@ const styles = StyleSheet.create({
   },
   // 숨은 측정용 — 흐름 밖(absolute)·투명. 보이는 본문과 같은 폭으로 전체 줄 수만 잼.
   contentMeasure: { position: 'absolute', left: 0, right: 0, top: 0, opacity: 0, zIndex: -1 },
+  // 🚀 숨김 처리된 기록 플레이스홀더
+  hiddenBox: {
+    backgroundColor: colors.primary100,
+    borderRadius: radius.lg,
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    gap: 4,
+    alignItems: 'center',
+  },
+  hiddenTitle: {
+    fontSize: fontSize.base,
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.semibold,
+  },
+  hiddenDesc: {
+    fontSize: fontSize.sm,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+    textAlign: 'center',
+  },
   moreToggle: {
     fontSize: fontSize.sm,
     color: colors.primary500,

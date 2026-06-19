@@ -13,7 +13,7 @@ import { Button } from '@/components/Button';
 import { SUPPORT_EMAIL } from '@/lib/support';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
-import { signOut } from '@/lib/auth';
+import { signOut, deleteAccount } from '@/lib/auth';
 import { haptic } from '@/lib/haptics';
 import { fetchNotificationPrefs, updateNotificationPrefs, type NotificationPrefs } from '@/lib/push';
 import {
@@ -49,6 +49,9 @@ export default function ProfileScreen() {
   const [reminderHour, setReminderHour] = useState(20);
   const [reminderMinute, setReminderMinute] = useState(0);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
+
+  // 🚀 회원 탈퇴(계정 삭제) — 2단계 확인 모달
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
   useEffect(() => {
     const restoreTime = async () => {
@@ -409,6 +412,13 @@ export default function ProfileScreen() {
 
         {/* 액션 */}
         <View style={styles.actions}>
+          {/* 💛 다짐 내역 — 무현금 기능이라 전체 공개 (게이트 없음) */}
+          <Button
+            label="💛 다짐 내역"
+            variant="ghost"
+            block
+            onPress={() => { haptic.tap(); router.push('/pledges' as any); }}
+          />
           {/* ☕ 한잔 내역 — 파일럿 전용 (Stage 4 베타 오픈 시 전체 공개) */}
           {isGiftPilotEmail(session?.user?.email) && (
             <Button
@@ -420,6 +430,14 @@ export default function ProfileScreen() {
           )}
           <Button label="문의·신고 (운영팀)" variant="ghost" block onPress={onContact} />
           <Button label="로그아웃" variant="ghost" block onPress={onLogout} />
+          {/* 계정 삭제 — 구글·애플 의무 진입점. 눈에 띄지 않게(빨강 작은 링크) → 2단계 확인 모달 */}
+          <Pressable
+            style={styles.deleteLink}
+            onPress={() => { haptic.tap(); setDeleteModalOpen(true); }}
+            hitSlop={8}
+          >
+            <Text style={styles.deleteLinkText}>계정 삭제</Text>
+          </Pressable>
         </View>
 
         {/* 버전 — 베타 테스터 소통용: OTA 업데이트가 실제 적용됐는지 이 줄로 확인 */}
@@ -468,6 +486,15 @@ export default function ProfileScreen() {
           } finally {
             setTimePickerOpen(false);
           }
+        }}
+      />
+
+      <DeleteAccountModal
+        visible={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onDeleted={() => {
+          setDeleteModalOpen(false);
+          router.replace('/login');
         }}
       />
     </Screen>
@@ -792,6 +819,110 @@ function ToggleRow({
   );
 }
 
+// ─── 회원 탈퇴(계정 삭제) 모달 — 2단계 확인 ──────────────
+// 1단계: 영향 안내 + 확인 체크박스 → 2단계: 최종 재확인 Alert → delete-account EF
+function DeleteAccountModal({
+  visible, onClose, onDeleted,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const [checked, setChecked] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  // 모달 열 때마다 체크 초기화 (실수 방지)
+  useEffect(() => { if (visible) { setChecked(false); setDeleting(false); } }, [visible]);
+
+  const runDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteAccount();
+      haptic.success();
+      onDeleted();
+    } catch (e: any) {
+      setDeleting(false);
+      Alert.alert('탈퇴 실패', '잠시 후 다시 시도해주세요.\n계속되면 운영팀에 문의해주세요.');
+    }
+  };
+
+  // 2단계 — 최종 재확인
+  const onConfirm = () => {
+    if (!checked || deleting) return;
+    haptic.warning();
+    Alert.alert(
+      '마지막 확인',
+      '계정을 삭제하면 되돌릴 수 없어요.\n정말 삭제할까요?',
+      [
+        { text: '취소', style: 'cancel' },
+        { text: '계정 삭제', style: 'destructive', onPress: runDelete },
+      ],
+    );
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <SafeAreaView style={styles.modalSafe} edges={['top', 'bottom']}>
+        <View style={styles.modalHeader}>
+          <View style={{ width: 40 }} />
+          <Text style={styles.modalTitle}>계정 삭제</Text>
+          <Pressable onPress={onClose} hitSlop={12} disabled={deleting}>
+            <Text style={styles.modalCancel}>취소</Text>
+          </Pressable>
+        </View>
+
+        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 32 }}>
+          <Text style={styles.delLead}>계정을 삭제하면 아래 내용이 적용돼요.</Text>
+
+          <View style={styles.delSection}>
+            <Text style={styles.delSectionTitle}>삭제되는 정보</Text>
+            <Text style={styles.delBullet}>• 프로필(닉네임·사진·이메일)</Text>
+            <Text style={styles.delBullet}>• 본인인증 정보·알림 설정·관심 분야·알림함</Text>
+          </View>
+
+          <View style={styles.delSection}>
+            <Text style={styles.delSectionTitle}>남는 것 (동료의 박제 보호)</Text>
+            <Text style={styles.delBullet}>
+              • 내가 올린 인증·기록·댓글·대화·완주 이야기는 동료의 기록을 지키기 위해 "탈퇴한 사람"으로 익명 처리되어 남아요.
+            </Text>
+          </View>
+
+          <View style={styles.delSection}>
+            <Text style={styles.delSectionTitle}>그 밖에</Text>
+            <Text style={styles.delBullet}>• 진행 중인 도전과 응원은 모두 종료돼요.</Text>
+            <Text style={styles.delBullet}>• 삭제는 즉시 처리되며 되돌릴 수 없어요.</Text>
+            <Text style={styles.delBullet}>
+              • 지금 로그인한 계정으로는 다시 가입할 수 없어요. 다른 계정으로는 새로 시작할 수 있어요.
+            </Text>
+          </View>
+
+          {/* 확인 체크박스 — 체크해야 삭제 버튼 활성 */}
+          <Pressable
+            style={styles.delCheckRow}
+            onPress={() => { haptic.tap(); setChecked(v => !v); }}
+            disabled={deleting}
+          >
+            <View style={[styles.delCheckbox, checked && styles.delCheckboxOn]}>
+              {checked && <Text style={styles.delCheckMark}>✓</Text>}
+            </View>
+            <Text style={styles.delCheckLabel}>위 내용을 모두 확인했어요</Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.delButton, (!checked || deleting) && styles.delButtonDisabled]}
+            onPress={onConfirm}
+            disabled={!checked || deleting}
+          >
+            <Text style={styles.delButtonText}>
+              {deleting ? '삭제 중…' : '계정 삭제하기'}
+            </Text>
+          </Pressable>
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
 function Divider() {
   return <View style={styles.divider} />;
 }
@@ -913,6 +1044,92 @@ const styles = StyleSheet.create({
   actions: {
     marginHorizontal: 24,
     marginTop: 24,
+  },
+
+  // 계정 삭제 — 진입 링크(빨강, 눈에 띄지 않게) + 모달 본문
+  deleteLink: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginTop: 4,
+  },
+  deleteLinkText: {
+    fontSize: fontSize.sm,
+    color: colors.danger,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
+  },
+  delLead: {
+    fontSize: fontSize.base,
+    color: colors.primary,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
+    lineHeight: 22,
+    marginBottom: 8,
+  },
+  delSection: {
+    marginTop: 16,
+    gap: 6,
+  },
+  delSectionTitle: {
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  delBullet: {
+    fontSize: fontSize.sm,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+    lineHeight: 21,
+  },
+  delCheckRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 28,
+    paddingVertical: 4,
+  },
+  delCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: radius.sm,
+    borderWidth: 1.5,
+    borderColor: colors.primary100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  delCheckboxOn: {
+    backgroundColor: colors.danger,
+    borderColor: colors.danger,
+  },
+  delCheckMark: {
+    color: colors.surface,
+    fontSize: 14,
+    fontWeight: fontWeight.bold,
+  },
+  delCheckLabel: {
+    flex: 1,
+    fontSize: fontSize.base,
+    color: colors.primary,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
+  },
+  delButton: {
+    marginTop: 20,
+    minHeight: 50,
+    borderRadius: radius.lg,
+    backgroundColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  delButtonDisabled: {
+    opacity: 0.4,
+  },
+  delButtonText: {
+    fontSize: fontSize.lg,
+    color: colors.surface,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
   },
   footer: {
     flex: 1,

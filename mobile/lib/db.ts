@@ -2,9 +2,9 @@
 // RLS 가 알아서 가드해주니까 여기선 단순 fetch/insert/delete.
 import { supabase } from './supabase';
 import { getKstTodayRange } from './format';
-import { isRecruiting } from './stats';   // 🚀 0043: 누구나 방 모집 마감(수동 잠금/기간 50%) 판정 — 목록 노출 필터
+import { isRecruiting, goalStatus, isFinished } from './stats';   // 🚀 0043: 모집 마감 판정 + 다짐 내역 완주 판정
 import type {
-  ChallengeWithCount, ChallengeKind, ChallengeGoalType, MemberWithToday, ProofWithRelations, DbChallenge,
+  ChallengeWithCount, ChallengeKind, ChallengeGoalType, ChallengeFrequency, MemberWithToday, ProofWithRelations, DbChallenge,
   CommentWithAuthor, CheerType,
   OpenChallengeCard, ChallengeVoteType, ChallengeVoteCounts, BrowseChallengeCard,
   DbCompletionStory, CompletionStoryCard, StoryVisibility,
@@ -723,19 +723,20 @@ export type LogWithAuthor = {
   like_count: number;
   liked_by_me: boolean;
   comment_count: number;
+  hidden: boolean;              // 🚀 숨김(신고 3건 누적 자동숨김 등) — true 면 카드 자리에 '숨김' 플레이스홀더
 };
 
 export async function fetchLogs(challengeId: string, myUserId: string, limit = 30): Promise<LogWithAuthor[]> {
   const { data, error } = await supabase
     .from('logs')
     .select(`
-      id, challenge_id, user_id, title, content, photo_url, photo_urls, created_at,
+      id, challenge_id, user_id, title, content, photo_url, photo_urls, hidden, created_at,
       users:user_id(id, nickname, avatar_url),
       log_likes(user_id),
       log_comments(count)
     `)
     .eq('challenge_id', challengeId)
-    .eq('hidden', false)   // 🚀 3b
+    // 🚀 숨김 기록도 가져온다 — 목록에서 증발시키지 않고 '숨김 처리됨' 플레이스홀더로 노출(2026-06-18)
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error) throw error;
@@ -759,6 +760,7 @@ export async function fetchLogs(challengeId: string, myUserId: string, limit = 3
       like_count: likes.length,
       liked_by_me: likes.some(x => x.user_id === myUserId),
       comment_count: l.log_comments?.[0]?.count ?? 0,
+      hidden: !!l.hidden,
     };
   });
 }
@@ -774,7 +776,7 @@ export async function fetchRecentLogs(myUserId: string, limit = 30): Promise<Log
   const { data, error } = await supabase
     .from('logs')
     .select(`
-      id, challenge_id, user_id, title, content, photo_url, photo_urls, created_at,
+      id, challenge_id, user_id, title, content, photo_url, photo_urls, hidden, created_at,
       users:user_id(id, nickname, avatar_url),
       log_likes(user_id),
       log_comments(count),
@@ -783,7 +785,7 @@ export async function fetchRecentLogs(myUserId: string, limit = 30): Promise<Log
         category:category_id (emoji, name)
       )
     `)
-    .eq('hidden', false)   // 🚀 3b
+    // 🚀 숨김 기록도 가져온다 — 증발 대신 '숨김 처리됨' 플레이스홀더로 노출(2026-06-18)
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error) throw error;
@@ -807,6 +809,7 @@ export async function fetchRecentLogs(myUserId: string, limit = 30): Promise<Log
       like_count: likes.length,
       liked_by_me: likes.some(x => x.user_id === myUserId),
       comment_count: l.log_comments?.[0]?.count ?? 0,
+      hidden: !!l.hidden,
       challenge: {
         title: l.challenge?.title ?? '',
         category: l.challenge?.category ?? null,
@@ -848,8 +851,8 @@ export async function fetchLogComments(logId: string): Promise<LogCommentWithAut
   }));
 }
 
-// 🚀 3a/3b 일반 UGC 검수 — moderate-text(text 모드). allow→false · flag→true(자동숨김) · block→throw(등록 차단).
-//   댓글·기록·완주이야기·대화 작성/편집 직전 호출. 반환 hidden 을 insert/update 에 실어 flag 콘텐츠를 숨김.
+// 🚀 3a/3b 일반 UGC 검수 — moderate-text(text 모드). block→throw(등록 차단), 그 외(allow·flag)→노출.
+//   댓글·기록·완주이야기·대화 작성/편집 직전 호출. 반환값(hidden)을 insert/update 에 실어준다.
 //   우회 분기 없음. 검수 자체 실패(API 오류)도 EF 가 block 반환 → 안전 측 차단.
 async function moderateUgcText(content: string): Promise<boolean> {
   const text = content.trim();
@@ -857,11 +860,17 @@ async function moderateUgcText(content: string): Promise<boolean> {
   const { data, error } = await supabase.functions.invoke<{
     verdict: 'allow' | 'flag' | 'block'; reason: string | null; category: string | null;
   }>('moderate-text', { body: { mode: 'text', content: text } });
-  if (error) throw error;
+  if (error) {
+    throw new Error('검수 시스템 통신에 실패했어요. 네트워크 연결을 확인하고 다시 시도해주세요.');
+  }
+  // 🚀 검수 강도 완화 (2026-06-18): 명백한 위반(block)만 작성을 막는다.
+  //    flag(경계선 의심)는 더 이상 자동 숨김하지 않는다 — 사람이 검토하는 큐가 없는 상태에서
+  //    AI 추측만으로 선량한 글(책 감상문 등)이 조용히 증발하던 문제 제거.
+  //    잔여 안전망: ① block(명백한 위반) ② 신고 3건 누적 자동숨김(0047 트리거).
   if (!data || data.verdict === 'block') {
     throw new Error(data?.reason ?? '부적절한 내용이 포함되어 있어요. 표현을 바꿔주세요.');
   }
-  return data.verdict === 'flag';   // flag → hidden=true (일단 숨기고 사람이 검토)
+  return false;   // allow·flag 모두 노출 (hidden=false)
 }
 
 export async function addLogComment(args: {
@@ -872,7 +881,7 @@ export async function addLogComment(args: {
   const trimmed = args.content.trim();
   if (!trimmed) throw new Error('댓글을 입력해주세요.');
   if (trimmed.length > 280) throw new Error('280자 이내로 적어주세요.');
-  const hidden = await moderateUgcText(trimmed);   // 🚀 검수 (flag→hidden)
+  const hidden = await moderateUgcText(trimmed);   // 🚀 검수 (v2.19: block→차단, flag·allow→통과·미숨김)
   const { error } = await supabase.from('log_comments').insert({
     log_id: args.logId,
     user_id: args.userId,
@@ -900,7 +909,7 @@ export async function createLog(args: {
   if (title.length > 80) throw new Error('제목은 80자 이내로 적어주세요.');
   if (!content) throw new Error('내용을 입력해주세요.');
   if (content.length > 4000) throw new Error('내용은 4000자 이내로 적어주세요.');
-  const hidden = await moderateUgcText(`${title}\n${content}`);   // 🚀 검수 (flag→hidden)
+  const hidden = await moderateUgcText(`${title}\n${content}`);   // 🚀 검수 (v2.19: block→차단, flag·allow→통과·미숨김)
 
   const photos = (args.photoUrls ?? []).slice(0, 4);
   const { error } = await supabase.from('logs').insert({
@@ -928,7 +937,7 @@ export async function updateLog(args: {
   if (title.length > 80) throw new Error('제목은 80자 이내로 적어주세요.');
   if (!content) throw new Error('내용을 입력해주세요.');
   if (content.length > 4000) throw new Error('내용은 4000자 이내로 적어주세요.');
-  const hidden = await moderateUgcText(`${title}\n${content}`);   // 🚀 검수 (flag→hidden)
+  const hidden = await moderateUgcText(`${title}\n${content}`);   // 🚀 검수 (v2.19: block→차단, flag·allow→통과·미숨김)
 
   const photos = (args.photoUrls ?? []).slice(0, 4);
   const { error } = await supabase
@@ -952,7 +961,7 @@ export async function updateLogComment(args: {
   const trimmed = args.content.trim();
   if (!trimmed) throw new Error('댓글을 입력해주세요.');
   if (trimmed.length > 280) throw new Error('280자 이내로 적어주세요.');
-  const hidden = await moderateUgcText(trimmed);   // 🚀 검수 (flag→hidden)
+  const hidden = await moderateUgcText(trimmed);   // 🚀 검수 (v2.19: block→차단, flag·allow→통과·미숨김)
   const { error } = await supabase
     .from('log_comments')
     .update({ content: trimmed, hidden })
@@ -1023,7 +1032,7 @@ export async function sendChatMessage(args: {
   const trimmed = args.content.trim();
   if (!trimmed) throw new Error('메시지를 입력해주세요.');
   if (trimmed.length > 1000) throw new Error('1000자 이내로 적어주세요.');
-  const hidden = await moderateUgcText(trimmed);   // 🚀 검수 (flag→hidden)
+  const hidden = await moderateUgcText(trimmed);   // 🚀 검수 (v2.19: block→차단, flag·allow→통과·미숨김)
   const { error } = await supabase.from('chat_messages').insert({
     challenge_id: args.challengeId,
     user_id: args.userId,
@@ -1385,7 +1394,7 @@ export async function addComment(args: {
   const trimmed = args.content.trim();
   if (!trimmed) throw new Error('내용을 입력해주세요.');
   if (trimmed.length > 280) throw new Error('280자 이내로 적어주세요.');
-  const hidden = await moderateUgcText(trimmed);   // 🚀 검수 (flag→hidden)
+  const hidden = await moderateUgcText(trimmed);   // 🚀 검수 (v2.19: block→차단, flag·allow→통과·미숨김)
 
   const { error } = await supabase.from('comments').insert({
     proof_id: args.proofId,
@@ -1606,7 +1615,7 @@ export async function updateCompletionStory(args: {
   const moderationText =
     [args.story, args.hardest, args.helpedWhenGivingUp, args.adviceToStarters, args.ownTip, args.whatChanged]
       .filter(Boolean).join('\n');
-  if (moderationText) patch.hidden = await moderateUgcText(moderationText);   // 🚀 검수 (flag→hidden)
+  if (moderationText) patch.hidden = await moderateUgcText(moderationText);   // 🚀 검수 (v2.19: block→차단, flag·allow→통과·미숨김)
   const { error } = await supabase
     .from('completion_stories')
     .update(patch)
@@ -1674,7 +1683,9 @@ export async function moderatePledge(
   const { data, error } = await supabase.functions.invoke<{
     verdict: 'allow' | 'block'; reason: string | null; category: string | null;
   }>('moderate-text', { body: { mode: 'pledge', content } });
-  if (error) throw error;
+  if (error) {
+    throw new Error('검수 시스템 통신에 실패했어요. 네트워크 연결을 확인하고 다시 시도해주세요.');
+  }
   if (!data) return { verdict: 'block', reason: '검수에 실패했어요. 잠시 후 다시 시도해주세요.' };
   return { verdict: data.verdict, reason: data.reason };
 }
@@ -1710,6 +1721,120 @@ export async function togglePledgeFulfilled(pledgeId: string, fulfilled: boolean
 export async function deletePledge(pledgeId: string): Promise<void> {
   const { error } = await supabase.from('pledges').delete().eq('id', pledgeId);
   if (error) throw error;
+}
+
+// 🚀 내 다짐 내역 (내정보 → 💛 다짐 내역) — 하다별로 묶고 상태(진행중/완주/못채운)까지 산출.
+//   완주 판정은 방 화면과 같은 단일 소스(stats.goalStatus) 재사용 — KST·frequency·늦합류 비례 일관.
+export type MyPledgeStatus = 'active' | 'completed' | 'missed';   // 진행 중 / 완주 / 못 채운(미완주·포기)
+export interface MyPledgeChallenge {
+  challengeId: string;
+  title: string;
+  kind: ChallengeKind;
+  startDate: string;
+  endDate: string;
+  status: MyPledgeStatus;
+  daysLeft: number;        // active 일 때 D-N
+  pledges: {
+    id: string;
+    direction: PledgeDirection;
+    content: string;
+    fulfilled: boolean;
+    isDue: boolean;        // 결과×방향으로 '지킬 차례'인지 (active 면 false)
+  }[];
+}
+
+export async function fetchMyPledges(userId: string): Promise<MyPledgeChallenge[]> {
+  if (!userId) return [];
+
+  // 1. 내 다짐 전부
+  const { data: pledgeRows, error: pErr } = await supabase
+    .from('pledges')
+    .select('id, challenge_id, direction, content, fulfilled, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true });
+  if (pErr) throw pErr;
+  const pledges = (pledgeRows ?? []) as {
+    id: string; challenge_id: string; direction: PledgeDirection; content: string; fulfilled: boolean;
+  }[];
+  if (!pledges.length) return [];
+  const challengeIds = Array.from(new Set(pledges.map(p => p.challenge_id)));
+
+  // 2. 해당 하다 정보 (완주 판정용 컬럼 포함)
+  const { data: chRows, error: cErr } = await supabase
+    .from('challenges')
+    .select('id, title, kind, goal_type, frequency, target_count, start_date, end_date, created_at, gave_up_at')
+    .in('id', challengeIds);
+  if (cErr) throw cErr;
+  const chMap = new Map<string, any>();
+  for (const c of (chRows ?? []) as any[]) chMap.set(c.id, c);
+
+  // 3. 내 인증(완주 판정 분자) + 4. 내 멤버십(합류일=늦합류 비례, 포기 여부)
+  const [proofRes, memRes] = await Promise.all([
+    supabase.from('proofs').select('challenge_id, created_at').eq('user_id', userId).in('challenge_id', challengeIds),
+    supabase.from('challenge_members').select('challenge_id, joined_at, gave_up_at').eq('user_id', userId).in('challenge_id', challengeIds),
+  ]);
+  const proofMap = new Map<string, { created_at: string }[]>();
+  for (const p of (proofRes.data ?? []) as any[]) {
+    const arr = proofMap.get(p.challenge_id) ?? [];
+    arr.push({ created_at: p.created_at });
+    proofMap.set(p.challenge_id, arr);
+  }
+  const memMap = new Map<string, { joined_at: string | null; gave_up_at: string | null }>();
+  for (const m of (memRes.data ?? []) as any[]) {
+    memMap.set(m.challenge_id, { joined_at: m.joined_at ?? null, gave_up_at: m.gave_up_at ?? null });
+  }
+
+  const todayStr = getKstTodayRange().kstDateStr;
+  const result: MyPledgeChallenge[] = [];
+  for (const cid of challengeIds) {
+    const c = chMap.get(cid);
+    if (!c) continue;   // RLS 등으로 못 읽으면 스킵 (방어)
+    const myProofs = proofMap.get(cid) ?? [];
+    const mem = memMap.get(cid);
+    const joinedAt = mem?.joined_at ?? null;
+    const gaveUp = !!mem?.gave_up_at;
+
+    const ch: DbChallenge = {
+      id: c.id, creator_id: '', title: c.title, description: null,
+      kind: (c.kind ?? 'closed') as ChallengeKind,
+      start_date: c.start_date, end_date: c.end_date, created_at: c.created_at,
+      frequency: (c.frequency ?? 'daily') as ChallengeFrequency,
+      goal_type: (c.goal_type ?? 'cadence') as ChallengeGoalType,
+      target_count: c.target_count ?? null,
+      gave_up_at: c.gave_up_at ?? null,
+    };
+    const { isComplete } = goalStatus(ch, myProofs as any, joinedAt);
+    const finished = isFinished(ch);
+    // count 유형은 종료 전에도 조기 완주 인정(goalStatus) → isComplete 우선. 포기/종료 미달은 못 채운.
+    const status: MyPledgeStatus = isComplete ? 'completed' : (gaveUp || finished) ? 'missed' : 'active';
+
+    const end = new Date(c.end_date + 'T00:00:00');
+    const today = new Date(todayStr + 'T00:00:00');
+    const daysLeft = Math.max(0, Math.round((end.getTime() - today.getTime()) / 86_400_000));
+
+    const myPledges = pledges.filter(p => p.challenge_id === cid).map(p => ({
+      id: p.id,
+      direction: p.direction,
+      content: p.content,
+      fulfilled: p.fulfilled,
+      // 지킬 차례: 해내면(win)=완주 시 / 못 하면(lose)=못 채운 시. 진행 중이면 아직 아님.
+      isDue: status === 'completed' ? p.direction === 'win'
+        : status === 'missed' ? p.direction === 'lose'
+        : false,
+    }));
+
+    result.push({
+      challengeId: cid,
+      title: c.title,
+      kind: (c.kind ?? 'closed') as ChallengeKind,
+      startDate: c.start_date,
+      endDate: c.end_date,
+      status,
+      daysLeft,
+      pledges: myPledges,
+    });
+  }
+  return result;
 }
 
 // 🚀 3b 신고·차단 (UGC) — 0047. 애플/구글 UGC 필수.

@@ -115,6 +115,14 @@ function RecordCard({ log }: { log: LogWithChallenge }) {
         <Text style={styles.time}>{relTime(log.created_at)}</Text>
       </View>
 
+      {/* 🚀 숨김 기록: 증발 대신 자리에 '숨김 처리됨' 메시지 노출(2026-06-18) */}
+      {log.hidden ? (
+        <View style={styles.hiddenBox}>
+          <Text style={styles.hiddenTitle}>🙈 숨김 처리된 기록이에요</Text>
+          <Text style={styles.hiddenDesc}>운영 검토 중이에요</Text>
+        </View>
+      ) : (
+        <>
       {/* 본문 */}
       <Text style={styles.recTitle} numberOfLines={2}>{log.title}</Text>
       <Text style={styles.recBody} numberOfLines={3}>{log.content}</Text>
@@ -136,6 +144,8 @@ function RecordCard({ log }: { log: LogWithChallenge }) {
         </View>
         <Text style={styles.go}>이어 보기 →</Text>
       </View>
+        </>
+      )}
     </Pressable>
   );
 }
@@ -226,6 +236,21 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.primary100,
     marginTop: 2,
+  },
+  // 🚀 숨김 처리된 기록 플레이스홀더
+  hiddenBox: {
+    backgroundColor: colors.primary100,
+    borderRadius: radius.md,
+    paddingVertical: 16, paddingHorizontal: 14,
+    gap: 4, alignItems: 'center',
+  },
+  hiddenTitle: {
+    fontSize: fontSize.base, color: colors.primary,
+    fontFamily: fontFamily.bold, fontWeight: fontWeight.semibold,
+  },
+  hiddenDesc: {
+    fontSize: fontSize.sm, color: colors.primary500,
+    fontFamily: fontFamily.regular, textAlign: 'center',
   },
 
   footer: {

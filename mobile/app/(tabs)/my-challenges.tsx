@@ -310,9 +310,9 @@ function Card({ challenge, myUserId, finished = false }: { challenge: ChallengeW
         ) : null}
       </Text>
 
-      {/* 🚀 6. 게이지 바 */}
+      {/* 🚀 6. 게이지 바 — 끝낸 하다는 살아있는 주황 대신 회색 (차분한 종료 톤) */}
       <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+        <View style={[styles.progressFill, finished && styles.progressFillDone, { width: `${progress * 100}%` }]} />
       </View>
     </Pressable>
   );
@@ -432,6 +432,9 @@ const styles = StyleSheet.create({
     height: 8, // 🚀 6 -> 8로 확장
     backgroundColor: colors.accent,
     borderRadius: 4,
+  },
+  progressFillDone: {
+    backgroundColor: colors.primary300,   // 끝낸 하다 — 회색 (주황 X)
   },
   alertBadgeRow: {
     flexDirection: 'row',

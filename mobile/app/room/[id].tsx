@@ -988,10 +988,10 @@ export default function ChallengeRoom() {
         </View>
       </View>
 
-      {/* ─── 진행률 바 ─── */}
+      {/* ─── 진행률 바 — 종료·포기 방은 살아있는 주황 대신 회색 ─── */}
       {progress && (
         <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${progress.percent}%` }]} />
+          <View style={[styles.progressFill, headerLocked && styles.progressFillDone, { width: `${progress.percent}%` }]} />
         </View>
       )}
 
@@ -1960,6 +1960,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary100,
     borderRadius: 3,
     overflow: 'hidden',
+  },
+  progressFillDone: {
+    backgroundColor: colors.primary300,   // 종료·포기 방 — 회색 (주황 X)
   },
   progressFill: {
     height: 6,

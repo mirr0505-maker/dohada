@@ -175,6 +175,19 @@ export async function signOut() {
   await supabase.auth.signOut();
 }
 
+// 🚀 회원 탈퇴(계정 삭제) — delete-account EF(익명화 + PII 삭제 + auth ban) 호출 후 로컬 세션 정리.
+// 되돌릴 수 없음: 같은 소셜 계정은 재로그인 영구 차단(다른 계정으론 신규 가입 가능).
+// 공유 콘텐츠(인증·기록·댓글 등)는 동료 박제 보호를 위해 "탈퇴한 사람" 으로 익명 보존.
+export async function deleteAccount(): Promise<void> {
+  try {
+    const { error } = await supabase.functions.invoke('delete-account', { body: {} });
+    if (error) throw error;
+  } finally {
+    // EF 가 auth 계정을 ban — 로컬 세션도 즉시 정리해 로그인 화면으로 (에러가 나더라도 강제 로그아웃 보장)
+    await supabase.auth.signOut();
+  }
+}
+
 // ─── Apple Sign In (iOS 만) ───────────────────────────
 // iOS App Store 정책상 SNS 로그인 있는 앱은 Apple 로그인 필수.
 // Android 에선 안 보이게 login.tsx 가 Platform.OS 분기.

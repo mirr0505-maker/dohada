@@ -349,7 +349,9 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
   },
 
-  filterRow: { maxHeight: 44, marginBottom: 8 },
+  // 칩 텍스트에 lineHeight 를 고정해 칩 높이를 결정적으로 만들고(이모지 유무·기기와 무관),
+  // 스크롤뷰엔 그보다 넉넉한 명시적 height 를 줌 — 자동 높이 추정에 기대지 않아 이모지 칩이 안 잘림
+  filterRow: { flexGrow: 0, height: 48, marginBottom: 8 },
   filterRowInner: { paddingHorizontal: 24, gap: 8, alignItems: 'center' },
   filterChip: {
     paddingHorizontal: 14,
@@ -362,6 +364,7 @@ const styles = StyleSheet.create({
   filterChipActive: { backgroundColor: colors.accent50, borderColor: colors.accent },
   filterChipText: {
     fontSize: fontSize.sm,
+    lineHeight: 18,   // 이모지가 줄 높이를 키워 칩이 잘리던 문제 방지 (칩 높이 = 8+18+8+2 = 36)
     color: colors.primary500,
     fontFamily: fontFamily.medium,
     fontWeight: fontWeight.medium,

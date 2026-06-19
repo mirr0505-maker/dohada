@@ -183,6 +183,28 @@
 - **배포 (⚠️ migration 먼저)**: 0050 적용 완료(운영 ✓) → 클라 OTA(preview·production 양 채널). EF·네이티브 빌드 불필요(JS만, 새 의존성 없음). 검증 tsc 0 + npm test 71/71
 - **후속 버그픽스 (0051→0052, 2026-06-17)**: 하다 구경 4평가 INSERT 가 비멤버 + open외(다함께/응원받기/나홀로)에서 RLS 거부됨 — `votes_self_insert`(0007)가 **멤버 OR open** 만 허용(누구나·내가 멤버인 방만 됐음). ⚠️ [`0051`](supabase/migrations/0051_browse_vote_rls.sql)의 inline `exists(select … from challenges …)`는 **호출자 권한으로 평가돼 challenges 의 SELECT RLS(멤버만)에 막혀 무효** → 비멤버는 행 자체를 못 봐서 여전히 거부. [`0052`](supabase/migrations/0052_browse_vote_rls_fix.sql)에서 **SECURITY DEFINER 헬퍼 `is_browse_visible()`**로 교체(`is_member_of`/`is_open_challenge`와 동일 패턴)해 해결. 교훈: RLS 정책 안 서브쿼리는 SECURITY DEFINER 헬퍼로. **DB(RLS)만 수정 — 클라/OTA 불필요**, 운영 적용·검증 완료(운영 ✓)
 
+### 신규 코드 위치 (v2.19 — 검수 숨김 강도 완화 + 숨김 정직화(플레이스홀더), 2026-06-18)
+**AI 검수가 책 감상 기록을 과민 `flag`→`hidden=true` 로 조용히 숨겨 작성자조차 못 보던 문제.** 에러 없이 저장 성공음만 울려 "게시물이 어디로 갔지" 체감 (FEEDBACK #44). 검수 자체는 유지 — 우회/백도어 아님(rule #5).
+- **숨김 강도 완화**: [`db.ts`](mobile/lib/db.ts) `moderateUgcText` — **명백한 위반(`block`)만 작성 차단**, `flag`(경계선 의심)는 더 이상 자동 숨김 안 함(`return false`). 사람 검토 큐가 없는 상태에서 AI 추측만으로 선량한 글(책 감상문 등)이 증발하던 경로 제거. 댓글·기록·완주이야기·대화 **전 UGC 공통**. 잔여 안전망 = AI block + 신고 3건 누적 자동숨김(0047 트리거)
+- **숨김 정직화(플레이스홀더)**: `fetchLogs`·`fetchRecentLogs` 가 `.eq('hidden',false)` 제거 + `hidden` 반환(`LogWithAuthor.hidden`). 숨김 기록은 목록에서 증발시키지 않고 카드 자리에 **"🙈 숨김 처리된 기록이에요"**([`LogTab` LogCard](mobile/components/challenge/LogTab.tsx)·[`record.tsx` RecordCard](mobile/app/(tabs)/record.tsx) — 작성자·날짜 헤더 유지). 참여/응원 인원이 "여기 가려진 게 있다"를 모두 목격
+- 결정(2026-06-18): ① block 만 차단·flag 비숨김(범위·강도 확 낮춤) ② 숨겨야 하면 그 자리에 숨김 메시지 노출(증발 금지) ③ 기존 오판 숨김 기록은 `update logs set hidden=false where hidden=true` 로 복구
+- **배포**: 마이그레이션·EF 변경 없음(JS만) → OTA(preview·production 양 채널). 검증 tsc 0 + npm test 71/71
+
+### 신규 코드 위치 (v2.20 — 회원 탈퇴(계정 삭제), 0053, 2026-06-18)
+**구글·애플 의무 = 앱 내 계정 삭제. 출시 차단 #4 해소.** ⚠️ 모든 콘텐츠 FK 가 `on delete cascade` → auth.users 하드삭제 시 개설 방·동료 인증·댓글까지 연쇄 파괴 = **동료 박제 파괴** → 하드삭제 금지, **익명화 + auth ban** 이 정답(박제 영구·동료 보호 정체성과 합치). (LAUNCH_CHECKLIST #4)
+- **DB [`0053_account_deletion.sql`](supabase/migrations/0053_account_deletion.sql)**: `users.deleted_at` 표식 컬럼만 추가(실제 처리는 EF). 박제 테이블 아님 → 자동만료 무관(rule #3)
+- **EF [`delete-account`](supabase/functions/delete-account/index.ts)** (service role + JWT 본인확인 — 삭제 대상은 **JWT 에서만** 도출, body 무시 → 남의 계정 삭제 차단): ① PII 즉시 삭제(`user_verifications`·`device_tokens`·`user_interests`·`notification_prefs`·`notification_queue`·내가 건 `blocks`) ② `users` 익명화(nickname→"탈퇴한 사람", email·google_sub·avatar_url→null, deleted_at set → 공유 콘텐츠 작성자 자동 익명) ③ 활성 `challenge_members.gave_up_at` set(진행 도전 종료, proofs·박제 보존) ④ auth `ban_duration:'876000h'`(재로그인 영구차단) + email/메타 스크럽(best-effort). 공유 콘텐츠(인증·댓글·기록·대화·완주이야기·다짐·평가)·`gift_orders`(법적 보관)는 보존
+- **클라**: [`auth.ts`](mobile/lib/auth.ts) `deleteAccount`(EF 호출 후 signOut) + [`profile.tsx`](mobile/app/(tabs)/profile.tsx) 로그아웃 아래 "계정 삭제"(빨강 링크) → `DeleteAccountModal`(2단계: 영향 안내+확인 체크박스 → 최종 재확인 Alert)
+- 결정(2026-06-18): ① 익명화+비활성(하드삭제 X) ② **즉시**(유예 없음) ③ **사진 보존(익명)** — 동료 박제 보호, r2-delete 불필요 ④ gift_orders 보존 ⑤ **재가입 영구차단(ban)** — 단 안내에 "다른 계정으론 새로 시작 가능" 고지+체크박스
+- **배포 완료 (⚠️ migration 먼저, 2026-06-18)**: 0053 운영 DB 적용 ✓ → `delete-account` EF 배포 ✓ → 클라 OTA(preview·production 양 채널) ✓. 네이티브 빌드 불필요(JS만). 검증 tsc 0 + npm test 71/71. ※ 실기기 확인 권장: 탈퇴 후 ①재로그인 차단 ②동료 방에 "탈퇴한 사람" 잔존 ③진행 방에서 빠짐. **delete-account EF 는 순수 계산/파싱 아닌 service-role 오케스트레이션 → 단위 테스트 비대상**
+
+### 신규 코드 위치 (v2.21 — 내역 가독성 3종: 하다 구경 칩·끝낸 진행바·한잔/다짐 내역, 2026-06-19)
+**전부 순수 JS(마이그레이션·EF 무변경) → OTA(preview·production 양 채널 배포 ✓). 검증 tsc 0 + npm test 71/71.**
+- **하다 구경 분류 칩 잘림** (FEEDBACK #45): [`discover.tsx`](mobile/app/(tabs)/discover.tsx) 가로 필터 ScrollView 의 고정 `maxHeight:44` 가 이모지 칩(텍스트보다 줄높이 큼)을 위아래로 자름 — 텍스트만인 "전체"만 멀쩡했던 게 증거. 수정 = `filterChipText` 에 `lineHeight:18` 명시(칩 높이를 이모지·기기 무관하게 결정화) + 스크롤뷰 `height:48`(자동 높이 추정 의존 제거). ※1차 수정(maxHeight 제거→자동높이 의존)은 안 먹혀 lineHeight 고정으로 재수정
+- **끝낸·포기 하다 진행바 회색** (FEEDBACK #45): 살아있는 주황 대신 차분한 회색(`primary300`). 내하다 끝낸 카드([my-challenges.tsx](mobile/app/(tabs)/my-challenges.tsx) `finished && progressFillDone`) + 챌린지방 진행률 바([room/[id].tsx](mobile/app/room/[id].tsx) `headerLocked && progressFillDone` = 종료||포기). 홈 끝낸 섹션은 진행바 자체가 없음(회색 "🏁 종료" 배지뿐)
+- **한잔 내역 섹션 분리** (FEEDBACK #46): [`gifts.tsx`](mobile/app/gifts.tsx) FlatList→`SectionList` — 📤 건넨 / 📥 받은 / 🤝 내기(self-bet 라 방향 무관 별도 섹션, 빈 섹션 자동 숨김). 섹션 안 결과별 정렬 + 색 배지(받음 ☕ 주황 / 기부 💚 초록 / 대기 파랑 / 환불 회색). "기부 vs 내가 받은" 구분도 같은 배지로 충족 — 상태값(`delivered`=받음·`donated`=기부) 활용, DB 무변경
+- **다짐 내역 (내정보, 신규)** (FEEDBACK #47): [`pledges.tsx`](mobile/app/pledges.tsx) — 무현금 다짐(0046)을 하다별 카드로, 상태 섹션(🏃 진행 중 / 🏆 완주한 하다 / 🌙 못 채운 하다)으로. 데이터 = [`db.ts`](mobile/lib/db.ts) `fetchMyPledges`(완주 판정은 방 화면과 같은 단일 소스 `stats.goalStatus`/`isFinished` 재사용 — KST·빈도·늦합류 비례·count 조기완주·포기=못채운). 끝난 하다는 결과×방향 '💛 지킬 차례'/'✓ 지켰어요' 칩(방 PledgeCard 와 동일 문구 🔻못 하면/🏆해내면), 카드 탭→방 현황 탭(`?tab=status`)에서 토글(화면은 보기 중심). 진입 = [profile.tsx](mobile/app/(tabs)/profile.tsx) "💛 다짐 내역"(무현금=전체 공개, 한잔 내역과 달리 파일럿 게이트 없음)
+
 ### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.
 - 인증 완료 Alert / 카톡 초대 / 생성 후 Alert / 챌린지방 헤더 부제 / FAB 라벨 — 모두 분류별 분기 완료
