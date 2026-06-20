@@ -212,7 +212,10 @@ export function LogCommentsSheet({ logId, myUserId, onClose, onCountChange, writ
           <View style={[
             styles.inputBar,
             {
-              paddingBottom: (Platform.OS === 'ios' && !isKbVisible && insets.bottom > 0)
+              // 키보드 숨김 시 하단 안전영역만큼 입력창을 들어올림.
+              // iOS 홈 인디케이터 + Android edge-to-edge 내비게이션 바 양쪽 보정
+              // (edgeToEdgeEnabled=true → 안드로이드도 내비바 뒤로 입력창이 가려지므로 iOS 한정 X).
+              paddingBottom: (!isKbVisible && insets.bottom > 0)
                 ? insets.bottom
                 : 8
             }
