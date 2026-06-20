@@ -1,7 +1,7 @@
 // 🚀 초대 진입점 — dohada://invite/<id> 또는 앱 내 push 로 진입
 // 개선: 자동 참여 차단 → 챌린지 기본 정보 및 초대 메시지를 확인하고 참여 여부를 수락/거절 선택하는 랜딩페이지
 import React, { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, Alert, Pressable, Image } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, Alert, Pressable, Image, ScrollView } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
@@ -97,7 +97,12 @@ export default function InviteScreen() {
 
   return (
     <Screen backgroundColor={colors.background}>
-      <View style={styles.center}>
+      {/* 🚀 긴 안내문+개설자 한마디로 카드가 화면을 넘으면 하단 '함께 하기' 버튼에 닿도록 스크롤 (안드로이드 스크롤 불가 버그 수정) */}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.center}
+        showsVerticalScrollIndicator={false}
+      >
         {status === 'loading' && (
           <View style={styles.loadingBox}>
             <ActivityIndicator color={colors.accent} size="large" />
@@ -191,17 +196,24 @@ export default function InviteScreen() {
             />
           </View>
         )}
-      </View>
+      </ScrollView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  center: {
+  scroll: {
     flex: 1,
+    backgroundColor: colors.background,
+  },
+  // 🚀 ScrollView contentContainer — 내용이 짧으면(로딩·에러) 중앙 정렬, 길면(긴 안내문+한마디) 스크롤.
+  //    flex:1 이 아니라 flexGrow:1 이라야 넘칠 때 카드 위가 잘리지 않고 끝까지 스크롤됨
+  center: {
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
+    paddingVertical: 24,
     backgroundColor: colors.background,
   },
   loadingBox: {

@@ -210,6 +210,10 @@
 - **인증 응원칩 2줄 줄바꿈** (FEEDBACK #48 · #29 갤S9 재발): [`room/[id].tsx`](mobile/app/room/[id].tsx) — #29 에서 칩을 `cheerChipsWrap`(flexShrink·wrap)로 묶어 한잔 버튼은 고정했으나, 좁은 폭에선 칩 4개가 wrap 안에서 3+1 두 줄로 꺾임(본인 카드 '☕ 한잔 도착'은 라벨이 길어 폭을 더 먹음). 수정 = 폭 축소 — 칩 `paddingHorizontal 12→8`·`minWidth 44→40`, 칩 간격·행 간격 `8→6`, 한잔 버튼 `paddingHorizontal 12→8`. S9 가용폭(≈292dp = 360 − feed/card padding) 안으로 들어옴(2카운트+한잔도착 ≈320→280dp). `flexWrap:'wrap'` 은 극단(4종 두자리 카운트+한잔도착) 폴백으로 유지(잘림 방지). 기록(LogTab) 응원은 ❤️/💬 2개뿐이라 줄바꿈 구조 없음
 - **하다 구경 분류 칩 세로 잘림** (FEEDBACK #48 · #45 갤S9 재발): [`discover.tsx`](mobile/app/(tabs)/discover.tsx) — #45 의 `lineHeight:18`+`height:48` 고정은 iOS 기준이라, Android 는 `includeFontPadding:true`(기본)+이모지 intrinsic 줄높이가 더 큰 세로 공간을 잡아 칩이 고정 48 박스에 잘림. 시스템 글자 2단계 축소해도 그대로 = **폰트 스케일 무관**(원인=폰트 패딩) 확인. 수정 = `filterChipText` 에 `includeFontPadding:false`(Android 폰트 패딩 제거, iOS 무영향) 한 줄
 
+### 신규 코드 위치 (v2.23 — 초대장 스크롤 불가(긴 안내문 시 합류 버튼 닿지 않음), 2026-06-21)
+**순수 JS(마이그레이션·EF 무변경) → OTA(preview·production 양 채널 배포 ✓). 검증 tsc 0. 안드로이드 초대→합류 차단 버그.**
+- **초대장 스크롤 불가** (FEEDBACK #49): [`invite/[id].tsx`](mobile/app/invite/[id].tsx) — 카톡 초대 링크로 진입하는 하다 인연 초대장에 `ScrollView` 가 없어, 안내문(`description`)+개설자 한마디(`invitation_message`)가 길면 중앙 정렬(`center`: `flex:1`+`justifyContent:'center'`)된 카드가 화면 위아래로 넘쳐 하단 '함께 하기' 버튼에 닿을 수 없었음(안드로이드는 시스템 내비바까지 겹쳐 더 심함, 링크만 보내도 안내문/한마디는 챌린지 데이터라 그대로 렌더). 수정 = 본문을 `ScrollView` 로 감싸고 컨테이너 `flex:1→flexGrow:1`(+`justifyContent:'center'`·`paddingVertical:24`) → 짧으면(로딩·에러) 중앙 정렬 유지, 길면 끝까지 스크롤. `Screen` 이 하단 SafeArea(`edges` bottom) 보정 → 버튼이 내비바 위로 확보. **`flexGrow`(≠`flex`)** 라야 넘칠 때 카드 위가 안 잘리고 스크롤됨
+
 ### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.
 - 인증 완료 Alert / 카톡 초대 / 생성 후 Alert / 챌린지방 헤더 부제 / FAB 라벨 — 모두 분류별 분기 완료
