@@ -365,6 +365,7 @@ const styles = StyleSheet.create({
   filterChipText: {
     fontSize: fontSize.sm,
     lineHeight: 18,   // 이모지가 줄 높이를 키워 칩이 잘리던 문제 방지 (칩 높이 = 8+18+8+2 = 36)
+    includeFontPadding: false,   // Android: 이모지 칩이 폰트 패딩+줄높이로 세로로 잘리던 문제 차단 (iOS 무영향, 갤S9)
     color: colors.primary500,
     fontFamily: fontFamily.medium,
     fontWeight: fontWeight.medium,

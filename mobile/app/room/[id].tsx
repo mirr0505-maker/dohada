@@ -1813,7 +1813,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'nowrap',          // 한잔 버튼이 다음 줄로 밀리지 않도록 (칩은 아래 wrap 안에서만 줄바꿈)
     alignItems: 'center',
-    gap: 8,
+    gap: 6,                      // 좁은 화면(갤S9)에서 칩이 2줄로 안 꺾이도록 간격 축소 (8→6)
     paddingTop: 8,
     paddingHorizontal: 2,
   },
@@ -1821,20 +1821,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
-    gap: 8,
-    flexShrink: 1,               // 공간 부족 시 칩끼리만 줄바꿈 — 한잔 버튼은 그대로
+    gap: 6,                      // 칩 간격 축소 (8→6) — 4개 + 한잔 버튼이 한 줄에 들어가도록
+    flexShrink: 1,               // 그래도 넘치는 극단 케이스에서만 칩끼리 줄바꿈 — 한잔 버튼은 그대로
   },
   cheerChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,        // 좁은 화면 대응 — 4칩+한잔 버튼 한 줄 유지 (12→8)
     paddingVertical: 6,
     borderRadius: radius.pill,
     backgroundColor: colors.primary50,
     borderWidth: 1,
     borderColor: 'transparent',
-    minWidth: 44,
+    minWidth: 40,                // 탭 영역 확보 (44→40, hitSlop 4 와 합쳐 충분)
     justifyContent: 'center',
   },
   cheerChipActive: {
@@ -1855,7 +1855,7 @@ const styles = StyleSheet.create({
   giftBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,        // 폭 절약 — 칩 줄바꿈 방지 (12→8)
     paddingVertical: 6,
     borderRadius: radius.pill,
     backgroundColor: colors.accent50,

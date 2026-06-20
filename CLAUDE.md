@@ -205,6 +205,11 @@
 - **한잔 내역 섹션 분리** (FEEDBACK #46): [`gifts.tsx`](mobile/app/gifts.tsx) FlatList→`SectionList` — 📤 건넨 / 📥 받은 / 🤝 내기(self-bet 라 방향 무관 별도 섹션, 빈 섹션 자동 숨김). 섹션 안 결과별 정렬 + 색 배지(받음 ☕ 주황 / 기부 💚 초록 / 대기 파랑 / 환불 회색). "기부 vs 내가 받은" 구분도 같은 배지로 충족 — 상태값(`delivered`=받음·`donated`=기부) 활용, DB 무변경
 - **다짐 내역 (내정보, 신규)** (FEEDBACK #47): [`pledges.tsx`](mobile/app/pledges.tsx) — 무현금 다짐(0046)을 하다별 카드로, 상태 섹션(🏃 진행 중 / 🏆 완주한 하다 / 🌙 못 채운 하다)으로. 데이터 = [`db.ts`](mobile/lib/db.ts) `fetchMyPledges`(완주 판정은 방 화면과 같은 단일 소스 `stats.goalStatus`/`isFinished` 재사용 — KST·빈도·늦합류 비례·count 조기완주·포기=못채운). 끝난 하다는 결과×방향 '💛 지킬 차례'/'✓ 지켰어요' 칩(방 PledgeCard 와 동일 문구 🔻못 하면/🏆해내면), 카드 탭→방 현황 탭(`?tab=status`)에서 토글(화면은 보기 중심). 진입 = [profile.tsx](mobile/app/(tabs)/profile.tsx) "💛 다짐 내역"(무현금=전체 공개, 한잔 내역과 달리 파일럿 게이트 없음)
 
+### 신규 코드 위치 (v2.22 — 갤S9 레이아웃 2종: 인증 응원칩 줄바꿈 · 하다 구경 칩 잘림, 2026-06-20)
+**전부 순수 JS(마이그레이션·EF 무변경) → OTA(preview·production 양 채널 배포 ✓). 검증 tsc 0 + npm test 71/71. 둘 다 갤럭시S9(좁은 폭·Android) 재발 — 정적 검증만, 실기기 확인 권장.**
+- **인증 응원칩 2줄 줄바꿈** (FEEDBACK #48 · #29 갤S9 재발): [`room/[id].tsx`](mobile/app/room/[id].tsx) — #29 에서 칩을 `cheerChipsWrap`(flexShrink·wrap)로 묶어 한잔 버튼은 고정했으나, 좁은 폭에선 칩 4개가 wrap 안에서 3+1 두 줄로 꺾임(본인 카드 '☕ 한잔 도착'은 라벨이 길어 폭을 더 먹음). 수정 = 폭 축소 — 칩 `paddingHorizontal 12→8`·`minWidth 44→40`, 칩 간격·행 간격 `8→6`, 한잔 버튼 `paddingHorizontal 12→8`. S9 가용폭(≈292dp = 360 − feed/card padding) 안으로 들어옴(2카운트+한잔도착 ≈320→280dp). `flexWrap:'wrap'` 은 극단(4종 두자리 카운트+한잔도착) 폴백으로 유지(잘림 방지). 기록(LogTab) 응원은 ❤️/💬 2개뿐이라 줄바꿈 구조 없음
+- **하다 구경 분류 칩 세로 잘림** (FEEDBACK #48 · #45 갤S9 재발): [`discover.tsx`](mobile/app/(tabs)/discover.tsx) — #45 의 `lineHeight:18`+`height:48` 고정은 iOS 기준이라, Android 는 `includeFontPadding:true`(기본)+이모지 intrinsic 줄높이가 더 큰 세로 공간을 잡아 칩이 고정 48 박스에 잘림. 시스템 글자 2단계 축소해도 그대로 = **폰트 스케일 무관**(원인=폰트 패딩) 확인. 수정 = `filterChipText` 에 `includeFontPadding:false`(Android 폰트 패딩 제거, iOS 무영향) 한 줄
+
 ### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.
 - 인증 완료 Alert / 카톡 초대 / 생성 후 Alert / 챌린지방 헤더 부제 / FAB 라벨 — 모두 분류별 분기 완료
