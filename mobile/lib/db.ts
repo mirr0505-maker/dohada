@@ -1515,6 +1515,11 @@ function mapStoryReactions(row: any, myUserId?: string): CompletionStoryCard {
   const { reactions: _drop, ...rest } = row;
   return {
     ...rest,
+    // 🚀 RLS 가드: author(users) 임베드는 열람자가 작성자와 챌린지를 공유하지 않으면 null 이 된다.
+    //   공개 완주 이야기를 모르는 사람이 보면 author=null → 렌더에서 'nickname of null' 크래시
+    //   (홈 완주 리본·해냈어요 탭·완주 상세). 숨겨졌으면 '익명' 폴백으로 타입 불변식(author: DbUser) 회복.
+    //   참고: reference_rls-users-join-undercount (비멤버는 users 조인을 못 읽음).
+    author: row.author ?? { id: row.user_id, email: null, nickname: '익명', avatar_url: null, created_at: row.created_at },
     courage_count: reactions.length,
     couraged_by_me: myUserId ? reactions.some(r => r.user_id === myUserId) : false,
   } as CompletionStoryCard;
