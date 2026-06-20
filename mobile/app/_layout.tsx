@@ -33,17 +33,17 @@ export default function RootLayout() {
   }, [fontsLoaded, fontError]);
 
   // 🚀 로컬 알림 초기화 및 복원 (사용자가 설정한 시간 기준)
-  //    P2-19: 기본값을 OFF 로 전환 — Apple 4.5.4 / Google Play 정책 대비.
-  //    명시적으로 사용자가 daily_enabled='true' 로 설정해야 알림 스케줄링.
-  //    기존 사용자(없으면)는 OFF 로 시작 → 프로필에서 켜는 흐름.
+  //    매일 안부는 기본 ON — 프로필 토글(DB daily_enabled 기본 true)과 실제 스케줄을 일치시킨다.
+  //    명시적으로 'false' 로 끈 사용자만 OFF. (기본 ON 결정: 2026-06-20)
+  //    권한은 scheduleDailyReminder→ensurePermission 에서 요청 (Apple 4.5.4 대비).
   useEffect(() => {
     const initReminder = async () => {
       try {
         const enabledStr = await SecureStore.getItemAsync('daily_enabled');
-        const isEnabled = enabledStr === 'true';   // 없으면 false (기본 OFF)
+        const isEnabled = enabledStr !== 'false';   // 없으면 true (기본 ON)
         if (isEnabled) {
           const storedTime = await SecureStore.getItemAsync('daily_reminder_time');
-          let hour = 20;
+          let hour = 8;
           let minute = 0;
           if (storedTime) {
             const [h, m] = storedTime.split(':').map(Number);

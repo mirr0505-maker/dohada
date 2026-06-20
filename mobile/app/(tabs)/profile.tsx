@@ -46,7 +46,7 @@ export default function ProfileScreen() {
   const myUserId = session?.user?.id;
 
   // 🚀 로컬 알림 시간 상태 및 초기화
-  const [reminderHour, setReminderHour] = useState(20);
+  const [reminderHour, setReminderHour] = useState(8);   // 아침 인사 기본 08:00
   const [reminderMinute, setReminderMinute] = useState(0);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
 
@@ -136,7 +136,7 @@ export default function ProfileScreen() {
         await SecureStore.setItemAsync('daily_enabled', value ? 'true' : 'false');
         if (value) {
           const stored = await SecureStore.getItemAsync('daily_reminder_time');
-          let h = 20;
+          let h = 8;
           let m = 0;
           if (stored) {
             const [sh, sm] = stored.split(':').map(Number);
@@ -298,7 +298,7 @@ export default function ProfileScreen() {
               </ToggleRow>
             </View>
             <Text style={styles.notifNote}>
-              💛 밤 10시~아침 8시는 자동으로 조용해요.{'\n'}하루 최대 5건까지만 보내요.
+              💛 밤 10시~아침 6시는 자동으로 조용해요.{'\n'}응원·좋아요는 하루 최대 20건까지만 보내요.
             </Text>
           </View>
         )}

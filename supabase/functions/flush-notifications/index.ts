@@ -32,7 +32,12 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const EPN_ENDPOINT = 'https://exp.host/--/api/v2/push/send';
 const KST_OFFSET_MIN = 9 * 60;
-const DAILY_CAP = 5;
+const DAILY_CAP = 20;   // 묶음 알림(응원·좋아요) 1일 푸시 천장 (2026-06-20: 5→20 상향)
+// 🚀 하루 상한은 "묶음(응원·좋아요)" 알림에만 적용한다.
+//   댓글·대화·인증·기록 등 즉시 사회적 알림은 상한 면제 → 낮에도 항상 즉시 푸시.
+//   (구버전은 모든 kind 를 상한에 넣어, 새벽 6시 백로그 flush 가 그날 상한 5건을 다 먹으면
+//    낮에 생긴 알림이 전부 "내일 6시"로 밀리는 굶김 루프가 있었음. 2026-06-20 수정)
+const CAPPED_KINDS = new Set(['cheer_batch', 'log_like_batch']);
 
 Deno.serve(async (req) => {
   // 🚀 P1-7: Authorization 검증 — secret 미일치 시 401
@@ -118,11 +123,11 @@ Deno.serve(async (req) => {
   const sentTodayByUser = new Map<string, number>();
   const seenBatchGroups = new Set<string>();
   for (const row of (dailyRes.data ?? []) as any[]) {
-    if (row.kind === 'cheer_batch' || row.kind === 'log_like_batch') {
-      const groupKey = `${row.user_id}|${row.kind}|${row.proof_id ?? row.log_id ?? ''}`;
-      if (seenBatchGroups.has(groupKey)) continue;
-      seenBatchGroups.add(groupKey);
-    }
+    // 상한은 묶음 알림(응원·좋아요)만 소비 — 즉시 알림(댓글·대화·인증·기록)은 카운트 X
+    if (!CAPPED_KINDS.has(row.kind)) continue;
+    const groupKey = `${row.user_id}|${row.kind}|${row.proof_id ?? row.log_id ?? ''}`;
+    if (seenBatchGroups.has(groupKey)) continue;   // 같은 묶음 그룹은 1회만
+    seenBatchGroups.add(groupKey);
     sentTodayByUser.set(row.user_id, (sentTodayByUser.get(row.user_id) ?? 0) + 1);
   }
 
@@ -157,13 +162,11 @@ Deno.serve(async (req) => {
       toMarkSent.push(...rows.map(r => r.id));     // 끄기 상태는 sent 로 마킹 (큐에 쌓이지 않게)
       continue;
     }
-    // 일별 상한
-    const left = dailyLeft.get(head.user_id) ?? 0;
-    if (left <= 0) {
-      // 다음날 아침 6시로 reschedule (in-app badge 만)
-      await supabase.from('notification_queue').update({
-        scheduled_for: tomorrowKst6Iso(nowKst),
-      }).in('id', rows.map(r => r.id));
+    // 🚀 일별 상한 — 묶음(응원·좋아요)에만 적용. 즉시 알림(댓글·대화·인증·기록)은 면제 → 낮에도 항상 푸시.
+    //   초과 묶음은 더 이상 "내일 6시"로 미루지 않고 푸시만 생략(벨엔 그대로) → 굶김 루프 제거.
+    const isCapped = CAPPED_KINDS.has(head.kind);
+    if (isCapped && (dailyLeft.get(head.user_id) ?? 0) <= 0) {
+      toMarkSent.push(...rows.map(r => r.id));      // 푸시 생략, 알림함엔 계속 보임
       continue;
     }
 
@@ -190,7 +193,11 @@ Deno.serve(async (req) => {
       });
     }
     toMarkSent.push(...rows.map(r => r.id));
-    dailyLeft.set(head.user_id, left - 1);
+    if (isCapped) {
+      // 상한 예산은 묶음 알림이 실제 발송될 때만 소비
+      const left = dailyLeft.get(head.user_id) ?? 0;
+      dailyLeft.set(head.user_id, left - 1);
+    }
   }
 
   // 5. EPN 발송 (batch)
@@ -264,14 +271,6 @@ function nextKst6AM(nowKst: Date): Date {
     k.setUTCHours(6);
   }
   return k;   // 이 값 자체는 UTC 시각이 아니라 'KST 를 UTC 처럼 다룬' 값
-}
-
-function tomorrowKst6Iso(nowKst: Date): string {
-  const k = new Date(nowKst.getTime());
-  k.setUTCDate(k.getUTCDate() + 1);
-  k.setUTCHours(6, 0, 0, 0);
-  const utc = new Date(k.getTime() - KST_OFFSET_MIN * 60_000);
-  return utc.toISOString();
 }
 
 function startOfTodayUtcIso(nowKst: Date): string {
