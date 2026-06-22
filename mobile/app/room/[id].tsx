@@ -17,6 +17,7 @@ import type { CheerType } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 import { ErrorState } from '@/components/ErrorState';
 import { ProofCardSkeleton } from '@/components/Skeleton';
+import { MessageCircle, Camera, Film, BarChart3, Trophy, type LucideIcon } from 'lucide-react-native';
 import { CommentsSheet } from '@/components/CommentsSheet';
 import { ChatTab } from '@/components/challenge/ChatTab';
 import { LogTab } from '@/components/challenge/LogTab';
@@ -52,12 +53,12 @@ import type {
 
 // v4 챌린지 방 5탭
 type RoomTab = 'chat' | 'proof' | 'log' | 'status' | 'archive';
-const ROOM_TABS: { key: RoomTab; emoji: string; label: string }[] = [
-  { key: 'chat',    emoji: '💬', label: '대화' },
-  { key: 'proof',   emoji: '📸', label: '인증' },
-  { key: 'log',     emoji: '🎥', label: '기록' },
-  { key: 'status',  emoji: '📊', label: '현황' },
-  { key: 'archive', emoji: '🏆', label: '박제' },
+const ROOM_TABS: { key: RoomTab; Icon: LucideIcon; label: string }[] = [
+  { key: 'chat',    Icon: MessageCircle, label: '대화' },
+  { key: 'proof',   Icon: Camera,        label: '인증' },
+  { key: 'log',     Icon: Film,          label: '기록' },
+  { key: 'status',  Icon: BarChart3,     label: '현황' },
+  { key: 'archive', Icon: Trophy,        label: '박제' },
 ];
 
 // 방 종류 메타 라벨 — 분류 용어 X, 사람 단위 톤
@@ -1001,6 +1002,7 @@ export default function ChallengeRoom() {
           const active = activeTab === t.key;
           // 🚀 비멤버(누구나 미리보기)는 인증·기록만 열람 — 대화/현황/박제 탭은 합류 유도
           const lockedForGuest = !isMember && t.key !== 'proof' && t.key !== 'log';
+          const TabIcon = t.Icon;
           return (
             <Pressable
               key={t.key}
@@ -1010,8 +1012,9 @@ export default function ChallengeRoom() {
                 haptic.tap(); setActiveTab(t.key);
               }}
             >
+              <TabIcon size={19} color={active ? colors.brand : colors.sub} strokeWidth={1.8} />
               <Text style={[styles.tabText, active && styles.tabTextActive]} numberOfLines={1}>
-                {t.emoji} {t.label}
+                {t.label}
               </Text>
             </Pressable>
           );
@@ -1831,25 +1834,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,        // 좁은 화면 대응 — 4칩+한잔 버튼 한 줄 유지 (12→8)
     paddingVertical: 6,
     borderRadius: radius.pill,
-    backgroundColor: colors.primary50,
+    backgroundColor: colors.lineSoft,
     borderWidth: 1,
     borderColor: 'transparent',
     minWidth: 40,                // 탭 영역 확보 (44→40, hitSlop 4 와 합쳐 충분)
     justifyContent: 'center',
   },
   cheerChipActive: {
-    backgroundColor: colors.accent50,
-    borderColor: colors.accent,
+    backgroundColor: colors.brandTint,
+    borderColor: colors.brand,
   },
   cheerChipEmoji: { fontSize: 16 },
   cheerChipCount: {
     fontSize: fontSize.sm,
-    color: colors.primary500,
+    color: colors.sub,
     fontFamily: fontFamily.medium,
     fontWeight: fontWeight.medium,
   },
   cheerChipCountActive: {
-    color: colors.accent700,
+    color: colors.brandInk,
     fontWeight: fontWeight.bold,
   },
   giftBtn: {
@@ -1858,19 +1861,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,        // 폭 절약 — 칩 줄바꿈 방지 (12→8)
     paddingVertical: 6,
     borderRadius: radius.pill,
-    backgroundColor: colors.accent50,
+    backgroundColor: colors.brandTint,
     marginLeft: 0,               // 간격은 cheerRow gap 으로 통일
     flexShrink: 0,               // 한잔 버튼은 절대 압축·줄바뀜 안 됨
   },
   giftBtnText: {
     fontSize: fontSize.sm,
-    color: colors.accent700,
+    color: colors.brandInk,
     fontFamily: fontFamily.medium,
     fontWeight: fontWeight.semibold,
   },
   giftArrivedBtn: {
     borderWidth: 1,
-    borderColor: colors.accent,   // 도착 — 받을 게 있다는 신호 (숫자 배지 없이 테두리 톤만)
+    borderColor: colors.brand,   // 도착 — 받을 게 있다는 신호 (숫자 배지 없이 테두리 톤만)
   },
   giftArrivedBtnText: {
     fontFamily: fontFamily.bold,
@@ -2005,27 +2008,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 8,
     backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.primary100,
+    borderBottomWidth: 0.5,
+    borderBottomColor: colors.line,
   },
   tabItem: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 11,
     alignItems: 'center',
+    gap: 3,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
   tabItemActive: {
-    borderBottomColor: colors.accent,
+    borderBottomColor: colors.brand,
   },
   tabText: {
     fontSize: fontSize.sm,
-    color: colors.primary500,
+    color: colors.sub,
     fontFamily: fontFamily.medium,
     fontWeight: fontWeight.medium,
   },
   tabTextActive: {
-    color: colors.accent,
+    color: colors.brand,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },
@@ -2068,13 +2072,13 @@ const styles = StyleSheet.create({
     left: 24,
     right: 24,
     paddingVertical: 18,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.brand,
     borderRadius: radius.pill,
     alignItems: 'center',
     ...shadow.lg,
   },
-  fabDone: { backgroundColor: colors.success },
-  fabPaused: { backgroundColor: colors.primary500 },
+  fabDone: { backgroundColor: colors.done },
+  fabPaused: { backgroundColor: colors.sub },
   fabJoin: { backgroundColor: colors.info },
   // 🚀 응원자 시선 — 인증 탭 상단 역할 안내 슬림 배너 (도전자의 무대, 나는 응원군)
   cheerRoleBanner: {
