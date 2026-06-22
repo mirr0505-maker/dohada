@@ -15,13 +15,15 @@ import { router, useFocusEffect } from 'expo-router';
 import { joinChallenge } from '@/lib/invite';
 import { Screen } from '@/components/Screen';
 import { AppHeader } from '@/components/AppHeader';
+import { Telescope, ChevronRight } from 'lucide-react-native';
+import { BrandMark } from '@/components/BrandMark';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import {
-  fetchMyChallengesWithDetails, fetchOpenChallenges, fetchInterestingOpenChallenges,
+  fetchMyChallengesWithDetails, fetchOpenChallenges,
   fetchPublicCompletionStories, fetchFellowProofs, giveUpMembership,
   fetchChallengeIdsWithPledges,
-  type MyChallengeDetail, type InterestingChallenge,
+  type MyChallengeDetail,
   type FellowProof,
 } from '@/lib/db';
 import { ErrorState } from '@/components/ErrorState';
@@ -51,7 +53,6 @@ export default function HomeScreen() {
   const [completions, setCompletions]       = useState<CompletionStoryCard[]>([]);
   const [todayProofs, setTodayProofs]       = useState<FellowProof[]>([]);
   const [viewer, setViewer]                 = useState<{ photos: string[]; index: number } | null>(null);   // 🚀 사진 전체보기 뷰어 (여러 장)
-  const [interestingChs, setInteresting]    = useState<InterestingChallenge[]>([]);
   const [openChs, setOpenChs]               = useState<OpenChallengeCard[]>([]);
   const [loading, setLoading]               = useState(true);
   const [refreshing, setRefreshing]         = useState(false);
@@ -133,11 +134,10 @@ export default function HomeScreen() {
     if (!myUserId) return;
     try {
       setError(null);
-      const [mine, fellows, recentDone, interesting, opens] = await Promise.all([
+      const [mine, fellows, recentDone, opens] = await Promise.all([
         fetchMyChallengesWithDetails(myUserId),
         fetchFellowProofs(myUserId, 100),   // 🚀 챌린지별 그룹+더보기 위해 넉넉히 (오늘분만 필터됨)
         fetchPublicCompletionStories({ limit: 5 }).catch(() => []),
-        fetchInterestingOpenChallenges(myUserId, 5).catch(() => []),
         fetchOpenChallenges(myUserId),
       ]);
       setMyChs(mine);
@@ -187,7 +187,6 @@ export default function HomeScreen() {
       
       // 🚀 클라이언트 단 더블 가드 필터링: 이미 가입하고 포기 안 한 내 챌린지 제외
       const myActiveChIds = new Set(mine.filter(c => c.gave_up_at === null).map(c => c.id));
-      setInteresting(interesting.filter(c => !myActiveChIds.has(c.id)));
       setOpenChs(opens.filter(c => !myActiveChIds.has(c.id)));
       // 💛 다짐 배지용 — 내 방 중 다짐 걸린 방 id (RLS로 내가 볼 수 있는 것만). 비핵심이라 실패 무시.
       fetchChallengeIdsWithPledges(mine.map(c => c.id)).then(setPledgeChIds).catch(() => {});
@@ -305,6 +304,18 @@ export default function HomeScreen() {
           }
           showsVerticalScrollIndicator={false}
         >
+          {/* 🔭 하다 구경 — 최상단 얇은 바 1곳으로 통일 (DESIGN_GUIDE §12) */}
+          <Pressable
+            style={styles.peekBar}
+            onPress={() => { haptic.tap(); router.push('/discover' as any); }}
+            accessibilityRole="button"
+            accessibilityLabel="하다 구경 — 남들은 무슨 하다 하나"
+          >
+            <Telescope size={18} color={colors.faint} strokeWidth={1.8} />
+            <Text style={styles.peekBarText}>남들은 무슨 하다 하나, 구경하기</Text>
+            <ChevronRight size={16} color={colors.faint2} strokeWidth={1.8} />
+          </Pressable>
+
           {isColdStart ? (
             /* 🚀 콜드스타트(도전 0개): 빈 카드 스택 → 살아있는 온램프 한 장 + 합류 우선 + 접힌 힌트 */
             <>
@@ -372,15 +383,7 @@ export default function HomeScreen() {
                 </>
               )}
 
-              {/* 내 관심 분야 하다 — 추천이 있으면 그대로 노출 */}
-              {interestingChs.length > 0 && (
-                <>
-                  <Text style={styles.sectionLabel}>내 관심 분야 하다 (관심 추천)</Text>
-                  {interestingChs.slice(0, 5).map(c => (
-                    <InterestCard key={c.id} challenge={c} />
-                  ))}
-                </>
-              )}
+              {/* 관심 분야 추천은 '하다 구경'으로 통합(DESIGN_GUIDE §12) — 홈 별도 섹션 제거 */}
 
               {/* 접힌 힌트 한 줄 — '동료의 하루'가 비었을 때만 (실데이터 있으면 위에서 노출되므로 생략) */}
               {completions.length === 0 && todayProofs.length === 0 && (
@@ -395,6 +398,10 @@ export default function HomeScreen() {
                 <Text style={styles.endMoon}>🌙</Text>
                 <Text style={styles.endLine1}>오늘은 여기까지예요.</Text>
                 <Text style={styles.endLine2}>내일 또, 한 걸음.</Text>
+              </View>
+              <View style={styles.homeSign}>
+                <BrandMark size="sm" color={colors.faint2} />
+                <Text style={styles.homeSignText}>Do:하다</Text>
               </View>
             </>
           ) : (
@@ -642,41 +649,17 @@ export default function HomeScreen() {
             </View>
           )}
 
-          {/* [구조 5] 내 관심 분야 도전 섹션 */}
-          <Text style={styles.sectionLabel}>내 관심 분야 하다 (관심 추천)</Text>
-          {interestingChs.length > 0 ? (
-            interestingChs.slice(0, 5).map(c => (
-              <InterestCard key={c.id} challenge={c} />
-            ))
-          ) : (
-            /* 빈 상태 카드 — 관심사 매칭 챌린지 없음 */
-            <View style={styles.emptyInterestCard}>
-              <Text style={styles.emptyInterestEmoji}>✨</Text>
-              <Text style={styles.emptyInterestTitle}>관심 분야의 추천 하다가 없어요</Text>
-              <Text style={styles.emptyInterestDesc}>
-                프로필 설정에서 관심 카테고리를 더 추가해 보시거나, 직접 나만의 멋진 관심 분야 하다를 개설해 보세요!
-              </Text>
-            </View>
-          )}
-
-          {/* 🔭 하다 구경 보조 진입 — 끝 마커 직전 (남들 하다 살펴보고 따라하기) */}
-          <Pressable
-            onPress={() => { haptic.tap(); router.push('/discover' as any); }}
-            style={{ alignSelf: 'center', marginTop: 4, paddingVertical: 10, paddingHorizontal: 16 }}
-            hitSlop={6}
-            accessibilityRole="button"
-            accessibilityLabel="하다 구경 — 남들은 무슨 하다 하나 살펴보기"
-          >
-            <Text style={{ fontSize: fontSize.sm, color: colors.accent700, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold }}>
-              🔭 남들은 무슨 하다 하나, 구경하기 →
-            </Text>
-          </Pressable>
+          {/* 관심 분야 추천은 '하다 구경'(최상단 바)으로 통합 — 홈 별도 섹션·하단 진입점 제거 (DESIGN_GUIDE §12) */}
 
           {/* 🌙 끝 마커 — 무한 스크롤 의도적 차단 */}
           <View style={styles.endMarker}>
             <Text style={styles.endMoon}>🌙</Text>
             <Text style={styles.endLine1}>오늘은 여기까지예요.</Text>
             <Text style={styles.endLine2}>내일 또, 한 걸음.</Text>
+          </View>
+          <View style={styles.homeSign}>
+            <BrandMark size="sm" color={colors.faint2} />
+            <Text style={styles.homeSignText}>Do:하다</Text>
           </View>
           </>
           )}
@@ -862,36 +845,6 @@ function CheeredCard({ challenge }: { challenge: MyChallengeDetail }) {
   );
 }
 
-// ─── 카드 4: ✨ 관심 도전 ─────────────────────────────────
-function InterestCard({ challenge }: { challenge: InterestingChallenge }) {
-  return (
-    <Pressable
-      style={styles.card}
-      onPress={() => { haptic.tap(); router.push(`/room/${challenge.id}` as any); }}
-    >
-      <View style={styles.cardHead}>
-        <Text style={styles.cardKindEmoji}>✨</Text>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.who} numberOfLines={1}>{challenge.title}</Text>
-          {challenge.matched_category && (
-            <Text style={styles.sub}>
-              {/* 추론 매칭은 "관심 등록한 적 없는데?" 혼란 방지 — 매칭 이유를 정직하게 표기 */}
-              {challenge.matched_by === 'explicit'
-                ? `${challenge.matched_category.emoji} ${challenge.matched_category.name} 관심 · 함께 ${challenge.member_count}명`
-                : `${challenge.matched_category.emoji} 내 하다와 같은 ${challenge.matched_category.name} 분야 · 함께 ${challenge.member_count}명`}
-            </Text>
-          )}
-        </View>
-      </View>
-      <View style={[styles.joinBtn, { marginTop: 6 }]}>
-        <Text style={styles.joinBtnText}>
-          {challenge.matched_by === 'explicit' ? '관심 하다 살펴보기 →' : '비슷한 하다 살펴보기 →'}
-        </Text>
-      </View>
-    </Pressable>
-  );
-}
-
 // ─── 카드 5: 🌍 누구나 합류 ────────────────────────────────
 function JoinCard({ challenge, onJoin }: { challenge: OpenChallengeCard; onJoin: (id: string) => void }) {
   return (
@@ -936,6 +889,18 @@ function relTime(iso: string): string {
 const styles = StyleSheet.create({
   scroll: { paddingBottom: 40 },
   list: { paddingHorizontal: 24, paddingTop: 16, gap: 12 },
+
+  // 🔭 하다 구경 — 최상단 얇은 바
+  peekBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginHorizontal: 20, marginTop: 12, marginBottom: 4,
+    paddingVertical: 9, paddingHorizontal: 12,
+  },
+  peekBarText: { flex: 1, fontSize: fontSize.sm, color: colors.sub, fontFamily: fontFamily.regular },
+
+  // 로고 워터마크 서명 (홈 맨 아래, 헤더에서 뺀 로고의 정착지)
+  homeSign: { alignItems: 'center', gap: 6, marginTop: 28, opacity: 0.5 },
+  homeSignText: { fontSize: fontSize.sm, color: colors.faint2, fontFamily: fontFamily.medium, letterSpacing: 0.5 },
 
   // me-strip
   meStrip: {
@@ -1040,7 +1005,7 @@ const styles = StyleSheet.create({
   // 섹션 라벨
   sectionLabel: {
     paddingHorizontal: 20, paddingTop: 24, paddingBottom: 10,
-    fontSize: fontSize.lg, color: colors.primary,
+    fontSize: fontSize.base, color: colors.ink,
     fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
     letterSpacing: -0.3,
   },
