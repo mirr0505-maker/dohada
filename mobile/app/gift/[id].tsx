@@ -66,7 +66,7 @@ export default function GiftDetail() {
   const claimable = isRecipient && order?.status === 'paid';
 
   return (
-    <Screen backgroundColor={colors.background}>
+    <Screen backgroundColor={colors.bg}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="뒤로가기">
           <Text style={styles.back}>←</Text>
@@ -229,11 +229,11 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.success,
+    borderColor: colors.done,
   },
   donateBtnText: {
     fontSize: fontSize.base,
-    color: colors.success,
+    color: colors.done,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },

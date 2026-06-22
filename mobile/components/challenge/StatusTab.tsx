@@ -218,7 +218,7 @@ function StatusCard({
             <View
               style={[
                 styles.fill,
-                { width: `${rate}%`, backgroundColor: isMine ? colors.accent : colors.success },
+                { width: `${rate}%`, backgroundColor: isMine ? colors.accent : colors.done },
               ]}
             />
           </View>
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: colors.success,
+    backgroundColor: colors.done,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,

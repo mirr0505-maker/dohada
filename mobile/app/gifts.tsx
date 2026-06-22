@@ -83,7 +83,7 @@ export default function GiftHistoryScreen() {
   }, [rows]);
 
   return (
-    <Screen backgroundColor={colors.background}>
+    <Screen backgroundColor={colors.bg}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="뒤로가기">
           <Text style={styles.back}>←</Text>
@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
   chipReceiveBg: { backgroundColor: colors.accent50 },
   chipReceiveText: { color: colors.accent700 },
   chipDonateBg: { backgroundColor: 'rgba(34, 197, 94, 0.10)' },
-  chipDonateText: { color: colors.success },
+  chipDonateText: { color: colors.done },
   chipPendingBg: { backgroundColor: 'rgba(59, 130, 246, 0.10)' },
   chipPendingText: { color: colors.info },
   chipClosedBg: { backgroundColor: colors.primary100 },

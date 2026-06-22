@@ -212,7 +212,7 @@ export default function NewCompletionStoryScreen() {
   // ─── 렌더 ───
   if (loading) {
     return (
-      <Screen backgroundColor={colors.background}>
+      <Screen backgroundColor={colors.bg}>
         <View style={[styles.center, { flex: 1 }]}>
           <ActivityIndicator color={colors.accent} />
         </View>
@@ -221,7 +221,7 @@ export default function NewCompletionStoryScreen() {
   }
   if (error || !challenge || !stats) {
     return (
-      <Screen backgroundColor={colors.background}>
+      <Screen backgroundColor={colors.bg}>
         <View style={[styles.center, { flex: 1, paddingHorizontal: 24 }]}>
           <Text style={styles.errText}>{error ?? '하다 정보를 불러오지 못했어요.'}</Text>
           <Pressable style={styles.errBtn} onPress={() => router.back()}>
@@ -233,7 +233,7 @@ export default function NewCompletionStoryScreen() {
   }
 
   return (
-    <Screen backgroundColor={colors.background}>
+    <Screen backgroundColor={colors.bg}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

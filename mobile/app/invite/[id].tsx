@@ -96,7 +96,7 @@ export default function InviteScreen() {
   };
 
   return (
-    <Screen backgroundColor={colors.background}>
+    <Screen backgroundColor={colors.bg}>
       {/* 🚀 긴 안내문+개설자 한마디로 카드가 화면을 넘으면 하단 '함께 하기' 버튼에 닿도록 스크롤 (안드로이드 스크롤 불가 버그 수정) */}
       <ScrollView
         style={styles.scroll}

@@ -80,7 +80,7 @@ export function PledgeCard(props: Props) {
                     onPress={() => onToggleFulfilled(p.id, true)}
                     disabled={busy}
                   >
-                    {busy ? <ActivityIndicator color={colors.success} /> : <Text style={styles.fulfillBtnText}>✓ 지켰어요</Text>}
+                    {busy ? <ActivityIndicator color={colors.done} /> : <Text style={styles.fulfillBtnText}>✓ 지켰어요</Text>}
                   </Pressable>
                 )}
               </>
@@ -196,19 +196,19 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.success,
+    borderColor: colors.done,
     marginTop: 4,
   },
   fulfillBtnText: {
     fontSize: fontSize.sm,
-    color: colors.success,
+    color: colors.done,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },
   fulfilledRow: { marginTop: 2 },
   fulfilledText: {
     fontSize: fontSize.sm,
-    color: colors.success,
+    color: colors.done,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },

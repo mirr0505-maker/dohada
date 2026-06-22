@@ -29,7 +29,7 @@ export default function WelcomeScreen() {
   const goMain = () => router.replace('/home');
 
   return (
-    <Screen backgroundColor={colors.background}>
+    <Screen backgroundColor={colors.bg}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.emoji}>🎉</Text>
         <Text style={styles.title}>

@@ -140,7 +140,7 @@ function SettleBtn({ label, busy, onPress }: { label: string; busy: boolean; onP
 function DonateBtn({ label, busy, onPress }: { label: string; busy: boolean; onPress: () => void }) {
   return (
     <Pressable style={[styles.donateBtn, busy && styles.btnDisabled]} onPress={onPress} disabled={busy}>
-      {busy ? <ActivityIndicator color={colors.success} /> : <Text style={styles.donateBtnText}>{label}</Text>}
+      {busy ? <ActivityIndicator color={colors.done} /> : <Text style={styles.donateBtnText}>{label}</Text>}
     </Pressable>
   );
 }
@@ -187,11 +187,11 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.success,
+    borderColor: colors.done,
   },
   donateBtnText: {
     fontSize: fontSize.sm,
-    color: colors.success,
+    color: colors.done,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },

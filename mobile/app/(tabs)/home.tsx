@@ -289,7 +289,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <Screen backgroundColor={colors.background}>
+    <Screen backgroundColor={colors.bg}>
       <AppHeader />
 
       {loading ? (

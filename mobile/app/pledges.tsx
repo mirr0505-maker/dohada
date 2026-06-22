@@ -53,7 +53,7 @@ export default function PledgeHistoryScreen() {
   }, [rows]);
 
   return (
-    <Screen backgroundColor={colors.background}>
+    <Screen backgroundColor={colors.bg}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="뒤로가기">
           <Text style={styles.back}>←</Text>
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
   badgeActive: { backgroundColor: colors.accent50 },
   badgeActiveText: { color: colors.accent700 },
   badgeDone: { backgroundColor: 'rgba(34, 197, 94, 0.10)' },
-  badgeDoneText: { color: colors.success },
+  badgeDoneText: { color: colors.done },
   badgeMissed: { backgroundColor: colors.primary100 },
   badgeMissedText: { color: colors.primary500 },
   pledgeRow: {
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
   outDueBg: { backgroundColor: colors.accent50 },
   outDueText: { color: colors.accent700 },
   outDoneBg: { backgroundColor: 'rgba(34, 197, 94, 0.10)' },
-  outDoneText: { color: colors.success },
+  outDoneText: { color: colors.done },
   pledgeText: {
     fontSize: fontSize.base,
     color: colors.primary,

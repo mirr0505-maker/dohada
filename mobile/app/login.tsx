@@ -104,7 +104,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <Screen backgroundColor={colors.background}>
+    <Screen backgroundColor={colors.bg}>
       <View style={styles.container}>
         <View style={styles.logoBlock}>
           <BrandMark size="xl" color={colors.accent} />

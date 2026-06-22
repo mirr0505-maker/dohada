@@ -226,7 +226,7 @@ export default function CreateChallenge() {
   const stepMeta = STEP_META[step];
 
   return (
-    <Screen backgroundColor={colors.background}>
+    <Screen backgroundColor={colors.bg}>
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* 헤더 */}

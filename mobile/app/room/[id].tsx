@@ -576,7 +576,7 @@ export default function ChallengeRoom() {
   // ─── 렌더 ────────────────────────────────────────────
   if (loading) {
     return (
-      <Screen backgroundColor={colors.background}>
+      <Screen backgroundColor={colors.bg}>
         <View style={styles.feed}>
           <ProofCardSkeleton />
           <ProofCardSkeleton />
@@ -587,7 +587,7 @@ export default function ChallengeRoom() {
 
   if (error || !challenge) {
     return (
-      <Screen backgroundColor={colors.background}>
+      <Screen backgroundColor={colors.bg}>
         <ErrorState
           message={error ?? '하다를 찾을 수 없어요.'}
           onRetry={() => { setLoading(true); load(); }}
@@ -889,7 +889,7 @@ export default function ChallengeRoom() {
 
   return (
     <Screen
-      backgroundColor={colors.background}
+      backgroundColor={colors.bg}
       edges={activeTab === 'chat' ? ['top'] : ['top', 'bottom']}
     >
       {/* ─── 헤더 — 챌린지명 라인에 stacked avatars (탭=멤버 시트) ─── */}

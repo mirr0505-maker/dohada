@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
   },
   fulfilled: {
     fontSize: fontSize.xs,
-    color: colors.success,
+    color: colors.done,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },

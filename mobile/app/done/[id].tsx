@@ -124,7 +124,7 @@ export default function CompletionStoryDetailScreen() {
 
   if (loading) {
     return (
-      <Screen backgroundColor={colors.background}>
+      <Screen backgroundColor={colors.bg}>
         <View style={[styles.center, { flex: 1 }]}>
           <ActivityIndicator color={colors.accent} />
         </View>
@@ -133,7 +133,7 @@ export default function CompletionStoryDetailScreen() {
   }
   if (error || !story) {
     return (
-      <Screen backgroundColor={colors.background}>
+      <Screen backgroundColor={colors.bg}>
         <View style={[styles.center, { flex: 1, paddingHorizontal: 24 }]}>
           <Text style={styles.errText}>{error ?? '이야기를 불러오지 못했어요.'}</Text>
           <Pressable style={styles.errBtn} onPress={() => router.back()}>
@@ -148,7 +148,7 @@ export default function CompletionStoryDetailScreen() {
   const categoryName = story.challenge.category?.name ?? '하다';
 
   return (
-    <Screen backgroundColor={colors.background}>
+    <Screen backgroundColor={colors.bg}>
       {/* 헤더 */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={8}>
