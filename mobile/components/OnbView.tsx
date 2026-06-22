@@ -5,6 +5,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Gesture, GestureDetector, Directions } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { Users, Camera, Handshake, Globe, type LucideIcon } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
 import { BrandMark } from '@/components/BrandMark';
@@ -13,7 +14,7 @@ import { colors, fontFamily, fontSize, fontWeight } from '@/lib/tokens';
 // 온보딩 카피 — 프로토타입 do-hada-app-v4.html onb1~4 그대로
 const SLIDES = [
   {
-    illust: '🔥',
+    Illust: Users,
     title: '혼자가 아닌',
     accent: '함께 해요',
     desc: '작심삼일이 작심백일이 되는 마법.\n동료들과 함께면 다르게 끝나요.',
@@ -21,7 +22,7 @@ const SLIDES = [
     nextLabel: '다음 →',
   },
   {
-    illust: '📸',
+    Illust: Camera,
     title: '매일 인증하고',
     accent: '응원받아요',
     desc: '당신이 선언하면, 지인들이 응원으로 함께해요.\n매일 인증할 때마다 그 응원이 쌓여요.',
@@ -29,7 +30,7 @@ const SLIDES = [
     nextLabel: '다음 →',
   },
   {
-    illust: '🤝',
+    Illust: Handshake,
     title: '친구 신청 없이도',
     accent: '동료가 자연스럽게',
     desc: '같은 하다를 가는 사람이 자동으로 모여요.\n신청도, 수락도, 어색함도 없이.',
@@ -37,7 +38,7 @@ const SLIDES = [
     nextLabel: '다음 →',
   },
   {
-    illust: '🌍',
+    Illust: Globe,
     title: '내가 하는 것이',
     accent: '세상도 바꿔요',
     desc: '환경, 기부, 봉사 — 사회공헌 카테고리로\n내가 나아질수록 세상도 함께 나아져요.',
@@ -83,7 +84,7 @@ export function OnbView({ step }: Props) {
       )}
 
       <View style={styles.content}>
-        <Text style={styles.illust}>{slide.illust}</Text>
+        <View style={styles.illust}><slide.Illust size={88} color={colors.accent} strokeWidth={1.4} /></View>
         <Text style={styles.title}>
           {slide.title}
           {'\n'}
@@ -153,7 +154,7 @@ const styles = StyleSheet.create({
     gap: 24,
   },
   illust: {
-    fontSize: 96,
+    alignItems: 'center',
     marginBottom: 8,
   },
   title: {

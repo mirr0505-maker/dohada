@@ -7,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { Modal, StyleSheet, useWindowDimensions, Pressable, Text, FlatList, View } from 'react-native';
 import { GestureHandlerRootView, GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
+import { X } from 'lucide-react-native';
 
 type Props = {
   photos: string[] | null;     // 보여줄 사진들 (null/빈 = 닫힘)
@@ -55,7 +56,7 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose }: Props) {
           </View>
         )}
         <Pressable style={styles.closeBtn} onPress={onClose} hitSlop={12}>
-          <Text style={styles.closeText}>✕</Text>
+          <X size={22} color="#fff" strokeWidth={2.2} />
         </Pressable>
         <Text style={styles.hint} pointerEvents="none">
           {list.length > 1 ? '좌우로 넘기기 · 탭하여 닫기' : '탭하여 닫기'}
@@ -130,7 +131,6 @@ const styles = StyleSheet.create({
     width: 38, height: 38, borderRadius: 19,
     backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center',
   },
-  closeText: { color: '#fff', fontSize: 18, fontWeight: '600' },
   indexBadge: {
     position: 'absolute', top: 56, alignSelf: 'center',
     backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4,

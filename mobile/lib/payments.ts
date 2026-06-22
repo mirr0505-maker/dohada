@@ -30,8 +30,8 @@ export const GIFT_STATUS_LABEL: Record<string, string> = {
   created: '결제 대기 중',
   paid: '도착 — 받기를 기다리고 있어요',
   issued: '교환권 발급됨',
-  delivered: '받았어요 ☕',
-  donated: '기부로 돌렸어요 💚',
+  delivered: '받았어요',
+  donated: '기부로 돌렸어요',
   auto_refund: '발급 실패로 자동 환불되었어요',
   refunded: '환불되었어요',
   pay_failed: '결제가 완료되지 않았어요',
@@ -42,16 +42,16 @@ export type GiftTier = 'one_cup' | 'hearty_cup';
 
 // 표시 전용 가격표 — 서버 카탈로그(supabase/functions/_shared/payments/catalog.ts)와 동일해야 함
 export const GIFT_TIERS: { tier: GiftTier; label: string; price: number; desc: string }[] = [
-  { tier: 'one_cup', label: '☕ 한잔', price: 5_000, desc: '커피 한 잔의 응원' },
-  { tier: 'hearty_cup', label: '🍰 든든한 한잔', price: 10_000, desc: '커피와 디저트까지' },
+  { tier: 'one_cup', label: '한잔', price: 5_000, desc: '커피 한 잔의 응원' },
+  { tier: 'hearty_cup', label: '든든한 한잔', price: 10_000, desc: '커피와 디저트까지' },
 ];
 
 // 🚀 나와의 내기 — 티어 3종 (5천/1만/2만, grand_cup 포함). 서버 catalog.ts 와 동일해야 함.
 export type BetTier = 'one_cup' | 'hearty_cup' | 'grand_cup';
 export const BET_TIERS: { tier: BetTier; label: string; price: number; desc: string }[] = [
-  { tier: 'one_cup', label: '☕ 한잔', price: 5_000, desc: '가볍게 거는 다짐' },
-  { tier: 'hearty_cup', label: '🍰 든든한 한잔', price: 10_000, desc: '제대로 걸어보기' },
-  { tier: 'grand_cup', label: '🎁 거하게 한잔', price: 20_000, desc: '배수의 진을 치고' },
+  { tier: 'one_cup', label: '한잔', price: 5_000, desc: '가볍게 거는 다짐' },
+  { tier: 'hearty_cup', label: '든든한 한잔', price: 10_000, desc: '제대로 걸어보기' },
+  { tier: 'grand_cup', label: '거하게 한잔', price: 20_000, desc: '배수의 진을 치고' },
 ];
 
 // 🚀 내기 기부 모드 3종 (서버 betSettlement.ts DonationMode 와 동일). 설명은 나와의 내기(1인) 기준.
@@ -66,7 +66,7 @@ export const BET_DONATION_MODES: { mode: BetDonationMode; label: string; desc: s
 export function betBadgeText(betTier: string | null | undefined): string | null {
   if (!betTier) return null;
   const t = BET_TIERS.find(x => x.tier === betTier);
-  return `🎯 ${t?.label ?? '한잔'} ${t ? t.price.toLocaleString() + '원' : ''} · 성인 전용`;
+  return `${t?.label ?? '한잔'} ${t ? t.price.toLocaleString() + '원' : ''} · 성인 전용`;
 }
 
 export type GiftOrderRow = {

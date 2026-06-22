@@ -7,6 +7,7 @@ import {
   View, Text, Pressable, Modal, StyleSheet, TextInput, ActivityIndicator, Alert,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { Heart, ArrowDown, Trophy, type LucideIcon } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { haptic } from '@/lib/haptics';
 import { moderatePledge, createPledge, type PledgeDirection } from '@/lib/db';
@@ -19,9 +20,9 @@ type Props = {
   usedDirections: PledgeDirection[];   // 이미 건 방향 (방향당 1개라 비활성 처리)
 };
 
-const DIRS: { dir: PledgeDirection; label: string; hint: string }[] = [
-  { dir: 'lose', label: '🔻 못 하면', hint: '완주·달성 못했을 때 지킬 다짐' },
-  { dir: 'win', label: '🏆 해내면', hint: '완주·달성했을 때 지킬 다짐' },
+const DIRS: { dir: PledgeDirection; Icon: LucideIcon; label: string; hint: string }[] = [
+  { dir: 'lose', Icon: ArrowDown, label: '못 하면', hint: '완주·달성 못했을 때 지킬 다짐' },
+  { dir: 'win', Icon: Trophy, label: '해내면', hint: '완주·달성했을 때 지킬 다짐' },
 ];
 
 export function PledgeSheet({ visible, onClose, challengeId, myUserId, usedDirections }: Props) {
@@ -69,7 +70,7 @@ export function PledgeSheet({ visible, onClose, challengeId, myUserId, usedDirec
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable style={styles.backdrop} onPress={onClose}>
           <Pressable style={styles.sheet} onPress={() => {}}>
-            <Text style={styles.emojiBig}>💛</Text>
+            <View style={styles.emojiBig}><Heart size={32} color={colors.gold} strokeWidth={1.8} /></View>
             <Text style={styles.title}>다짐 걸기</Text>
             <Text style={styles.sub}>도전에 거는 가벼운 약속이에요. 돈이 오가지 않아요.</Text>
 
@@ -85,7 +86,10 @@ export function PledgeSheet({ visible, onClose, challengeId, myUserId, usedDirec
                     onPress={() => { if (!used) { haptic.tap(); setDirection(d.dir); } }}
                     disabled={used || busy}
                   >
-                    <Text style={[styles.dirLabel, active && styles.dirLabelActive]}>{d.label}</Text>
+                    <View style={styles.dirLabelRow}>
+                      <d.Icon size={14} color={active ? colors.accent700 : colors.primary500} strokeWidth={2} />
+                      <Text style={[styles.dirLabel, active && styles.dirLabelActive]}>{d.label}</Text>
+                    </View>
                     <Text style={[styles.dirHint, active && styles.dirHintActive]}>
                       {used ? '이미 걸어둠' : d.hint}
                     </Text>
@@ -110,7 +114,7 @@ export function PledgeSheet({ visible, onClose, challengeId, myUserId, usedDirec
 
             <View style={styles.noteBox}>
               <Text style={styles.noteText}>
-                🤝 명예제도 약속이에요 — 앱이 강제하지 않아요.{'\n'}
+                명예제도 약속이에요 — 앱이 강제하지 않아요.{'\n'}
                 금액(돈)·명품 같은 고가 선물은 넣을 수 없어요.
               </Text>
             </View>
@@ -144,7 +148,8 @@ const styles = StyleSheet.create({
     gap: 12,
     ...shadow.lg,
   },
-  emojiBig: { fontSize: 44, textAlign: 'center' },
+  emojiBig: { alignSelf: 'center', marginBottom: 4 },
+  dirLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   title: {
     fontSize: fontSize.lg,
     color: colors.primary,

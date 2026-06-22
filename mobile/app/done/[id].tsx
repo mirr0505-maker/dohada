@@ -12,7 +12,7 @@ import {
   View, Text, StyleSheet, ScrollView, Pressable, Image, Alert, ActivityIndicator,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { ArrowLeft, Trash2, Trophy, HeartHandshake } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
@@ -97,7 +97,7 @@ export default function CompletionStoryDetailScreen() {
     if (!story || !myUserId) return;
     if (isMine) {
       haptic.tap();
-      Alert.alert('내 이야기예요', '용기는 동료의 이야기에 보내주세요 🤝');
+      Alert.alert('내 이야기예요', '용기는 동료의 이야기에 보내주세요.');
       return;
     }
     haptic.tap();
@@ -152,12 +152,12 @@ export default function CompletionStoryDetailScreen() {
       {/* 헤더 */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Ionicons name="arrow-back" size={24} color={colors.primary} />
+          <ArrowLeft size={24} color={colors.primary} strokeWidth={2} />
         </Pressable>
         <Text style={styles.headerTitle}>완주 이야기</Text>
         {isMine ? (
           <Pressable onPress={onDelete} hitSlop={8}>
-            <Ionicons name="trash-outline" size={20} color={colors.primary500} />
+            <Trash2 size={20} color={colors.primary500} strokeWidth={1.8} />
           </Pressable>
         ) : (
           <View style={{ width: 24 }} />
@@ -167,7 +167,7 @@ export default function CompletionStoryDetailScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
         {/* 트로피 카드 */}
         <View style={styles.trophyCard}>
-          <Text style={styles.trophyEmoji}>🏆</Text>
+          <View style={styles.trophyEmoji}><Trophy size={44} color={colors.gold} strokeWidth={1.6} /></View>
           <Text style={styles.trophyTitle}>{story.challenge.title}</Text>
           <Text style={styles.trophyMeta}>
             {story.author.nickname} · {year} · Do : 하다
@@ -214,8 +214,9 @@ export default function CompletionStoryDetailScreen() {
             accessibilityRole="button"
             accessibilityLabel={`용기 받았어요${courageCount > 0 ? `, ${courageCount}명` : ''}${couraged ? ', 내가 보냄' : ''}`}
           >
+            <HeartHandshake size={15} color={couraged ? colors.accent700 : colors.primary500} strokeWidth={2} />
             <Text style={[styles.courageBtnText, couraged && styles.courageBtnTextActive]}>
-              🤝 용기 받았어요{courageCount > 0 ? ` ${formatCheerCount(courageCount)}` : ''}
+              용기 받았어요{courageCount > 0 ? ` ${formatCheerCount(courageCount)}` : ''}
             </Text>
           </Pressable>
           <Text style={styles.courageHint}>
@@ -284,7 +285,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', gap: 8,
     borderWidth: 1, borderColor: colors.accent100,
   },
-  trophyEmoji: { fontSize: 48 },
+  trophyEmoji: { marginBottom: 2 },
   trophyTitle: {
     fontSize: fontSize['2xl'], color: colors.primary,
     fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
@@ -351,6 +352,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', gap: 6,
   },
   courageBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 18, paddingVertical: 10,
     backgroundColor: colors.primary50,
     borderRadius: radius.pill,

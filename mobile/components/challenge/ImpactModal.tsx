@@ -2,6 +2,7 @@
 // 4 stats: 함께 N일 / N번 인증 / N번 응원 / N개 기록. + 기부 허브: 기부로 돌린 한잔 (있을 때만)
 import React, { useEffect, useState } from 'react';
 import { View, Text, Modal, Pressable, StyleSheet } from 'react-native';
+import { HeartHandshake, Coffee } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { fetchChallengeDonationCount } from '@/lib/payments';
 
@@ -27,7 +28,10 @@ export function ImpactModal({ visible, onClose, days, proofs, cheers, logs, chal
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable style={styles.card} onPress={() => {}}>
-          <Text style={styles.title}>💚 함께 만든 변화</Text>
+          <View style={styles.titleRow}>
+            <HeartHandshake size={18} color={colors.done} strokeWidth={2} />
+            <Text style={styles.title}>함께 만든 변화</Text>
+          </View>
           <View style={styles.stats}>
             <Stat num={`${days}일`} label="함께" />
             <Stat num={proofs} label="번 인증" />
@@ -36,8 +40,9 @@ export function ImpactModal({ visible, onClose, days, proofs, cheers, logs, chal
           </View>
           {donatedCups > 0 && (
             <View style={styles.donationRow}>
+              <Coffee size={14} color={colors.accent700} strokeWidth={1.8} />
               <Text style={styles.donationText}>
-                ☕ 이 방에서 기부로 돌린 한잔 {donatedCups}잔 — 누군가의 한잔이 됐어요
+                이 방에서 기부로 돌린 한잔 {donatedCups}잔 — 누군가의 한잔이 됐어요
               </Text>
             </View>
           )}
@@ -74,6 +79,7 @@ const styles = StyleSheet.create({
     paddingTop: 24, paddingBottom: 8,
     paddingHorizontal: 24,
   },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   title: {
     fontSize: fontSize.lg,
     color: colors.accent700,
@@ -105,17 +111,20 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   donationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     backgroundColor: colors.accent50,
     borderRadius: radius.md,
     padding: 12,
     marginBottom: 4,
   },
   donationText: {
+    flex: 1,
     fontSize: fontSize.xs,
     color: colors.accent700,
     fontFamily: fontFamily.medium,
     fontWeight: fontWeight.medium,
-    textAlign: 'center',
     lineHeight: 18,
   },
   closeBtn: {

@@ -15,7 +15,11 @@ import { router, useFocusEffect } from 'expo-router';
 import { joinChallenge } from '@/lib/invite';
 import { Screen } from '@/components/Screen';
 import { AppHeader } from '@/components/AppHeader';
-import { Telescope, ChevronRight, Camera, Trophy } from 'lucide-react-native';
+import {
+  Telescope, ChevronRight, ChevronUp, ChevronDown, Camera, Trophy, PenLine, Globe,
+  Sprout, Footprints, Heart, Moon, PartyPopper, Crown, Users, User, Handshake,
+  Target, Repeat, Check, type LucideIcon,
+} from 'lucide-react-native';
 import { BrandMark } from '@/components/BrandMark';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
@@ -39,12 +43,12 @@ import type { CompletionStoryCard, OpenChallengeCard } from '@/lib/types';
 import { getChallengeDDay, getKstTodayRange, formatCheerCount } from '@/lib/format';
 
 // ─── 🚀 오늘 나의 도전용 헬퍼 및 메타 ─────────────────
-const KIND_META: Record<string, { label: string; bg: string; text: string }> = {
-  solo: { label: '🤫 나혼자', bg: colors.primary50, text: colors.primary500 },
-  cheered_creator: { label: '🙋 응원받기', bg: colors.accent50, text: colors.accent700 },
-  cheered_participant: { label: '🙋 응원하기', bg: colors.accent50, text: colors.accent700 },
-  closed: { label: '🤝 다함께', bg: '#E0F2FE', text: '#0369A1' },
-  open: { label: '🌍 누구나', bg: '#DCFCE7', text: '#15803D' },
+const KIND_META: Record<string, { Icon: LucideIcon; label: string; bg: string; text: string }> = {
+  solo: { Icon: User, label: '나혼자', bg: colors.primary50, text: colors.primary500 },
+  cheered_creator: { Icon: Heart, label: '응원받기', bg: colors.accent50, text: colors.accent700 },
+  cheered_participant: { Icon: Heart, label: '응원하기', bg: colors.accent50, text: colors.accent700 },
+  closed: { Icon: Handshake, label: '다함께', bg: colors.tintSage, text: colors.doneInk },
+  open: { Icon: Globe, label: '누구나', bg: colors.tintSage, text: colors.doneInk },
 };
 
 export default function HomeScreen() {
@@ -278,7 +282,7 @@ export default function HomeScreen() {
       return;
     }
     if (uncheckedChs.length === 0) {
-      Alert.alert('오늘 인증 완료 🎉', '오늘 몫의 인증을 모두 마쳤어요.\n내일 또 만나요!');
+      Alert.alert('오늘 인증 완료', '오늘 몫의 인증을 모두 마쳤어요.\n내일 또 만나요!');
       return;
     }
     if (uncheckedChs.length === 1) {
@@ -331,13 +335,15 @@ export default function HomeScreen() {
                   style={styles.onrampPrimaryBtn}
                   onPress={() => { haptic.tap(); router.push('/create?kind=cheered' as any); }}
                 >
-                  <Text style={styles.onrampPrimaryText}>✍️ 첫 하다 선언하기</Text>
+                  <PenLine size={16} color={colors.surface} strokeWidth={2} />
+                  <Text style={styles.onrampPrimaryText}>첫 하다 선언하기</Text>
                 </Pressable>
                 <Pressable
                   style={styles.onrampSecondaryBtn}
                   onPress={() => { haptic.tap(); router.push('/discover' as any); }}
                 >
-                  <Text style={styles.onrampSecondaryText}>🔭 하다 구경 — 이런 것도 하는구나</Text>
+                  <Telescope size={15} color={colors.accent700} strokeWidth={1.8} />
+                  <Text style={styles.onrampSecondaryText}>하다 구경 — 이런 것도 하는구나</Text>
                 </Pressable>
               </View>
 
@@ -350,7 +356,7 @@ export default function HomeScreen() {
                   ))
                 ) : (
                   <View style={styles.emptyOpenCard}>
-                    <Text style={styles.emptyOpenEmoji}>🌍</Text>
+                    <Globe size={40} color={colors.faint} strokeWidth={1.5} />
                     <Text style={styles.emptyOpenTitle}>현재 합류 가능한 공개 하다가 없어요</Text>
                     <Text style={styles.emptyOpenDesc}>
                       직접 새로운 공개 하다를 개설하여 첫 번째 동료들을 모집해 볼까요?
@@ -399,7 +405,7 @@ export default function HomeScreen() {
 
               {/* 🌙 끝 마커 — 무한 스크롤 의도적 차단 */}
               <View style={styles.endMarker}>
-                <Text style={styles.endMoon}>🌙</Text>
+                <Moon size={28} color={colors.faint2} strokeWidth={1.5} />
                 <Text style={styles.endLine1}>오늘은 여기까지예요.</Text>
                 <Text style={styles.endLine2}>내일 또, 한 걸음.</Text>
               </View>
@@ -445,16 +451,20 @@ export default function HomeScreen() {
                           styles.metaBadge,
                           { backgroundColor: c.creator_id === myUserId ? colors.accent50 : colors.primary50 }
                         ]}>
+                          {c.creator_id === myUserId
+                            ? <Crown size={11} color={colors.accent700} strokeWidth={2} />
+                            : <Users size={11} color={colors.primary500} strokeWidth={2} />}
                           <Text style={[
                             styles.metaBadgeText,
                             { color: c.creator_id === myUserId ? colors.accent700 : colors.primary500 }
                           ]}>
-                            {c.creator_id === myUserId ? '👑 개설' : '👥 참여'}
+                            {c.creator_id === myUserId ? '개설' : '참여'}
                           </Text>
                         </View>
 
                         {/* 2. 기존 방 종류 뱃지 */}
                         <View style={[styles.metaBadge, { backgroundColor: km.bg }]}>
+                          <km.Icon size={11} color={km.text} strokeWidth={2} />
                           <Text style={[styles.metaBadgeText, { color: km.text }]}>{km.label}</Text>
                         </View>
                         <View style={styles.metaBadge}>
@@ -467,34 +477,40 @@ export default function HomeScreen() {
                             onPress={(e) => { e.stopPropagation(); haptic.tap(); router.push(`/room/${c.id}?tab=status` as any); }}
                             hitSlop={6}
                           >
-                            <Text style={[styles.metaBadgeText, { color: colors.accent700 }]}>💛 다짐</Text>
+                            <Heart size={11} color={colors.accent700} strokeWidth={2} />
+                            <Text style={[styles.metaBadgeText, { color: colors.accent700 }]}>다짐</Text>
                           </Pressable>
                         )}
                         {isCountGoal(c) ? (
                           <View style={styles.metaBadge}>
-                            <Text style={styles.metaBadgeText}>🎯 진행 {c.my_proof_count}/{c.target_count ?? 0}</Text>
+                            <Target size={11} color={colors.primary500} strokeWidth={2} />
+                            <Text style={styles.metaBadgeText}>진행 {c.my_proof_count}/{c.target_count ?? 0}</Text>
                           </View>
                         ) : isCheeredParticipant ? (
                           // 응원 동료 — 인증 진척이 아니라 '도전자 응원' 이 할 일
                           <View style={styles.metaBadge}>
-                            <Text style={styles.metaBadgeText}>🙋 도전자 응원하기</Text>
+                            <Heart size={11} color={colors.primary500} strokeWidth={2} />
+                            <Text style={styles.metaBadgeText}>도전자 응원하기</Text>
                           </View>
                         ) : isCheeredCreator ? (
                           // 도전자 — 응원받는 무대. '동료 완료' 대신 받은 응원을 강조
                           <View style={styles.metaBadge}>
+                            <Heart size={11} color={colors.primary500} strokeWidth={2} />
                             <Text style={styles.metaBadgeText}>
-                              {c.my_cheers_count > 0 ? `💛 받은 응원 ${formatCheerCount(c.my_cheers_count)}개` : '💛 응원 기다리는 중'}
+                              {c.my_cheers_count > 0 ? `받은 응원 ${formatCheerCount(c.my_cheers_count)}개` : '응원 기다리는 중'}
                             </Text>
                           </View>
                         ) : c.kind !== 'solo' ? (
                           <View style={styles.metaBadge}>
-                            <Text style={styles.metaBadgeText}>👥 동료 {c.today_check_count}/{c.member_count} 완료</Text>
+                            <Users size={11} color={colors.primary500} strokeWidth={2} />
+                            <Text style={styles.metaBadgeText}>동료 {c.today_check_count}/{c.member_count} 완료</Text>
                           </View>
                         ) : null}
                         {/* 🔁 0050: 내 하다가 '하다 구경'에서 따라하기로 참조된 횟수 (조용한 목격받기) */}
                         {(c.reference_count ?? 0) > 0 && (
                           <View style={styles.metaBadge}>
-                            <Text style={styles.metaBadgeText}>🔁 {formatCheerCount(c.reference_count ?? 0)}번 참조</Text>
+                            <Repeat size={11} color={colors.primary500} strokeWidth={2} />
+                            <Text style={styles.metaBadgeText}>{formatCheerCount(c.reference_count ?? 0)}번 참조</Text>
                           </View>
                         )}
                       </View>
@@ -505,12 +521,14 @@ export default function HomeScreen() {
                         style={[styles.quickCheckinBtn, styles.quickCheerBtn]}
                         onPress={() => { haptic.tap(); router.push(`/room/${c.id}` as any); }}
                       >
-                        <Text style={styles.quickCheckinBtnText}>💛 응원</Text>
+                        <Heart size={14} color={colors.surface} strokeWidth={2} />
+                        <Text style={styles.quickCheckinBtnText}>응원</Text>
                       </Pressable>
                     ) : isCountGoal(c) ? (
                       goalDone(c) ? (
                         <View style={styles.quickCheckedBadge}>
-                          <Text style={styles.quickCheckedText}>✓ 달성</Text>
+                          <Check size={14} color={colors.done} strokeWidth={2.4} />
+                          <Text style={styles.quickCheckedText}>달성</Text>
                         </View>
                       ) : (
                         <Pressable
@@ -522,7 +540,8 @@ export default function HomeScreen() {
                       )
                     ) : c.is_today_checked ? (
                       <View style={styles.quickCheckedBadge}>
-                        <Text style={styles.quickCheckedText}>✓ 완료</Text>
+                        <Check size={14} color={colors.done} strokeWidth={2.4} />
+                        <Text style={styles.quickCheckedText}>완료</Text>
                       </View>
                     ) : (
                       <Pressable
@@ -551,7 +570,7 @@ export default function HomeScreen() {
               style={styles.emptyCard}
               onPress={() => { haptic.tap(); router.push('/create?kind=cheered' as any); }}
             >
-              <Text style={styles.emptyEmoji}>🌱</Text>
+              <Sprout size={44} color={colors.faint} strokeWidth={1.5} />
               <Text style={styles.emptyTitle}>아직 진행 중인 하다가 없어요</Text>
               <Text style={styles.emptyDesc}>
                 조용히 응원받는 첫 한 걸음,{'\n'}시작해볼까요?
@@ -617,7 +636,7 @@ export default function HomeScreen() {
           ) : (
             /* 빈 상태 카드 — 동료 소식 없음 */
             <View style={styles.emptyFellowCard}>
-              <Text style={styles.emptyFellowEmoji}>👣</Text>
+              <Footprints size={40} color={colors.faint} strokeWidth={1.5} />
               <Text style={styles.emptyFellowTitle}>아직 오늘 올라온 동료들의 인증이 없어요</Text>
               <Text style={styles.emptyFellowDesc}>
                 혼자보다 함께할 때 완주 확률이 3배 높아집니다. 내 하다에 친구나 동료를 초대해 보거나, 아래 '누구나 합류'에서 함께 달릴 첫 하다 인연을 만들어보세요!
@@ -634,7 +653,7 @@ export default function HomeScreen() {
           ) : (
             /* 빈 상태 카드 — 응원받기 챌린지 없음 */
             <View style={styles.emptyCheerCard}>
-              <Text style={styles.emptyCheerEmoji}>🙋</Text>
+              <Heart size={40} color={colors.faint} strokeWidth={1.5} />
               <Text style={styles.emptyCheerTitle}>오늘 응원할 수 있는 하다가 없어요</Text>
               <Text style={styles.emptyCheerDesc}>
                 현재 가입된 응원받기 하다가 없거나, 이미 모든 동료들에게 오늘 자 응원을 완료했습니다.
@@ -651,7 +670,7 @@ export default function HomeScreen() {
           ) : (
             /* 빈 상태 카드 — 공개 챌린지 없음 */
             <View style={styles.emptyOpenCard}>
-              <Text style={styles.emptyOpenEmoji}>🌍</Text>
+              <Globe size={40} color={colors.faint} strokeWidth={1.5} />
               <Text style={styles.emptyOpenTitle}>현재 합류 가능한 공개 하다가 없어요</Text>
               <Text style={styles.emptyOpenDesc}>
                 직접 새로운 공개 하다를 개설하여 첫 번째 동료들을 모집해 볼까요?
@@ -663,7 +682,7 @@ export default function HomeScreen() {
 
           {/* 🌙 끝 마커 — 무한 스크롤 의도적 차단 */}
           <View style={styles.endMarker}>
-            <Text style={styles.endMoon}>🌙</Text>
+            <Moon size={28} color={colors.faint2} strokeWidth={1.5} />
             <Text style={styles.endLine1}>오늘은 여기까지예요.</Text>
             <Text style={styles.endLine2}>내일 또, 한 걸음.</Text>
           </View>
@@ -687,7 +706,7 @@ export default function HomeScreen() {
       >
         <Pressable style={styles.pickerOverlay} onPress={() => setCheckinPickerOpen(false)}>
           <Pressable style={styles.pickerCard} onPress={() => {}}>
-            <Text style={styles.pickerTitle}>📸 어떤 하다를 인증할까요?</Text>
+            <Text style={styles.pickerTitle}>어떤 하다를 인증할까요?</Text>
             <View style={{ gap: 8 }}>
               {uncheckedChs.map(c => (
                 <Pressable
@@ -759,7 +778,7 @@ function CompletionRibbon({ story }: { story: CompletionStoryCard }) {
       style={styles.ribbon}
       onPress={() => { haptic.tap(); router.push(`/done/${story.id}` as any); }}
     >
-      <Text style={styles.ribbonEmoji}>🎉</Text>
+      <PartyPopper size={22} color={colors.accent} strokeWidth={1.8} />
       <View style={{ flex: 1 }}>
         <Text style={styles.ribbonTitle}>
           {story.author.nickname}님이 <Text style={{ color: colors.accent700 }}>
@@ -787,16 +806,22 @@ function TodayChallengeProofGroup({
   const hidden = proofs.length - INITIAL;
   return (
     <View style={styles.proofGroup}>
-      <Text style={styles.proofGroupHead} numberOfLines={1}>
-        📸 {title} · 오늘 {proofs.length}명 인증
-      </Text>
+      <View style={styles.proofGroupHead}>
+        <Camera size={14} color={colors.primary700} strokeWidth={2} />
+        <Text style={styles.proofGroupHeadText} numberOfLines={1}>
+          {title} · 오늘 {proofs.length}명 인증
+        </Text>
+      </View>
       {visible.map(p => (
         <TodayProofCard key={p.id} proof={p} onViewPhoto={onViewPhoto} />
       ))}
       {hidden > 0 && (
         <Pressable style={styles.moreToggle} onPress={() => { haptic.tap(); setExpanded(e => !e); }}>
+          {expanded
+            ? <ChevronUp size={15} color={colors.primary700} strokeWidth={2} />
+            : <ChevronDown size={15} color={colors.primary700} strokeWidth={2} />}
           <Text style={styles.moreToggleText}>
-            {expanded ? '▲ 접기' : `▼ ${hidden}명 더 보기`}
+            {expanded ? '접기' : `${hidden}명 더 보기`}
           </Text>
         </Pressable>
       )}
@@ -854,7 +879,7 @@ function CheeredCard({ challenge }: { challenge: MyChallengeDetail }) {
       onPress={() => { haptic.tap(); router.push(`/room/${challenge.id}` as any); }}
     >
       <View style={styles.cardHead}>
-        <Text style={styles.cardKindEmoji}>🙋</Text>
+        <View style={styles.cardKindEmoji}><Heart size={22} color={colors.accent} strokeWidth={1.8} /></View>
         <View style={{ flex: 1 }}>
           <Text style={styles.who} numberOfLines={1}>{challenge.title}</Text>
           <Text style={styles.sub}>응원받기 방 · 함께 {challenge.member_count}명</Text>
@@ -890,7 +915,7 @@ function JoinCard({ challenge, onJoin }: { challenge: OpenChallengeCard; onJoin:
       onPress={() => { haptic.tap(); router.push(`/room/${challenge.id}` as any); }}
     >
       <View style={styles.cardHead}>
-        <Text style={styles.cardKindEmoji}>🌍</Text>
+        <View style={styles.cardKindEmoji}><Globe size={22} color={colors.done} strokeWidth={1.8} /></View>
         <View style={{ flex: 1 }}>
           <Text style={styles.who} numberOfLines={1}>{challenge.title}</Text>
           <Text style={styles.sub}>
@@ -1031,6 +1056,9 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   metaBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
     paddingHorizontal: 8,
     paddingVertical: 4,
     backgroundColor: colors.primary50,
@@ -1043,6 +1071,10 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
   },
   quickCheckinBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
     paddingHorizontal: 16,
     paddingVertical: 10,
     backgroundColor: colors.accent,
@@ -1059,6 +1091,10 @@ const styles = StyleSheet.create({
 
 
   quickCheckedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
     paddingHorizontal: 14,
     paddingVertical: 10,
     backgroundColor: colors.primary50,
@@ -1097,10 +1133,6 @@ const styles = StyleSheet.create({
     borderColor: '#E1EBF5',
     borderStyle: 'dashed',
   },
-  emptyFellowEmoji: {
-    fontSize: 32,
-    marginBottom: 2,
-  },
   emptyFellowTitle: {
     fontSize: fontSize.base,
     color: colors.primary,
@@ -1129,10 +1161,6 @@ const styles = StyleSheet.create({
     borderColor: '#D2F3E2',
     borderStyle: 'dashed',
   },
-  emptyOpenEmoji: {
-    fontSize: 32,
-    marginBottom: 2,
-  },
   emptyOpenTitle: {
     fontSize: fontSize.base,
     color: colors.primary,
@@ -1160,10 +1188,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FEF3C7',
     borderStyle: 'dashed',
-  },
-  emptyCheerEmoji: {
-    fontSize: 32,
-    marginBottom: 2,
   },
   emptyCheerTitle: {
     fontSize: fontSize.base,
@@ -1213,7 +1237,6 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#FFE5D9',
     borderStyle: 'dashed',
   },
-  emptyEmoji: { fontSize: 48, marginBottom: 4 },
   emptyTitle: {
     fontSize: fontSize.lg, color: colors.primary,
     fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
@@ -1247,7 +1270,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.accent100,
   },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  cardKindEmoji: { fontSize: 22, width: 28, textAlign: 'center' },
+  cardKindEmoji: { width: 28, alignItems: 'center' },
   avatar: {
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: colors.accent50, overflow: 'hidden',
@@ -1295,13 +1318,18 @@ const styles = StyleSheet.create({
   // 오늘의 인증 — 챌린지별 묶음 + 더보기
   proofGroup: { marginBottom: 6 },
   proofGroupHead: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
     marginHorizontal: 16, marginTop: 2, marginBottom: 4,
+  },
+  proofGroupHeadText: {
+    flex: 1,
     fontSize: fontSize.sm, color: colors.primary700,
     fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
   },
   moreToggle: {
     marginHorizontal: 16, marginBottom: 10,
-    alignItems: 'center', paddingVertical: 8,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+    paddingVertical: 8,
     backgroundColor: colors.primary50, borderRadius: radius.lg,
   },
   moreToggleText: {
@@ -1318,7 +1346,6 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.accent100,
     flexDirection: 'row', alignItems: 'center', gap: 12,
   },
-  ribbonEmoji: { fontSize: 22 },
   ribbonTitle: {
     fontSize: fontSize.sm, color: colors.primary,
     fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
@@ -1381,7 +1408,6 @@ const styles = StyleSheet.create({
     alignItems: 'center', paddingVertical: 32, paddingHorizontal: 24,
     gap: 4,
   },
-  endMoon: { fontSize: 28, marginBottom: 4 },
   endLine1: {
     fontSize: fontSize.sm, color: colors.primary500,
     fontFamily: fontFamily.bold, fontWeight: fontWeight.semibold,
@@ -1484,7 +1510,7 @@ const styles = StyleSheet.create({
     width: '100%', paddingVertical: 14,
     backgroundColor: colors.accent,
     borderRadius: radius.pill,
-    alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
   },
   onrampPrimaryText: {
     fontSize: fontSize.base, color: colors.surface,
@@ -1495,7 +1521,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius.pill,
     borderWidth: 1.5, borderColor: colors.accent,
-    alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
   },
   onrampSecondaryText: {
     fontSize: fontSize.base, color: colors.accent700,

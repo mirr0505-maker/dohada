@@ -5,6 +5,7 @@ import React from 'react';
 import {
   View, Text, Modal, Pressable, FlatList, StyleSheet, Image
 } from 'react-native';
+import { Crown, Check, Pause } from 'lucide-react-native';
 import type { MemberWithToday } from '@/lib/types';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 
@@ -83,13 +84,21 @@ export function MemberSheet({
                       </Text>
                       {isCreator && (
                         <View style={styles.creatorBadge}>
-                          <Text style={styles.creatorBadgeText}>👑 개설자</Text>
+                          <Crown size={10} color={colors.primary700} strokeWidth={2} />
+                          <Text style={styles.creatorBadgeText}>개설자</Text>
                         </View>
                       )}
                     </View>
-                    <Text style={styles.status}>
-                      {paused ? '⏸ 잠시 멈춤 중' : item.today_checked ? '✓ 오늘 인증' : '오늘 미인증'}
-                    </Text>
+                    <View style={styles.statusRow}>
+                      {paused
+                        ? <Pause size={12} color={colors.primary500} strokeWidth={2} />
+                        : item.today_checked
+                          ? <Check size={12} color={colors.done} strokeWidth={2.4} />
+                          : null}
+                      <Text style={styles.status}>
+                        {paused ? '잠시 멈춤 중' : item.today_checked ? '오늘 인증' : '오늘 미인증'}
+                      </Text>
+                    </View>
                   </View>
                   {!isMe && onBlock && (
                     <Pressable onPress={() => onBlock(item.id, item.nickname)} hitSlop={8}>
@@ -204,6 +213,9 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
   },
   creatorBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
     backgroundColor: colors.primary100,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -215,11 +227,11 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   status: {
     fontSize: fontSize.xs,
     color: colors.primary500,
     fontFamily: fontFamily.regular,
-    marginTop: 2,
   },
   blockBtn: {
     fontSize: fontSize.xs,

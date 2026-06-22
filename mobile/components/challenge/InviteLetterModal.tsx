@@ -61,7 +61,7 @@ export function InviteLetterModal({
           style={{ width: '100%', alignItems: 'center' }}
         >
           <Pressable style={styles.card} onPress={() => {}}>
-            <Text style={styles.title}>📢 전체 메시지 발송</Text>
+            <Text style={styles.title}>전체 메시지 발송</Text>
           
             <View style={styles.body}>
               <Text style={styles.label}>동료들에게 전체 푸시 알림을 보내고, 대화방 상단 공지판에 등록합니다.</Text>
@@ -69,7 +69,7 @@ export function InviteLetterModal({
                 style={styles.textInput}
                 multiline
                 numberOfLines={5}
-                placeholder="예: 오늘 인증 마감 3시간 전입니다! 모두 서둘러주세요 🔥"
+                placeholder="예: 오늘 인증 마감 3시간 전입니다! 모두 서둘러주세요"
                 placeholderTextColor={colors.primary300}
                 value={messageDraft}
                 onChangeText={setMessageDraft}

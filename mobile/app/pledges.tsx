@@ -4,15 +4,22 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, Pressable, SectionList, StyleSheet, ActivityIndicator } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { ArrowLeft, ArrowDown, Trophy, Heart, Check } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import { haptic } from '@/lib/haptics';
 import { fetchMyPledges, type MyPledgeChallenge, type PledgeDirection } from '@/lib/db';
 
-// 방향 라벨 — 방 다짐 카드(PledgeCard)와 동일 문구 유지
-function dirLabel(d: PledgeDirection): string {
-  return d === 'lose' ? '🔻 못 하면' : '🏆 해내면';
+// 방향 태그 — 방 다짐 카드(PledgeCard)와 동일 아이콘·문구 유지
+function DirTag({ d }: { d: PledgeDirection }) {
+  const Icon = d === 'lose' ? ArrowDown : Trophy;
+  return (
+    <View style={styles.dirTag}>
+      <Icon size={11} color={colors.accent700} strokeWidth={2} />
+      <Text style={styles.dirTagText}>{d === 'lose' ? '못 하면' : '해내면'}</Text>
+    </View>
+  );
 }
 
 // 한 다짐의 표시 상태 — PledgeCard 의 pledgeState 와 같은 의미
@@ -46,9 +53,9 @@ export default function PledgeHistoryScreen() {
     const completed = rows.filter(r => r.status === 'completed').sort((a, b) => (a.endDate < b.endDate ? 1 : -1));
     const missed    = rows.filter(r => r.status === 'missed').sort((a, b) => (a.endDate < b.endDate ? 1 : -1));
     const out: { title: string; data: MyPledgeChallenge[] }[] = [];
-    if (active.length)    out.push({ title: '🏃 진행 중', data: active });
-    if (completed.length) out.push({ title: '🏆 완주한 하다', data: completed });
-    if (missed.length)    out.push({ title: '🌙 못 채운 하다', data: missed });
+    if (active.length)    out.push({ title: '진행 중', data: active });
+    if (completed.length) out.push({ title: '완주한 하다', data: completed });
+    if (missed.length)    out.push({ title: '못 채운 하다', data: missed });
     return out;
   }, [rows]);
 
@@ -56,9 +63,9 @@ export default function PledgeHistoryScreen() {
     <Screen backgroundColor={colors.bg}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="뒤로가기">
-          <Text style={styles.back}>←</Text>
+          <ArrowLeft size={24} color={colors.primary} strokeWidth={2} />
         </Pressable>
-        <Text style={styles.headerTitle}>💛 다짐 내역</Text>
+        <Text style={styles.headerTitle}>다짐 내역</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -87,7 +94,7 @@ export default function PledgeHistoryScreen() {
                   </View>
                 ) : item.status === 'completed' ? (
                   <View style={[styles.statusBadge, styles.badgeDone]}>
-                    <Text style={[styles.statusBadgeText, styles.badgeDoneText]}>완주 🏆</Text>
+                    <Text style={[styles.statusBadgeText, styles.badgeDoneText]}>완주</Text>
                   </View>
                 ) : (
                   <View style={[styles.statusBadge, styles.badgeMissed]}>
@@ -102,15 +109,17 @@ export default function PledgeHistoryScreen() {
                 return (
                   <View key={pl.id} style={styles.pledgeRow}>
                     <View style={styles.pledgeTop}>
-                      <Text style={styles.dirTag}>{dirLabel(pl.direction)}</Text>
+                      <DirTag d={pl.direction} />
                       {st === 'to_fulfill' && (
                         <View style={[styles.outChip, styles.outDueBg]}>
-                          <Text style={[styles.outChipText, styles.outDueText]}>💛 지킬 차례</Text>
+                          <Heart size={11} color={colors.accent700} strokeWidth={2} />
+                          <Text style={[styles.outChipText, styles.outDueText]}>지킬 차례</Text>
                         </View>
                       )}
                       {st === 'fulfilled' && (
                         <View style={[styles.outChip, styles.outDoneBg]}>
-                          <Text style={[styles.outChipText, styles.outDoneText]}>✓ 지켰어요</Text>
+                          <Check size={11} color={colors.done} strokeWidth={2.4} />
+                          <Text style={[styles.outChipText, styles.outDoneText]}>지켰어요</Text>
                         </View>
                       )}
                     </View>
@@ -136,7 +145,7 @@ export default function PledgeHistoryScreen() {
           }
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>💛</Text>
+              <Heart size={48} color={colors.faint} strokeWidth={1.5} />
               <Text style={styles.emptyText}>
                 아직 건 다짐이 없어요.{'\n'}하다 방의 현황 탭에서 가벼운 다짐을 걸어보세요.
               </Text>
@@ -159,7 +168,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.primary100,
   },
-  back: { fontSize: 22, color: colors.primary },
   headerTitle: {
     fontSize: fontSize.lg,
     color: colors.primary,
@@ -226,16 +234,24 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   dirTag: {
-    fontSize: fontSize.xs,
-    color: colors.accent700,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
     paddingHorizontal: 8,
     paddingVertical: 2,
     backgroundColor: colors.accent50,
     borderRadius: radius.pill,
   },
+  dirTagText: {
+    fontSize: fontSize.xs,
+    color: colors.accent700,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
   outChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: radius.pill,
@@ -247,7 +263,7 @@ const styles = StyleSheet.create({
   },
   outDueBg: { backgroundColor: colors.accent50 },
   outDueText: { color: colors.accent700 },
-  outDoneBg: { backgroundColor: 'rgba(34, 197, 94, 0.10)' },
+  outDoneBg: { backgroundColor: colors.doneTint },
   outDoneText: { color: colors.done },
   pledgeText: {
     fontSize: fontSize.base,
@@ -275,7 +291,6 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, paddingVertical: 64 },
-  emptyEmoji: { fontSize: 56 },
   emptyText: {
     fontSize: fontSize.base,
     color: colors.primary500,

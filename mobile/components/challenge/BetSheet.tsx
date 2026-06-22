@@ -7,6 +7,7 @@ import {
   View, Text, Pressable, Modal, StyleSheet, TextInput, ActivityIndicator, Alert,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { Target, Coffee } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { haptic } from '@/lib/haptics';
 import {
@@ -130,7 +131,7 @@ export function BetSheet({ visible, onClose, challengeId, myUserId, fixedTier = 
         <Pressable style={styles.sheet} onPress={() => {}}>
           {step === 'intro' && (
             <>
-              <Text style={styles.emojiBig}>🎯</Text>
+              <View style={styles.emojiBig}><Target size={36} color={colors.accent} strokeWidth={1.8} /></View>
               <Text style={styles.title}>{isGroup ? '이 방의 내기에 참여하기' : '이 하다, 한잔 걸기'}</Text>
               {isGroup && selectedTier ? (
                 <Text style={styles.sub}>
@@ -154,7 +155,7 @@ export function BetSheet({ visible, onClose, challengeId, myUserId, fixedTier = 
               <Pressable style={styles.primaryBtn} onPress={onStart}>
                 <Text style={styles.primaryBtnText}>{isGroup ? '참여하기' : '한잔 고르기'}</Text>
               </Pressable>
-              <Text style={styles.mockNote}>🧪 베타 테스트 — 모의 결제예요. 실제 결제·계좌 연결이 없어 돈이 빠져나가지 않아요.</Text>
+              <Text style={styles.mockNote}>베타 테스트 — 모의 결제예요. 실제 결제·계좌 연결이 없어 돈이 빠져나가지 않아요.</Text>
             </>
           )}
 
@@ -164,6 +165,7 @@ export function BetSheet({ visible, onClose, challengeId, myUserId, fixedTier = 
               <Text style={styles.sub}>걸수록 약속이 단단해져요</Text>
               {BET_TIERS.map(t => (
                 <Pressable key={t.tier} style={styles.tierCard} onPress={() => onPickTier(t.tier)}>
+                  <Coffee size={20} color={colors.accent} strokeWidth={1.8} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.tierLabel}>{t.label}</Text>
                     <Text style={styles.tierDesc}>{t.desc}</Text>
@@ -244,13 +246,13 @@ export function BetSheet({ visible, onClose, challengeId, myUserId, fixedTier = 
                   ? <ActivityIndicator color={colors.surface} />
                   : <Text style={styles.primaryBtnText}>{selectedTier.price.toLocaleString()}원 걸기 (모의 결제)</Text>}
               </Pressable>
-              <Text style={styles.mockNote}>🧪 실제 결제·계좌 연결 없음 · 베타 모의 결제 (돈 안 빠져나가요)</Text>
+              <Text style={styles.mockNote}>실제 결제·계좌 연결 없음 · 베타 모의 결제 (돈 안 빠져나가요)</Text>
             </>
           )}
 
           {step === 'done' && (
             <>
-              <Text style={styles.emojiBig}>🎯</Text>
+              <View style={styles.emojiBig}><Target size={36} color={colors.accent} strokeWidth={1.8} /></View>
               <Text style={styles.title}>한잔을 걸었어요!</Text>
               <Text style={styles.sub}>이제 끝까지 완주해서 본전을 찾아오세요</Text>
               <Pressable style={styles.primaryBtn} onPress={() => { haptic.tap(); onClose(); }}>
@@ -280,7 +282,7 @@ const styles = StyleSheet.create({
     gap: 12,
     ...shadow.lg,
   },
-  emojiBig: { fontSize: 44, textAlign: 'center' },
+  emojiBig: { alignSelf: 'center', marginBottom: 4 },
   title: {
     fontSize: fontSize.lg,
     color: colors.primary,

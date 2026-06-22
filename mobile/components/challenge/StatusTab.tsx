@@ -2,9 +2,28 @@
 // v4: 카드 = 아바타 + 닉네임 + 연속 일수 + 인증률 % + 진행률 바. 본인 강조.
 import React, { useMemo } from 'react';
 import { View, Text, FlatList, StyleSheet, Image, Pressable } from 'react-native';
+import { User, Heart, Globe, Handshake, Calendar, Lock, Users, BarChart3, Check, Flame, type LucideIcon } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { computeStreak, memberPassedDays, isRecruiting, recruitCloseAtMs } from '@/lib/stats';
 import type { DbChallenge, MemberWithToday, ProofWithRelations } from '@/lib/types';
+
+// 🚀 방 타입 배지 — 둘러보기 KIND_BADGE 와 동일한 아이콘 언어 (User/Heart/Globe/Handshake)
+const KIND_INFO: Record<string, { Icon: LucideIcon; label: string }> = {
+  solo:    { Icon: User,      label: '나혼자' },
+  cheered: { Icon: Heart,     label: '응원받기' },
+  open:    { Icon: Globe,     label: '누구나' },
+  closed:  { Icon: Handshake, label: '다함께' },
+};
+
+function KindBadge({ kind }: { kind: string }) {
+  const info = KIND_INFO[kind] ?? KIND_INFO.closed;
+  return (
+    <View style={styles.infoKindTag}>
+      <info.Icon size={12} color={colors.accent} strokeWidth={2} />
+      <Text style={styles.infoKindTagText}>{info.label}</Text>
+    </View>
+  );
+}
 
 type Props = {
   challenge: DbChallenge;
@@ -81,15 +100,13 @@ export function StatusTab({ challenge, members, proofs, myUserId, betSlot, pledg
         {pledgeSlot}
         <View style={styles.infoCard}>
           <View style={styles.infoCardHeader}>
-            <Text style={styles.infoKindTag}>
-              {challenge.kind === 'solo' ? '🤫 나혼자'
-                : challenge.kind === 'cheered' ? '🙋 응원받기'
-                : challenge.kind === 'open' ? '🌍 누구나'
-                : '🤝 다함께'}
-            </Text>
-            <Text style={styles.infoPeriod}>
-              🗓️ {formatDate(challenge.start_date)} ~ {formatDate(challenge.end_date)}
-            </Text>
+            <KindBadge kind={challenge.kind} />
+            <View style={styles.infoPeriodRow}>
+              <Calendar size={12} color={colors.faint} strokeWidth={1.8} />
+              <Text style={styles.infoPeriod}>
+                {formatDate(challenge.start_date)} ~ {formatDate(challenge.end_date)}
+              </Text>
+            </View>
           </View>
           <Text style={styles.infoTitle}>{challenge.title}</Text>
           {/* 🚀 안내문 (나홀로 제외) — 합류 전 미리보기와 동일한 소개를 방 안에서도 보존 */}
@@ -98,13 +115,13 @@ export function StatusTab({ challenge, members, proofs, myUserId, betSlot, pledg
           ) : null}
           {challenge.description && challenge.description.trim() !== '' ? (
             <View style={styles.infoMessageWrap}>
-              <Text style={styles.infoMessageLabel}>📋 안내문</Text>
+              <Text style={styles.infoMessageLabel}>안내문</Text>
               <Text style={styles.infoMessageText}>{challenge.description}</Text>
             </View>
           ) : null}
           {challenge.invitation_message && challenge.invitation_message.trim() !== '' ? (
             <View style={styles.infoMessageWrap}>
-              <Text style={styles.infoMessageLabel}>📨 초대 편지글</Text>
+              <Text style={styles.infoMessageLabel}>초대 편지글</Text>
               <Text style={styles.infoMessageText}>{challenge.invitation_message}</Text>
             </View>
           ) : null}
@@ -114,13 +131,18 @@ export function StatusTab({ challenge, members, proofs, myUserId, betSlot, pledg
         {isOpenKind && (
           <View style={styles.recruitCard}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.recruitState}>
+              <View style={styles.recruitStateRow}>
                 {recruiting
-                  ? '🟢 모집 중'
-                  : manualLocked
-                    ? '🔒 모집 잠금'
-                    : '🔒 모집 마감 (기간 절반 경과)'}
-              </Text>
+                  ? <Users size={15} color={colors.done} strokeWidth={1.8} />
+                  : <Lock size={15} color={colors.sub} strokeWidth={1.8} />}
+                <Text style={styles.recruitState}>
+                  {recruiting
+                    ? '모집 중'
+                    : manualLocked
+                      ? '모집 잠금'
+                      : '모집 마감 (기간 절반 경과)'}
+                </Text>
+              </View>
               <Text style={styles.recruitDesc}>
                 {recruiting
                   ? '누구나 합류할 수 있어요'
@@ -152,7 +174,7 @@ export function StatusTab({ challenge, members, proofs, myUserId, betSlot, pledg
       )}
       ListEmptyComponent={
         <View style={styles.empty}>
-          <Text style={styles.emptyEmoji}>📊</Text>
+          <BarChart3 size={48} color={colors.faint} strokeWidth={1.5} />
           <Text style={styles.emptyText}>아직 멤버가 없어요.</Text>
         </View>
       }
@@ -185,7 +207,7 @@ function StatusCard({
         )}
         {todayChecked && !gaveUp && (
           <View style={styles.checkBadge}>
-            <Text style={styles.checkBadgeText}>✓</Text>
+            <Check size={11} color={colors.surface} strokeWidth={3} />
           </View>
         )}
       </View>
@@ -198,9 +220,15 @@ function StatusCard({
           {gaveUp ? (
             <Text style={styles.gaveUpTag}>포기</Text>
           ) : isCheerer ? (
-            <Text style={styles.cheererTag}>💛 응원</Text>
+            <View style={styles.cheererTag}>
+              <Heart size={11} color={colors.accent700} strokeWidth={2} />
+              <Text style={styles.cheererTagText}>응원</Text>
+            </View>
           ) : !isCount && streak > 0 ? (
-            <Text style={styles.streak}>🔥 {streak}</Text>
+            <View style={styles.streakWrap}>
+              <Flame size={13} color={colors.accent} strokeWidth={2} />
+              <Text style={styles.streak}>{streak}</Text>
+            </View>
           ) : null}
         </View>
         <Text style={styles.subtext}>
@@ -210,7 +238,7 @@ function StatusCard({
               ? '응원으로 함께하고 있어요'
               : isCount
                 ? `${uniqDays}/${myDays}개 달성`
-                : `${uniqDays}/${myDays}일${isMine && !todayChecked ? '  · 오늘 인증 전 ⚠️' : ''}`}
+                : `${uniqDays}/${myDays}일${isMine && !todayChecked ? '  · 오늘 인증 전' : ''}`}
         </Text>
         {/* 응원 동료는 인증률 바 없음 — 도전 주체가 아니므로 (비교 압박·실패 표시 회피) */}
         {!gaveUp && !isCheerer && (
@@ -274,11 +302,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.surface,
   },
-  checkBadgeText: {
-    color: colors.surface,
-    fontSize: 10,
-    fontWeight: fontWeight.bold,
-  },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   name: {
     flex: 1,
@@ -287,6 +310,7 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },
+  streakWrap: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   streak: {
     fontSize: fontSize.sm,
     color: colors.accent,
@@ -294,14 +318,19 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
   },
   cheererTag: {
-    fontSize: fontSize.xs,
-    color: colors.accent700,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
     paddingHorizontal: 8,
     paddingVertical: 2,
     backgroundColor: colors.accent50,
     borderRadius: radius.pill,
+  },
+  cheererTagText: {
+    fontSize: fontSize.xs,
+    color: colors.accent700,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
   },
   subtext: {
     fontSize: fontSize.xs,
@@ -325,7 +354,6 @@ const styles = StyleSheet.create({
   },
   rateNumMine: { color: colors.accent },
   empty: { paddingVertical: 64, alignItems: 'center', gap: 12 },
-  emptyEmoji: { fontSize: 56 },
   emptyText: {
     fontSize: fontSize.base, color: colors.primary500,
     fontFamily: fontFamily.regular, textAlign: 'center',
@@ -348,6 +376,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     ...shadow.sm,
   },
+  recruitStateRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   recruitState: {
     fontSize: fontSize.base,
     color: colors.primary,
@@ -392,10 +421,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   infoKindTag: {
-    fontSize: fontSize.xs,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-    color: colors.accent,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 3,
     backgroundColor: colors.accent50,
@@ -403,6 +431,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.accent,
   },
+  infoKindTagText: {
+    fontSize: fontSize.xs,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    color: colors.accent,
+  },
+  infoPeriodRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   infoPeriod: {
     fontSize: fontSize.xs,
     color: colors.primary500,

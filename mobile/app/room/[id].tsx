@@ -17,7 +17,11 @@ import type { CheerType } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 import { ErrorState } from '@/components/ErrorState';
 import { ProofCardSkeleton } from '@/components/Skeleton';
-import { MessageCircle, Camera, Film, BarChart3, Trophy, type LucideIcon } from 'lucide-react-native';
+import {
+  MessageCircle, Camera, Film, BarChart3, Trophy, ArrowLeft, Flag, Flame,
+  HeartHandshake, Heart, Coffee, Lock, Globe, RotateCcw, PenLine, Calendar,
+  Check, Play, Pause, Gift, type LucideIcon,
+} from 'lucide-react-native';
 import { CommentsSheet } from '@/components/CommentsSheet';
 import { ChatTab } from '@/components/challenge/ChatTab';
 import { LogTab } from '@/components/challenge/LogTab';
@@ -537,7 +541,7 @@ export default function ChallengeRoom() {
         { text: '취소', style: 'cancel' },
         { text: '3일 쉼', onPress: () => doPause(3) },
         { text: '7일 쉼', onPress: () => doPause(7) },
-        { text: '🚫 그만두기', style: 'destructive', onPress: confirmGiveUp },
+        { text: '그만두기', style: 'destructive', onPress: confirmGiveUp },
       ],
     );
 
@@ -679,10 +683,10 @@ export default function ChallengeRoom() {
       return;
     }
     const lines = gifts.map(g => {
-      const tier = GIFT_TIERS.find(t => t.tier === g.product_tier)?.label ?? '☕ 한잔';
+      const tier = GIFT_TIERS.find(t => t.tier === g.product_tier)?.label ?? '한잔';
       return `${g.sender_nickname}님의 ${tier} — ${GIFT_STATUS_LABEL[g.status] ?? g.status}`;
     });
-    Alert.alert('☕ 도착한 한잔', lines.join('\n'));
+    Alert.alert('도착한 한잔', lines.join('\n'));
   };
   // 인증 카드와 연결되지 않은 미수령 한잔 (옛 주문·인증 삭제) — 인증 탭 상단 폴백 배너
   const visibleProofIds = new Set(proofs.map(p => p.id));
@@ -897,16 +901,21 @@ export default function ChallengeRoom() {
         <Pressable
           onPress={() => router.back()}
           hitSlop={12}
+          style={styles.back}
           accessibilityRole="button"
           accessibilityLabel="뒤로가기"
         >
-          <Text style={styles.back}>←</Text>
+          <ArrowLeft size={24} color={colors.primary} strokeWidth={2} />
         </Pressable>
         <View style={{ flex: 1, marginHorizontal: 8 }}>
           <View style={styles.headerTitleRow}>
+            {/* 🚀 완주 / 종료 배지 (P-② 재진입 허용 후 시각 표지) — cheered 는 도전자 기준 */}
+            {isCompleted(challenge, badgeProofs, subjectJoinedAt)
+              ? <Trophy size={16} color={colors.gold} strokeWidth={2} style={{ marginRight: 4 }} />
+              : isFinished(challenge)
+                ? <Flag size={16} color={colors.sub} strokeWidth={2} style={{ marginRight: 4 }} />
+                : null}
             <Text style={styles.title} numberOfLines={1}>
-              {/* 🚀 완주 / 종료 배지 (P-② 재진입 허용 후 시각 표지) — cheered 는 도전자 기준 */}
-              {isCompleted(challenge, badgeProofs, subjectJoinedAt) ? '🏆 ' : isFinished(challenge) ? '🏁 ' : ''}
               {challenge.title}
             </Text>
             <Pressable
@@ -965,12 +974,18 @@ export default function ChallengeRoom() {
       {/* ─── 진행 info bar (D-N + 연속 + 멈춤) — 종료 방은 "종료" + 진행 숫자 취소선 ─── */}
       <View style={styles.infoBar}>
         <View style={styles.infoStats}>
-          <Text style={[styles.infoStatItem, finished && styles.infoStatItemDone]}>🔥 {progress?.passedDays ?? 0}/{progress?.totalDays ?? 0}일</Text>
-          <Text style={[styles.infoStatItem, finished && styles.infoStatItemDone]}>📸 {checkinNumer}/{checkinDenom} 인증</Text>
+          <View style={styles.infoStatRow}>
+            <Flame size={13} color={finished ? colors.faint2 : colors.accent} strokeWidth={2} />
+            <Text style={[styles.infoStatItem, finished && styles.infoStatItemDone]}>{progress?.passedDays ?? 0}/{progress?.totalDays ?? 0}일</Text>
+          </View>
+          <View style={styles.infoStatRow}>
+            <Camera size={13} color={finished ? colors.faint2 : colors.sub} strokeWidth={2} />
+            <Text style={[styles.infoStatItem, finished && styles.infoStatItemDone]}>{checkinNumer}/{checkinDenom} 인증</Text>
+          </View>
         </View>
         <View style={styles.infoRight}>
           <Pressable onPress={() => { haptic.tap(); setImpactModalOpen(true); }} hitSlop={6}>
-            <Text style={styles.impactBtn}>💚</Text>
+            <HeartHandshake size={20} color={colors.done} strokeWidth={1.8} />
           </Pressable>
           {finished ? (
             <Text style={[styles.ddayBig, styles.ddayDone]}>종료</Text>
@@ -980,9 +995,14 @@ export default function ChallengeRoom() {
             <Text style={styles.ddayBig}>D-{daysLeft}</Text>
           )}
           {isMember && !iGaveUp && (
-            <Pressable onPress={finished ? onFinishedNotice : onTogglePause} hitSlop={6}>
+            <Pressable onPress={finished ? onFinishedNotice : onTogglePause} hitSlop={6} style={styles.pauseInlineRow}>
+              {!isCheeredCheerOnly && (
+                isPaused
+                  ? <Play size={12} color={finished ? colors.faint2 : colors.primary500} strokeWidth={2} />
+                  : <Pause size={12} color={finished ? colors.faint2 : colors.primary500} strokeWidth={2} />
+              )}
               <Text style={[styles.pauseInline, finished && styles.pauseInlineDisabled]}>
-                {isCheeredCheerOnly ? '🏃 그만하기' : (isPaused ? '▶ 재개' : '⏸ 멈춤')}
+                {isCheeredCheerOnly ? '그만하기' : (isPaused ? '재개' : '멈춤')}
               </Text>
             </Pressable>
           )}
@@ -1047,8 +1067,9 @@ export default function ChallengeRoom() {
               {/* 🚀 응원자 시선 — 이 방은 도전자의 무대, 나는 응원군임을 일관되게 안내 */}
               {isCheeredCheerOnly && (
                 <View style={styles.cheerRoleBanner}>
+                  <Heart size={15} color={colors.gold} strokeWidth={1.8} />
                   <Text style={styles.cheerRoleBannerText}>
-                    💛 {creatorNickname}님의 하다예요 · 사진에 응원과 댓글로 함께해요
+                    {creatorNickname}님의 하다예요 · 사진에 응원과 댓글로 함께해요
                   </Text>
                 </View>
               )}
@@ -1059,7 +1080,8 @@ export default function ChallengeRoom() {
                   accessibilityRole="button"
                   accessibilityLabel="받지 않은 한잔 확인하기"
                 >
-                  <Text style={styles.giftArrivedBannerText}>☕ 받지 않은 한잔이 있어요 — 눌러서 확인하기</Text>
+                  <Coffee size={15} color={colors.accent700} strokeWidth={1.8} />
+                  <Text style={styles.giftArrivedBannerText}>받지 않은 한잔이 있어요 — 눌러서 확인하기</Text>
                 </Pressable>
               ) : null}
               {/* 💛 다짐 걸기 — 다짐 주체이고 아직 안 건 사람에게만 (나그 방지). 내용·관리는 현황 탭 */}
@@ -1070,7 +1092,8 @@ export default function ChallengeRoom() {
                   accessibilityRole="button"
                   accessibilityLabel="다짐 걸기"
                 >
-                  <Text style={styles.pledgeEntryText}>💛 이 하다에 다짐을 걸어볼까요? — 나와의 약속</Text>
+                  <Heart size={15} color={colors.gold} strokeWidth={1.8} />
+                  <Text style={styles.pledgeEntryText}>이 하다에 다짐을 걸어볼까요? — 나와의 약속</Text>
                 </Pressable>
               ) : null}
             </>
@@ -1101,10 +1124,10 @@ export default function ChallengeRoom() {
           )}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>📸</Text>
+              <Camera size={48} color={colors.faint} strokeWidth={1.5} />
               <Text style={styles.emptyText}>
                 {isCheeredCheerOnly
-                  ? `아직 ${creatorNickname}님의 인증이 없어요.\n곧 올라올 거예요 💛`
+                  ? `아직 ${creatorNickname}님의 인증이 없어요.\n곧 올라올 거예요`
                   : '아직 인증이 없어요.\n오늘 어떤 한 걸음을 남기셨어요?'}
               </Text>
             </View>
@@ -1170,14 +1193,16 @@ export default function ChallengeRoom() {
           if (recruitClosed) {
             return (
               <Pressable style={[styles.fab, styles.fabPaused]} onPress={onRecruitClosedNotice}>
-                <Text style={styles.fabLabel}>🔒 모집 마감된 하다</Text>
+                <Lock size={18} color={colors.surface} strokeWidth={2} />
+                <Text style={styles.fabLabel}>모집 마감된 하다</Text>
               </Pressable>
             );
           }
           return (
             <Pressable style={[styles.fab, styles.fabJoin]} onPress={onJoin}>
+              {!joining && <Globe size={18} color={colors.surface} strokeWidth={2} />}
               <Text style={styles.fabLabel}>
-                {joining ? '참여 중…' : '🌍 이 하다에 참여하기'}
+                {joining ? '참여 중…' : '이 하다에 참여하기'}
               </Text>
             </Pressable>
           );
@@ -1193,7 +1218,8 @@ export default function ChallengeRoom() {
                 router.push(`/create?title=${encodeURIComponent(challenge.title)}` as any);
               }}
             >
-              <Text style={styles.fabLabel}>🔄 이 하다, 다시 시작하기</Text>
+              <RotateCcw size={18} color={colors.surface} strokeWidth={2} />
+              <Text style={styles.fabLabel}>이 하다, 다시 시작하기</Text>
             </Pressable>
           );
         }
@@ -1206,7 +1232,8 @@ export default function ChallengeRoom() {
               style={styles.fab}
               onPress={() => { haptic.tap(); setLogComposerOpen(true); }}
             >
-              <Text style={styles.fabLabel}>📝 기록 쓰기</Text>
+              <PenLine size={18} color={colors.surface} strokeWidth={2} />
+              <Text style={styles.fabLabel}>기록 쓰기</Text>
             </Pressable>
           );
         }
@@ -1218,7 +1245,8 @@ export default function ChallengeRoom() {
               style={[styles.fab, styles.fabDone]}
               onPress={() => { haptic.tap(); setActiveTab('archive'); }}
             >
-              <Text style={styles.fabLabel}>🏁 하다 종료 · 박제 보기</Text>
+              <Flag size={18} color={colors.surface} strokeWidth={2} />
+              <Text style={styles.fabLabel}>하다 종료 · 박제 보기</Text>
             </Pressable>
           );
         }
@@ -1238,7 +1266,8 @@ export default function ChallengeRoom() {
                 );
               }}
             >
-              <Text style={styles.fabLabel}>🗓️ {daysToStart}일 뒤 시작 · 동료 모집 중</Text>
+              <Calendar size={18} color={colors.surface} strokeWidth={2} />
+              <Text style={styles.fabLabel}>{daysToStart}일 뒤 시작 · 동료 모집 중</Text>
             </Pressable>
           );
         }
@@ -1257,7 +1286,8 @@ export default function ChallengeRoom() {
           if (isCompleted(challenge, myProofs, me?.joined_at)) {
             return (
               <Pressable style={[styles.fab, styles.fabDone]} onPress={() => { haptic.tap(); setActiveTab('archive'); }}>
-                <Text style={styles.fabLabel}>🏆 목표 달성! · 박제 보기</Text>
+                <Trophy size={18} color={colors.surface} strokeWidth={2} />
+                <Text style={styles.fabLabel}>목표 달성! · 박제 보기</Text>
               </Pressable>
             );
           }
@@ -1266,14 +1296,16 @@ export default function ChallengeRoom() {
               style={styles.fab}
               onPress={() => { haptic.tap(); router.push(`/checkin/${challenge.id}`); }}
             >
-              <Text style={styles.fabLabel}>📸 인증 추가하기 ({myProofs.length}/{challenge.target_count ?? 0})</Text>
+              <Camera size={18} color={colors.surface} strokeWidth={2} />
+              <Text style={styles.fabLabel}>인증 추가하기 ({myProofs.length}/{challenge.target_count ?? 0})</Text>
             </Pressable>
           );
         }
         if (todayChecked) {
           return (
             <Pressable style={[styles.fab, styles.fabDone]} onPress={() => haptic.tap()}>
-              <Text style={styles.fabLabel}>✓ 오늘 인증 완료 · 내일 또 만나요</Text>
+              <Check size={18} color={colors.surface} strokeWidth={2.4} />
+              <Text style={styles.fabLabel}>오늘 인증 완료 · 내일 또 만나요</Text>
             </Pressable>
           );
         }
@@ -1282,7 +1314,8 @@ export default function ChallengeRoom() {
             style={styles.fab}
             onPress={() => { haptic.tap(); router.push(`/checkin/${challenge.id}`); }}
           >
-            <Text style={styles.fabLabel}>📸 오늘 인증하기</Text>
+            <Camera size={18} color={colors.surface} strokeWidth={2} />
+            <Text style={styles.fabLabel}>오늘 인증하기</Text>
           </Pressable>
         );
       })()}
@@ -1523,7 +1556,8 @@ function ProofCard({
             accessibilityRole="button"
             accessibilityLabel="응원 한잔 보내기"
           >
-            <Text style={styles.giftBtnText}>☕ 한잔</Text>
+            <Coffee size={14} color={colors.brandInk} strokeWidth={2} />
+            <Text style={styles.giftBtnText}>한잔</Text>
           </Pressable>
         ) : onGiftArrived ? (
           <Pressable
@@ -1533,15 +1567,17 @@ function ProofCard({
             accessibilityRole="button"
             accessibilityLabel="도착한 한잔 확인하기"
           >
-            <Text style={[styles.giftBtnText, styles.giftArrivedBtnText]}>☕ 한잔 도착</Text>
+            <Coffee size={14} color={colors.brandInk} strokeWidth={2.4} />
+            <Text style={[styles.giftBtnText, styles.giftArrivedBtnText]}>한잔 도착</Text>
           </Pressable>
         ) : mine ? null : (
           <Pressable
             style={styles.giftBtn}
-            onPress={() => Alert.alert('선물', '🎁 선물 응원은 Phase 2 에서 만나요.')}
+            onPress={() => Alert.alert('선물', '선물 응원은 Phase 2 에서 만나요.')}
             hitSlop={4}
           >
-            <Text style={styles.giftBtnText}>🎁 선물</Text>
+            <Gift size={14} color={colors.brandInk} strokeWidth={2} />
+            <Text style={styles.giftBtnText}>선물</Text>
           </Pressable>
         )}
       </View>
@@ -1553,7 +1589,7 @@ function ProofCard({
         accessibilityRole="button"
         accessibilityLabel={`댓글 ${proof.comment_count}개 보기`}
       >
-        <Text style={styles.cheerIcon}>💬</Text>
+        <MessageCircle size={20} color={colors.primary300} strokeWidth={1.8} />
         <Text style={styles.cheerCount}>댓글 {proof.comment_count}</Text>
       </Pressable>
     </View>
@@ -1650,12 +1686,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     paddingHorizontal: 4,
   },
-  back: {
-    fontSize: 24,
-    color: colors.primary,
-    paddingHorizontal: 8,
-    fontWeight: fontWeight.medium,
-  },
+  back: { paddingHorizontal: 8 },
   title: {
     fontSize: fontSize.lg,
     color: colors.primary,
@@ -1801,8 +1832,6 @@ const styles = StyleSheet.create({
   },
   proofFooter: { flexDirection: 'row', alignItems: 'center', gap: 20, paddingTop: 4 },
   cheerBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 },
-  cheerIcon: { fontSize: 22, color: colors.primary300 },
-  cheerIconOn: { color: colors.danger },
   cheerCount: {
     fontSize: fontSize.base,
     color: colors.primary500,
@@ -1858,6 +1887,7 @@ const styles = StyleSheet.create({
   giftBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 8,        // 폭 절약 — 칩 줄바꿈 방지 (12→8)
     paddingVertical: 6,
     borderRadius: radius.pill,
@@ -1880,13 +1910,16 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
   },
   giftArrivedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     backgroundColor: colors.accent50,
     borderWidth: 1,
     borderColor: colors.accent,
     borderRadius: radius.lg,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    alignItems: 'center',
     marginBottom: 4,
   },
   giftArrivedBannerText: {
@@ -1917,6 +1950,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 14,
   },
+  infoStatRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   infoStatItem: {
     fontSize: fontSize.sm,
     color: colors.primary500,
@@ -1943,15 +1977,20 @@ const styles = StyleSheet.create({
     color: colors.primary300,   // 종료 방 — D-0 대신 회색 "종료"
     fontSize: fontSize.lg,
   },
+  pauseInlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: colors.primary50,
+    borderRadius: radius.pill,
+  },
   pauseInline: {
     fontSize: fontSize.xs,
     color: colors.primary500,
     fontFamily: fontFamily.medium,
     fontWeight: fontWeight.medium,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    backgroundColor: colors.primary50,
-    borderRadius: radius.pill,
   },
   pauseInlineDisabled: {
     color: colors.primary300,   // 종료 방 — 회색 비활성 톤
@@ -2057,7 +2096,6 @@ const styles = StyleSheet.create({
   },
 
   empty: { paddingVertical: 80, alignItems: 'center', gap: 16 },
-  emptyEmoji: { fontSize: 64 },
   emptyText: {
     fontSize: fontSize.base,
     color: colors.primary500,
@@ -2074,7 +2112,10 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     backgroundColor: colors.brand,
     borderRadius: radius.pill,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     ...shadow.lg,
   },
   fabDone: { backgroundColor: colors.done },
@@ -2082,6 +2123,9 @@ const styles = StyleSheet.create({
   fabJoin: { backgroundColor: colors.info },
   // 🚀 응원자 시선 — 인증 탭 상단 역할 안내 슬림 배너 (도전자의 무대, 나는 응원군)
   cheerRoleBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     backgroundColor: colors.accent50,
     borderRadius: radius.md,
     paddingVertical: 10,
@@ -2099,6 +2143,9 @@ const styles = StyleSheet.create({
   },
   // 💛 다짐 걸기 진입 배너 (인증 탭) — 다짐 발견성. 디자인 토큰 내
   pledgeEntryBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     backgroundColor: colors.accent50,
     borderRadius: radius.md,
     paddingVertical: 10,

@@ -94,7 +94,7 @@ export function InviteConfirmModal({
           style={{ width: '100%', alignItems: 'center' }}
         >
           <Pressable style={styles.card} onPress={() => {}}>
-            <Text style={styles.title}>📨 초대장 발송</Text>
+            <Text style={styles.title}>초대장 발송</Text>
           
           {hasMessage ? (
             /* 시나리오 A: 이미 작성된 초대 메시지가 있는 경우 */
@@ -110,7 +110,7 @@ export function InviteConfirmModal({
               {/* 일반 참여자가 본인 글귀를 추가하려고 토글한 경우 폼 노출 */}
               {!isCreator && addingOwn ? (
                 <View style={styles.quickInputArea}>
-                  <Text style={styles.quickInputLabel}>✍️ 나만의 초대 메시지 작성하기</Text>
+                  <Text style={styles.quickInputLabel}>나만의 초대 메시지 작성하기</Text>
                   <TextInput
                     style={styles.textInput}
                     multiline
@@ -124,7 +124,7 @@ export function InviteConfirmModal({
                   <Text style={styles.charCount}>{quickMessage.length}/200자</Text>
                   <View style={styles.buttonCol}>
                     <Pressable style={[styles.btn, styles.btnPrimary]} onPress={handleParticipantShare}>
-                      <Text style={styles.btnTextPrimary}>✨ 내 글귀로 보내기</Text>
+                      <Text style={styles.btnTextPrimary}>내 글귀로 보내기</Text>
                     </Pressable>
                     <Pressable style={[styles.btn, styles.btnSecondary]} onPress={() => setAddingOwn(false)}>
                       <Text style={styles.btnTextSecondary}>← 뒤로</Text>
@@ -134,18 +134,18 @@ export function InviteConfirmModal({
               ) : (
                 <View style={styles.buttonCol}>
                   <Pressable style={[styles.btn, styles.btnPrimary]} onPress={handleShareWithExisting}>
-                    <Text style={styles.btnTextPrimary}>📨 위 메시지 첨부하여 공유</Text>
+                    <Text style={styles.btnTextPrimary}>위 메시지 첨부하여 공유</Text>
                   </Pressable>
                   {!isCreator && (
                     <Pressable
                       style={[styles.btn, styles.btnSecondary]}
                       onPress={() => { haptic.tap(); setAddingOwn(true); }}
                     >
-                      <Text style={styles.btnTextSecondary}>✍️ 나만의 글귀로 보내기</Text>
+                      <Text style={styles.btnTextSecondary}>나만의 글귀로 보내기</Text>
                     </Pressable>
                   )}
                   <Pressable style={[styles.btn, styles.btnSecondary]} onPress={handleShareWithoutMessage}>
-                    <Text style={styles.btnTextSecondary}>🔗 메시지 없이 링크만 공유</Text>
+                    <Text style={styles.btnTextSecondary}>메시지 없이 링크만 공유</Text>
                   </Pressable>
                 </View>
               )}
@@ -156,7 +156,7 @@ export function InviteConfirmModal({
               {isCreator ? (
                 /* 개설자인 경우: 즉석에서 바로 작성할 수 있는 폼 노출 */
                 <View style={styles.quickInputArea}>
-                  <Text style={styles.quickInputLabel}>✍️ 즉시 초대 메시지 작성하기</Text>
+                  <Text style={styles.quickInputLabel}>즉시 초대 메시지 작성하기</Text>
                   <TextInput
                     style={styles.textInput}
                     multiline
@@ -178,7 +178,7 @@ export function InviteConfirmModal({
                       {saving ? (
                         <ActivityIndicator color="white" size="small" />
                       ) : (
-                        <Text style={styles.btnTextPrimary}>✨ 작성하고 초대 보내기</Text>
+                        <Text style={styles.btnTextPrimary}>작성하고 초대 보내기</Text>
                       )}
                     </Pressable>
                     <Pressable
@@ -186,14 +186,14 @@ export function InviteConfirmModal({
                       onPress={handleShareWithoutMessage}
                       disabled={saving}
                     >
-                      <Text style={styles.btnTextSecondary}>🔗 그냥 링크만 공유</Text>
+                      <Text style={styles.btnTextSecondary}>그냥 링크만 공유</Text>
                     </Pressable>
                   </View>
                 </View>
               ) : (
                 /* 일반 참여자인 경우: 임시 개별 초대 메시지 작성 폼 노출 */
                 <View style={styles.quickInputArea}>
-                  <Text style={styles.quickInputLabel}>✍️ 나만의 초대 메시지 작성하기</Text>
+                  <Text style={styles.quickInputLabel}>나만의 초대 메시지 작성하기</Text>
                   <TextInput
                     style={styles.textInput}
                     multiline
@@ -211,13 +211,13 @@ export function InviteConfirmModal({
                       style={[styles.btn, styles.btnPrimary]}
                       onPress={handleParticipantShare}
                     >
-                      <Text style={styles.btnTextPrimary}>✨ 작성하고 초대 보내기</Text>
+                      <Text style={styles.btnTextPrimary}>작성하고 초대 보내기</Text>
                     </Pressable>
                     <Pressable
                       style={[styles.btn, styles.btnSecondary]}
                       onPress={handleShareWithoutMessage}
                     >
-                      <Text style={styles.btnTextSecondary}>🔗 그냥 링크만 공유</Text>
+                      <Text style={styles.btnTextSecondary}>그냥 링크만 공유</Text>
                     </Pressable>
                   </View>
                 </View>

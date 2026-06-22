@@ -4,6 +4,7 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { ArrowLeft, Coffee, Heart } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
@@ -15,8 +16,8 @@ const STATUS_LABEL: Record<string, string> = {
   created: '결제 대기 중',
   paid: '도착 — 받기를 기다리고 있어요',
   issued: '교환권 발급됨',
-  delivered: '받았어요 ☕',
-  donated: '기부로 돌렸어요 💚',
+  delivered: '받았어요',
+  donated: '기부로 돌렸어요',
   auto_refund: '발급 실패로 자동 환불되었어요',
   pay_failed: '결제가 완료되지 않았어요',
   canceled: '취소된 주문이에요',
@@ -61,7 +62,7 @@ export default function GiftDetail() {
 
   const tierMeta = GIFT_TIERS.find(t => t.tier === order?.product_tier);
   const tierLabel = tierMeta?.label
-    ?? (order?.product_tier === 'grand_cup' ? '🎁 거하게 한잔' : '☕ 한잔');
+    ?? (order?.product_tier === 'grand_cup' ? '거하게 한잔' : '한잔');
   const isRecipient = Boolean(order && myUserId && order.recipient_id === myUserId);
   const claimable = isRecipient && order?.status === 'paid';
 
@@ -69,7 +70,7 @@ export default function GiftDetail() {
     <Screen backgroundColor={colors.bg}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="뒤로가기">
-          <Text style={styles.back}>←</Text>
+          <ArrowLeft size={24} color={colors.primary} strokeWidth={2} />
         </Pressable>
         <Text style={styles.headerTitle}>응원 한잔</Text>
         <View style={{ width: 24 }} />
@@ -110,7 +111,8 @@ export default function GiftDetail() {
                 onPress={() => onClaim('receive')}
                 disabled={busy}
               >
-                <Text style={styles.primaryBtnText}>☕ 내가 받기</Text>
+                <Coffee size={18} color={colors.surface} strokeWidth={2} />
+                <Text style={styles.primaryBtnText}>내가 받기</Text>
               </Pressable>
               <Pressable
                 style={[styles.donateBtn, busy && styles.btnDisabled]}
@@ -126,12 +128,13 @@ export default function GiftDetail() {
                 }}
                 disabled={busy}
               >
-                <Text style={styles.donateBtnText}>💚 기부하기 — 누군가의 한잔이 돼요</Text>
+                <Heart size={17} color={colors.done} strokeWidth={2} />
+                <Text style={styles.donateBtnText}>기부하기 — 누군가의 한잔이 돼요</Text>
               </Pressable>
             </View>
           )}
 
-          <Text style={styles.mockFootnote}>🧪 베타 테스트 — 실제 결제·계좌 연결이 없는 모의 한잔이에요.</Text>
+          <Text style={styles.mockFootnote}>베타 테스트 — 실제 결제·계좌 연결이 없는 모의 한잔이에요.</Text>
         </View>
       )}
     </Screen>
@@ -149,7 +152,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.primary100,
   },
-  back: { fontSize: 22, color: colors.primary },
   headerTitle: {
     fontSize: fontSize.lg,
     color: colors.primary,
@@ -215,7 +217,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     borderRadius: radius.lg,
     paddingVertical: 16,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   primaryBtnText: {
     fontSize: fontSize.base,
@@ -227,7 +232,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     paddingVertical: 16,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     borderWidth: 1,
     borderColor: colors.done,
   },

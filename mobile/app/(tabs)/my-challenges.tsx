@@ -6,6 +6,7 @@ import {
   View, Text, Pressable, FlatList, StyleSheet, RefreshControl,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { Sprout } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { AppHeader } from '@/components/AppHeader';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -98,7 +99,7 @@ export default function MyChallengesScreen() {
               renderItem={({ item }) => <Card challenge={item} myUserId={myUserId} />}
               ListEmptyComponent={
                 <View style={styles.empty}>
-                  <Text style={styles.emptyEmoji}>🌱</Text>
+                  <Sprout size={48} color={colors.faint} strokeWidth={1.5} />
                   <Text style={styles.emptyText}>
                     참여 중인 하다가 없어요.{'\n'}하단 + 로 첫 하다를 만들어볼까요?
                   </Text>
@@ -302,6 +303,5 @@ const styles = StyleSheet.create({
   gaveUpHint: { fontSize: fontSize.xs, color: colors.faint, fontFamily: fontFamily.regular, paddingHorizontal: 2, lineHeight: 16 },
 
   empty: { flex: 1, paddingVertical: 80, alignItems: 'center', justifyContent: 'center', gap: 16 },
-  emptyEmoji: { fontSize: 64 },
   emptyText: { fontSize: fontSize.base, color: colors.faint, fontFamily: fontFamily.regular, textAlign: 'center', lineHeight: 22 },
 });

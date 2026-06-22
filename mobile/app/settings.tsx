@@ -11,7 +11,7 @@ import { router } from 'expo-router';
 import {
   ArrowLeft, MessageCircle, MessageSquareText, Heart, Camera, Bell, Moon,
   MessageSquareWarning, FileText, LogOut, Coins, Users, BookOpen, Coffee, HeartHandshake,
-  type LucideIcon,
+  Check, type LucideIcon,
 } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { ListRow } from '@/components/ListRow';
@@ -453,7 +453,7 @@ function DeleteAccountModal({
           </View>
           <Pressable style={styles.delCheckRow} onPress={() => { haptic.tap(); setChecked(v => !v); }} disabled={deleting}>
             <View style={[styles.delCheckbox, checked && styles.delCheckboxOn]}>
-              {checked && <Text style={styles.delCheckMark}>✓</Text>}
+              {checked && <Check size={14} color={colors.onBrand} strokeWidth={3} />}
             </View>
             <Text style={styles.delCheckLabel}>위 내용을 모두 확인했어요</Text>
           </Pressable>
@@ -552,7 +552,6 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   delCheckboxOn: { backgroundColor: colors.brand, borderColor: colors.brand },
-  delCheckMark: { color: colors.onBrand, fontSize: 14, fontWeight: '700' },
   delCheckLabel: { fontSize: fontSize.base, color: colors.ink, fontFamily: fontFamily.medium, fontWeight: fontWeight.medium },
   delButton: { backgroundColor: colors.danger, borderRadius: radius.lg, paddingVertical: 16, alignItems: 'center', marginTop: 16 },
   delButtonDisabled: { opacity: 0.4 },

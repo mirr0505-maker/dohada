@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Image, Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MessageCircle, Flag, X } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import {
   fetchLogComments, addLogComment, updateLogComment, deleteLogComment,
@@ -185,7 +186,7 @@ export function LogCommentsSheet({ logId, myUserId, onClose, onCountChange, writ
               )}
               ListEmptyComponent={
                 <View style={styles.empty}>
-                  <Text style={styles.emptyEmoji}>💬</Text>
+                  <MessageCircle size={40} color={colors.faint} strokeWidth={1.5} />
                   <Text style={styles.emptyText}>
                     이 기록에 첫 댓글을 남겨보세요.
                   </Text>
@@ -197,15 +198,16 @@ export function LogCommentsSheet({ logId, myUserId, onClose, onCountChange, writ
           {writeLocked ? (
             /* 박제 — 새 댓글 작성 잠금 */
             <View style={styles.lockedBar}>
-              <Text style={styles.lockedText}>🏁 박제된 하다예요 — 댓글은 보존만 됩니다.</Text>
+              <Flag size={14} color={colors.primary500} strokeWidth={1.8} />
+              <Text style={styles.lockedText}>박제된 하다예요 — 댓글은 보존만 됩니다.</Text>
             </View>
           ) : (
           <>
           {editingCommentId && (
             <View style={styles.editingBar}>
               <Text style={styles.editingText}>수정 중</Text>
-              <Pressable onPress={cancelEdit} hitSlop={6}>
-                <Text style={styles.editingCancel}>✕</Text>
+              <Pressable onPress={cancelEdit} hitSlop={6} style={{ paddingHorizontal: 8 }}>
+                <X size={18} color={colors.accent700} strokeWidth={2} />
               </Pressable>
             </View>
           )}
@@ -348,7 +350,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  emptyEmoji: { fontSize: 48 },
   emptyText: {
     fontSize: fontSize.base,
     color: colors.primary500,
@@ -370,11 +371,6 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.medium,
     fontWeight: fontWeight.medium,
   },
-  editingCancel: {
-    fontSize: 18,
-    color: colors.accent700,
-    paddingHorizontal: 8,
-  },
   inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -387,7 +383,10 @@ const styles = StyleSheet.create({
   },
   lockedBar: {
     paddingVertical: 14,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     backgroundColor: colors.primary50,
     borderTopWidth: 1,
     borderTopColor: colors.primary100,

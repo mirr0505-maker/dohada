@@ -6,6 +6,12 @@ import {
   KeyboardAvoidingView, Platform, Alert, ActivityIndicator, Image,
 } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import {
+  Timer, Zap, Sprout, Leaf, TreeDeciduous, Mountain, Star,
+  Flame, CalendarDays, Calendar, Repeat, Target,
+  Camera, Image as ImageIcon, MapPin,
+  Heart, User, Handshake, Globe, Check, X, type LucideIcon,
+} from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { CategoryIcon } from '@/components/CategoryIcon';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
@@ -36,34 +42,34 @@ const SUGGESTIONS = [
 ];
 
 const DURATIONS = [
-  { label: '1일',  desc: '당일 하루 마무리',       icon: '⏱️', days: 1 },
-  { label: '3일',  desc: '초단기 작심삼일 깨기', icon: '⚡', days: 3 },
-  { label: '7일',  desc: '맛보기',           icon: '🌱', days: 7 },
-  { label: '30일', desc: '습관 형성',         icon: '🌿', days: 30 },
-  { label: '100일', desc: '박제 가치 최고 ⭐', icon: '🌳', days: 100, recommended: true },
-  { label: '180일', desc: '반년의 지속',       icon: '🏔️', days: 180 },
-  { label: '1년',  desc: '인생 변환점',       icon: '🌟', days: 365 },
+  { label: '1일',  desc: '당일 하루 마무리',       Icon: Timer, days: 1 },
+  { label: '3일',  desc: '초단기 작심삼일 깨기', Icon: Zap, days: 3 },
+  { label: '7일',  desc: '맛보기',           Icon: Sprout, days: 7 },
+  { label: '30일', desc: '습관 형성',         Icon: Leaf, days: 30 },
+  { label: '100일', desc: '박제 가치 최고', Icon: TreeDeciduous, days: 100, recommended: true },
+  { label: '180일', desc: '반년의 지속',       Icon: Mountain, days: 180 },
+  { label: '1년',  desc: '인생 변환점',       Icon: Star, days: 365 },
 ] as const;
 
-const FREQUENCIES: { value: CreateChallengeFrequency; label: string; desc: string; icon: string }[] = [
-  { value: 'daily',   label: '매일',         desc: '하루도 빠지지 않고', icon: '🔥' },
-  { value: 'weekly3', label: '주 3회 이상',  desc: '유연하게',           icon: '📅' },
-  { value: 'weekly1', label: '주 1회',       desc: '긴 호흡으로',        icon: '📆' },
+const FREQUENCIES: { value: CreateChallengeFrequency; label: string; desc: string; Icon: LucideIcon }[] = [
+  { value: 'daily',   label: '매일',         desc: '하루도 빠지지 않고', Icon: Flame },
+  { value: 'weekly3', label: '주 3회 이상',  desc: '유연하게',           Icon: CalendarDays },
+  { value: 'weekly1', label: '주 1회',       desc: '긴 호흡으로',        Icon: Calendar },
 ];
 
 const PROOF_TYPES = [
-  { value: 'photo',      label: '사진 인증',     desc: '카메라로 직접 촬영',             icon: '📸', enabled: true },
-  { value: 'screenshot', label: '앱 스크린샷',   desc: '운동·걷기 앱 기록 화면 (보관함)', icon: '🖼️', enabled: true },
-  { value: 'gps',        label: 'GPS 위치 인증', desc: 'Phase 2 출시 예정',               icon: '📍', enabled: false },
+  { value: 'photo',      label: '사진 인증',     desc: '카메라로 직접 촬영',             Icon: Camera, enabled: true },
+  { value: 'screenshot', label: '앱 스크린샷',   desc: '운동·걷기 앱 기록 화면 (보관함)', Icon: ImageIcon, enabled: true },
+  { value: 'gps',        label: 'GPS 위치 인증', desc: 'Phase 2 출시 예정',               Icon: MapPin, enabled: false },
 ];
 
 // 🚀 cheered(응원받기) 최상단 + 추천 — "선언하면 지인이 응원" 을 첫 생성자의 기본 시나리오로.
 //    solo("혼자만의 다짐")는 한 칸 아래로 그대로 유지 (제거 금지).
-const ROOM_TYPES: { value: ChallengeKind; label: string; desc: string; icon: string; recommended?: boolean }[] = [
-  { value: 'cheered', label: '응원받기',       desc: '나 혼자 하다, 지인들이 응원해줘요',   icon: '🙋', recommended: true },
-  { value: 'solo',    label: '혼자만의 다짐',  desc: '나만 보는 조용한 기록',              icon: '🤫' },
-  { value: 'closed',  label: '함께 하기',      desc: '초대한 사람들이 같이 하다',            icon: '🤝' },
-  { value: 'open',    label: '누구나 합류',    desc: '둘러보기 공개 · 아무나 참여',          icon: '🌍' },
+const ROOM_TYPES: { value: ChallengeKind; label: string; desc: string; Icon: LucideIcon; recommended?: boolean }[] = [
+  { value: 'cheered', label: '응원받기',       desc: '나 혼자 하다, 지인들이 응원해줘요',   Icon: Heart, recommended: true },
+  { value: 'solo',    label: '혼자만의 다짐',  desc: '나만 보는 조용한 기록',              Icon: User },
+  { value: 'closed',  label: '함께 하기',      desc: '초대한 사람들이 같이 하다',            Icon: Handshake },
+  { value: 'open',    label: '누구나 합류',    desc: '둘러보기 공개 · 아무나 참여',          Icon: Globe },
 ];
 
 export default function CreateChallenge() {
@@ -232,7 +238,7 @@ export default function CreateChallenge() {
       {/* 헤더 */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Text style={styles.close}>✕</Text>
+          <X size={22} color={colors.sub} strokeWidth={2} />
         </Pressable>
         <Text style={styles.counter}>{step} / {TOTAL_STEPS}</Text>
         <View style={{ width: 24 }} />
@@ -294,12 +300,12 @@ export default function CreateChallenge() {
             <View style={{ gap: 12 }}>
               <Step3Duration value={durationDays} setValue={setDurationDays} kind={kind} />
               {/* 🚀 0041: 목표 유형 — 주기형(매일/주N회) vs 목표 횟수형(기간 내 N개 달성) */}
-              <Text style={[styles.subSectionTitle, { marginTop: 16 }]}>🎯 어떻게 달성할까요?</Text>
+              <Text style={[styles.subSectionTitle, { marginTop: 16 }]}>어떻게 달성할까요?</Text>
               <GoalTypeToggle value={goalType} setValue={setGoalType} />
               {goalType === 'cadence' ? (
-                <Text style={[styles.subSectionTitle, { marginTop: 16 }]}>⏰ 얼마나 자주 인증할까요?</Text>
+                <Text style={[styles.subSectionTitle, { marginTop: 16 }]}>얼마나 자주 인증할까요?</Text>
               ) : (
-                <Text style={[styles.subSectionTitle, { marginTop: 16 }]}>🎯 기간 내 몇 개를 달성할까요?</Text>
+                <Text style={[styles.subSectionTitle, { marginTop: 16 }]}>기간 내 몇 개를 달성할까요?</Text>
               )}
               <Step4Frequency
                 value={frequency}
@@ -325,11 +331,11 @@ export default function CreateChallenge() {
                 />
               ) : goalType === 'count' ? (
                 <Text style={styles.smallNote}>
-                  🎯 목표 횟수형은 응원 한잔으로 함께할 수 있어요.
+                  목표 횟수형은 응원 한잔으로 함께할 수 있어요.
                 </Text>
               ) : (
                 <Text style={styles.smallNote}>
-                  💛 응원 한잔으로 서로의 하다를 응원할 수 있어요.
+                  응원 한잔으로 서로의 하다를 응원할 수 있어요.
                 </Text>
               )}
             </View>
@@ -354,7 +360,7 @@ export default function CreateChallenge() {
               <ActivityIndicator color={colors.surface} />
             ) : (
               <Text style={styles.nextText}>
-                {step === TOTAL_STEPS ? '🎉 만들기' : '다음 →'}
+                {step === TOTAL_STEPS ? '만들기' : '다음 →'}
               </Text>
             )}
           </Pressable>
@@ -389,7 +395,7 @@ function Step1Title({ title, setTitle }: { title: string; setTitle: (s: string) 
       />
       <Text style={styles.counterSmall}>{title.length} / 40</Text>
 
-      <Text style={styles.subSectionTitle}>💡 인기 하다에서 골라보기</Text>
+      <Text style={styles.subSectionTitle}>인기 하다에서 골라보기</Text>
       <View style={styles.chipWrap}>
         {SUGGESTIONS.map(s => (
           <Pressable key={s} style={styles.chip} onPress={() => setTitle(s)}>
@@ -494,7 +500,7 @@ function Step3Duration({
               setValue(d.days);
             }}
           >
-            <Text style={styles.optionIcon}>{d.icon}</Text>
+            <d.Icon size={24} color={active ? colors.brandInk : isDisabled ? colors.faint2 : colors.sub} strokeWidth={1.8} />
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Text style={[
@@ -506,7 +512,7 @@ function Step3Duration({
                 </Text>
                 {isDisabled && (
                   <Text style={{ fontSize: 11, color: colors.primary500, fontFamily: fontFamily.medium }}>
-                    (개인 방 선택 불가 🔒)
+                    (개인 방 선택 불가)
                   </Text>
                 )}
               </View>
@@ -514,7 +520,7 @@ function Step3Duration({
                 {isDisabled ? '1일 하다는 다같이 하다/누구나 합류 방에서만 가능해요.' : d.desc}
               </Text>
             </View>
-            {active && <Text style={styles.optionCheck}>✓</Text>}
+            {active && <Check size={20} color={colors.brand} strokeWidth={2.4} />}
           </Pressable>
         );
       })}
@@ -652,8 +658,8 @@ function GoalTypeToggle({
   setValue: (v: 'cadence' | 'count') => void;
 }) {
   const opts = [
-    { value: 'cadence' as const, icon: '📆', label: '주기형',     desc: '매일·주 N회 꾸준히 인증' },
-    { value: 'count'   as const, icon: '🎯', label: '목표 횟수형', desc: '기간 내 N개 달성 (100대명산·올레 완주 등)' },
+    { value: 'cadence' as const, Icon: Repeat, label: '주기형',     desc: '매일·주 N회 꾸준히 인증' },
+    { value: 'count'   as const, Icon: Target, label: '목표 횟수형', desc: '기간 내 N개 달성 (100대명산·올레 완주 등)' },
   ];
   return (
     <View style={{ gap: 12 }}>
@@ -661,12 +667,12 @@ function GoalTypeToggle({
         const active = value === o.value;
         return (
           <Pressable key={o.value} style={[styles.option, active && styles.optionActive]} onPress={() => setValue(o.value)}>
-            <Text style={styles.optionIcon}>{o.icon}</Text>
+            <o.Icon size={24} color={active ? colors.brandInk : colors.sub} strokeWidth={1.8} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.optionTitle, active && styles.optionTitleActive]}>{o.label}</Text>
               <Text style={styles.optionDesc}>{o.desc}</Text>
             </View>
-            {active && <Text style={styles.optionCheck}>✓</Text>}
+            {active && <Check size={20} color={colors.brand} strokeWidth={2.4} />}
           </Pressable>
         );
       })}
@@ -730,7 +736,7 @@ function Step4Frequency({
   const options = useMemo(() => {
     if (durationDays === 1) {
       return [
-        { value: 'daily' as CreateChallengeFrequency, label: '당일', desc: '하루 동안 한 번 인증', icon: '⏱️' },
+        { value: 'daily' as CreateChallengeFrequency, label: '당일', desc: '하루 동안 한 번 인증', Icon: Timer },
       ];
     }
     return FREQUENCIES;
@@ -777,10 +783,10 @@ function Step4Frequency({
   }, [dateOptions, startDate]);
 
   const customLabel = useMemo(() => {
-    if (!isCustomDate) return '달력 선택 📅';
+    if (!isCustomDate) return '달력 선택';
     const d = new Date(startDate + 'T00:00:00');   // 로컬 자정 파싱 — 'YYYY-MM-DD' 의 UTC 파싱 밀림 방지
     const days = ['일', '월', '화', '수', '목', '금', '토'];
-    return `${d.getMonth() + 1}/${d.getDate()} (${days[d.getDay()]}) 📅`;
+    return `${d.getMonth() + 1}/${d.getDate()} (${days[d.getDay()]})`;
   }, [isCustomDate, startDate]);
 
   useEffect(() => {
@@ -801,12 +807,12 @@ function Step4Frequency({
             style={[styles.option, active && styles.optionActive]}
             onPress={() => setValue(f.value)}
           >
-            <Text style={styles.optionIcon}>{f.icon}</Text>
+            <f.Icon size={24} color={active ? colors.brandInk : colors.sub} strokeWidth={1.8} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.optionTitle, active && styles.optionTitleActive]}>{f.label}</Text>
               <Text style={styles.optionDesc}>{f.desc}</Text>
             </View>
-            {active && <Text style={styles.optionCheck}>✓</Text>}
+            {active && <Check size={20} color={colors.brand} strokeWidth={2.4} />}
           </Pressable>
         );
       })}
@@ -814,7 +820,7 @@ function Step4Frequency({
       {/* 🚀 다함께·누구나 방 — 시작일 선택 (오늘~7일), 시작 전까지 동료 모집 기간 */}
       {durationDays > 1 && isRecruitKind && (
         <View style={{ marginTop: 24, gap: 12 }}>
-          <Text style={styles.subSectionTitle}>🗓️ 언제 시작할까요? (시작 전까지 동료를 모아요)</Text>
+          <Text style={styles.subSectionTitle}>언제 시작할까요? (시작 전까지 동료를 모아요)</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -847,7 +853,7 @@ function Step4Frequency({
       {/* 🚀 당일 챌린지일 경우, 언제 도전할지 날짜 선택 UI 추가 */}
       {durationDays === 1 && (
         <View style={{ marginTop: 24, gap: 12 }}>
-          <Text style={styles.subSectionTitle}>📅 당일 하다 날짜를 선택해 주세요 (최대 100일 뒤까지)</Text>
+          <Text style={styles.subSectionTitle}>당일 하다 날짜를 선택해 주세요 (최대 100일 뒤까지)</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -924,12 +930,12 @@ function Step5ProofType({
               disabled && styles.optionDisabled,
             ]}
           >
-            <Text style={styles.optionIcon}>{p.icon}</Text>
+            <p.Icon size={24} color={active ? colors.brandInk : disabled ? colors.faint2 : colors.sub} strokeWidth={1.8} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.optionTitle, active && styles.optionTitleActive]}>{p.label}</Text>
               <Text style={styles.optionDesc}>{p.desc}</Text>
             </View>
-            {active && <Text style={styles.optionCheck}>✓</Text>}
+            {active && <Check size={20} color={colors.brand} strokeWidth={2.4} />}
           </Pressable>
         );
       })}
@@ -960,7 +966,7 @@ function Step6RoomType({
               setValue(r.value);
             }}
           >
-            <Text style={styles.optionIcon}>{r.icon}</Text>
+            <r.Icon size={24} color={active ? colors.brandInk : isDisabled ? colors.faint2 : colors.sub} strokeWidth={1.8} />
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Text style={[
@@ -977,7 +983,7 @@ function Step6RoomType({
                 )}
                 {isDisabled && (
                   <Text style={{ fontSize: 11, color: colors.primary500, fontFamily: fontFamily.medium }}>
-                    (1일 하다 불가 🔒)
+                    (1일 하다 불가)
                   </Text>
                 )}
               </View>
@@ -985,7 +991,7 @@ function Step6RoomType({
                 {isDisabled ? '1일 하다는 다같이 하는 방에서만 가능해요.' : r.desc}
               </Text>
             </View>
-            {active && <Text style={styles.optionCheck}>✓</Text>}
+            {active && <Check size={20} color={colors.brand} strokeWidth={2.4} />}
           </Pressable>
         );
       })}
@@ -1026,7 +1032,7 @@ function IntroEditor({
 
   return (
     <View style={styles.introBox}>
-      <Text style={styles.introLabel}>📋 안내문 (선택) — 합류 전에 보여요</Text>
+      <Text style={styles.introLabel}>안내문 (선택) — 합류 전에 보여요</Text>
       <TextInput
         value={description}
         onChangeText={setDescription}
@@ -1042,12 +1048,13 @@ function IntroEditor({
         <View style={styles.introImageWrap}>
           <Image source={{ uri: imageUri }} style={styles.introImage} resizeMode="cover" />
           <Pressable style={styles.introImageRemove} onPress={() => setImageUri(null)} disabled={disabled} hitSlop={8}>
-            <Text style={styles.introImageRemoveText}>✕</Text>
+            <X size={16} color={colors.surface} strokeWidth={2.4} />
           </Pressable>
         </View>
       ) : (
         <Pressable style={styles.introImageBtn} onPress={onPickImage} disabled={disabled}>
-          <Text style={styles.introImageBtnText}>🖼️ 보관함에서 사진 추가</Text>
+          <ImageIcon size={16} color={colors.sub} strokeWidth={1.8} />
+          <Text style={styles.introImageBtnText}>보관함에서 사진 추가</Text>
         </Pressable>
       )}
     </View>
@@ -1063,7 +1070,7 @@ function BetConfig({
 }) {
   return (
     <View style={styles.introBox}>
-      <Text style={styles.introLabel}>🎯 내기 한잔, 걸까요? (선택)</Text>
+      <Text style={styles.introLabel}>내기 한잔, 걸까요? (선택)</Text>
       <Text style={styles.smallNote}>
         걸면 참여자 전원이 같은 금액을 선주문해요. 성인 인증된 사람만 합류할 수 있어요. (베타: 모의 결제)
       </Text>
@@ -1100,7 +1107,7 @@ function BetConfig({
                   <Text style={[styles.optionTitle, active && styles.optionTitleActive]}>{m.label}</Text>
                   <Text style={styles.optionDesc}>{m.desc}</Text>
                 </View>
-                {active && <Text style={styles.optionCheck}>✓</Text>}
+                {active && <Check size={20} color={colors.brand} strokeWidth={2.4} />}
               </Pressable>
             );
           })}
@@ -1119,7 +1126,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  close: { fontSize: 20, color: colors.primary, paddingHorizontal: 4 },
   counter: { fontSize: fontSize.sm, color: colors.primary500, fontFamily: fontFamily.medium },
   dotBar: {
     flexDirection: 'row',
@@ -1247,7 +1253,6 @@ const styles = StyleSheet.create({
   },
   optionActive: { borderColor: colors.accent, backgroundColor: colors.accent50 },
   optionDisabled: { opacity: 0.5 },
-  optionIcon: { fontSize: 24 },
   optionTitle: {
     fontSize: fontSize.base,
     color: colors.primary,
@@ -1260,11 +1265,6 @@ const styles = StyleSheet.create({
     color: colors.primary500,
     fontFamily: fontFamily.regular,
     marginTop: 2,
-  },
-  optionCheck: {
-    fontSize: 18,
-    color: colors.accent,
-    fontWeight: fontWeight.bold,
   },
   // 🚀 방타입 '추천' 배지 (cheered) — 디자인 토큰 내 accent 필 배지
   recommendBadge: {
@@ -1505,7 +1505,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.primary100,
     borderStyle: 'dashed',
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
   },
   introImageBtnText: {
     fontSize: fontSize.sm,
@@ -1532,12 +1535,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.55)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  introImageRemoveText: {
-    color: colors.surface,
-    fontSize: 14,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
   },
 
   // 🚀 다인 내기 티어 칩 (BetConfig)

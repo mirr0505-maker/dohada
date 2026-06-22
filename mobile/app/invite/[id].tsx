@@ -3,8 +3,11 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet, Alert, Pressable, Image, ScrollView } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { Mail, AlertTriangle, Crown, Users, Calendar } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
+import { CategoryIcon } from '@/components/CategoryIcon';
+import { categorySlugByName } from '@/lib/icons';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import { joinChallenge, setPendingInvite, clearPendingInvite } from '@/lib/invite';
@@ -112,29 +115,35 @@ export default function InviteScreen() {
 
         {status === 'confirming' && challenge && (
           <View style={styles.card}>
-            <Text style={styles.cardHeaderEmoji}>🌍</Text>
+            <View style={styles.cardHeaderEmoji}><Mail size={40} color={colors.accent} strokeWidth={1.6} /></View>
             <Text style={styles.cardCuration}>하다 인연 초대장</Text>
-            
+
             <Text style={styles.title}>{challenge.title}</Text>
-            
+
             {/* 카테고리 정보 */}
             {challenge.category && (
               <View style={styles.categoryRow}>
-                <Text style={styles.categoryText}>
-                  {challenge.category.emoji} {challenge.category.name}
-                </Text>
+                <CategoryIcon slug={categorySlugByName[challenge.category.name]} size={13} color={colors.primary500} />
+                <Text style={styles.categoryText}>{challenge.category.name}</Text>
               </View>
             )}
 
             {/* 개설자 및 인원 정보 */}
             <View style={styles.metaBox}>
-              <Text style={styles.metaText}>👑 개설자: @{challenge.creator_nickname}</Text>
-              <Text style={styles.metaText}>
-                👥 현재 {challenge.member_count}명 참여 중
-              </Text>
-              <Text style={styles.metaText}>
-                📅 기간: {challenge.start_date.slice(5)} ~ {challenge.end_date.slice(5)} ({getChallengeDDay(challenge.start_date, challenge.end_date)})
-              </Text>
+              <View style={styles.metaRow}>
+                <Crown size={14} color={colors.sub} strokeWidth={1.8} />
+                <Text style={styles.metaText}>개설자: @{challenge.creator_nickname}</Text>
+              </View>
+              <View style={styles.metaRow}>
+                <Users size={14} color={colors.sub} strokeWidth={1.8} />
+                <Text style={styles.metaText}>현재 {challenge.member_count}명 참여 중</Text>
+              </View>
+              <View style={styles.metaRow}>
+                <Calendar size={14} color={colors.sub} strokeWidth={1.8} />
+                <Text style={styles.metaText}>
+                  기간: {challenge.start_date.slice(5)} ~ {challenge.end_date.slice(5)} ({getChallengeDDay(challenge.start_date, challenge.end_date)})
+                </Text>
+              </View>
             </View>
 
             {/* 🎯 다인 내기 걸린 방 — 합류 전 고지 (성인 인증 필요) */}
@@ -150,7 +159,7 @@ export default function InviteScreen() {
             ) : null}
             {challenge.description && challenge.description.trim() !== '' ? (
               <View style={styles.introBox}>
-                <Text style={styles.introLabel}>📋 안내문</Text>
+                <Text style={styles.introLabel}>안내문</Text>
                 <Text style={styles.introText}>{challenge.description}</Text>
               </View>
             ) : null}
@@ -158,12 +167,12 @@ export default function InviteScreen() {
             {/* 개설자가 보낸 메시지 */}
             {challenge.invitation_message && challenge.invitation_message.trim() !== '' ? (
               <View style={styles.messageBox}>
-                <Text style={styles.messageLabel}>💌 개설자의 한마디</Text>
+                <Text style={styles.messageLabel}>개설자의 한마디</Text>
                 <Text style={styles.messageText}>"{challenge.invitation_message}"</Text>
               </View>
             ) : (
               <View style={styles.emptyMessageBox}>
-                <Text style={styles.emptyMessageText}>새로운 하다를 함께 개시해보세요! 🌱</Text>
+                <Text style={styles.emptyMessageText}>새로운 하다를 함께 개시해보세요!</Text>
               </View>
             )}
 
@@ -187,7 +196,7 @@ export default function InviteScreen() {
 
         {status === 'error' && (
           <View style={styles.card}>
-            <Text style={styles.cardHeaderEmoji}>⚠️</Text>
+            <View style={styles.cardHeaderEmoji}><AlertTriangle size={40} color={colors.warning} strokeWidth={1.6} /></View>
             <Text style={styles.title}>참여할 수 없어요</Text>
             <Text style={styles.errorText}>{errorMsg}</Text>
             <Button
@@ -238,7 +247,6 @@ const styles = StyleSheet.create({
     borderColor: colors.primary50,
   },
   cardHeaderEmoji: {
-    fontSize: 48,
     marginBottom: 8,
   },
   cardCuration: {
@@ -260,6 +268,9 @@ const styles = StyleSheet.create({
     lineHeight: 26,
   },
   categoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     backgroundColor: colors.primary50,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -280,6 +291,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     gap: 8,
   },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   metaText: {
     fontSize: fontSize.sm,
     color: colors.primary,

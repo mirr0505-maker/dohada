@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Share, Alert, ActivityIndicator } from 'react-native';
 import Animated, { ZoomIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { router, useLocalSearchParams } from 'expo-router';
+import { Trophy } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
@@ -91,7 +92,9 @@ export default function CompleteScreen() {
     <Screen fullScreen backgroundColor={colors.accent} statusBarStyle="light">
       <View style={styles.center}>
         {/* 🚀 celebration — 핵심 성취 순간에만 모션 집중 (조용한 SNS 원칙과 충돌 X) */}
-        <Animated.Text entering={ZoomIn.springify().delay(100)} style={styles.trophy}>🏆</Animated.Text>
+        <Animated.View entering={ZoomIn.springify().delay(100)} style={styles.trophy}>
+          <Trophy size={80} color={colors.surface} strokeWidth={1.5} />
+        </Animated.View>
         <Animated.Text entering={FadeInDown.springify().delay(300)} style={styles.title}>완주!</Animated.Text>
         <Animated.Text entering={FadeInDown.springify().delay(420)} style={styles.challengeName}>"{title}"</Animated.Text>
         <Animated.Text entering={FadeInDown.springify().delay(540)} style={styles.days}>
@@ -101,8 +104,8 @@ export default function CompleteScreen() {
         {targetDays > 0 && (
           <Animated.Text entering={FadeInDown.springify().delay(620)} style={styles.rate}>
             {isCount
-              ? `📸 인증 ${provedDays}개 / 목표 ${targetDays}개 · 완주율 ${completionRate}%`
-              : `📸 인증 ${provedDays}일 / 목표 ${targetDays}일 · 완주율 ${completionRate}%`}
+              ? `인증 ${provedDays}개 / 목표 ${targetDays}개 · 완주율 ${completionRate}%`
+              : `인증 ${provedDays}일 / 목표 ${targetDays}일 · 완주율 ${completionRate}%`}
           </Animated.Text>
         )}
 
@@ -117,7 +120,7 @@ export default function CompleteScreen() {
         {/* 🎯 걸어둔 한잔 정산 — 완주 직후 발견성. 현황 탭의 내기 카드로 (받기/기부 선택) */}
         {settleBetPending && (
           <Button
-            label="🎯 내기 정산하러 가기"
+            label="내기 정산하러 가기"
             variant="secondary"
             size="lg"
             block
@@ -126,7 +129,7 @@ export default function CompleteScreen() {
         )}
         {/* 🚀 완주 방(박제)으로 돌아가는 길 — 이 버튼이 없으면 완주 방 진입 동선이 끊김 */}
         <Button
-          label="🏆 박제 보러 가기"
+          label="박제 보러 가기"
           variant="ghost"
           size="lg"
           block
@@ -152,7 +155,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     gap: 12,
   },
-  trophy: { fontSize: 120, marginBottom: 16 },
+  trophy: { marginBottom: 16 },
   title: {
     fontSize: 56,
     color: colors.surface,

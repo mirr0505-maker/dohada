@@ -6,6 +6,7 @@ import {
   Platform, Alert, Image, Keyboard
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Megaphone, ChevronDown, ChevronUp, MessageCircle, Flag } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { fetchChatMessages, sendChatMessage, type ChatMessageWithAuthor } from '@/lib/db';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
@@ -191,18 +192,18 @@ export function ChatTab({ challengeId, myUserId, isMember, farewellDaysLeft = 0,
         <View style={styles.noticeContainer}>
           {!isNoticeExpanded ? (
             <Pressable style={styles.noticeHeader} onPress={() => { haptic.tap(); setIsNoticeExpanded(true); }}>
-              <Text style={styles.noticeIcon}>📢</Text>
+              <Megaphone size={16} color={colors.accent} strokeWidth={1.8} />
               <Text style={styles.noticeSummary} numberOfLines={1}>
                 {latestNotice.content}
               </Text>
-              <Text style={styles.arrowIcon}>▼</Text>
+              <ChevronDown size={14} color={colors.primary500} strokeWidth={2} />
             </Pressable>
           ) : (
             <View style={styles.noticeContent}>
               <Pressable style={styles.noticeHeader} onPress={() => { haptic.tap(); setIsNoticeExpanded(false); }}>
-                <Text style={styles.noticeIcon}>📢</Text>
+                <Megaphone size={16} color={colors.accent} strokeWidth={1.8} />
                 <Text style={styles.noticeTitle}>공지사항 모아보기</Text>
-                <Text style={styles.arrowIcon}>▲</Text>
+                <ChevronUp size={14} color={colors.primary500} strokeWidth={2} />
               </Pressable>
               
               <View style={styles.noticeDivider} />
@@ -264,7 +265,7 @@ export function ChatTab({ challengeId, myUserId, isMember, farewellDaysLeft = 0,
         }}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyEmoji}>💬</Text>
+            <MessageCircle size={48} color={colors.faint} strokeWidth={1.5} />
             <Text style={styles.emptyText}>
               아직 대화가 없어요.{'\n'}동료들에게 첫 인사를 건네볼까요?
             </Text>
@@ -275,15 +276,17 @@ export function ChatTab({ challengeId, myUserId, isMember, farewellDaysLeft = 0,
       {writeLocked ? (
         /* 박제 — 마무리 기간 종료 후 읽기 전용 */
         <View style={styles.guestBar}>
-          <Text style={styles.guestText}>🏁 박제된 하다예요 — 대화는 보존만 됩니다.</Text>
+          <Flag size={14} color={colors.primary500} strokeWidth={1.8} />
+          <Text style={styles.guestText}>박제된 하다예요 — 대화는 보존만 됩니다.</Text>
         </View>
       ) : isMember ? (
         <>
         {farewellDaysLeft > 0 && (
           /* 마무리 인사 유예 — 잔여일 안내 */
           <View style={styles.farewellBar}>
+            <Flag size={14} color={colors.accent700} strokeWidth={1.8} />
             <Text style={styles.farewellText}>
-              🏁 하다 종료 — 마무리 인사 기간이 {farewellDaysLeft}일 남았어요
+              하다 종료 — 마무리 인사 기간이 {farewellDaysLeft}일 남았어요
             </Text>
           </View>
         )}
@@ -357,9 +360,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 8,
   },
-  noticeIcon: {
-    fontSize: 16,
-  },
   noticeSummary: {
     flex: 1,
     fontSize: fontSize.sm,
@@ -372,11 +372,6 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
     color: colors.primary,
-  },
-  arrowIcon: {
-    fontSize: 10,
-    color: colors.primary500,
-    fontFamily: fontFamily.regular,
   },
   noticeContent: {
     backgroundColor: colors.primary50,
@@ -487,7 +482,6 @@ const styles = StyleSheet.create({
   empty: {
     flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 64, gap: 12,
   },
-  emptyEmoji: { fontSize: 56 },
   emptyText: {
     fontSize: fontSize.base, color: colors.primary500,
     fontFamily: fontFamily.regular, textAlign: 'center', lineHeight: 22,
@@ -531,14 +525,20 @@ const styles = StyleSheet.create({
   },
   guestBar: {
     paddingVertical: 14,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     backgroundColor: colors.primary50,
     borderTopWidth: 1,
     borderTopColor: colors.primary100,
   },
   farewellBar: {
     paddingVertical: 8,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     backgroundColor: colors.accent50,
     borderTopWidth: 1,
     borderTopColor: colors.accent100,

@@ -4,6 +4,7 @@
 // 무한 렌더 루프(Maximum update depth exceeded)도 React 가 throw 하므로 여기서 잡힌다.
 import React from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { AlertTriangle } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { reportError } from '@/lib/sentry';
 
@@ -32,9 +33,9 @@ export class ErrorBoundary extends React.Component<Props, State> {
     return (
       <View style={styles.container}>
         <ScrollView contentContainerStyle={styles.scroll}>
-          <Text style={styles.emoji}>⚠️</Text>
+          <View style={styles.emoji}><AlertTriangle size={44} color={colors.warning} strokeWidth={1.6} /></View>
           <Text style={styles.title}>오류가 발생했어요</Text>
-          <Text style={styles.guide}>아래 내용을 캡처해서 개발자에게 보내주세요 🙏</Text>
+          <Text style={styles.guide}>아래 내용을 캡처해서 개발자에게 보내주세요</Text>
 
           <Text style={styles.sectionLabel}>메시지</Text>
           <Text style={styles.code} selectable>{error.message || String(error)}</Text>
@@ -65,7 +66,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   scroll: { padding: 20, paddingTop: 64, gap: 8 },
-  emoji: { fontSize: 44, textAlign: 'center' },
+  emoji: { alignItems: 'center' },
   title: {
     fontSize: fontSize.xl,
     fontFamily: fontFamily.bold,
