@@ -16,12 +16,12 @@ import { joinChallenge } from '@/lib/invite';
 import { Screen } from '@/components/Screen';
 import { AppHeader } from '@/components/AppHeader';
 import {
-  Telescope, ChevronRight, ChevronUp, ChevronDown, Camera, Trophy, PenLine, Globe,
+  Telescope, ChevronRight, ChevronUp, ChevronDown, Camera, PenLine, Globe,
   Sprout, Footprints, Heart, Moon, PartyPopper, Crown, Users, User, Handshake,
   Target, Repeat, Check, type LucideIcon,
 } from 'lucide-react-native';
 import { BrandMark } from '@/components/BrandMark';
-import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
+import { colors, fontFamily, fontSize, fontWeight, radius, shadow, textStyle } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import {
   fetchMyChallengesWithDetails, fetchOpenChallenges,
@@ -49,7 +49,7 @@ const KIND_META: Record<string, { Icon: LucideIcon; label: string; bg: string; t
   solo: { Icon: User, label: '나혼자', bg: colors.primary50, text: colors.primary500 },
   cheered_creator: { Icon: Heart, label: '응원받기', bg: colors.accent50, text: colors.accent700 },
   cheered_participant: { Icon: Heart, label: '응원하기', bg: colors.accent50, text: colors.accent700 },
-  closed: { Icon: Handshake, label: '다함께', bg: colors.tintSage, text: colors.doneInk },
+  closed: { Icon: Handshake, label: '다함께', bg: colors.tintCream, text: colors.gold },
   open: { Icon: Globe, label: '누구나', bg: colors.tintSage, text: colors.doneInk },
 };
 
@@ -223,18 +223,16 @@ export default function HomeScreen() {
   //   '오늘, 나의 하다'(myDoingChs)에서 빼고 아래 '오늘, 응원으로 힘주기'(cheeredRooms)에서만 노출
   //   → 두 섹션 중복 + 도전자/응원자 역할 혼선 제거.
   //   ⚠️ 종료된 응원방은 '오늘 응원' 섹션에서 제외 — 종료일이 지나면 '오늘 응원' 맥락이 아니다
-  //     (완주·미완주 무관, finishedChs 와 동일한 todayStr <= end_date 기준). 종료 방은 내하다 탭에서 열람.
+  //     (완주·미완주 무관, 종료(todayStr > end_date)와 동일 기준). 종료 방은 내하다 탭에서 열람.
   const cheeredRooms = myChs.filter(
     c => c.kind === 'cheered' && c.creator_id !== myUserId && todayStr <= c.end_date,
   );
   const myDoingChs = myChs.filter(c => !(c.kind === 'cheered' && c.creator_id !== myUserId));
 
   const activeChs   = myDoingChs.filter(c => todayStr <= c.end_date);
-  const finishedChs = myDoingChs.filter(c => todayStr >  c.end_date);
 
   // 🚀 홈 노출 상한 — 참여 방이 많아도 홈 스크롤 폭증 방지 (전체는 내도전 탭에서)
   const HOME_ACTIVE_LIMIT = 5;
-  const HOME_FINISHED_LIMIT = 3;
   const kstTodayStr = getKstTodayRange().kstDateStr;
   // 🚀 0041: 목표 횟수형(count)은 일일 의무 없음 — '오늘 인증' 잔소리·정렬·배지에서 제외
   const isCountGoal = (c: MyChallengeDetail) => c.goal_type === 'count';
@@ -250,7 +248,14 @@ export default function HomeScreen() {
   const visibleActiveChs = [...activeChs]
     .sort((a, b) => Number(needsTodayCheck(b)) - Number(needsTodayCheck(a)))   // 오늘 할 일 우선
     .slice(0, HOME_ACTIVE_LIMIT);
-  const visibleFinishedChs = finishedChs.slice(0, HOME_FINISHED_LIMIT);
+
+  // 🚀 완주 리본 노출 규칙 ('하다 인연들의 하루' 피드):
+  //   ① 내 완주 제외 — 내 완주는 '오늘, 나의 하다'·내 하다 탭에서 보임. 이 피드는 '하다 인연(타인)의 하루'.
+  //   ② 완주 공유일 +1일까지만 — 오늘·어제 완주분만. 옛 완주가 며칠씩 박혀있던 문제 해소(오늘 KST 자정 −24h 기준).
+  const completionCutoffMs = Date.parse(getKstTodayRange().startUtc) - 24 * 60 * 60 * 1000;
+  const visibleCompletions = completions.filter(
+    c => c.user_id !== myUserId && Date.parse(c.created_at) >= completionCutoffMs,
+  );
 
   // 🚀 미인증 챌린지 (인증 의무 있는 것만 — count형·cheered 응원자·시작 전 모집 기간 방은 제외)
   const uncheckedChs = activeChs.filter(needsTodayCheck);
@@ -297,6 +302,12 @@ export default function HomeScreen() {
   return (
     <Screen backgroundColor={colors.bg}>
       <AppHeader />
+
+      {/* 🚀 홈 페이지 제목 — 다른 탭(내하다·구경·기록 24px)과 위계 통일 + 무게감(밋밋함 보완) */}
+      <View style={styles.intro}>
+        <Text style={styles.introTitle}>우리의 하루</Text>
+        <Text style={styles.introSub}>하다 인연들과 함께, 오늘 한 걸음</Text>
+      </View>
 
       {loading ? (
         <View style={styles.list}>
@@ -368,10 +379,10 @@ export default function HomeScreen() {
               </View>
 
               {/* 오늘, 하다 인연들의 하루 — 실데이터(완주·동료 인증)가 있으면 그대로 노출 (절대 숨기지 않음) */}
-              {(completions.length > 0 || todayProofs.length > 0) && (
+              {(visibleCompletions.length > 0 || todayProofs.length > 0) && (
                 <>
                   <Text style={styles.sectionLabel}>오늘, 하다 인연들의 하루</Text>
-                  {completions.map(c => (
+                  {visibleCompletions.map(c => (
                     <CompletionRibbon key={c.id} story={c} />
                   ))}
                   {todayProofGroups.map(g => (
@@ -398,7 +409,7 @@ export default function HomeScreen() {
               {/* 관심 분야 추천은 '하다 구경'으로 통합(DESIGN_GUIDE §12) — 홈 별도 섹션 제거 */}
 
               {/* 접힌 힌트 한 줄 — '동료의 하루'가 비었을 때만 (실데이터 있으면 위에서 노출되므로 생략) */}
-              {completions.length === 0 && todayProofs.length === 0 && (
+              {visibleCompletions.length === 0 && todayProofs.length === 0 && (
                 <View style={styles.onrampHint}>
                   <Text style={styles.onrampHintText}>도전을 시작하면 동료들의 하루가 여기 채워져요</Text>
                   <Text style={styles.onrampHintChevron}>›</Text>
@@ -418,8 +429,8 @@ export default function HomeScreen() {
             </>
           ) : (
           <>
-          {/* [구조 1] 오늘 할 일 — 앵커(가장 시급한 미인증 1개) + 나머지 진행중 압축 */}
-          <Text style={styles.sectionLabel}>오늘 할 일</Text>
+          {/* [구조 1] 오늘, 나의 하다 — 앵커(가장 시급한 미인증 1개) + 나머지 진행중 압축 */}
+          <Text style={styles.sectionLabel}>오늘, 나의 하다</Text>
           {activeChs.length > 0 ? (
             <View style={styles.myChallengeList}>
               {anchorCh ? (
@@ -583,46 +594,12 @@ export default function HomeScreen() {
             </Pressable>
           )}
 
-          {/* 🚀 P-⑤ 종료된 도전 분리 섹션 — 박제·회고용 */}
-          {finishedChs.length > 0 && (
-            <>
-              <Text style={[styles.sectionLabel, { marginTop: 24 }]}>끝낸 하다</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.finishedScroll}
-              >
-                {visibleFinishedChs.map(c => (
-                  <Pressable
-                    key={c.id}
-                    style={styles.finishedChip}
-                    onPress={() => { haptic.tap(); router.push(`/room/${c.id}?tab=archive` as any); }}
-                  >
-                    <Text style={styles.finishedChipTitle} numberOfLines={2}>{displayTitle(c.title)}</Text>
-                    <View style={styles.finishedChipMeta}>
-                      <Text style={styles.finishedChipMetaText}>박제 보기</Text>
-                      <Trophy size={15} color={colors.gold} strokeWidth={1.8} />
-                    </View>
-                  </Pressable>
-                ))}
-                {finishedChs.length > HOME_FINISHED_LIMIT && (
-                  <Pressable
-                    style={styles.finishedMoreChip}
-                    onPress={() => { haptic.tap(); router.push('/(tabs)/my-challenges' as any); }}
-                  >
-                    <Text style={styles.finishedMoreText}>+{finishedChs.length - HOME_FINISHED_LIMIT}{'\n'}모두 보기 →</Text>
-                  </Pressable>
-                )}
-              </ScrollView>
-            </>
-          )}
-
           {/* [구조 2] 오늘, 도전 인연들의 하루 섹션 */}
           <Text style={styles.sectionLabel}>오늘, 하다 인연들의 하루</Text>
-          {completions.length > 0 || todayProofs.length > 0 ? (
+          {visibleCompletions.length > 0 || todayProofs.length > 0 ? (
             <>
               {/* 1. 🎉 완주 리본 — 최근 공개 완주 이야기 */}
-              {completions.map(c => (
+              {visibleCompletions.map(c => (
                 <CompletionRibbon key={c.id} story={c} />
               ))}
               {/* 2. 📸 오늘의 인증 — 챌린지별 묶음 + 인라인 더보기 (옛 인증이 밀려 안 보이던 문제 해소) */}
@@ -958,6 +935,11 @@ const styles = StyleSheet.create({
   scroll: { paddingBottom: 40 },
   list: { paddingHorizontal: 24, paddingTop: 16, gap: 12 },
 
+  // 🚀 홈 페이지 제목 (다른 탭 24px 제목과 위계 통일)
+  intro: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 4 },
+  introTitle: { ...textStyle.greeting, color: colors.ink, letterSpacing: -0.5 },
+  introSub: { fontSize: fontSize.sm, color: colors.faint, fontFamily: fontFamily.regular, marginTop: 3 },
+
   // 🔭 하다 구경 — 최상단 얇은 바
   peekBar: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -992,15 +974,6 @@ const styles = StyleSheet.create({
   allDoneCard: { marginHorizontal: 16, backgroundColor: colors.doneTint, borderRadius: radius['2xl'], padding: 20, alignItems: 'center', gap: 4 },
   allDoneTitle: { fontSize: fontSize.lg, color: colors.doneInk, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
   allDoneSub: { fontSize: fontSize.sm, color: colors.sub, fontFamily: fontFamily.regular },
-
-  // 끝낸 하다 가로 칩
-  finishedScroll: { paddingHorizontal: 20, gap: 12, paddingTop: 4 },
-  finishedChip: { width: 170, backgroundColor: colors.tintCream, borderRadius: radius.xl, padding: 15, justifyContent: 'space-between', minHeight: 96 },
-  finishedChipTitle: { fontSize: fontSize.base, color: colors.sub, fontFamily: fontFamily.medium, fontWeight: fontWeight.medium, lineHeight: 19 },
-  finishedChipMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 },
-  finishedChipMetaText: { fontSize: fontSize.sm, color: colors.faint, fontFamily: fontFamily.regular },
-  finishedMoreChip: { width: 110, backgroundColor: colors.lineSoft, borderRadius: radius.xl, padding: 15, alignItems: 'center', justifyContent: 'center', minHeight: 96 },
-  finishedMoreText: { fontSize: fontSize.sm, color: colors.sub, fontFamily: fontFamily.medium, fontWeight: fontWeight.medium, textAlign: 'center', lineHeight: 18 },
 
   // me-strip
   meStrip: {
