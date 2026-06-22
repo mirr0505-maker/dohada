@@ -15,7 +15,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { joinChallenge } from '@/lib/invite';
 import { Screen } from '@/components/Screen';
 import { AppHeader } from '@/components/AppHeader';
-import { Telescope, ChevronRight } from 'lucide-react-native';
+import { Telescope, ChevronRight, Camera, Trophy } from 'lucide-react-native';
 import { BrandMark } from '@/components/BrandMark';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
@@ -249,6 +249,10 @@ export default function HomeScreen() {
   // 🚀 미인증 챌린지 (인증 의무 있는 것만 — count형·cheered 응원자·시작 전 모집 기간 방은 제외)
   const uncheckedChs = activeChs.filter(needsTodayCheck);
 
+  // 🚀 오늘 할 일 앵커 = 가장 시급한(종료 임박) 미인증 1개. 나머지 진행중은 아래 압축 리스트로.
+  const anchorCh = [...uncheckedChs].sort((a, b) => a.end_date.localeCompare(b.end_date))[0] ?? null;
+  const restActiveChs = visibleActiveChs.filter(c => c.id !== anchorCh?.id);
+
   // 🚀 오늘 동료 인증을 챌린지별로 묶음 — 새 인증이 옛 인증을 홈에서 밀어내던 문제 해소 (그룹 + 인라인 더보기)
   //    todayProofs 는 최신순 → Map 삽입 순서가 곧 그룹 최신순, 그룹 내부도 최신순
   const todayProofGroups = React.useMemo(() => {
@@ -406,11 +410,19 @@ export default function HomeScreen() {
             </>
           ) : (
           <>
-          {/* [구조 1] 오늘, 나의 도전 섹션 — 진행 중만 노출 */}
-          <Text style={styles.sectionLabel}>오늘, 나의 하다</Text>
+          {/* [구조 1] 오늘 할 일 — 앵커(가장 시급한 미인증 1개) + 나머지 진행중 압축 */}
+          <Text style={styles.sectionLabel}>오늘 할 일</Text>
           {activeChs.length > 0 ? (
             <View style={styles.myChallengeList}>
-              {visibleActiveChs.map(c => {
+              {anchorCh ? (
+                <TodayAnchor challenge={anchorCh} todayStr={todayStr} />
+              ) : (
+                <View style={styles.allDoneCard}>
+                  <Text style={styles.allDoneTitle}>오늘 할 일을 다 했어요</Text>
+                  <Text style={styles.allDoneSub}>내일 또, 한 걸음.</Text>
+                </View>
+              )}
+              {restActiveChs.map(c => {
                 const ddayText = getChallengeDDay(c.start_date, c.end_date);
                 let km = KIND_META[c.kind] ?? KIND_META.solo;
                 if (c.kind === 'cheered') {
@@ -553,36 +565,34 @@ export default function HomeScreen() {
           {/* 🚀 P-⑤ 종료된 도전 분리 섹션 — 박제·회고용 */}
           {finishedChs.length > 0 && (
             <>
-              <Text style={[styles.sectionLabel, { marginTop: 24 }]}>🏆 끝낸 하다</Text>
-              <View style={styles.myChallengeList}>
+              <Text style={[styles.sectionLabel, { marginTop: 24 }]}>끝낸 하다</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.finishedScroll}
+              >
                 {visibleFinishedChs.map(c => (
                   <Pressable
                     key={c.id}
-                    style={[styles.myChallengeCard, { opacity: 0.85 }]}
+                    style={styles.finishedChip}
                     onPress={() => { haptic.tap(); router.push(`/room/${c.id}?tab=archive` as any); }}
                   >
-                    <View style={styles.myChallengeInfo}>
-                      <Text style={styles.myChallengeTitle} numberOfLines={1}>{c.title}</Text>
-                      <View style={styles.myChallengeMetaRow}>
-                        <View style={[styles.metaBadge, { backgroundColor: colors.primary100 }]}>
-                          <Text style={[styles.metaBadgeText, { color: colors.primary700 }]}>
-                            🏁 종료 · {c.start_date.slice(5)}~{c.end_date.slice(5)}
-                          </Text>
-                        </View>
-                      </View>
+                    <Text style={styles.finishedChipTitle} numberOfLines={2}>{c.title}</Text>
+                    <View style={styles.finishedChipMeta}>
+                      <Text style={styles.finishedChipMetaText}>박제 보기</Text>
+                      <Trophy size={15} color={colors.gold} strokeWidth={1.8} />
                     </View>
-                    <Text style={styles.quickCheckedText}>박제 →</Text>
                   </Pressable>
                 ))}
                 {finishedChs.length > HOME_FINISHED_LIMIT && (
                   <Pressable
-                    style={styles.moreLink}
+                    style={styles.finishedMoreChip}
                     onPress={() => { haptic.tap(); router.push('/(tabs)/my-challenges' as any); }}
                   >
-                    <Text style={styles.moreLinkText}>끝낸 하다 {finishedChs.length}개 모두 보기 →</Text>
+                    <Text style={styles.finishedMoreText}>+{finishedChs.length - HOME_FINISHED_LIMIT}{'\n'}모두 보기 →</Text>
                   </Pressable>
                 )}
-              </View>
+              </ScrollView>
             </>
           )}
 
@@ -715,6 +725,33 @@ export default function HomeScreen() {
   );
 }
 
+// ─── 오늘 할 일 앵커 — 가장 시급한 미인증 1개 (tintWarm + 오렌지 CTA) ───
+function TodayAnchor({ challenge: c, todayStr }: { challenge: MyChallengeDetail; todayStr: string }) {
+  const km = c.kind === 'cheered' ? KIND_META.cheered_creator : (KIND_META[c.kind] ?? KIND_META.solo);
+  const ddayText = getChallengeDDay(c.start_date, c.end_date);
+  const startMs = Date.parse(c.start_date + 'T00:00:00');
+  const endMs = Date.parse(c.end_date + 'T00:00:00');
+  const nowMs = Date.parse(todayStr + 'T00:00:00');
+  const totalDays = Math.max(1, Math.round((endMs - startMs) / 86400000) + 1);
+  const elapsedDays = Math.min(totalDays, Math.max(1, Math.round((nowMs - startMs) / 86400000) + 1));
+  const pct = Math.min(100, Math.max(0, Math.round((elapsedDays / totalDays) * 100)));
+  return (
+    <Pressable style={styles.anchor} onPress={() => { haptic.tap(); router.push(`/room/${c.id}` as any); }}>
+      <Text style={styles.anchorKind}>{km.label} · {ddayText}</Text>
+      <Text style={styles.anchorTitle} numberOfLines={2}>{c.title}</Text>
+      <Text style={styles.anchorMeta}>{elapsedDays}/{totalDays}일째</Text>
+      <View style={styles.anchorBar}><View style={[styles.anchorBarFill, { width: `${pct}%` }]} /></View>
+      <Pressable
+        style={styles.anchorCta}
+        onPress={() => { haptic.tap(); router.push(`/checkin/${c.id}` as any); }}
+      >
+        <Camera size={19} color={colors.onBrand} strokeWidth={2} />
+        <Text style={styles.anchorCtaText}>오늘 인증하기</Text>
+      </Pressable>
+    </Pressable>
+  );
+}
+
 // ─── 카드 1: 🎉 완주 리본 ─────────────────────────────────
 function CompletionRibbon({ story }: { story: CompletionStoryCard }) {
   return (
@@ -794,7 +831,7 @@ function TodayProofCard({ proof, onViewPhoto }: { proof: FellowProof; onViewPhot
         return (
           <PhotoCarousel
             photos={photos}
-            aspectRatio={4 / 3}
+            aspectRatio={16 / 10}
             borderRadius={radius.md}
             onPressPhoto={(i) => onViewPhoto(photos, i)}
             topRight={m ? <StreakMedal day={m.day} color={m.color} /> : undefined}
@@ -901,6 +938,38 @@ const styles = StyleSheet.create({
   // 로고 워터마크 서명 (홈 맨 아래, 헤더에서 뺀 로고의 정착지)
   homeSign: { alignItems: 'center', gap: 6, marginTop: 28, opacity: 0.5 },
   homeSignText: { fontSize: fontSize.sm, color: colors.faint2, fontFamily: fontFamily.medium, letterSpacing: 0.5 },
+
+  // 오늘 할 일 앵커 (tintWarm + 오렌지 CTA, 화면당 1 그림자)
+  anchor: {
+    marginHorizontal: 16, backgroundColor: colors.tintWarm,
+    borderRadius: radius['2xl'], padding: 20,
+    shadowColor: colors.brand, shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.10, shadowRadius: 18, elevation: 3,
+  },
+  anchorKind: { fontSize: fontSize.sm, color: colors.brandInk, fontFamily: fontFamily.medium, fontWeight: fontWeight.medium, marginBottom: 8 },
+  anchorTitle: { fontSize: fontSize.xl, color: colors.ink, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold, lineHeight: 24 },
+  anchorMeta: { fontSize: fontSize.sm, color: colors.sub, fontFamily: fontFamily.regular, marginTop: 10 },
+  anchorBar: { height: 7, backgroundColor: colors.tintCreamLine, borderRadius: radius.pill, overflow: 'hidden', marginTop: 12 },
+  anchorBarFill: { height: '100%', backgroundColor: colors.brand, borderRadius: radius.pill },
+  anchorCta: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
+    height: 50, borderRadius: radius.pill, backgroundColor: colors.brand, marginTop: 16,
+  },
+  anchorCtaText: { fontSize: fontSize.md, color: colors.onBrand, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
+
+  // 오늘 다 했어요 (세이지)
+  allDoneCard: { marginHorizontal: 16, backgroundColor: colors.doneTint, borderRadius: radius['2xl'], padding: 20, alignItems: 'center', gap: 4 },
+  allDoneTitle: { fontSize: fontSize.lg, color: colors.doneInk, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
+  allDoneSub: { fontSize: fontSize.sm, color: colors.sub, fontFamily: fontFamily.regular },
+
+  // 끝낸 하다 가로 칩
+  finishedScroll: { paddingHorizontal: 20, gap: 12, paddingTop: 4 },
+  finishedChip: { width: 170, backgroundColor: colors.tintCream, borderRadius: radius.xl, padding: 15, justifyContent: 'space-between', minHeight: 96 },
+  finishedChipTitle: { fontSize: fontSize.base, color: colors.sub, fontFamily: fontFamily.medium, fontWeight: fontWeight.medium, lineHeight: 19 },
+  finishedChipMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 },
+  finishedChipMetaText: { fontSize: fontSize.sm, color: colors.faint, fontFamily: fontFamily.regular },
+  finishedMoreChip: { width: 110, backgroundColor: colors.lineSoft, borderRadius: radius.xl, padding: 15, alignItems: 'center', justifyContent: 'center', minHeight: 96 },
+  finishedMoreText: { fontSize: fontSize.sm, color: colors.sub, fontFamily: fontFamily.medium, fontWeight: fontWeight.medium, textAlign: 'center', lineHeight: 18 },
 
   // me-strip
   meStrip: {
@@ -1111,37 +1180,6 @@ const styles = StyleSheet.create({
   },
 
   // 관심 추천 빈 상태 카드
-  emptyInterestCard: {
-    marginHorizontal: 16,
-    marginBottom: 14,
-    backgroundColor: '#FAF5FF',
-    borderRadius: radius.xl,
-    paddingVertical: 24,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    gap: 6,
-    borderWidth: 1,
-    borderColor: '#F3E8FF',
-    borderStyle: 'dashed',
-  },
-  emptyInterestEmoji: {
-    fontSize: 32,
-    marginBottom: 2,
-  },
-  emptyInterestTitle: {
-    fontSize: fontSize.base,
-    color: colors.primary,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-  },
-  emptyInterestDesc: {
-    fontSize: fontSize.xs,
-    color: colors.primary500,
-    fontFamily: fontFamily.regular,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-
   // 조용한 마커
   quietMarker: {
     alignItems: 'center',
