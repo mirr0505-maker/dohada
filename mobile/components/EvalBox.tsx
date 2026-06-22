@@ -3,6 +3,7 @@
 import React from 'react';
 import { Pressable, Text, StyleSheet } from 'react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
+import { formatCheerCount } from '@/lib/format';   // 100+ → "99+" (수칙 #2 거대숫자 약화)
 
 export function EvalBox({
   emoji,
@@ -27,7 +28,7 @@ export function EvalBox({
     >
       <Text style={styles.emoji}>{emoji}</Text>
       <Text style={[styles.label, { color: fg }]}>{label}</Text>
-      <Text style={[styles.count, { color: selected ? colors.brandInk : colors.faint }]}>{count}</Text>
+      <Text style={[styles.count, { color: selected ? colors.brandInk : colors.faint }]}>{formatCheerCount(count)}</Text>
     </Pressable>
   );
 }

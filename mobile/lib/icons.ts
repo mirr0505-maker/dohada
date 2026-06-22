@@ -29,6 +29,20 @@ export const categoryIcon: Record<string, LucideIcon> = {
   other: Ellipsis,           // 기타
 };
 
+// 분야 한글명 → slug (DB seed 0007 고정값). slug 없는 데이터(하다 구경 익명 카드 등)에서 아이콘 매핑용.
+export const categorySlugByName: Record<string, string> = {
+  '건강': 'health',
+  '운동': 'exercise',
+  '학습': 'learn',
+  '창작': 'create',
+  '자기계발': 'self',
+  '재테크': 'money',
+  '라이프': 'life',
+  '관계': 'relation',
+  '사회공헌': 'impact',
+  '기타': 'other',
+};
+
 // slug 가 매핑에 없을 때(신규 분야 등)의 폴백.
 export const fallbackCategoryIcon: LucideIcon = Ellipsis;
 
