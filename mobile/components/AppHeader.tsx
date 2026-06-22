@@ -15,6 +15,7 @@ import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/
 import { useSession } from '@/lib/session';
 import { fetchMyProfile, fetchMyNotifications, type MyNotification } from '@/lib/db';
 import { notificationRoute } from '@/lib/push';
+import { displayTitle } from '@/lib/format';
 import { haptic } from '@/lib/haptics';
 
 const BELL_SEEN_KEY = 'bell_seen_at';   // 알림함 마지막 확인 시각 (디바이스 로컬)
@@ -193,7 +194,7 @@ export function AppHeader() {
                       {n.challenge_title ? (
                         <View style={styles.newsChallengeRow}>
                           <MapPin size={11} color={colors.faint} strokeWidth={1.8} />
-                          <Text style={styles.newsChallenge} numberOfLines={1}>{n.challenge_title}</Text>
+                          <Text style={styles.newsChallenge} numberOfLines={1}>{displayTitle(n.challenge_title)}</Text>
                         </View>
                       ) : null}
                       <Text style={styles.newsTags} numberOfLines={2}>

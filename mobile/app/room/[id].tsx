@@ -50,7 +50,7 @@ import { computeProgress, computeStreak, isCompleted, isFailed, isFinished, getF
 import { StreakMedal } from '@/components/challenge/StreakMedal';
 import * as SecureStore from 'expo-secure-store';
 import { joinChallenge } from '@/lib/invite';
-import { formatCheerCount, getKstTodayRange } from '@/lib/format';
+import { formatCheerCount, getKstTodayRange, displayTitle } from '@/lib/format';
 import type {
   DbChallenge, MemberWithToday, ProofWithRelations, ChallengeKind,
 } from '@/lib/types';
@@ -916,7 +916,7 @@ export default function ChallengeRoom() {
                 ? <Flag size={16} color={colors.sub} strokeWidth={2} style={{ marginRight: 4 }} />
                 : null}
             <Text style={styles.title} numberOfLines={1}>
-              {challenge.title}
+              {displayTitle(challenge.title)}
             </Text>
             <Pressable
               onPress={() => { haptic.tap(); setMemberSheetOpen(true); }}

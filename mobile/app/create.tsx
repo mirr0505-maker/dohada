@@ -33,12 +33,12 @@ import type { ChallengeKind } from '@/lib/types';
 const TOTAL_STEPS = 5;
 
 const SUGGESTIONS = [
-  '📚 100일 책 읽기',
-  '🏃 매일 5km 러닝',
-  '🚭 100일 금연',
-  '💪 매일 푸쉬업 50개',
-  '🧘 매일 명상 10분',
-  '💰 30일 무지출',
+  '100일 책 읽기',
+  '매일 5km 러닝',
+  '100일 금연',
+  '매일 푸쉬업 50개',
+  '매일 명상 10분',
+  '30일 무지출',
 ];
 
 const DURATIONS = [

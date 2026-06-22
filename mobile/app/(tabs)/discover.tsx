@@ -17,7 +17,7 @@ import { colors, fontFamily, fontSize, fontWeight, radius, textStyle, shadow } f
 import { categorySlugByName } from '@/lib/icons';
 import { useSession } from '@/lib/session';
 import { fetchBrowseChallenges, toggleChallengeVote } from '@/lib/db';
-import { formatCheerCount } from '@/lib/format';
+import { formatCheerCount, displayTitle } from '@/lib/format';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import type { BrowseChallengeCard, ChallengeVoteType } from '@/lib/types';
@@ -234,7 +234,7 @@ function BrowseCard({
         )}
       </View>
 
-      <Text style={styles.cardTitle} numberOfLines={2}>{challenge.title}</Text>
+      <Text style={styles.cardTitle} numberOfLines={2}>{displayTitle(challenge.title)}</Text>
       {challenge.description ? (
         <Text style={styles.cardDesc} numberOfLines={3}>{challenge.description}</Text>
       ) : null}

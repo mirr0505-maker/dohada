@@ -26,6 +26,7 @@ import { uploadProofImage } from '@/lib/upload';
 import {
   createCompletionStory, fetchMyCompletionStoryForChallenge,
 } from '@/lib/db';
+import { displayTitle } from '@/lib/format';
 import type { StoryVisibility } from '@/lib/types';
 
 // ─── 이야기 6개 필드 — 라벨/플레이스홀더/길이 ─────────────
@@ -262,7 +263,7 @@ export default function NewCompletionStoryScreen() {
                 <Text style={styles.metaCatText}>{challenge.category.name}</Text>
               </View>
             )}
-            <Text style={styles.metaTitle}>{challenge.title}</Text>
+            <Text style={styles.metaTitle}>{displayTitle(challenge.title)}</Text>
           </View>
 
           {/* 통계 — 시스템 자동 잠금 */}

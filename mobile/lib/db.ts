@@ -283,6 +283,7 @@ export async function fetchMyGivenUpChallenges(myUserId: string): Promise<GivenU
 export type MyChallengeDetail = ChallengeWithCount & {
   kind: ChallengeKind;
   is_impact: boolean;
+  category_name: string | null;   // 🚀 홈 응원 카드 카테고리 아이콘용
   description: string | null;
   today_check_count: number;      // 오늘 인증한 멤버 수
   my_cheers_count: number;        // 본인 인증에 받은 응원 합계 (cheered 카드용)
@@ -310,7 +311,7 @@ export async function fetchMyChallengesWithDetails(myUserId: string): Promise<My
     .from('challenges')
     .select(`
       *,
-      category:category_id(is_impact),
+      category:category_id(name, is_impact),
       challenge_members(count)
     `)
     .in('id', myIds)
@@ -380,6 +381,7 @@ export async function fetchMyChallengesWithDetails(myUserId: string): Promise<My
     created_at: c.created_at,
     member_count: c.challenge_members?.[0]?.count ?? 0,
     is_impact: !!c.category?.is_impact,
+    category_name: c.category?.name ?? null,
     today_check_count: todayCountMap.get(c.id) ?? 0,
     my_cheers_count: myCheersMap.get(c.id) ?? 0,
     top_members: topMembersMap.get(c.id) ?? [],

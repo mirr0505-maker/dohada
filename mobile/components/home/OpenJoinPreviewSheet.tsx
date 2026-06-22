@@ -9,7 +9,7 @@ import { Globe, Crown, Users, Calendar } from 'lucide-react-native';
 import { CategoryIcon } from '@/components/CategoryIcon';
 import { categorySlugByName } from '@/lib/icons';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
-import { getChallengeDDay } from '@/lib/format';
+import { getChallengeDDay, displayTitle } from '@/lib/format';
 import { betBadgeText } from '@/lib/payments';
 import { haptic } from '@/lib/haptics';
 import type { OpenChallengeCard } from '@/lib/types';
@@ -48,7 +48,7 @@ export function OpenJoinPreviewSheet({ challenge, joining, onClose, onConfirm }:
                   <Globe size={13} color={colors.accent} strokeWidth={2} />
                   <Text style={styles.curation}>누구나 합류</Text>
                 </View>
-                <Text style={styles.title}>{challenge.title}</Text>
+                <Text style={styles.title}>{displayTitle(challenge.title)}</Text>
 
                 {challenge.category && (
                   <View style={styles.categoryChip}>

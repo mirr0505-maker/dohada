@@ -6,6 +6,7 @@ import { View, Text, Pressable, SectionList, StyleSheet, ActivityIndicator } fro
 import { router, useFocusEffect } from 'expo-router';
 import { ArrowLeft, ArrowDown, Trophy, Heart, Check } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
+import { displayTitle } from '@/lib/format';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import { haptic } from '@/lib/haptics';
@@ -87,7 +88,7 @@ export default function PledgeHistoryScreen() {
             >
               {/* 하다 제목 + 상태 배지 */}
               <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
+                <Text style={styles.cardTitle} numberOfLines={1}>{displayTitle(item.title)}</Text>
                 {item.status === 'active' ? (
                   <View style={[styles.statusBadge, styles.badgeActive]}>
                     <Text style={[styles.statusBadgeText, styles.badgeActiveText]}>D-{item.daysLeft}</Text>

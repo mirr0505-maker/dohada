@@ -11,6 +11,7 @@ import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import { fetchRoomData } from '@/lib/db';
 import { computeProgress, memberTargetProofCount, uniqueProofDays } from '@/lib/stats';
+import { displayTitle } from '@/lib/format';
 import { fetchMyBet, isBetVisible } from '@/lib/payments';
 import { haptic } from '@/lib/haptics';
 
@@ -96,7 +97,7 @@ export default function CompleteScreen() {
           <Trophy size={80} color={colors.surface} strokeWidth={1.5} />
         </Animated.View>
         <Animated.Text entering={FadeInDown.springify().delay(300)} style={styles.title}>완주!</Animated.Text>
-        <Animated.Text entering={FadeInDown.springify().delay(420)} style={styles.challengeName}>"{title}"</Animated.Text>
+        <Animated.Text entering={FadeInDown.springify().delay(420)} style={styles.challengeName}>"{displayTitle(title)}"</Animated.Text>
         <Animated.Text entering={FadeInDown.springify().delay(540)} style={styles.days}>
           {isCount ? `목표 ${targetDays}개를 달성했어요` : `${totalDays}일을 끝까지 해냈어요`}
         </Animated.Text>

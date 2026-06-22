@@ -15,7 +15,7 @@ import { useSession } from '@/lib/session';
 import { fetchRecentLogs } from '@/lib/db';
 import { ErrorState } from '@/components/ErrorState';
 import { haptic } from '@/lib/haptics';
-import { formatCheerCount } from '@/lib/format';
+import { formatCheerCount, displayTitle } from '@/lib/format';
 import { reportError } from '@/lib/sentry';
 import type { LogWithChallenge } from '@/lib/db';
 
@@ -108,7 +108,7 @@ function RecordCard({ log }: { log: LogWithChallenge }) {
           <Text style={styles.who} numberOfLines={1}>{log.author.nickname}</Text>
           <View style={styles.metaRow}>
             {catName ? <CategoryIcon slug={categorySlugByName[catName]} size={12} color={colors.faint} /> : null}
-            <Text style={styles.meta} numberOfLines={1}>{log.challenge.title}</Text>
+            <Text style={styles.meta} numberOfLines={1}>{displayTitle(log.challenge.title)}</Text>
           </View>
         </View>
         <Text style={styles.time}>{relTime(log.created_at)}</Text>

@@ -12,7 +12,7 @@ import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/
 import { useSession } from '@/lib/session';
 import { joinChallenge, setPendingInvite, clearPendingInvite } from '@/lib/invite';
 import { fetchChallengeDetailForInvite } from '@/lib/db';
-import { getChallengeDDay } from '@/lib/format';
+import { getChallengeDDay, displayTitle } from '@/lib/format';
 import { betBadgeText } from '@/lib/payments';
 import { haptic } from '@/lib/haptics';
 
@@ -118,7 +118,7 @@ export default function InviteScreen() {
             <View style={styles.cardHeaderEmoji}><Mail size={40} color={colors.accent} strokeWidth={1.6} /></View>
             <Text style={styles.cardCuration}>하다 인연 초대장</Text>
 
-            <Text style={styles.title}>{challenge.title}</Text>
+            <Text style={styles.title}>{displayTitle(challenge.title)}</Text>
 
             {/* 카테고리 정보 */}
             {challenge.category && (

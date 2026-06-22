@@ -18,7 +18,7 @@ import { ChallengeCardSkeleton } from '@/components/Skeleton';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import type { ChallengeWithCount } from '@/lib/types';
-import { getKstTodayRange } from '@/lib/format';
+import { getKstTodayRange, displayTitle } from '@/lib/format';
 
 export default function MyChallengesScreen() {
   const session = useSession();
@@ -147,7 +147,7 @@ export default function MyChallengesScreen() {
                           onPress={() => { haptic.tap(); router.push(`/room/${item.id}` as any); }}
                         >
                           <View style={{ flex: 1 }}>
-                            <Text style={styles.gaveUpTitle} numberOfLines={1}>{item.title}</Text>
+                            <Text style={styles.gaveUpTitle} numberOfLines={1}>{displayTitle(item.title)}</Text>
                             <Text style={styles.gaveUpMeta}>
                               {item.start_date.replace(/-/g, '.')} ~ {item.end_date.replace(/-/g, '.')} · 열람만 가능
                             </Text>
@@ -197,7 +197,7 @@ function Card({ challenge: c, myUserId, finished = false }: { challenge: Challen
 
       {/* 헤더: 제목 + 상태 tag */}
       <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle} numberOfLines={1}>{c.title}</Text>
+        <Text style={styles.cardTitle} numberOfLines={1}>{displayTitle(c.title)}</Text>
         {finished ? (
           <View style={styles.tagNeutral}><Text style={styles.tagNeutralText}>종료</Text></View>
         ) : isCount ? (

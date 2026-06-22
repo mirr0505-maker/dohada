@@ -17,7 +17,7 @@ import { Screen } from '@/components/Screen';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import { fetchCompletionStory, deleteCompletionStory, toggleStoryCourage } from '@/lib/db';
-import { formatCheerCount } from '@/lib/format';
+import { formatCheerCount, displayTitle } from '@/lib/format';
 import { haptic } from '@/lib/haptics';
 import type { CompletionStoryCard } from '@/lib/types';
 
@@ -168,7 +168,7 @@ export default function CompletionStoryDetailScreen() {
         {/* 트로피 카드 */}
         <View style={styles.trophyCard}>
           <View style={styles.trophyEmoji}><Trophy size={44} color={colors.gold} strokeWidth={1.6} /></View>
-          <Text style={styles.trophyTitle}>{story.challenge.title}</Text>
+          <Text style={styles.trophyTitle}>{displayTitle(story.challenge.title)}</Text>
           <Text style={styles.trophyMeta}>
             {story.author.nickname} · {year} · Do : 하다
           </Text>

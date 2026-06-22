@@ -6,6 +6,7 @@ import { View, Text, Pressable, SectionList, StyleSheet, ActivityIndicator } fro
 import { router, useFocusEffect } from 'expo-router';
 import { ArrowLeft, Coffee } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
+import { displayTitle } from '@/lib/format';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import { haptic } from '@/lib/haptics';
@@ -114,7 +115,7 @@ export default function GiftHistoryScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.rowTitle} numberOfLines={1}>{rowTitle(item)}</Text>
                   {item.challenge_title ? (
-                    <Text style={styles.rowMeta} numberOfLines={1}>{item.challenge_title}</Text>
+                    <Text style={styles.rowMeta} numberOfLines={1}>{displayTitle(item.challenge_title)}</Text>
                   ) : null}
                 </View>
                 <View style={styles.rowRight}>

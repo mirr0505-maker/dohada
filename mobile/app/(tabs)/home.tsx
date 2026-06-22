@@ -40,7 +40,9 @@ import { streakMilestone } from '@/lib/stats';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import type { CompletionStoryCard, OpenChallengeCard } from '@/lib/types';
-import { getChallengeDDay, getKstTodayRange, formatCheerCount } from '@/lib/format';
+import { getChallengeDDay, getKstTodayRange, formatCheerCount, displayTitle } from '@/lib/format';
+import { CategoryIcon } from '@/components/CategoryIcon';
+import { categorySlugByName } from '@/lib/icons';
 
 // ─── 🚀 오늘 나의 도전용 헬퍼 및 메타 ─────────────────
 const KIND_META: Record<string, { Icon: LucideIcon; label: string; bg: string; text: string }> = {
@@ -444,7 +446,7 @@ export default function HomeScreen() {
                       style={styles.myChallengeInfo}
                       onPress={() => { haptic.tap(); router.push(`/room/${c.id}` as any); }}
                     >
-                      <Text style={styles.myChallengeTitle} numberOfLines={1}>{c.title}</Text>
+                      <Text style={styles.myChallengeTitle} numberOfLines={1}>{displayTitle(c.title)}</Text>
                       <View style={styles.myChallengeMetaRow}>
                         {/* 1. 개설/참여 역할 뱃지 */}
                         <View style={[
@@ -596,7 +598,7 @@ export default function HomeScreen() {
                     style={styles.finishedChip}
                     onPress={() => { haptic.tap(); router.push(`/room/${c.id}?tab=archive` as any); }}
                   >
-                    <Text style={styles.finishedChipTitle} numberOfLines={2}>{c.title}</Text>
+                    <Text style={styles.finishedChipTitle} numberOfLines={2}>{displayTitle(c.title)}</Text>
                     <View style={styles.finishedChipMeta}>
                       <Text style={styles.finishedChipMetaText}>박제 보기</Text>
                       <Trophy size={15} color={colors.gold} strokeWidth={1.8} />
@@ -718,7 +720,7 @@ export default function HomeScreen() {
                     router.push(`/checkin/${c.id}` as any);
                   }}
                 >
-                  <Text style={styles.pickerRowTitle} numberOfLines={1}>{c.title}</Text>
+                  <Text style={styles.pickerRowTitle} numberOfLines={1}>{displayTitle(c.title)}</Text>
                   <Text style={styles.pickerRowArrow}>→</Text>
                 </Pressable>
               ))}
@@ -757,7 +759,7 @@ function TodayAnchor({ challenge: c, todayStr }: { challenge: MyChallengeDetail;
   return (
     <Pressable style={styles.anchor} onPress={() => { haptic.tap(); router.push(`/room/${c.id}` as any); }}>
       <Text style={styles.anchorKind}>{km.label} · {ddayText}</Text>
-      <Text style={styles.anchorTitle} numberOfLines={2}>{c.title}</Text>
+      <Text style={styles.anchorTitle} numberOfLines={2}>{displayTitle(c.title)}</Text>
       <Text style={styles.anchorMeta}>{elapsedDays}/{totalDays}일째</Text>
       <View style={styles.anchorBar}><View style={[styles.anchorBarFill, { width: `${pct}%` }]} /></View>
       <Pressable
@@ -785,7 +787,7 @@ function CompletionRibbon({ story }: { story: CompletionStoryCard }) {
             {story.total_days}일</Text>을 완주했어요
         </Text>
         <Text style={styles.ribbonMeta} numberOfLines={1}>
-          {story.challenge.title} · 박제 보러가기 →
+          {displayTitle(story.challenge.title)} · 박제 보러가기 →
         </Text>
       </View>
     </Pressable>
@@ -809,7 +811,7 @@ function TodayChallengeProofGroup({
       <View style={styles.proofGroupHead}>
         <Camera size={14} color={colors.primary700} strokeWidth={2} />
         <Text style={styles.proofGroupHeadText} numberOfLines={1}>
-          {title} · 오늘 {proofs.length}명 인증
+          {displayTitle(title)} · 오늘 {proofs.length}명 인증
         </Text>
       </View>
       {visible.map(p => (
@@ -879,9 +881,11 @@ function CheeredCard({ challenge }: { challenge: MyChallengeDetail }) {
       onPress={() => { haptic.tap(); router.push(`/room/${challenge.id}` as any); }}
     >
       <View style={styles.cardHead}>
-        <View style={styles.cardKindEmoji}><Heart size={22} color={colors.accent} strokeWidth={1.8} /></View>
+        <View style={styles.cardKindEmoji}>
+          <CategoryIcon slug={categorySlugByName[challenge.category_name ?? '']} size={22} color={colors.accent} />
+        </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.who} numberOfLines={1}>{challenge.title}</Text>
+          <Text style={styles.who} numberOfLines={1}>{displayTitle(challenge.title)}</Text>
           <Text style={styles.sub}>응원받기 방 · 함께 {challenge.member_count}명</Text>
         </View>
       </View>
@@ -915,9 +919,11 @@ function JoinCard({ challenge, onJoin }: { challenge: OpenChallengeCard; onJoin:
       onPress={() => { haptic.tap(); router.push(`/room/${challenge.id}` as any); }}
     >
       <View style={styles.cardHead}>
-        <View style={styles.cardKindEmoji}><Globe size={22} color={colors.done} strokeWidth={1.8} /></View>
+        <View style={styles.cardKindEmoji}>
+          <CategoryIcon slug={categorySlugByName[challenge.category?.name ?? '']} size={22} color={colors.done} />
+        </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.who} numberOfLines={1}>{challenge.title}</Text>
+          <Text style={styles.who} numberOfLines={1}>{displayTitle(challenge.title)}</Text>
           <Text style={styles.sub}>
             누구나 합류 · 함께 {challenge.member_count}명
           </Text>

@@ -5,6 +5,7 @@ import { View, Text, FlatList, StyleSheet, Image, Pressable } from 'react-native
 import { User, Heart, Globe, Handshake, Calendar, Lock, Users, BarChart3, Check, Flame, type LucideIcon } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { computeStreak, memberPassedDays, isRecruiting, recruitCloseAtMs } from '@/lib/stats';
+import { displayTitle } from '@/lib/format';
 import type { DbChallenge, MemberWithToday, ProofWithRelations } from '@/lib/types';
 
 // 🚀 방 타입 배지 — 둘러보기 KIND_BADGE 와 동일한 아이콘 언어 (User/Heart/Globe/Handshake)
@@ -108,7 +109,7 @@ export function StatusTab({ challenge, members, proofs, myUserId, betSlot, pledg
               </Text>
             </View>
           </View>
-          <Text style={styles.infoTitle}>{challenge.title}</Text>
+          <Text style={styles.infoTitle}>{displayTitle(challenge.title)}</Text>
           {/* 🚀 안내문 (나홀로 제외) — 합류 전 미리보기와 동일한 소개를 방 안에서도 보존 */}
           {challenge.intro_image_url ? (
             <Image source={{ uri: challenge.intro_image_url }} style={styles.infoIntroImage} resizeMode="cover" />

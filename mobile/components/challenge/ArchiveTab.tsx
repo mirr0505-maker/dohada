@@ -8,6 +8,7 @@ import { router } from 'expo-router';
 import { Trophy, Flag, Camera, MessageCircle, Film, FileText, Mail, BookOpen, Shirt, PenLine, type LucideIcon } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { computeProgress, isCompleted, isFinished } from '@/lib/stats';
+import { displayTitle } from '@/lib/format';
 import { haptic } from '@/lib/haptics';
 import type { DbChallenge, ProofWithRelations } from '@/lib/types';
 
@@ -56,7 +57,7 @@ export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs, myUserId
             <Trophy size={56} color={colors.gold} strokeWidth={1.6} />
             <Text style={styles.placeholderTitle}>박제는 하다 종료 후</Text>
             <Text style={styles.placeholderDesc}>
-              {challenge.title} 이(가) 끝나면{'\n'}
+              {displayTitle(challenge.title)} 이(가) 끝나면{'\n'}
               여기에 모든 추억이 박제됩니다.
             </Text>
             <View style={styles.previewCard}>
@@ -103,7 +104,7 @@ export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs, myUserId
           {completed
             ? <Trophy size={64} color={colors.gold} strokeWidth={1.5} />
             : <Flag size={64} color={colors.sub} strokeWidth={1.5} />}
-          <Text style={styles.heroTitle}>{challenge.title}</Text>
+          <Text style={styles.heroTitle}>{displayTitle(challenge.title)}</Text>
           <Text style={styles.heroMeta}>
             {challenge.start_date} ~ {challenge.end_date}
           </Text>

@@ -13,7 +13,7 @@ import { CategoryIcon } from '@/components/CategoryIcon';
 import { colors, fontFamily, fontSize, fontWeight, radius, textStyle, shadow } from '@/lib/tokens';
 import { categorySlugByName } from '@/lib/icons';
 import { fetchPublicCompletionStories } from '@/lib/db';
-import { formatCheerCount } from '@/lib/format';
+import { formatCheerCount, displayTitle } from '@/lib/format';
 import { ErrorState } from '@/components/ErrorState';
 import { haptic } from '@/lib/haptics';
 import { reportError } from '@/lib/sentry';
@@ -116,7 +116,7 @@ function StoryCard({ story }: { story: CompletionStoryCard }) {
         <Trophy size={20} color={colors.gold} strokeWidth={1.8} />
       </View>
 
-      <Text style={styles.chTitle} numberOfLines={2}>{story.challenge.title}</Text>
+      <Text style={styles.chTitle} numberOfLines={2}>{displayTitle(story.challenge.title)}</Text>
 
       {/* 통계 미니 4칸 */}
       <View style={styles.statsRow}>
