@@ -1339,6 +1339,52 @@ export async function fetchMyProfile(userId: string): Promise<MyProfile> {
   };
 }
 
+// 🚀 나의 발자취 (프로필 v2) — 완주 수·최고 연속·받은 응원.
+// 마이그레이션 없이 클라에서 정확 집계: 완주 판정은 검증된 stats.goalStatus 단일 소스 재사용
+// (KST·빈도·늦합류 비례·count 조기완주 동일 규칙). 비교/줄세우기 아닌 '내 여정' 자축용.
+export type MyFootprints = { completed: number; bestStreak: number; cheersReceived: number };
+
+export async function fetchMyFootprints(userId: string): Promise<MyFootprints> {
+  // 1) 내 활성 멤버십(포기 제외) + 합류일 — 완주 판정의 늦합류 비례에 필요
+  const { data: mems } = await supabase
+    .from('challenge_members')
+    .select('challenge_id, joined_at')
+    .eq('user_id', userId)
+    .is('gave_up_at', null);
+  const memList = mems ?? [];
+  const chIds = memList.map(m => m.challenge_id);
+  const joinedMap = new Map<string, string | null>(memList.map(m => [m.challenge_id, m.joined_at]));
+
+  // 2) 내 인증 — 최고 연속·받은 응원·챌린지별 완주 판정용 날짜를 한 번에
+  const { data: proofs } = await supabase
+    .from('proofs')
+    .select('challenge_id, created_at, streak_count, cheers(count)')
+    .eq('user_id', userId);
+
+  let bestStreak = 0;
+  let cheersReceived = 0;
+  const proofsByCh = new Map<string, { created_at: string }[]>();
+  for (const p of (proofs ?? []) as any[]) {
+    bestStreak = Math.max(bestStreak, p.streak_count ?? 0);
+    cheersReceived += p.cheers?.[0]?.count ?? 0;
+    const arr = proofsByCh.get(p.challenge_id) ?? [];
+    arr.push({ created_at: p.created_at });
+    proofsByCh.set(p.challenge_id, arr);
+  }
+
+  // 3) 완주 수 — 챌린지 파라미터로 goalStatus 판정 (count 조기완주 / cadence 종료 후)
+  let completed = 0;
+  if (chIds.length > 0) {
+    const { data: chs } = await supabase.from('challenges').select('*').in('id', chIds);
+    for (const c of (chs ?? []) as DbChallenge[]) {
+      const myProofs = (proofsByCh.get(c.id) ?? []) as unknown as ProofWithRelations[];
+      if (goalStatus(c, myProofs, joinedMap.get(c.id) ?? null).isComplete) completed++;
+    }
+  }
+
+  return { completed, bestStreak, cheersReceived };
+}
+
 // 후방 호환 — profile.tsx 가 닉네임만 받던 시절 잔재
 export async function fetchMyNickname(userId: string): Promise<string> {
   const p = await fetchMyProfile(userId);
