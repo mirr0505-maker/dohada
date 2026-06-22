@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5">
+<title>Do : 하다 — 계정 삭제 안내</title>
+<meta name="theme-color" content="#FF6B35">
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard",
+                 "Noto Sans KR", "Helvetica Neue", Arial, sans-serif;
+    color: #1A1A1A;
+    background: #FFFFFF;
+    line-height: 1.7;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+  a { color: #C44A1C; text-decoration: underline; }
+
+  .container { max-width: 760px; margin: 0 auto; padding: 56px 24px 96px; }
+
+  .brand {
+    display: inline-flex; align-items: baseline; gap: 4px;
+    font-size: 16px; font-weight: 700;
+    color: #1A1A1A; letter-spacing: -0.4px;
+    margin-bottom: 32px;
+  }
+  .brand .colon { color: #FF6B35; margin: 0 2px; }
+  .brand a { color: #1A1A1A; text-decoration: none; }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.3;
+    letter-spacing: -0.5px;
+    margin-bottom: 12px;
+  }
+  .meta {
+    font-size: 13px;
+    color: #6B6B6B;
+    margin-bottom: 40px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid #ECE6DE;
+  }
+
+  h2 {
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    margin-top: 40px;
+    margin-bottom: 12px;
+    color: #1A1A1A;
+  }
+
+  p {
+    font-size: 15px;
+    color: #1A1A1A;
+    margin-bottom: 12px;
+  }
+
+  ul, ol {
+    padding-left: 22px;
+    margin-bottom: 12px;
+  }
+  li {
+    font-size: 15px;
+    color: #1A1A1A;
+    margin-bottom: 6px;
+  }
+  li strong { font-weight: 700; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+    margin-bottom: 12px;
+    font-size: 14px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid #ECE6DE;
+    vertical-align: top;
+  }
+  th {
+    background: #FAFAFA;
+    font-weight: 700;
+    color: #6B6B6B;
+    font-size: 12px;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+
+  .steps {
+    counter-reset: step;
+    list-style: none;
+    padding-left: 0;
+  }
+  .steps li {
+    position: relative;
+    padding: 4px 0 4px 40px;
+    margin-bottom: 10px;
+  }
+  .steps li::before {
+    counter-increment: step;
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 2px;
+    width: 26px;
+    height: 26px;
+    background: #FF6B35;
+    color: #FFFFFF;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .note {
+    background: #FFF4ED;
+    border-left: 4px solid #FF6B35;
+    padding: 14px 18px;
+    border-radius: 0 12px 12px 0;
+    margin-top: 16px;
+    margin-bottom: 16px;
+    font-size: 14px;
+    color: #423300;
+  }
+
+  .footer {
+    margin-top: 56px;
+    padding-top: 24px;
+    border-top: 1px solid #ECE6DE;
+    font-size: 13px;
+    color: #6B6B6B;
+  }
+
+  @media (max-width: 480px) {
+    .container { padding: 40px 20px 72px; }
+    h1 { font-size: 24px; }
+    h2 { font-size: 16px; }
+    table { font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="brand"><a href="./">Do<span class="colon">:</span>하다</a></div>
+
+  <h1>계정 삭제 안내</h1>
+  <p class="meta">시행일자: 2026년 6월 22일 · 베타 v1.0.0 · 앱: Do : 하다 (app.dohada.beta) · 운영자: 김기두</p>
+
+  <p>
+    Do : 하다(이하 "서비스") 이용자는 언제든지 본인 계정과 관련 개인정보의 삭제를 요청할 수 있습니다.
+    본 안내는 계정 삭제 방법과, 삭제되는 정보·보존되는 정보·보관 기간을 설명합니다.
+  </p>
+
+  <!-- ─── 1. 삭제 방법 ──────────────────────── -->
+  <h2>1. 계정을 삭제하는 방법</h2>
+
+  <p><strong>방법 A — 앱 안에서 직접 (권장)</strong></p>
+  <ol class="steps">
+    <li>앱 실행 후 우상단 <strong>프로필(MY) → 내정보</strong> 화면으로 이동합니다.</li>
+    <li>화면 하단의 <strong>로그아웃</strong> 아래 <strong>"계정 삭제"</strong>(빨간색)를 누릅니다.</li>
+    <li>삭제 영향 안내를 확인하고 <strong>동의 체크박스</strong>를 선택한 뒤 다음으로 넘어갑니다.</li>
+    <li><strong>최종 확인</strong>을 누르면 계정이 즉시 삭제(비활성화·익명화)됩니다.</li>
+  </ol>
+
+  <p><strong>방법 B — 이메일 요청</strong></p>
+  <p>
+    앱에 접속하기 어려운 경우, <a href="mailto:mirr0505@gmail.com">mirr0505@gmail.com</a> 으로
+    가입에 사용한 계정 정보와 함께 삭제를 요청해 주시면 지체 없이 처리합니다.
+  </p>
+
+  <div class="note">
+    계정 삭제는 <strong>유예 기간 없이 즉시</strong> 처리됩니다. 삭제 후에는 같은 계정으로 다시 로그인할 수 없습니다
+    (다른 계정으로는 새로 시작하실 수 있습니다).
+  </div>
+
+  <!-- ─── 2. 삭제되는 데이터 ─────────────────── -->
+  <h2>2. 삭제·익명화되는 데이터 (즉시)</h2>
+  <ul>
+    <li><strong>계정 식별 정보</strong>: 이메일, 닉네임, 프로필 이미지 — 삭제 또는 익명화(닉네임은 "탈퇴한 사람"으로 대체)</li>
+    <li><strong>본인인증 정보</strong>: 생년월일, 휴대폰 번호 (수집된 경우)</li>
+    <li><strong>알림 정보</strong>: 푸시 토큰, 알림 설정값</li>
+    <li><strong>관심 분야</strong> 등 개인 설정값</li>
+    <li>진행 중인 도전에서 자동으로 빠져나오며, 같은 계정의 재로그인은 영구 차단됩니다.</li>
+  </ul>
+
+  <!-- ─── 3. 보존되는 데이터 ─────────────────── -->
+  <h2>3. 보존되는 데이터 (익명화)</h2>
+  <p>
+    Do : 하다는 <strong>함께 도전한 동료들의 기록(박제)을 보호</strong>하기 위해,
+    여러 사람이 공유하는 공간에 남긴 콘텐츠는 작성자 정보를 <strong>익명화하여 보존</strong>합니다.
+    삭제한 이용자의 신원은 더 이상 식별되지 않습니다.
+  </p>
+  <ul>
+    <li><strong>공유 콘텐츠</strong>: 인증, 댓글, 기록, 대화, 완주 이야기, 다짐, 평가 — 작성자 익명화 후 보존</li>
+    <li><strong>결제 주문 내역</strong>: 응원 한잔·내기 등 주문 기록 — 관련 법령상 보관 의무에 따라 보존</li>
+  </ul>
+
+  <!-- ─── 4. 보관 기간 ─────────────────────── -->
+  <h2>4. 데이터 보관 기간</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>구분</th>
+        <th>보관 기간</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>개인을 식별할 수 있는 정보(이메일·닉네임·프로필·본인인증·푸시토큰 등)</td>
+        <td>삭제 요청 시 <strong>즉시 파기</strong> (유예 없음)</td>
+      </tr>
+      <tr>
+        <td>익명화된 공유 콘텐츠(인증·댓글·기록·완주 이야기 등)</td>
+        <td>동료의 기록 보호를 위해 <strong>익명 상태로 보존</strong></td>
+      </tr>
+      <tr>
+        <td>결제 주문 내역</td>
+        <td>관련 법령이 정한 <strong>법정 보관 기간</strong></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ─── Footer ───────────────────────────── -->
+  <div class="footer">
+    <p>본 안내는 베타 v1.0.0 기준입니다. 자세한 개인정보 처리 내용은 <a href="./privacy.html">개인정보처리방침</a>을 참고해 주세요.</p>
+    <p>문의: <a href="mailto:mirr0505@gmail.com">mirr0505@gmail.com</a></p>
+  </div>
+
+</div>
+
+</body>
+</html>
