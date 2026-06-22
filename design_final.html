@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Do:하다 — design_final (전 화면 리디자인 v2)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/dist/tabler-icons.min.css">
+<style>
+:root{
+  --bg:#FAF7F2; --surface:#FFFFFF; --line:#ECE6DE; --lineSoft:#F1EBE3;
+  --brand:#FF6B35; --brandPress:#E85A28; --brandTint:#FFF1E9; --brandInk:#C7461F;
+  --tintWarm:#FFF1E9; --tintCream:#FBF3E4; --tintCreamLine:#EFE3CE; --tintSage:#EDF1EC; --tintSageLine:#DCE8E0;
+  --done:#5C8A6A; --doneTint:#EAF1EC; --doneInk:#4A7657;
+  --gold:#B8862F;
+  --ink:#2A2622; --sub:#6B645C; --faint:#9B938A; --faint2:#B0A899; --onBrand:#FFFFFF;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Pretendard',-apple-system,'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif;background:#E8E4DD;color:var(--ink);padding:40px 24px;}
+.ti{font-style:normal;}
+
+.sectionhead{max-width:1760px;margin:0 auto 18px;display:flex;align-items:baseline;gap:12px;}
+.sectionhead h2{font-size:20px;font-weight:800;color:#3A352F;letter-spacing:-.3px;}
+.sectionhead span{font-size:13px;color:#8A847C;}
+.grid{max-width:1760px;margin:0 auto 52px;display:flex;flex-wrap:wrap;gap:30px;}
+.col{display:flex;flex-direction:column;align-items:center;gap:12px;}
+.cap{font-size:13px;font-weight:700;color:#7A746C;}
+
+.phone{width:380px;background:var(--bg);border-radius:42px;box-shadow:0 24px 60px rgba(0,0,0,.18);overflow:hidden;display:flex;flex-direction:column;height:824px;position:relative;}
+.sb{height:44px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 24px 6px;font-size:15px;font-weight:600;flex:0 0 auto;}
+.sb .r{display:flex;gap:6px;align-items:center;color:var(--ink);}
+.scroll{flex:1;overflow-y:auto;}.scroll::-webkit-scrollbar{display:none;}
+
+/* 헤더: 프로필 좌측 + 벨/햄버거 우측 */
+header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 12px;background:var(--surface);border-bottom:.5px solid var(--line);flex:0 0 auto;}
+.prof{display:flex;align-items:center;gap:10px;}
+.prof .av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#FFB088,#D9532B);}
+.prof .nm{font-size:15px;font-weight:600;color:var(--ink);line-height:1.2;}
+.prof .sx{font-size:12px;color:var(--faint);}
+.hicons{display:flex;align-items:center;gap:14px;color:var(--sub);}
+.hicons .ti{font-size:22px;}
+
+/* 헤더(방·상세): 뒤로가기 + 타이틀 */
+.nav2{display:flex;align-items:center;gap:8px;padding:14px 16px;background:var(--surface);border-bottom:.5px solid var(--line);flex:0 0 auto;}
+.nav2 .ti{font-size:23px;color:var(--ink);}
+.nav2 h1{font-size:17px;font-weight:700;}
+.nav2 .right{margin-left:auto;color:var(--sub);}
+
+.pad{padding:16px 20px 24px;}
+.label{font-size:14px;font-weight:700;color:var(--sub);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;}
+.label a{font-size:13px;font-weight:600;color:var(--faint);text-decoration:none;}
+
+/* 구경 얇은 바 */
+.peekbar{display:flex;align-items:center;gap:8px;padding:9px 12px;margin-bottom:20px;cursor:pointer;}
+.peekbar .ti{font-size:18px;color:var(--faint);}
+.peekbar span{flex:1;font-size:13px;color:var(--sub);}
+.peekbar .chev{font-size:16px;color:#C9C0B5;}
+
+/* 오늘 할 일 앵커 */
+.anchor{background:var(--tintWarm);border-radius:20px;padding:20px;margin-bottom:28px;box-shadow:0 6px 18px rgba(255,107,53,.10);}
+.anchor .kind{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;color:var(--brandInk);margin-bottom:10px;}
+.anchor .kind .ti{font-size:14px;}
+.anchor h3{font-size:18px;font-weight:700;line-height:1.3;}
+.anchor .meta{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:13px;color:var(--sub);}
+.anchor .meta .ti{font-size:15px;color:#E8732E;}
+.bar{height:7px;background:#F2E3D6;border-radius:999px;overflow:hidden;margin-top:14px;}
+.bar i{display:block;height:100%;background:var(--brand);border-radius:999px;}
+.btn-primary{width:100%;height:50px;border:none;border-radius:999px;background:var(--brand);color:#fff;font-size:15px;font-weight:700;font-family:inherit;margin-top:16px;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;}
+.btn-primary .ti{font-size:19px;}
+
+/* 오늘 완료 (세이지 압축) */
+.donewrap{background:var(--surface);border:.5px solid var(--line);border-radius:16px;padding:4px 16px;margin-bottom:28px;}
+.doneRow{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:.5px solid var(--lineSoft);}
+.doneRow:last-child{border-bottom:none;}
+.doneRow .ck{width:32px;height:32px;border-radius:50%;background:var(--doneTint);flex:0 0 auto;display:flex;align-items:center;justify-content:center;}
+.doneRow .ck .ti{font-size:17px;color:var(--done);}
+.doneRow .t{flex:1;font-size:14px;}
+.doneRow .dd{font-size:12px;color:var(--faint);}
+
+/* 끝낸 하다 가로 칩 */
+.hscroll{display:flex;gap:12px;overflow-x:auto;margin:0 -20px 28px;padding:0 20px;}
+.hscroll::-webkit-scrollbar{display:none;}
+.chip{flex:0 0 auto;width:170px;background:var(--tintCream);border-radius:16px;padding:15px;}
+.chip h3{font-size:14px;font-weight:500;line-height:1.3;color:var(--sub);}
+.chip .m{display:flex;align-items:center;justify-content:space-between;margin-top:12px;font-size:12px;color:var(--faint);}
+.chip .m .ti{font-size:16px;color:var(--gold);}
+
+/* 인연 라인 리스트 */
+.frow{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:.5px solid var(--line);}
+.frow .av{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#FFB088,#D9532B);flex:0 0 auto;}
+.frow .t{flex:1;min-width:0;font-size:14px;}
+.frow .t b{font-weight:600;}
+.frow .t p{font-size:12px;color:var(--faint);margin-top:2px;}
+.frow .chev{font-size:17px;color:#C9C0B5;}
+
+/* 분야/응원 아이콘 박스 행 */
+.irow{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--surface);border:.5px solid var(--line);border-radius:16px;}
+.irow.sage{background:var(--tintSage);border:none;}
+.iconbox{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;background:var(--brandTint);}
+.iconbox .ti{font-size:18px;color:var(--brandInk);}
+.iconbox.sg{background:var(--tintSageLine);}
+.iconbox.sg .ti{color:var(--doneInk);}
+.irow .t{flex:1;}
+.irow .t h4{font-size:14px;font-weight:500;}
+.irow .t p{font-size:12px;color:var(--faint);margin-top:2px;}
+.irow.sage .t p{color:#7E8C82;}
+.btn-cheer{background:var(--brandTint);color:var(--brandInk);border:none;border-radius:999px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;}
+.irow .chev{font-size:17px;color:#A9B5AC;}
+
+/* 마감 + 로고 서명 */
+.endmark{display:flex;align-items:center;justify-content:center;gap:6px;color:#C9C0B5;margin:30px 0 8px;}
+.endmark .ln{width:18px;height:1px;background:#E5DDD2;}
+.endmark .ti{font-size:15px;}
+.endtxt{text-align:center;}
+.endtxt .a{font-size:14px;color:#8A8276;}
+.endtxt .b{font-size:13px;color:var(--faint2);margin-top:2px;}
+.sign{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:30px;opacity:.5;}
+.sign span{font-size:13px;font-weight:500;color:var(--faint2);letter-spacing:.5px;}
+
+/* 탭바 */
+.tabbar{display:flex;align-items:center;justify-content:space-around;background:var(--surface);border-top:.5px solid var(--line);padding:8px 0 12px;flex:0 0 auto;}
+.tab{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--faint2);}
+.tab .ti{font-size:23px;}
+.tab span{font-size:11px;}
+.tab.on{color:var(--brand);}
+.tab.on span{font-weight:500;}
+.fab{width:52px;height:52px;border-radius:50%;background:var(--brand);display:flex;align-items:center;justify-content:center;margin-top:-20px;}
+.fab .ti{font-size:28px;color:#fff;}
+
+/* 만들기 위저드 */
+.wiztop{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 0;flex:0 0 auto;}
+.wiztop .ti{font-size:24px;color:var(--ink);}
+.wiztop .step{font-size:14px;font-weight:500;color:var(--sub);}
+.prog{display:flex;gap:6px;padding:14px 18px 0;flex:0 0 auto;}
+.prog i{flex:1;height:4px;border-radius:999px;background:#EFE7DD;}
+.prog i.on{background:var(--brand);}
+.wlabel{font-size:12px;font-weight:500;color:var(--brandInk);letter-spacing:.5px;margin-bottom:8px;}
+.wtitle{font-size:24px;font-weight:700;line-height:1.3;}
+.wsub{font-size:14px;color:var(--faint);margin:8px 0 24px;}
+.catgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+.catcard{background:var(--surface);border:.5px solid var(--line);border-radius:14px;padding:14px 14px;display:flex;align-items:center;gap:10px;}
+.catcard .ti{font-size:21px;color:var(--sub);}
+.catcard span{font-size:15px;font-weight:500;color:var(--ink);}
+.catcard.on{background:var(--brandTint);border:1.5px solid var(--brand);}
+.catcard.on .ti,.catcard.on span{color:var(--brandInk);}
+.wizbtns{display:flex;gap:10px;padding:0 20px 22px;flex:0 0 auto;}
+.btn-prev{flex:0 0 auto;width:88px;height:52px;border:.5px solid var(--line);border-radius:999px;background:#fff;color:var(--sub);font-size:15px;font-weight:500;cursor:pointer;font-family:inherit;}
+.btn-next{flex:1;height:52px;border:none;border-radius:999px;background:var(--brand);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;}
+.btn-next.dim{background:#F4B79C;}
+
+/* 옵션 리스트(기간/방종류/인증) */
+.optcard{display:flex;align-items:center;gap:14px;padding:16px;background:var(--surface);border:.5px solid var(--line);border-radius:16px;margin-bottom:12px;}
+.optcard.on{background:var(--brandTint);border:1.5px solid var(--brand);}
+.optcard .oi{width:30px;display:flex;justify-content:center;flex:0 0 auto;}
+.optcard .oi .ti{font-size:22px;color:var(--sub);}
+.optcard.on .oi .ti{color:var(--brandInk);}
+.optcard .ot{flex:1;}
+.optcard .ot h4{font-size:16px;font-weight:600;}
+.optcard.on .ot h4{color:var(--brandInk);}
+.optcard .ot p{font-size:13px;color:var(--faint);margin-top:2px;}
+.optcard .badge{background:var(--brand);color:#fff;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;margin-left:6px;}
+.optcard .chk .ti{font-size:20px;color:var(--brand);}
+
+/* 방 상태바 */
+.roomstat{display:flex;align-items:center;gap:14px;padding:12px 18px 6px;flex:0 0 auto;}
+.roomstat .s{display:inline-flex;align-items:center;gap:5px;font-size:14px;font-weight:600;color:var(--ink);}
+.roomstat .s .ti{font-size:17px;}
+.roomstat .right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.roomstat .dday{font-size:18px;font-weight:800;color:var(--brand);}
+.roomstat .pause{display:inline-flex;align-items:center;gap:4px;background:#F1EFE9;color:var(--sub);font-size:13px;padding:6px 11px;border-radius:999px;}
+.roomstat .pause .ti{font-size:15px;}
+.roombar{height:5px;background:#EFE7DD;margin:6px 18px 0;border-radius:999px;overflow:hidden;flex:0 0 auto;}
+.roombar i{display:block;height:100%;background:var(--brand);}
+.roomtabs{display:flex;padding:0 8px;border-bottom:.5px solid var(--line);flex:0 0 auto;}
+.roomtab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 0 10px;font-size:13px;color:var(--sub);position:relative;}
+.roomtab .ti{font-size:19px;}
+.roomtab.on{color:var(--brand);font-weight:600;}
+.roomtab.on::after{content:"";position:absolute;bottom:-.5px;left:15%;right:15%;height:2px;background:var(--brand);border-radius:2px;}
+
+/* 인증 카드 */
+.proofcard{background:var(--surface);border:.5px solid var(--line);border-radius:18px;padding:16px;margin-bottom:16px;}
+.proofcard .ph{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.proofcard .ph .av{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#FFB088,#D9532B);}
+.proofcard .ph .nm{font-size:14px;font-weight:600;}
+.proofcard .ph .tm{font-size:12px;color:var(--faint);}
+.proofimg{width:100%;height:200px;border-radius:12px;background:linear-gradient(160deg,#BFE0F2,#7FB8DA);margin-bottom:10px;}
+.proofcard .cap{font-size:14px;margin-bottom:14px;}
+.cheers{display:flex;gap:8px;margin-bottom:14px;}
+.cheer{height:42px;min-width:54px;display:flex;align-items:center;justify-content:center;gap:5px;border-radius:999px;background:#F1EFE9;font-size:19px;}
+.cheer.on{background:var(--brandTint);border:1.5px solid var(--brand);}
+.cheer .ct{font-size:14px;font-weight:600;color:var(--brandInk);}
+.cmt{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--sub);}
+.cmt .ti{font-size:18px;color:var(--faint);}
+.btn-done{width:100%;height:52px;border:none;border-radius:999px;background:var(--done);color:#fff;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;font-family:inherit;}
+.btn-done .ti{font-size:18px;}
+
+/* 진행 카드(내 하다) */
+.mcard{background:var(--surface);border:.5px solid var(--line);border-radius:18px;padding:18px;margin-bottom:12px;}
+.mcard .top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+.mcard h3{font-size:16px;font-weight:700;line-height:1.3;flex:1;}
+.tag{flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:500;padding:5px 10px;border-radius:999px;}
+.tag.done{background:var(--doneTint);color:var(--doneInk);}
+.tag.todo{background:var(--brandTint);color:var(--brandInk);}
+.tag .ti{font-size:13px;}
+.mcard .nums{display:flex;align-items:center;gap:12px;margin:12px 0 10px;}
+.mcard .big{font-size:26px;font-weight:700;}
+.mcard .big small{font-size:14px;font-weight:400;color:var(--faint);}
+.mcard .streak{display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:500;color:#E8732E;}
+.mcard .streak .ti{font-size:15px;}
+.mcard .pp{margin-left:auto;font-size:12px;color:var(--faint);}
+
+/* 현황/박제/모달 보조 */
+.infocard{background:var(--surface);border:.5px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px;}
+.infocard.warm{background:var(--tintWarm);border:1px solid #FFD9C4;}
+.infocard h4{font-size:16px;font-weight:700;display:flex;align-items:center;gap:7px;}
+.infocard h4 .ti{font-size:19px;color:var(--brandInk);}
+.infocard p{font-size:13px;color:var(--sub);line-height:1.6;margin-top:8px;}
+.listline{display:flex;align-items:center;gap:10px;padding:11px 0;font-size:14px;}
+.listline .ti{font-size:18px;color:var(--sub);}
+.listline .rt{margin-left:auto;font-size:13px;color:var(--faint);}
+.statchip{display:inline-flex;align-items:center;gap:5px;font-size:13px;}
+.dot-sage{width:9px;height:9px;border-radius:50%;background:var(--done);}
+
+/* 빈 상태 */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 24px;text-align:center;}
+.empty .ic{width:64px;height:64px;border-radius:50%;background:#F1EFE9;display:flex;align-items:center;justify-content:center;margin-bottom:16px;}
+.empty .ic .ti{font-size:30px;color:var(--faint);}
+.empty p{font-size:14px;color:var(--faint);line-height:1.7;}
+
+/* 설정/프로필 리스트 */
+.setgroup{background:var(--surface);border:.5px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:12px;}
+.setrow{display:flex;align-items:center;gap:12px;padding:15px 16px;border-bottom:.5px solid var(--lineSoft);}
+.setrow:last-child{border-bottom:none;}
+.setrow .ti.lead{font-size:19px;color:var(--sub);}
+.setrow .t{flex:1;}
+.setrow .t h4{font-size:15px;font-weight:400;color:var(--ink);}
+.setrow .t p{font-size:12px;color:var(--faint);margin-top:1px;}
+.setrow .rt{font-size:13px;color:var(--faint);}
+.setrow .chev{font-size:18px;color:#C9C0B5;}
+.toggle{width:44px;height:26px;border-radius:999px;background:var(--brand);position:relative;flex:0 0 auto;}
+.toggle::after{content:"";position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;background:#fff;}
+.note{display:flex;align-items:flex-start;gap:6px;font-size:12px;color:var(--faint);line-height:1.6;margin-bottom:24px;}
+.note .ti{font-size:14px;margin-top:2px;}
+.danger{text-align:center;font-size:13px;color:#C0584F;}
+.ver{text-align:center;margin-top:26px;}
+.ver .a{font-size:12px;color:var(--faint2);}
+.ver .b{font-size:12px;color:#C0BAB0;margin-top:3px;}
+
+/* 칩(분야 필터) */
+.fchips{display:flex;gap:8px;overflow-x:auto;margin:0 -20px 18px;padding:0 20px 4px;}
+.fchips::-webkit-scrollbar{display:none;}
+.fchip{flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;padding:8px 14px;border-radius:999px;background:#F1EFE9;font-size:13px;font-weight:500;color:var(--sub);}
+.fchip .ti{font-size:15px;}
+.fchip.on{background:var(--brandTint);color:var(--brandInk);border:1px solid #FFD0B8;}
+
+/* 평가 4종(구경) */
+.evalrow{display:flex;gap:8px;margin:14px 0;}
+.evalbox{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 4px;border-radius:12px;background:#F8F6F1;}
+.evalbox.on{background:var(--brandTint);border:1.5px solid var(--brand);}
+.evalbox .em{font-size:24px;}
+.evalbox .lb{font-size:12px;font-weight:500;color:var(--sub);}
+.evalbox .ct{font-size:12px;font-weight:600;color:var(--faint);}
+.evalbox.on .lb,.evalbox.on .ct{color:var(--brandInk);}
+
+.discovercard{background:var(--surface);border:.5px solid var(--line);border-radius:18px;padding:18px;margin-bottom:16px;}
+.discovercard .dh{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.kpill{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;padding:5px 11px;border-radius:999px;}
+.kpill.any{background:var(--tintSage);color:var(--doneInk);}
+.kpill.cheer{background:var(--brandTint);color:var(--brandInk);}
+.discovercard h3{font-size:17px;font-weight:700;line-height:1.3;margin-bottom:6px;}
+.discovercard .desc{font-size:13px;color:var(--sub);line-height:1.6;}
+.discovercard .metaline{font-size:12px;color:var(--faint);margin-top:10px;}
+.btn-follow{width:100%;height:46px;border:none;border-radius:999px;background:var(--brand);color:#fff;font-size:14px;font-weight:700;margin-top:14px;cursor:pointer;font-family:inherit;}
+
+/* 모달 */
+.modalwrap{width:380px;height:824px;border-radius:42px;overflow:hidden;position:relative;background:#9a948c;display:flex;align-items:center;justify-content:center;box-shadow:0 24px 60px rgba(0,0,0,.18);}
+.modalwrap .scrim{position:absolute;inset:0;background:rgba(0,0,0,.4);}
+.sheet{position:relative;width:300px;background:#fff;border-radius:22px;padding:24px;text-align:center;z-index:1;}
+.sheet h3{font-size:18px;font-weight:700;margin-bottom:6px;}
+.sheet p{font-size:13px;color:var(--sub);margin-bottom:18px;}
+.sheet .opt{width:100%;height:50px;border-radius:14px;background:#F1EFE9;border:none;font-size:15px;font-weight:600;color:var(--ink);margin-bottom:10px;cursor:pointer;font-family:inherit;}
+.sheet .opt.danger{color:#C0584F;}
+.sheet .opt.cancel{background:transparent;}
+</style>
+</head>
+<body>
+
+<div class="sectionhead"><h2>메인 탭</h2><span>홈 · 내 하다 · 기록 · 해냈어요 · 내 정보 · 설정</span></div>
+<div class="grid">
+
+<!-- 홈 -->
+<div class="col"><div class="cap">홈 (위계: 구경→오늘할일→완료→끝낸→인연→응원→합류)</div>
+<div class="phone">
+  <div class="sb"><span>9:47</span><div class="r"><i class="ti ti-wifi"></i><i class="ti ti-battery-2"></i></div></div>
+  <header>
+    <div class="prof"><div class="av"></div><div><div class="nm">북두사자</div><div class="sx">오늘도 한 걸음</div></div></div>
+    <div class="hicons"><i class="ti ti-bell"></i><i class="ti ti-menu-2"></i></div>
+  </header>
+  <div class="scroll"><div class="pad">
+
+    <div class="peekbar"><i class="ti ti-telescope"></i><span>남들은 무슨 하다 하나, 구경하기</span><i class="ti ti-chevron-right chev"></i></div>
+
+    <div class="label">오늘 할 일</div>
+    <div class="anchor">
+      <div class="kind"><i class="ti ti-world"></i>누구나 · D-99</div>
+      <h3>하루 한번 하늘을 보고 잠깐 명상하기</h3>
+      <div class="meta"><i class="ti ti-flame"></i>3일 연속 · 6/100일째</div>
+      <div class="bar"><i style="width:6%"></i></div>
+      <button class="btn-primary"><i class="ti ti-camera"></i>오늘 인증하기</button>
+    </div>
+
+    <div class="label">오늘 완료</div>
+    <div class="donewrap">
+      <div class="doneRow"><span class="ck"><i class="ti ti-check"></i></span><span class="t">30일 공복 혈당 체크</span><span class="dd">D-22</span></div>
+      <div class="doneRow"><span class="ck"><i class="ti ti-check"></i></span><span class="t">100일 책 읽기</span><span class="dd">D-79</span></div>
+    </div>
+
+    <div class="label">끝낸 하다 <a href="#">전체보기 ›</a></div>
+    <div class="hscroll">
+      <div class="chip"><h3>월간 평화산책 : 청계천 걷기</h3><div class="m"><span>박제 보기</span><i class="ti ti-trophy"></i></div></div>
+      <div class="chip"><h3>매일 3km 슬로우 러닝</h3><div class="m"><span>박제 보기</span><i class="ti ti-trophy"></i></div></div>
+    </div>
+
+    <div class="label">인연들의 하루</div>
+    <div style="margin-bottom:28px;">
+      <div class="frow"><div class="av"></div><div class="t"><b>북두사자</b>님이 1일을 완주했어요<p>월간 평화산책</p></div><i class="ti ti-chevron-right chev"></i></div>
+    </div>
+
+    <div class="label">응원으로 힘주기</div>
+    <div class="irow" style="margin-bottom:28px;"><span class="iconbox"><i class="ti ti-heartbeat"></i></span><div class="t"><h4>탄수화물없는 한끼</h4><p>응원받기 · 함께 2명</p></div><button class="btn-cheer">응원</button></div>
+
+    <div class="label">함께 합류하기</div>
+    <div class="irow sage"><span class="iconbox sg"><i class="ti ti-run"></i></span><div class="t"><h4>매일 7000보 걷기</h4><p>누구나 합류 · 함께 3명</p></div><i class="ti ti-chevron-right chev"></i></div>
+
+    <div class="endmark"><span class="ln"></span><i class="ti ti-moon"></i><span class="ln"></span></div>
+    <div class="endtxt"><div class="a">오늘은 여기까지예요.</div><div class="b">내일 또, 한 걸음.</div></div>
+    <div class="sign">
+      <svg width="32" height="32" viewBox="0 0 60 60"><path d="M16 16A22 22 0 0016 44" fill="none" stroke="#C9A88F" stroke-width="4.5" stroke-linecap="round"/><path d="M44 16A22 22 0 0144 44" fill="none" stroke="#C9A88F" stroke-width="4.5" stroke-linecap="round"/><circle cx="30" cy="30" r="13" fill="none" stroke="#C9A88F" stroke-width="4.5"/><circle cx="30" cy="30" r="4.5" fill="#C9A88F"/></svg>
+      <span>Do:하다</span>
+    </div>
+
+  </div></div>
+  <nav class="tabbar">
+    <div class="tab on"><i class="ti ti-home"></i><span>홈</span></div>
+    <div class="tab"><i class="ti ti-flag"></i><span>내 하다</span></div>
+    <div class="tab"><div class="fab"><i class="ti ti-plus"></i></div></div>
+    <div class="tab"><i class="ti ti-movie"></i><span>기록</span></div>
+    <div class="tab"><i class="ti ti-trophy"></i><span>해냈어요</span></div>
+  </nav>
+</div></div>
+
+<!-- 내 하다 -->
+<div class="col"><div class="cap">내 하다 (위계: 진행→응원→끝낸→지난)</div>
+<div class="phone">
+  <div class="sb"><span>11:19</span><div class="r"><i class="ti ti-wifi"></i><i class="ti ti-battery-2"></i></div></div>
+  <header>
+    <div class="prof"><div class="av"></div><div><div class="nm">북두사자</div><div class="sx">오늘도 한 걸음</div></div></div>
+    <div class="hicons"><i class="ti ti-bell"></i><i class="ti ti-menu-2"></i></div>
+  </header>
+  <div class="scroll"><div class="pad">
+    <h1 style="font-size:22px;font-weight:700;margin-bottom:2px;">내 하다</h1>
+    <p style="font-size:13px;color:var(--faint);margin-bottom:20px;">함께 가고 있는 하다 6개</p>
+
+    <div class="label">진행 중</div>
+    <div class="mcard">
+      <div class="top"><h3>100일 책 읽기</h3><span class="tag done"><i class="ti ti-check"></i>완료</span></div>
+      <div class="nums"><span class="big">21<small>/100일</small></span><span class="streak"><i class="ti ti-flame"></i>12일 연속</span><span class="pp">5명 · D-79</span></div>
+      <div class="bar"><i style="width:21%"></i></div>
+    </div>
+    <div class="mcard">
+      <div class="top"><h3>30일 공복 혈당 체크</h3><span class="tag done"><i class="ti ti-check"></i>완료</span></div>
+      <div class="nums"><span class="big">8<small>/30일</small></span><span class="streak"><i class="ti ti-flame"></i>8일 연속</span><span class="pp">3명 · D-22</span></div>
+      <div class="bar"><i style="width:27%"></i></div>
+    </div>
+    <div class="mcard" style="margin-bottom:28px;">
+      <div class="top"><h3>하루 한번 하늘 보고 명상</h3><span class="tag todo"><i class="ti ti-pencil"></i>인증 전</span></div>
+      <div class="nums"><span class="big">6<small>/100일</small></span><span class="streak"><i class="ti ti-flame"></i>3일 연속</span><span class="pp">1명 · D-94</span></div>
+      <div class="bar"><i style="width:6%"></i></div>
+    </div>
+
+    <div class="label">응원하는 하다</div>
+    <div class="irow" style="margin-bottom:28px;"><span class="iconbox"><i class="ti ti-heartbeat"></i></span><div class="t"><h4>탄수화물없는 한끼</h4><p>17/30일째 · D-13</p></div><button class="btn-cheer">응원</button></div>
+
+    <div class="label">끝낸 하다</div>
+    <div style="background:var(--tintCream);border-radius:16px;padding:4px 16px;margin-bottom:16px;">
+      <div class="doneRow" style="border-color:var(--tintCreamLine);"><i class="ti ti-trophy" style="font-size:19px;color:var(--gold);"></i><div class="t" style="margin-left:4px;">월간 평화산책 : 청계천 걷기<div style="font-size:12px;color:var(--faint);">06.15 종료</div></div><span style="font-size:12px;color:var(--brandInk);font-weight:500;">박제</span></div>
+      <div class="doneRow"><i class="ti ti-trophy" style="font-size:19px;color:var(--gold);"></i><div class="t" style="margin-left:4px;">매일 3km 슬로우 러닝<div style="font-size:12px;color:var(--faint);">06.08 종료</div></div><span style="font-size:12px;color:var(--brandInk);font-weight:500;">박제</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;padding:10px 4px;color:var(--faint);"><i class="ti ti-chevron-down" style="font-size:16px;"></i><span style="font-size:13px;">지난 하다 7개 보기</span></div>
+  </div></div>
+  <nav class="tabbar">
+    <div class="tab"><i class="ti ti-home"></i><span>홈</span></div>
+    <div class="tab on"><i class="ti ti-flag"></i><span>내 하다</span></div>
+    <div class="tab"><div class="fab"><i class="ti ti-plus"></i></div></div>
+    <div class="tab"><i class="ti ti-movie"></i><span>기록</span></div>
+    <div class="tab"><i class="ti ti-trophy"></i><span>해냈어요</span></div>
+  </nav>
+</div></div>
+
+<!-- 기록 탭 -->
+<div class="col"><div class="cap">기록 (인연들의 여정)</div>
+<div class="phone">
+  <div class="sb"><span>11:20</span><div class="r"><i class="ti ti-wifi"></i><i class="ti ti-battery-2"></i></div></div>
+  <header>
+    <div class="prof"><div class="av"></div><div><div class="nm">북두사자</div><div class="sx">오늘도 한 걸음</div></div></div>
+    <div class="hicons"><i class="ti ti-bell"></i><i class="ti ti-menu-2"></i></div>
+  </header>
+  <div class="scroll"><div class="pad">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;"><i class="ti ti-movie" style="font-size:22px;color:var(--sub);"></i><h1 style="font-size:22px;font-weight:700;">기록</h1></div>
+    <p style="font-size:13px;color:var(--faint);margin-bottom:18px;">하다 인연들의 여정 이야기</p>
+
+    <div class="proofcard">
+      <div class="ph"><div class="av"></div><div><div class="nm">북두사자</div><div class="tm" style="display:flex;align-items:center;gap:5px;"><i class="ti ti-heartbeat" style="font-size:13px;color:var(--brandInk);"></i>30일 공복 혈당 체크 · 15시간 전</div></div></div>
+      <h3 style="font-size:16px;font-weight:700;margin-bottom:6px;">달리고 마시는 막걸리 한 잔</h3>
+      <p style="font-size:14px;color:var(--sub);margin-bottom:12px;">시원하고 달다;;;</p>
+      <div class="proofimg" style="background:linear-gradient(160deg,#E8D5B5,#C9A878);height:180px;"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;">
+        <div style="display:flex;align-items:center;gap:14px;font-size:14px;color:var(--sub);"><span style="display:flex;align-items:center;gap:5px;">❤️ 1</span><span style="display:flex;align-items:center;gap:5px;"><i class="ti ti-message-circle" style="font-size:17px;color:var(--faint);"></i>0</span></div>
+        <span style="font-size:14px;font-weight:600;color:var(--brandInk);">이어 보기 →</span>
+      </div>
+    </div>
+    <div class="proofcard">
+      <div class="ph"><div class="av"></div><div><div class="nm">북두사자</div><div class="tm" style="display:flex;align-items:center;gap:5px;"><i class="ti ti-world" style="font-size:13px;color:var(--brandInk);"></i>하루 한번 하늘 명상 · 15시간 전</div></div></div>
+      <h3 style="font-size:16px;font-weight:700;margin-bottom:6px;">천천히 달리면 보이는 것들</h3>
+      <p style="font-size:14px;color:var(--sub);">푸른 하늘과 하얀 구름들…</p>
+    </div>
+  </div></div>
+  <nav class="tabbar">
+    <div class="tab"><i class="ti ti-home"></i><span>홈</span></div>
+    <div class="tab"><i class="ti ti-flag"></i><span>내 하다</span></div>
+    <div class="tab"><div class="fab"><i class="ti ti-plus"></i></div></div>
+    <div class="tab on"><i class="ti ti-movie"></i><span>기록</span></div>
+    <div class="tab"><i class="ti ti-trophy"></i><span>해냈어요</span></div>
+  </nav>
+</div></div>
+
+<!-- 해냈어요 목록 -->
+<div class="col"><div class="cap">해냈어요 (증언형 · 줄세우지 않음)</div>
+<div class="phone">
+  <div class="sb"><span>11:20</span><div class="r"><i class="ti ti-wifi"></i><i class="ti ti-battery-2"></i></div></div>
+  <header>
+    <div class="prof"><div class="av"></div><div><div class="nm">북두사자</div><div class="sx">오늘도 한 걸음</div></div></div>
+    <div class="hicons"><i class="ti ti-bell"></i><i class="ti ti-menu-2"></i></div>
+  </header>
+  <div class="scroll"><div class="pad">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;"><i class="ti ti-trophy" style="font-size:22px;color:var(--gold);"></i><h1 style="font-size:22px;font-weight:700;">해냈어요</h1></div>
+    <p style="font-size:13px;color:var(--faint);margin-bottom:18px;">줄세우지 않고, 서로에게 용기를.</p>
+
+    <div class="proofcard">
+      <div class="ph"><div class="av"></div><div style="flex:1;"><div class="nm">북두사자</div><div class="tm" style="display:flex;align-items:center;gap:5px;"><i class="ti ti-heart-handshake" style="font-size:13px;color:var(--brandInk);"></i>사회공헌</div></div><i class="ti ti-trophy" style="font-size:22px;color:var(--gold);"></i></div>
+      <h3 style="font-size:16px;font-weight:700;margin-bottom:12px;">월간 평화산책 : 청계천 걷기 (6/15)</h3>
+      <div style="display:flex;background:var(--tintWarm);border-radius:14px;padding:14px 6px;margin-bottom:14px;">
+        <div style="flex:1;text-align:center;"><div style="font-size:18px;font-weight:700;">1</div><div style="font-size:11px;color:var(--faint);">일</div></div>
+        <div style="flex:1;text-align:center;"><div style="font-size:18px;font-weight:700;">1</div><div style="font-size:11px;color:var(--faint);">연속</div></div>
+        <div style="flex:1;text-align:center;"><div style="font-size:18px;font-weight:700;">1</div><div style="font-size:11px;color:var(--faint);">인증</div></div>
+        <div style="flex:1;text-align:center;"><div style="font-size:18px;font-weight:700;">100</div><div style="font-size:11px;color:var(--faint);">% 완주</div></div>
+      </div>
+      <p style="font-size:14px;color:var(--sub);margin-bottom:12px;">"이게 다 뭔가 싶네요"</p>
+      <div class="proofimg" style="background:linear-gradient(160deg,#BFE0F2,#7FB8DA);height:170px;"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;">
+        <span style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--sub);"><i class="ti ti-heart-handshake" style="font-size:17px;color:var(--gold);"></i>2명이 용기를 얻었어요</span>
+        <span style="font-size:14px;font-weight:600;color:var(--brandInk);">읽으러 →</span>
+      </div>
+    </div>
+  </div></div>
+  <nav class="tabbar">
+    <div class="tab"><i class="ti ti-home"></i><span>홈</span></div>
+    <div class="tab"><i class="ti ti-flag"></i><span>내 하다</span></div>
+    <div class="tab"><div class="fab"><i class="ti ti-plus"></i></div></div>
+    <div class="tab"><i class="ti ti-movie"></i><span>기록</span></div>
+    <div class="tab on"><i class="ti ti-trophy"></i><span>해냈어요</span></div>
+  </nav>
+</div></div>
+
+<!-- 내 프로필 (아바타 진입) -->
+<div class="col"><div class="cap">내 프로필 (아바타 탭 진입)</div>
+<div class="phone">
+  <div class="sb"><span>10:29</span><div class="r"><i class="ti ti-wifi"></i><i class="ti ti-battery-2"></i></div></div>
+  <div class="nav2"><i class="ti ti-arrow-left"></i><h1>내 프로필</h1><i class="ti ti-pencil right"></i></div>
+  <div class="scroll"><div class="pad">
+    <div style="display:flex;flex-direction:column;align-items:center;margin:8px 0 28px;">
+      <div style="position:relative;"><div style="width:88px;height:88px;border-radius:50%;background:linear-gradient(135deg,#FFB088,#D9532B);"></div><div style="position:absolute;bottom:0;right:0;width:30px;height:30px;border-radius:50%;background:#fff;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;"><i class="ti ti-camera" style="font-size:16px;color:var(--sub);"></i></div></div>
+      <div style="font-size:20px;font-weight:700;margin-top:14px;">북두사자</div>
+      <div style="font-size:13px;color:var(--faint);margin-top:2px;">mirr0505@gmail.com</div>
+    </div>
+
+    <div class="label">관심 분야</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+      <span class="fchip on"><i class="ti ti-briefcase"></i>자기계발</span>
+      <span class="fchip on"><i class="ti ti-heartbeat"></i>건강</span>
+      <span class="fchip on"><i class="ti ti-run"></i>운동</span>
+      <span class="fchip"><i class="ti ti-plus"></i></span>
+    </div>
+    <p style="font-size:12px;color:var(--faint);line-height:1.6;margin-bottom:24px;">관심 분야의 오픈 하다가 만들어지면 구경에 우선 노출돼요.</p>
+
+    <div class="label">나의 발자취</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;">
+      <div style="background:var(--tintCream);border-radius:16px;padding:14px 8px;text-align:center;"><div style="font-size:22px;font-weight:700;">2</div><div style="font-size:11px;color:var(--faint);margin-top:3px;">완주한 하다</div></div>
+      <div style="background:var(--tintWarm);border-radius:16px;padding:14px 8px;text-align:center;"><div style="font-size:22px;font-weight:700;color:var(--brandInk);">12</div><div style="font-size:11px;color:var(--faint);margin-top:3px;">최고 연속</div></div>
+      <div style="background:var(--tintSage);border-radius:16px;padding:14px 8px;text-align:center;"><div style="font-size:22px;font-weight:700;color:var(--doneInk);">16</div><div style="font-size:11px;color:var(--faint);margin-top:3px;">받은 응원</div></div>
+    </div>
+
+    <div class="setgroup">
+      <div class="setrow"><i class="ti ti-trophy lead"></i><div class="t"><h4>완주 보관함</h4></div><span class="rt">2개</span><i class="ti ti-chevron-right chev"></i></div>
+      <div class="setrow"><i class="ti ti-flag lead"></i><div class="t"><h4>다짐 내역</h4></div><i class="ti ti-chevron-right chev"></i></div>
+      <div class="setrow"><i class="ti ti-coffee lead"></i><div class="t"><h4>한잔 내역</h4></div><i class="ti ti-chevron-right chev"></i></div>
+    </div>
+  </div></div>
+</div></div>
+
+<!-- 설정 (햄버거 진입) -->
+<div class="col"><div class="cap">설정 (햄버거 ≡ 진입)</div>
+<div class="phone">
+  <div class="sb"><span>10:29</span><div class="r"><i class="ti ti-wifi"></i><i class="ti ti-battery-2"></i></div></div>
+  <div class="nav2"><i class="ti ti-arrow-left"></i><h1>설정</h1></div>
+  <div class="scroll"><div class="pad">
+    <div class="label">알림</div>
+    <div class="setgroup">
+      <div class="setrow"><i class="ti ti-message-circle lead"></i><div class="t"><h4>채팅</h4><p>하다 방 새 메시지</p></div><span class="toggle"></span></div>
+      <div class="setrow"><i class="ti ti-message-dots lead"></i><div class="t"><h4>댓글</h4><p>내 인증·기록의 댓글</p></div><span class="toggle"></span></div>
+      <div class="setrow"><i class="ti ti-heart lead"></i><div class="t"><h4>응원·좋아요</h4><p>1시간마다 묶어서</p></div><span class="toggle"></span></div>
+    </div>
+    <div class="note"><i class="ti ti-moon"></i><span>밤 10시~아침 6시는 조용해요. 응원·좋아요는 하루 최대 20건.</span></div>
+
+    <div class="label">계정</div>
+    <div class="setgroup">
+      <div class="setrow"><i class="ti ti-message-report lead"></i><div class="t"><h4>문의·신고</h4></div><i class="ti ti-chevron-right chev"></i></div>
+      <div class="setrow"><i class="ti ti-file-text lead"></i><div class="t"><h4>약관·버전 정보</h4></div><span class="rt">v1.0.0</span><i class="ti ti-chevron-right chev"></i></div>
+      <div class="setrow"><i class="ti ti-logout lead"></i><div class="t"><h4>로그아웃</h4></div><i class="ti ti-chevron-right chev"></i></div>
+    </div>
+    <div class="danger">계정 삭제</div>
+    <div class="ver"><div class="a">Do : 하다 v1.0.0</div><div class="b">같이 하는 사람의 응원이 진짜 힘이에요</div></div>
+  </div></div>
+</div></div>
+
+</div>
+
+<div class="sectionhead"><h2>하다 만들기</h2><span>5단계 위저드</span></div>
+<div class="grid">
+
+<!-- 1단계 제목 -->
+<div class="col"><div class="cap">1단계 · 제목</div>
+<div class="phone">
+  <div class="sb"><span>11:20</span><div class="r"><i class="ti ti-wifi"></i><i class="ti ti-battery-2"></i></div></div>
+  <div class="wiztop"><i class="ti ti-x"></i><span class="step">1 / 5</span><span style="width:24px;"></span></div>
+  <div class="prog"><i class="on"></i><i></i><i></i><i></i><i></i></div>
+  <div class="scroll"><div class="pad">
+    <div class="wlabel">CHALLENGE TITLE</div>
+    <h1 class="wtitle">어떤 하다를<br>해보고 싶어요?</h1>
+    <p class="wsub">짧고 명확한 문장이 좋아요.</p>
+    <div style="border-bottom:1.5px solid var(--line);padding-bottom:12px;margin-bottom:8px;font-size:18px;color:var(--faint2);">예: 100일 금연 하다</div>
+    <div style="text-align:right;font-size:13px;color:var(--faint);margin-bottom:24px;">0 / 40</div>
+    <div style="font-size:13px;color:var(--sub);margin-bottom:12px;display:flex;align-items:center;gap:6px;"><i class="ti ti-bulb" style="font-size:16px;color:var(--brandInk);"></i>인기 하다에서 골라보기</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;">
+      <span class="fchip"><i class="ti ti-book"></i>100일 책 읽기</span>
+      <span class="fchip"><i class="ti ti-run"></i>매일 5km 러닝</span>
+      <span class="fchip"><i class="ti ti-ban"></i>100일 금연</span>
+    </div>
+  </div></div>
+  <div class="wizbtns"><button class="btn-prev">취소</button><button class="btn-next dim">다음 →</button></div>
+</div></div>
+
+<!-- 2단계 분야 -->
+<div class="col"><div class="cap">2단계 · 분야 (수술: 2열 그리드+라인 아이콘)</div>
+<div class="phone">
+  <div class="sb"><span>10:31</span><div class="r"><i class="ti ti-wifi"></i><i class="ti ti-battery-2"></i></div></div>
+  <div class="wiztop"><i class="ti ti-x"></i><span class="step">2 / 5</span><span style="width:24px;"></span></div>
+  <div class="prog"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></div>
+  <div class="scroll"><div class="pad">
+    <div class="wlabel">CATEGORY</div>
+    <h1 class="wtitle">어떤 분야의<br>하다인가요?</h1>
+    <p class="wsub">대분류를 먼저 고르면 세부 분야가 나타나요.</p>
+    <div class="catgrid">
+      <div class="catcard on"><i class="ti ti-heartbeat"></i><span>건강</span></div>
+      <div class="catcard"><i class="ti ti-run"></i><span>운동</span></div>
+      <div class="catcard"><i class="ti ti-book"></i><span>학습</span></div>
+      <div class="catcard"><i class="ti ti-palette"></i><span>창작</span></div>
+      <div class="catcard"><i class="ti ti-briefcase"></i><span>자기계발</span></div>
+      <div class="catcard"><i class="ti ti-coin"></i><span>재테크</span></div>
+      <div class="catcard"><i class="ti ti-world"></i><span>라이프</span></div>
+      <div class="catcard"><i class="ti ti-users"></i><span>관계</span></div>
+      <div class="catcard"><i class="ti ti-heart-handshake"></i><span>사회공헌</span></div>
+      <div class="catcard"><i class="ti ti-dots"></i><span>기타</span></div>
+    </div>
+  </div></div>
+  <div class="wizbtns"><button class="btn-prev">이전</button><button class="btn-next">다음 →</button></div>
+</div></div>
+
+<!-- 3단계 방종류 -->
+<div class="col"><div class="cap">3단계 · 누구와 함께</div>
+<div class="phone">
+  <div class="sb"><span>10:33</span><div class="r"><i class="ti ti-wifi"></i><i class="ti ti-battery-2"></i></div></div>
+  <div class="wiztop"><i class="ti ti-x"></i><span class="step">3 / 5</span><span style="width:24px;"></span></div>
+  <div class="prog"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
+  <div class="scroll"><div class="pad">
+    <h1 class="wtitle">누구와 함께<br>할까요?</h1>
+    <p class="wsub">방 타입에 따라 구경 노출이 달라져요.</p>
+    <div class="optcard"><span class="oi"><i class="ti ti-hand-stop"></i></span><div class="ot"><h4>응원받기<span class="badge">추천</span></h4><p>나 혼자 하다, 지인들이 응원해줘요</p></div></div>
+    <div class="optcard"><span class="oi"><i class="ti ti-lock"></i></span><div class="ot"><h4>혼자만의 다짐</h4><p>나만 보는 조용한 기록</p></div></div>
+    <div class="optcard"><span class="oi"><i class="ti ti-users"></i></span><div class="ot"><h4>함께 하기</h4><p>초대한 사람들이 같이 하다</p></div></div>
+    <div class="optcard on"><span class="oi"><i class="ti ti-world"></i></span><div class="ot"><h4>누구나 합류</h4><p>구경 공개 · 아무나 참여</p></div><span class="chk"><i class="ti ti-check"></i></span></div>
+  </div></div>
+  <div class="wizbtns"><button class="btn-prev">이전</button><button class="btn-next">다음 →</button></div>
+</div></div>
+
+<!-- 4단계 기간 -->
+<div class="col"><div class="cap">4단계 · 기간 (성장 컨셉, 라인 아이콘)</div>
+<div class="phone">
+  <div class="sb"><span>10:33</span><div class="r"><i class="ti ti-wifi"></i><i class="ti ti-battery-2"></i></div></div>
+  <div class="wiztop"><i class="ti ti-x"></i><span class="step">4 / 5</span><span style="width:24px;"></span></div>
+  <div class="prog"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
+  <div class="scroll"><div class="pad">
+    <div class="wlabel">DURATION</div>
+    <h1 class="wtitle">얼마 동안<br>할까요?</h1>
+    <p class="wsub">길수록 박제 가치가 커져요.</p>
+    <div class="optcard"><span class="oi"><i class="ti ti-clock"></i></span><div class="ot"><h4>1일</h4><p>당일 하루 마무리</p></div></div>
+    <div class="optcard"><span class="oi"><i class="ti ti-bolt"></i></span><div class="ot"><h4>3일</h4><p>초단기 작심삼일 깨기</p></div></div>
+    <div class="optcard"><span class="oi"><i class="ti ti-seeding"></i></span><div class="ot"><h4>7일</h4><p>맛보기</p></div></div>
+    <div class="optcard on"><span class="oi"><i class="ti ti-plant"></i></span><div class="ot"><h4>30일</h4><p>습관 형성</p></div><span class="chk"><i class="ti ti-check"></i></span></div>
+    <div class="optcard"><span class="oi"><i class="ti ti-tree"></i></span><div class="ot"><h4>100일</h4><p>박제 가치 최고</p></div></div>
+    <div class="optcard"><span class="oi"><i class="ti ti-mountain"></i></span><div class="ot"><h4>180일</h4><p>반년의 지속</p></div></div>
+  </div></div>
+  <div class="wizbtns"><button class="btn-prev">이전</button><button class="btn-next">다음 →</button></div>
+</div></div>
+
+<!-- 5단계 인증 -->
+<div class="col"><div class="cap">5단계 · 인증 방식</div>
+<div class="phone">
+  <div class="sb"><span>10:34</span><div class="r"><i class="ti ti-wifi"></i><i class="ti ti-battery-2"></i></div></div>
+  <div class="wiztop"><i class="ti ti-x"></i><span class="step">5 / 5</span><span style="width:24px;"></span></div>
+  <div class="prog"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div>
+  <div class="scroll"><div class="pad">
+    <div class="wlabel">PROOF TYPE</div>
+    <h1 class="wtitle">어떻게<br>인증할까요?</h1>
+    <p class="wsub">사진 인증과 앱 스크린샷 둘 다 가능해요.</p>
+    <div class="optcard"><span class="oi"><i class="ti ti-camera"></i></span><div class="ot"><h4>사진 인증</h4><p>카메라로 직접 촬영</p></div></div>
+    <div class="optcard on"><span class="oi"><i class="ti ti-photo"></i></span><div class="ot"><h4>앱 스크린샷</h4><p>운동·걷기 앱 기록 화면</p></div><span class="chk"><i class="ti ti-check"></i></span></div>
+    <div class="optcard" style="opacity:.5;"><span class="oi"><i class="ti ti-map-pin"></i></span><div class="ot"><h4>GPS 위치 인증</h4><p>Phase 2 출시 예정</p></div></div>
+    <div class="note" style="margin-top:14px;justify-content:center;"><i class="ti ti-heart" style="color:var(--brandInk);"></i><span>응원 한잔으로 서로의 하다를 응원할 수 있어요.</span></div>
+  </div></div>
+  <div class="wizbtns"><button class="btn-prev">이전</button><button class="btn-next"><i class="ti ti-confetti" style="font-size:17px;"></i> 만들기</button></div>
+</div></div>
+
+</div>
+
+<div class="sectionhead"><h2>챌린지 방</h2><span>대화 · 인증 · 기록 · 현황 · 박제</span></div>
+<div class="grid">
+
+<!-- 방: 인증 (응원 4종) -->
+<div class="col"><div class="cap">방 · 인증 (응원 4종 유지, done 버튼)</div>
+<div class="phone">
+  <div class="sb"><span>11:18</span><div class="r"><i class="ti ti-wifi"></i><i class="ti ti-battery-2"></i></div></div>
+  <div class="nav2"><i class="ti ti-arrow-left"></i><div style="flex:1;"><h1 style="font-size:15px;">하루 한번 하늘 명상…</h1><div style="font-size:12px;color:var(--faint);">누구나 합류 · 함께 1명</div></div><span class="right" style="color:var(--brandInk);font-weight:600;font-size:14px;">초대</span></div>
+  <div class="roomstat"><span class="s"><i class="ti ti-flame" style="color:#E8732E;"></i>1/100일</span><span class="s"><i class="ti ti-camera" style="color:var(--sub);"></i>1/1 인증</span><div class="right"><span class="dot-sage"></span><span class="dday">D-99</span><span class="pause"><i class="ti ti-player-pause"></i>멈춤</span></div></div>
+  <div class="roombar"><i style="width:1%"></i></div>
+  <div class="roomtabs">
+    <div class="roomtab"><i class="ti ti-message-circle"></i>대화</div>
+    <div class="roomtab on"><i class="ti ti-camera"></i>인증</div>
+    <div class="roomtab"><i class="ti ti-movie"></i>기록</div>
+    <div class="roomtab"><i class="ti ti-chart-bar"></i>현황</div>
+    <div class="roomtab"><i class="ti ti-trophy"></i>박제</div>
+  </div>
+  <div class="scroll"><div class="pad">
+    <div class="proofcard">
+      <div class="ph"><div class="av"></div><div><div class="nm">북두사자</div><div class="tm">오늘 10:10</div></div></div>
+      <div class="proofimg"></div>
+      <div class="cap">맑은하늘.</div>
+      <div class="cheers">
+        <div class="cheer on">🔥<span class="ct">1</span></div>
+        <div class="cheer">👏</div>
+        <div class="cheer">💪</div>
+        <div class="cheer">❤️</div>
+      </div>
+      <div class="cmt"><i class="ti ti-message-circle"></i>댓글 0</div>
+    </div>
+  </div></div>
+  <div style="padding:10px 16px 16px;flex:0 0 auto;"><button class="btn-done"><i class="ti ti-check"></i>오늘 인증 완료 · 내일 또 만나요</button></div>
+</div></div>
+
+<!-- 방: 현황 -->
+<div class="col"><div class="cap">방 · 현황 (다짐 걸기·모집)</div>
+<div class="phone">
+  <div class="sb"><span>11:19</span><div class="r"><i class="ti ti-wifi"></i><i class="ti ti-battery-2"></i></div></div>
+  <div class="nav2"><i class="ti ti-arrow-left"></i><div style="flex:1;"><h1 style="font-size:15px;">하루 한번 하늘 명상…</h1><div style="font-size:12px;color:var(--faint);">누구나 합류 · 함께 1명</div></div><span class="right" style="color:var(--brandInk);font-weight:600;font-size:14px;">초대</span></div>
+  <div class="roomstat"><span class="s"><i class="ti ti-flame" style="color:#E8732E;"></i>1/100일</span><span class="s"><i class="ti ti-camera" style="color:var(--sub);"></i>1/1 인증</span><div class="right"><span class="dot-sage"></span><span class="dday">D-99</span></div></div>
+  <div class="roombar"><i style="width:1%"></i></div>
+  <div class="roomtabs">
+    <div class="roomtab"><i class="ti ti-message-circle"></i>대화</div>
+    <div class="roomtab"><i class="ti ti-camera"></i>인증</div>
+    <div class="roomtab"><i class="ti ti-movie"></i>기록</div>
+    <div class="roomtab on"><i class="ti ti-chart-bar"></i>현황</div>
+    <div class="roomtab"><i class="ti ti-trophy"></i>박제</div>
+  </div>
+  <div class="scroll"><div class="pad">
+    <div class="infocard warm">
+      <h4><i class="ti ti-heart"></i>다짐 걸기</h4>
+      <p>도전에 가벼운 약속을 걸어보세요. 못 하면 / 해내면 무엇을 할지 — 돈은 오가지 않아요.</p>
+      <button class="btn-primary" style="margin-top:14px;">다짐 걸기</button>
+    </div>
+    <div class="infocard">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;"><span class="kpill any"><i class="ti ti-world"></i>누구나</span><span style="font-size:12px;color:var(--faint);">06.17 ~ 09.24</span></div>
+      <h3 style="font-size:16px;font-weight:700;margin-bottom:10px;">하루 한번 하늘 명상 (7일)</h3>
+      <div style="background:#F8F6F1;border-left:3px solid var(--brand);border-radius:0 8px 8px 0;padding:12px 14px;font-size:13px;color:var(--sub);line-height:1.7;">파란 하늘<br>구름 꽉 찬 하늘<br>비오는 하늘</div>
+    </div>
+    <div class="infocard" style="display:flex;align-items:center;gap:10px;">
+      <span class="dot-sage"></span><div style="flex:1;"><div style="font-size:15px;font-weight:600;">모집 중</div><div style="font-size:12px;color:var(--faint);">누구나 합류할 수 있어요</div></div><button class="btn-cheer">모집 잠그기</button>
+    </div>
+  </div></div>
+</div></div>
+
+<!-- 방: 박제 -->
+<div class="col"><div class="cap">방 · 박제 (증언형 · 굿즈)</div>
+<div class="phone">
+  <div class="sb"><span>11:19</span><div class="r"><i class="ti ti-wifi"></i><i class="ti ti-battery-2"></i></div></div>
+  <div class="nav2"><i class="ti ti-arrow-left"></i><div style="flex:1;"><h1 style="font-size:15px;">하루 한번 하늘 명상…</h1><div style="font-size:12px;color:var(--faint);">누구나 합류 · 함께 1명</div></div><span class="right" style="color:var(--brandInk);font-weight:600;font-size:14px;">초대</span></div>
+  <div class="roomstat"><span class="s"><i class="ti ti-flame" style="color:#E8732E;"></i>1/100일</span><span class="s"><i class="ti ti-camera" style="color:var(--sub);"></i>1/1 인증</span><div class="right"><span class="dot-sage"></span><span class="dday">D-99</span></div></div>
+  <div class="roombar"><i style="width:1%"></i></div>
+  <div class="roomtabs">
+    <div class="roomtab"><i class="ti ti-message-circle"></i>대화</div>
+    <div class="roomtab"><i class="ti ti-camera"></i>인증</div>
+    <div class="roomtab"><i class="ti ti-movie"></i>기록</div>
+    <div class="roomtab"><i class="ti ti-chart-bar"></i>현황</div>
+    <div class="roomtab on"><i class="ti ti-trophy"></i>박제</div>
+  </div>
+  <div class="scroll"><div class="pad">
+    <div style="text-align:center;padding:16px 0 8px;"><i class="ti ti-trophy" style="font-size:48px;color:var(--gold);"></i><h3 style="font-size:18px;font-weight:700;margin-top:10px;">박제는 하다 종료 후</h3><p style="font-size:13px;color:var(--faint);margin-top:6px;line-height:1.6;">하다가 끝나면<br>여기에 모든 추억이 박제됩니다.</p></div>
+    <div class="infocard" style="margin-top:16px;">
+      <div style="font-size:13px;color:var(--faint);margin-bottom:8px;">박제될 항목</div>
+      <div class="listline"><i class="ti ti-camera"></i>모든 인증 사진 (1장)</div>
+      <div class="listline"><i class="ti ti-message-circle"></i>동료들의 응원 (1번)</div>
+      <div class="listline"><i class="ti ti-movie"></i>기록 Vlog (1개)</div>
+      <div class="listline"><i class="ti ti-trophy"></i>완주 인증</div>
+    </div>
+    <div class="infocard warm">
+      <div style="font-size:13px;font-weight:700;color:var(--brandInk);margin-bottom:8px;">완주하면 남길 수 있어요</div>
+      <div class="listline"><i class="ti ti-certificate"></i>디지털 인증서 (PDF)<span class="rt" style="color:var(--brandInk);font-weight:600;">무료</span></div>
+      <div class="listline"><i class="ti ti-mail"></i>종이 인증서·우편<span class="rt">추후 결정</span></div>
+      <div class="listline"><i class="ti ti-book-2"></i>포토북<span class="rt">추후 결정</span></div>
+      <div class="listline"><i class="ti ti-shirt"></i>굿즈 (티셔츠·키링)<span class="rt">추후 결정</span></div>
+    </div>
+  </div></div>
+</div></div>
+
+<!-- 방: 대화 빈 -->
+<div class="col"><div class="cap">방 · 대화 (빈 상태)</div>
+<div class="phone">
+  <div class="sb"><span>11:19</span><div class="r"><i class="ti ti-wifi"></i><i class="ti ti-battery-2"></i></div></div>
+  <div class="nav2"><i class="ti ti-arrow-left"></i><div style="flex:1;"><h1 style="font-size:15px;">하루 한번 하늘 명상…</h1><div style="font-size:12px;color:var(--faint);">누구나 합류 · 함께 1명</div></div><span class="right" style="color:var(--brandInk);font-weight:600;font-size:14px;">초대</span></div>
+  <div class="roomstat"><span class="s"><i class="ti ti-flame" style="color:#E8732E;"></i>1/100일</span><span class="s"><i class="ti ti-camera" style="color:var(--sub);"></i>1/1 인증</span><div class="right"><span class="dot-sage"></span><span class="dday">D-99</span></div></div>
+  <div class="roombar"><i style="width:1%"></i></div>
+  <div class="roomtabs">
+    <div class="roomtab on"><i class="ti ti-message-circle"></i>대화</div>
+    <div class="roomtab"><i class="ti ti-camera"></i>인증</div>
+    <div class="roomtab"><i class="ti ti-movie"></i>기록</div>
+    <div class="roomtab"><i class="ti ti-chart-bar"></i>현황</div>
+    <div class="roomtab"><i class="ti ti-trophy"></i>박제</div>
+  </div>
+  <div class="scroll"><div class="empty"><div class="ic"><i class="ti ti-message-circle"></i></div><p>아직 대화가 없어요.<br>동료들에게 첫 인사를 건네볼까요?</p></div></div>
+  <div style="padding:10px 16px 16px;display:flex;gap:10px;flex:0 0 auto;"><div style="flex:1;height:46px;border-radius:999px;background:#F1EFE9;display:flex;align-items:center;padding:0 16px;font-size:14px;color:var(--faint);">메시지를 입력하세요</div><button style="width:64px;border:none;border-radius:999px;background:#F4B79C;color:#fff;font-weight:600;font-family:inherit;">전송</button></div>
+</div></div>
+
+</div>
+
+<div class="sectionhead"><h2>구경 · 모달</h2><span>하다 구경 · 초대 · 멈춤 · 콜드스타트</span></div>
+<div class="grid">
+
+<!-- 하다 구경 (관심 통합) -->
+<div class="col"><div class="cap">하다 구경 (관심 분야 우선 + 평가 4종)</div>
+<div class="phone">
+  <div class="sb"><span>10:17</span><div class="r"><i class="ti ti-wifi"></i><i class="ti ti-battery-2"></i></div></div>
+  <header>
+    <div class="prof"><div class="av"></div><div><div class="nm">북두사자</div><div class="sx">오늘도 한 걸음</div></div></div>
+    <div class="hicons"><i class="ti ti-bell"></i><i class="ti ti-menu-2"></i></div>
+  </header>
+  <div class="scroll"><div class="pad">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;"><i class="ti ti-telescope" style="font-size:22px;color:var(--sub);"></i><h1 style="font-size:22px;font-weight:700;">하다 구경</h1></div>
+    <p style="font-size:13px;color:var(--faint);margin-bottom:16px;">남들은 무슨 하다 하나 — 살펴보고 따라해 보세요</p>
+    <div class="fchips">
+      <span class="fchip on">전체</span>
+      <span class="fchip"><i class="ti ti-briefcase"></i>자기계발</span>
+      <span class="fchip"><i class="ti ti-heartbeat"></i>건강</span>
+      <span class="fchip"><i class="ti ti-run"></i>운동</span>
+      <span class="fchip"><i class="ti ti-book"></i>학습</span>
+    </div>
+    <div style="font-size:12px;color:var(--brandInk);font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:5px;"><i class="ti ti-sparkles" style="font-size:14px;"></i>내 관심 분야 우선</div>
+    <div class="discovercard">
+      <div class="dh"><span class="kpill any"><i class="ti ti-world"></i>누구나</span><span style="margin-left:auto;font-size:12px;color:var(--faint);display:flex;align-items:center;gap:4px;"><i class="ti ti-world" style="font-size:13px;"></i>라이프</span></div>
+      <h3>하루 한번 하늘을 보고 잠깐 명상하기 (7일)</h3>
+      <p class="desc">파란 하늘 / 구름 꽉 찬 하늘 / 비오는 하늘</p>
+      <p class="metaline">100일 · 매일 인증</p>
+      <div class="evalrow">
+        <div class="evalbox on"><span class="em">✨</span><span class="lb">기발</span><span class="ct">1</span></div>
+        <div class="evalbox"><span class="em">😱</span><span class="lb">대단</span><span class="ct">0</span></div>
+        <div class="evalbox"><span class="em">🥹</span><span class="lb">뭉클</span><span class="ct">0</span></div>
+        <div class="evalbox"><span class="em">💫</span><span class="lb">새로움</span><span class="ct">0</span></div>
+      </div>
+      <button class="btn-follow">따라하기</button>
+    </div>
+  </div></div>
+  <nav class="tabbar">
+    <div class="tab"><i class="ti ti-home"></i><span>홈</span></div>
+    <div class="tab"><i class="ti ti-flag"></i><span>내 하다</span></div>
+    <div class="tab"><div class="fab"><i class="ti ti-plus"></i></div></div>
+    <div class="tab"><i class="ti ti-movie"></i><span>기록</span></div>
+    <div class="tab"><i class="ti ti-trophy"></i><span>해냈어요</span></div>
+  </nav>
+</div></div>
+
+<!-- 콜드스타트 -->
+<div class="col"><div class="cap">콜드스타트 (신규 유저 홈)</div>
+<div class="phone">
+  <div class="sb"><span>8:00</span><div class="r"><i class="ti ti-wifi"></i><i class="ti ti-battery-2"></i></div></div>
+  <header>
+    <div class="prof"><div class="av" style="background:#7B5BC9;"></div><div><div class="nm">반가워요</div><div class="sx">첫 하다를 시작해볼까요</div></div></div>
+    <div class="hicons"><i class="ti ti-bell"></i><i class="ti ti-menu-2"></i></div>
+  </header>
+  <div class="scroll"><div class="pad">
+    <div class="peekbar"><i class="ti ti-telescope"></i><span>남들은 무슨 하다 하나, 구경하기</span><i class="ti ti-chevron-right chev"></i></div>
+    <div class="anchor" style="text-align:center;">
+      <h3 style="font-size:19px;">오늘, 첫 걸음을 떼어볼까요?</h3>
+      <p style="font-size:14px;color:var(--sub);margin:8px 0 16px;">선언하면 지인들이 응원으로 함께해요.</p>
+      <button class="btn-primary" style="margin-top:0;"><i class="ti ti-pencil"></i>첫 하다 선언하기</button>
+      <button style="width:100%;height:48px;border:1.5px solid #FFD0B8;border-radius:999px;background:#fff;color:var(--brandInk);font-size:15px;font-weight:700;margin-top:10px;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:7px;"><i class="ti ti-telescope" style="font-size:18px;"></i>하다 구경 — 이런 것도 하는구나</button>
+    </div>
+    <div class="label">함께 합류하기 (누구나)</div>
+    <div class="irow sage" style="margin-bottom:12px;"><span class="iconbox sg"><i class="ti ti-world"></i></span><div class="t"><h4>하루 한번 하늘 명상 (7일)</h4><p>누구나 합류 · 함께 1명</p></div><i class="ti ti-chevron-right chev"></i></div>
+    <div class="irow sage"><span class="iconbox sg"><i class="ti ti-run"></i></span><div class="t"><h4>매일 7000보 걷기</h4><p>누구나 합류 · 함께 3명</p></div><i class="ti ti-chevron-right chev"></i></div>
+  </div></div>
+  <nav class="tabbar">
+    <div class="tab on"><i class="ti ti-home"></i><span>홈</span></div>
+    <div class="tab"><i class="ti ti-flag"></i><span>내 하다</span></div>
+    <div class="tab"><div class="fab"><i class="ti ti-plus"></i></div></div>
+    <div class="tab"><i class="ti ti-movie"></i><span>기록</span></div>
+    <div class="tab"><i class="ti ti-trophy"></i><span>해냈어요</span></div>
+  </nav>
+</div></div>
+
+<!-- 모달: 멈춤 -->
+<div class="col"><div class="cap">모달 · 잠시 멈춤/그만두기</div>
+<div class="modalwrap">
+  <div class="scrim"></div>
+  <div class="sheet">
+    <h3>잠시 멈춤 / 그만두기</h3>
+    <p>며칠 쉴까요? 또는 완전히 그만둘 수 있어요.</p>
+    <button class="opt">3일 쉼</button>
+    <button class="opt">7일 쉼</button>
+    <button class="opt danger">그만두기</button>
+    <button class="opt cancel">취소</button>
+  </div>
+</div></div>
+
+<!-- 모달: 알림 -->
+<div class="col"><div class="cap">알림 (조용한 알림 원칙)</div>
+<div class="phone">
+  <div class="sb"><span>10:28</span><div class="r"><i class="ti ti-wifi"></i><i class="ti ti-battery-2"></i></div></div>
+  <div class="nav2"><i class="ti ti-bell" style="color:var(--brandInk);"></i><h1>알림</h1><span class="right" style="font-size:14px;color:var(--sub);">확인</span></div>
+  <div class="scroll"><div class="pad">
+    <div class="irow" style="margin-bottom:10px;"><span class="iconbox"><i class="ti ti-camera"></i></span><div class="t"><h4 style="color:var(--brandInk);font-weight:600;">동료 인증 · 100일 책 읽기</h4><p>김*영님이 오늘 인증을 남겼어요</p></div><span style="font-size:12px;color:var(--faint);">6/21</span></div>
+    <div class="irow" style="margin-bottom:10px;"><span class="iconbox"><i class="ti ti-message-circle"></i></span><div class="t"><h4 style="color:var(--brandInk);font-weight:600;">인증 댓글 · 30일 혈당</h4><p>Dong hyeok Kim: 화이팅!</p></div><span style="font-size:12px;color:var(--faint);">6/21</span></div>
+    <div class="irow" style="margin-bottom:10px;"><span class="iconbox"><i class="ti ti-heart"></i></span><div class="t"><h4 style="color:var(--brandInk);font-weight:600;">응원 · 30일 혈당</h4><p>응원을 받았어요</p></div><span style="font-size:12px;color:var(--faint);">6/21</span></div>
+    <div class="note" style="margin-top:8px;"><i class="ti ti-moon"></i><span>조용한 알림 원칙 — 숫자 대신 점 하나. 밤 10시~아침 6시의 푸시는 아침 6시에 모아 보내드려요.</span></div>
+  </div></div>
+</div></div>
+
+</div>
+
+</body>
+</html>
