@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/components/Screen';
+import { CategoryIcon } from '@/components/CategoryIcon';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import {
@@ -411,7 +412,7 @@ function Step2Category({
   setSubcategoryId: (id: number | null) => void;
 }) {
   if (!tree) {
-    return <ActivityIndicator color={colors.accent} style={{ marginTop: 24 }} />;
+    return <ActivityIndicator color={colors.brand} style={{ marginTop: 24 }} />;
   }
   const selected = tree.categories.find(c => c.id === categoryId) ?? null;
   const subs = selected
@@ -425,8 +426,8 @@ function Step2Category({
           <Text style={styles.subBackText}>← 다시 선택</Text>
         </Pressable>
         <View style={[styles.catItem, styles.catItemActive, { alignSelf: 'flex-start' }]}>
-          <Text style={styles.catEmoji}>{selected.emoji}</Text>
-          <Text style={styles.catName}>{selected.name}</Text>
+          <CategoryIcon slug={selected.slug} size={21} color={colors.brandInk} />
+          <Text style={[styles.catName, { color: colors.brandInk }]}>{selected.name}</Text>
         </View>
         <Text style={styles.subSectionTitle}>세부 분야 (선택)</Text>
         <View style={styles.subWrap}>
@@ -454,16 +455,11 @@ function Step2Category({
         return (
           <Pressable
             key={c.id}
-            style={[
-              styles.catItem,
-              c.is_impact && styles.catItemImpact,
-              active && styles.catItemActive,
-            ]}
+            style={[styles.catItem, active && styles.catItemActive]}
             onPress={() => { setCategoryId(c.id); }}
           >
-            <Text style={styles.catEmoji}>{c.emoji}</Text>
-            <Text style={styles.catName}>{c.name}</Text>
-            {c.is_impact && <Text style={styles.catImpactTag}>세상에</Text>}
+            <CategoryIcon slug={c.slug} size={21} color={active ? colors.brandInk : colors.sub} />
+            <Text style={[styles.catName, active && { color: colors.brandInk }]}>{c.name}</Text>
           </Pressable>
         );
       })}
@@ -1204,37 +1200,26 @@ const styles = StyleSheet.create({
   // 카테고리 그리드 (2열)
   catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 8 },
   catItem: {
-    width: '47%',
-    paddingVertical: 20,
-    paddingHorizontal: 12,
+    width: '47%', flexGrow: 1,
+    flexDirection: 'row', alignItems: 'center', gap: 10,   // 가로 배치(아이콘 좌 + 라벨 우)
+    paddingVertical: 14, paddingHorizontal: 14,            // 카드 높이 낮게
     borderRadius: radius.lg,
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.primary100,
-    alignItems: 'center',
-    gap: 6,
+    borderWidth: 1.5,
+    borderColor: colors.line,
   },
   catItemActive: {
-    borderColor: colors.accent,
-    backgroundColor: colors.accent50,
+    borderColor: colors.brand,
+    backgroundColor: colors.brandTint,
   },
-  catItemImpact: { borderColor: colors.success, backgroundColor: '#F0FDF4' },
-  catEmoji: { fontSize: 28 },
   catName: {
-    fontSize: fontSize.base,
-    color: colors.primary,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-  },
-  catImpactTag: {
-    fontSize: 10,
-    color: colors.success,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-    marginTop: 2,
+    fontSize: fontSize.md,
+    color: colors.ink,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
   },
   subBackBtn: { alignSelf: 'flex-start', paddingVertical: 4 },
-  subBackText: { fontSize: fontSize.sm, color: colors.primary500, fontFamily: fontFamily.medium },
+  subBackText: { fontSize: fontSize.sm, color: colors.sub, fontFamily: fontFamily.medium },
   subWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   subChip: {
     paddingHorizontal: 14,
@@ -1242,11 +1227,11 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.primary100,
+    borderColor: colors.line,
   },
-  subChipActive: { backgroundColor: colors.accent50, borderColor: colors.accent },
-  subChipText: { fontSize: fontSize.sm, color: colors.primary, fontFamily: fontFamily.medium },
-  subChipTextActive: { color: colors.accent700, fontWeight: fontWeight.bold },
+  subChipActive: { backgroundColor: colors.brandTint, borderColor: colors.brand },
+  subChipText: { fontSize: fontSize.sm, color: colors.ink, fontFamily: fontFamily.medium },
+  subChipTextActive: { color: colors.brandInk, fontWeight: fontWeight.bold },
 
   // 옵션 카드 (기간/빈도/방식/방타입/내기 공용)
   option: {
