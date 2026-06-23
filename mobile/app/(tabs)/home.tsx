@@ -305,8 +305,8 @@ export default function HomeScreen() {
 
       {/* 🚀 홈 페이지 제목 — 다른 탭(내하다·구경·기록 24px)과 위계 통일 + 무게감(밋밋함 보완) */}
       <View style={styles.intro}>
-        <Text style={styles.introTitle}>우리의 하루</Text>
-        <Text style={styles.introSub}>하다 인연들과 함께, 오늘 한 걸음</Text>
+        <Text style={styles.introTitle}>오늘, 나의 하다</Text>
+        <Text style={styles.introSub}>하다 인연들과 함께</Text>
       </View>
 
       {loading ? (
@@ -429,8 +429,7 @@ export default function HomeScreen() {
             </>
           ) : (
           <>
-          {/* [구조 1] 오늘, 나의 하다 — 앵커(가장 시급한 미인증 1개) + 나머지 진행중 압축 */}
-          <Text style={styles.sectionLabel}>오늘, 나의 하다</Text>
+          {/* [구조 1] 오늘, 나의 하다 — 페이지 제목(히어로)이 이 섹션을 대표하므로 라벨 중복 제거 */}
           {activeChs.length > 0 ? (
             <View style={styles.myChallengeList}>
               {anchorCh ? (
@@ -1002,7 +1001,7 @@ const styles = StyleSheet.create({
   },
   myChallengeList: {
     marginHorizontal: 16,
-    marginTop: 4,
+    marginTop: 16,
     gap: 10,
   },
   myChallengeCard: {
