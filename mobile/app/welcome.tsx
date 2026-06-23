@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
+import { PartyPopper, Check } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
@@ -29,9 +30,9 @@ export default function WelcomeScreen() {
   const goMain = () => router.replace('/home');
 
   return (
-    <Screen backgroundColor={colors.background}>
+    <Screen backgroundColor={colors.bg}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.emoji}>🎉</Text>
+        <View style={styles.emoji}><PartyPopper size={56} color={colors.accent} strokeWidth={1.6} /></View>
         <Text style={styles.title}>
           Do:<Text style={styles.accent}>하다</Text>에 오신 여러분{'\n'}
           환영합니다.
@@ -107,7 +108,7 @@ function TermRow({
   return (
     <Pressable style={styles.termRow} onPress={onPress}>
       <View style={[styles.checkbox, checked && styles.checkboxOn]}>
-        {checked && <Text style={styles.checkmark}>✓</Text>}
+        {checked && <Check size={14} color={colors.surface} strokeWidth={3} />}
       </View>
       <Text style={[styles.termText, bold && styles.termTextBold]}>
         {required ? <Text style={styles.required}>[필수] </Text> : <Text style={styles.optional}>[선택] </Text>}
@@ -125,8 +126,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   emoji: {
-    fontSize: 72,
-    textAlign: 'center',
+    alignItems: 'center',
     marginTop: 16,
   },
   title: {
@@ -191,11 +191,6 @@ const styles = StyleSheet.create({
   checkboxOn: {
     backgroundColor: colors.accent,
     borderColor: colors.accent,
-  },
-  checkmark: {
-    color: colors.surface,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
   },
   termText: {
     flex: 1,

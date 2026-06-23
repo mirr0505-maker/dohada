@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Image, Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MessageCircle, Flag } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { fetchComments, addComment, deleteComment } from '@/lib/db';
 import { supabase } from '@/lib/supabase';
@@ -160,7 +161,7 @@ export function CommentsSheet({ proofId, myUserId, onClose, onCountChange, write
               )}
               ListEmptyComponent={
                 <View style={styles.empty}>
-                  <Text style={styles.emptyEmoji}>💬</Text>
+                  <MessageCircle size={40} color={colors.faint} strokeWidth={1.5} />
                   <Text style={styles.emptyText}>
                     첫 댓글을 남겨보세요.{'\n'}따뜻한 한마디가 큰 힘이에요.
                   </Text>
@@ -172,7 +173,8 @@ export function CommentsSheet({ proofId, myUserId, onClose, onCountChange, write
           {/* 입력 — 키보드 표시 시 8px, 숨김 시 home indicator 영역 확보. 박제 후엔 잠금 안내 */}
           {writeLocked ? (
             <View style={styles.lockedBar}>
-              <Text style={styles.lockedText}>🏁 박제된 하다예요 — 댓글은 보존만 됩니다.</Text>
+              <Flag size={14} color={colors.primary500} strokeWidth={1.8} />
+              <Text style={styles.lockedText}>박제된 하다예요 — 댓글은 보존만 됩니다.</Text>
             </View>
           ) : (
           <View style={[
@@ -315,7 +317,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  emptyEmoji: { fontSize: 48 },
   emptyText: {
     fontSize: fontSize.base,
     color: colors.primary500,
@@ -335,7 +336,10 @@ const styles = StyleSheet.create({
   },
   lockedBar: {
     paddingVertical: 14,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     backgroundColor: colors.primary50,
     borderTopWidth: 1,
     borderTopColor: colors.primary100,

@@ -5,8 +5,11 @@ import React, { useEffect } from 'react';
 import {
   View, Text, Pressable, Modal, StyleSheet, ScrollView, Image, ActivityIndicator, Keyboard,
 } from 'react-native';
+import { Globe, Crown, Users, Calendar } from 'lucide-react-native';
+import { CategoryIcon } from '@/components/CategoryIcon';
+import { categorySlugByName } from '@/lib/icons';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
-import { getChallengeDDay } from '@/lib/format';
+import { getChallengeDDay, displayTitle } from '@/lib/format';
 import { betBadgeText } from '@/lib/payments';
 import { haptic } from '@/lib/haptics';
 import type { OpenChallengeCard } from '@/lib/types';
@@ -41,23 +44,34 @@ export function OpenJoinPreviewSheet({ challenge, joining, onClose, onConfirm }:
                 contentContainerStyle={styles.scrollBody}
                 showsVerticalScrollIndicator={true}
               >
-                <Text style={styles.curation}>🌍 누구나 합류</Text>
-                <Text style={styles.title}>{challenge.title}</Text>
+                <View style={styles.curationRow}>
+                  <Globe size={13} color={colors.accent} strokeWidth={2} />
+                  <Text style={styles.curation}>누구나 합류</Text>
+                </View>
+                <Text style={styles.title}>{displayTitle(challenge.title)}</Text>
 
                 {challenge.category && (
                   <View style={styles.categoryChip}>
-                    <Text style={styles.categoryText}>
-                      {challenge.category.emoji} {challenge.category.name}
-                    </Text>
+                    <CategoryIcon slug={categorySlugByName[challenge.category.name]} size={13} color={colors.primary500} />
+                    <Text style={styles.categoryText}>{challenge.category.name}</Text>
                   </View>
                 )}
 
                 <View style={styles.metaBox}>
-                  <Text style={styles.metaText}>👑 개설자: {challenge.creator?.nickname ?? '도전자'}</Text>
-                  <Text style={styles.metaText}>👥 현재 {challenge.member_count}명 참여 중</Text>
-                  <Text style={styles.metaText}>
-                    📅 {challenge.start_date.slice(5)} ~ {challenge.end_date.slice(5)} ({getChallengeDDay(challenge.start_date, challenge.end_date)})
-                  </Text>
+                  <View style={styles.metaRow}>
+                    <Crown size={14} color={colors.sub} strokeWidth={1.8} />
+                    <Text style={styles.metaText}>개설자: {challenge.creator?.nickname ?? '도전자'}</Text>
+                  </View>
+                  <View style={styles.metaRow}>
+                    <Users size={14} color={colors.sub} strokeWidth={1.8} />
+                    <Text style={styles.metaText}>현재 {challenge.member_count}명 참여 중</Text>
+                  </View>
+                  <View style={styles.metaRow}>
+                    <Calendar size={14} color={colors.sub} strokeWidth={1.8} />
+                    <Text style={styles.metaText}>
+                      {challenge.start_date.slice(5)} ~ {challenge.end_date.slice(5)} ({getChallengeDDay(challenge.start_date, challenge.end_date)})
+                    </Text>
+                  </View>
                 </View>
 
                 {/* 🎯 다인 내기 걸린 방 — 합류 전 고지 (성인 인증 필요) */}
@@ -73,7 +87,7 @@ export function OpenJoinPreviewSheet({ challenge, joining, onClose, onConfirm }:
                 ) : null}
                 {hasIntro ? (
                   <View style={styles.introBox}>
-                    <Text style={styles.introLabel}>📋 안내문</Text>
+                    <Text style={styles.introLabel}>안내문</Text>
                     <Text style={styles.introText}>{challenge.description}</Text>
                   </View>
                 ) : !challenge.intro_image_url ? (
@@ -127,6 +141,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   scrollBody: { gap: 10, paddingBottom: 8 },
+  curationRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   curation: {
     fontSize: fontSize.xs,
     fontFamily: fontFamily.bold,
@@ -142,6 +157,9 @@ const styles = StyleSheet.create({
     lineHeight: 28,
   },
   categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     alignSelf: 'flex-start',
     backgroundColor: colors.primary50,
     paddingHorizontal: 12,
@@ -161,6 +179,7 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 2,
   },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   metaText: {
     fontSize: fontSize.sm,
     color: colors.primary,

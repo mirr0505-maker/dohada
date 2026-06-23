@@ -6,6 +6,7 @@
 // 정산 행동의 서버 권위는 claim-gift(validateBetClaim). 여기 표시는 UX 용 — 최종 판정은 서버.
 import React from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
+import { Target, Trophy, Coffee, Heart, Undo2, Flag, type LucideIcon } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { BET_TIERS, BET_DONATION_MODES, type MyBet } from '@/lib/payments';
 
@@ -22,7 +23,7 @@ type Props = {
 
 function tierLabel(productTier: string): string {
   return BET_TIERS.find(t => t.tier === productTier)?.label
-    ?? (productTier === 'grand_cup' ? '🎁 거하게 한잔' : productTier === 'hearty_cup' ? '🍰 든든한 한잔' : '☕ 한잔');
+    ?? (productTier === 'grand_cup' ? '거하게 한잔' : productTier === 'hearty_cup' ? '든든한 한잔' : '한잔');
 }
 function modeLabel(mode: string): string {
   return BET_DONATION_MODES.find(m => m.mode === mode)?.label ?? '본전 내기';
@@ -36,7 +37,7 @@ export function BetCard(props: Props) {
     if (!canPlace) return null;
     return (
       <View style={styles.card}>
-        <Text style={styles.headline}>🎯 이 하다, 한잔 걸기</Text>
+        <Headline Icon={Target} iconColor={colors.accent} text="이 하다, 한잔 걸기" />
         <Text style={styles.body}>완주하면 본전, 실패를 인정하면 기부 — 기부 방식은 걸 때 골라요. 나 자신과의 약속에 한 잔을 걸어보세요.</Text>
         <Pressable style={styles.primaryBtn} onPress={onPlace} disabled={busy}>
           <Text style={styles.primaryBtnText}>한잔 걸기</Text>
@@ -51,13 +52,13 @@ export function BetCard(props: Props) {
 
   // ── 처리 완료 상태 ──
   if (bet.status === 'issued' || bet.status === 'delivered' || bet.status === 'redeemed') {
-    return <Done headline="☕ 완주! 한잔을 받았어요" body={`${meta} — 끝까지 해낸 나에게 주는 한 잔.`} />;
+    return <Done Icon={Coffee} iconColor={colors.accent} headline="완주! 한잔을 받았어요" body={`${meta} — 끝까지 해낸 나에게 주는 한 잔.`} />;
   }
   if (bet.status === 'donated') {
-    return <Done headline="💚 한잔을 기부로 돌렸어요" body={`${meta} — 누군가의 한잔이 됐어요.`} />;
+    return <Done Icon={Heart} iconColor={colors.done} headline="한잔을 기부로 돌렸어요" body={`${meta} — 누군가의 한잔이 됐어요.`} />;
   }
   if (bet.status === 'refunded') {
-    return <Done headline="↩️ 환불되었어요" body={`${meta} — 이번엔 완주하지 못해 한잔이 돌아왔어요.`} />;
+    return <Done Icon={Undo2} iconColor={colors.sub} headline="환불되었어요" body={`${meta} — 이번엔 완주하지 못해 한잔이 돌아왔어요.`} />;
   }
 
   // ── 결제 완료(paid) = 정산 대기 ──
@@ -66,19 +67,19 @@ export function BetCard(props: Props) {
     if (mode === 'commitment') {
       return (
         <View style={styles.card}>
-          <Text style={styles.headline}>🏆 완주! 내기 정산</Text>
+          <Headline Icon={Trophy} iconColor={colors.gold} text="완주! 내기 정산" />
           <Text style={styles.body}>{meta} — 본전을 찾았어요. 받을지, 기부로 돌릴지 골라주세요.</Text>
-          <SettleBtn label="☕ 한잔 받기" busy={busy} onPress={() => onSettle('receive')} />
-          <DonateBtn label="💚 기부로 돌리기 — 누군가의 한잔이 돼요" busy={busy} onPress={() => onSettle('donate')} />
+          <SettleBtn Icon={Coffee} label="한잔 받기" busy={busy} onPress={() => onSettle('receive')} />
+          <DonateBtn Icon={Heart} label="기부로 돌리기 — 누군가의 한잔이 돼요" busy={busy} onPress={() => onSettle('donate')} />
         </View>
       );
     }
     // pledge / always — 완주 시 기부 확정
     return (
       <View style={styles.card}>
-        <Text style={styles.headline}>🏆 완주! {mode === 'pledge' ? '서약대로 기부' : '한잔 기부'}</Text>
+        <Headline Icon={Trophy} iconColor={colors.gold} text={`완주! ${mode === 'pledge' ? '서약대로 기부' : '한잔 기부'}`} />
         <Text style={styles.body}>{meta} — 끝까지 해낸 한잔을 기부로 보내요.</Text>
-        <SettleBtn label="💚 기부하기" busy={busy} onPress={() => onSettle('donate')} />
+        <SettleBtn Icon={Heart} label="기부하기" busy={busy} onPress={() => onSettle('donate')} />
       </View>
     );
   }
@@ -88,18 +89,18 @@ export function BetCard(props: Props) {
     if (mode === 'pledge') {
       return (
         <View style={styles.card}>
-          <Text style={styles.headline}>🎯 내기 정산 — 환불</Text>
+          <Headline Icon={Target} iconColor={colors.accent} text="내기 정산 — 환불" />
           <Text style={styles.body}>{meta} — 이번엔 완주하지 못했어요. 서약 모드라 한잔은 환불돼요(기부는 다음 기회에).</Text>
-          <DonateBtn label="↩️ 환불받기" busy={busy} onPress={() => onSettle('refund')} />
+          <DonateBtn Icon={Undo2} label="환불받기" busy={busy} onPress={() => onSettle('refund')} />
         </View>
       );
     }
     // commitment(실패 인정) / always — 기부
     return (
       <View style={styles.card}>
-        <Text style={styles.headline}>🎯 내기 정산</Text>
+        <Headline Icon={Target} iconColor={colors.accent} text="내기 정산" />
         <Text style={styles.body}>{meta} — 이번엔 완주하지 못했어요. 약속대로 이 한잔은 기부로 마무리해요.</Text>
-        <DonateBtn label={mode === 'commitment' ? '💚 실패를 인정하고 기부하기' : '💚 기부하기'} busy={busy} onPress={() => onSettle('donate')} />
+        <DonateBtn Icon={Heart} label={mode === 'commitment' ? '실패를 인정하고 기부하기' : '기부하기'} busy={busy} onPress={() => onSettle('donate')} />
       </View>
     );
   }
@@ -111,36 +112,56 @@ export function BetCard(props: Props) {
     : '완주하면 이 한잔을 받아요.';
   return (
     <View style={styles.card}>
-      <Text style={styles.headline}>🎯 한잔 걸린 하다</Text>
+      <Headline Icon={Target} iconColor={colors.accent} text="한잔 걸린 하다" />
       <Text style={styles.body}>{meta} — {hint} 끝까지 가봐요!</Text>
       {onGiveUp && (
-        <Pressable onPress={onGiveUp} disabled={busy} hitSlop={6} style={{ alignSelf: 'flex-start' }}>
-          <Text style={styles.giveUpLink}>🏳️ 포기하기 (실패 인증)</Text>
+        <Pressable onPress={onGiveUp} disabled={busy} hitSlop={6} style={styles.giveUpRow}>
+          <Flag size={13} color={colors.primary500} strokeWidth={1.8} />
+          <Text style={styles.giveUpLink}>포기하기 (실패 인증)</Text>
         </Pressable>
       )}
     </View>
   );
 }
 
-function Done({ headline, body }: { headline: string; body: string }) {
+// 카드 제목 — 아이콘 + 텍스트 한 줄
+function Headline({ Icon, iconColor, text }: { Icon: LucideIcon; iconColor: string; text: string }) {
+  return (
+    <View style={styles.headlineRow}>
+      <Icon size={16} color={iconColor} strokeWidth={2} />
+      <Text style={styles.headline}>{text}</Text>
+    </View>
+  );
+}
+function Done({ Icon, iconColor, headline, body }: { Icon: LucideIcon; iconColor: string; headline: string; body: string }) {
   return (
     <View style={styles.card}>
-      <Text style={styles.headline}>{headline}</Text>
+      <Headline Icon={Icon} iconColor={iconColor} text={headline} />
       <Text style={styles.body}>{body}</Text>
     </View>
   );
 }
-function SettleBtn({ label, busy, onPress }: { label: string; busy: boolean; onPress: () => void }) {
+function SettleBtn({ Icon, label, busy, onPress }: { Icon?: LucideIcon; label: string; busy: boolean; onPress: () => void }) {
   return (
     <Pressable style={[styles.primaryBtn, busy && styles.btnDisabled]} onPress={onPress} disabled={busy}>
-      {busy ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.primaryBtnText}>{label}</Text>}
+      {busy ? <ActivityIndicator color={colors.surface} /> : (
+        <>
+          {Icon && <Icon size={16} color={colors.surface} strokeWidth={2} />}
+          <Text style={styles.primaryBtnText}>{label}</Text>
+        </>
+      )}
     </Pressable>
   );
 }
-function DonateBtn({ label, busy, onPress }: { label: string; busy: boolean; onPress: () => void }) {
+function DonateBtn({ Icon, label, busy, onPress }: { Icon?: LucideIcon; label: string; busy: boolean; onPress: () => void }) {
   return (
     <Pressable style={[styles.donateBtn, busy && styles.btnDisabled]} onPress={onPress} disabled={busy}>
-      {busy ? <ActivityIndicator color={colors.success} /> : <Text style={styles.donateBtnText}>{label}</Text>}
+      {busy ? <ActivityIndicator color={colors.done} /> : (
+        <>
+          {Icon && <Icon size={15} color={colors.done} strokeWidth={2} />}
+          <Text style={styles.donateBtnText}>{label}</Text>
+        </>
+      )}
     </Pressable>
   );
 }
@@ -156,6 +177,7 @@ const styles = StyleSheet.create({
     borderColor: colors.accent,
     ...shadow.sm,
   },
+  headlineRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   headline: {
     fontSize: fontSize.base,
     color: colors.primary,
@@ -172,7 +194,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     borderRadius: radius.lg,
     paddingVertical: 13,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     marginTop: 2,
   },
   primaryBtnText: {
@@ -185,23 +210,26 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     paddingVertical: 13,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     borderWidth: 1,
-    borderColor: colors.success,
+    borderColor: colors.done,
   },
   donateBtnText: {
     fontSize: fontSize.sm,
-    color: colors.success,
+    color: colors.done,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },
   btnDisabled: { opacity: 0.5 },
+  giveUpRow: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', marginTop: 2 },
   giveUpLink: {
     fontSize: fontSize.xs,
     color: colors.primary500,
     fontFamily: fontFamily.medium,
     fontWeight: fontWeight.medium,
     textDecorationLine: 'underline',
-    marginTop: 2,
   },
 });

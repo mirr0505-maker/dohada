@@ -6,6 +6,7 @@
 // 명예제도 — 앱은 표시·기록만, 강제·검증 없음.
 import React from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
+import { Heart, Trophy, ArrowDown, Check } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import type { MyPledge, PledgeDirection } from '@/lib/db';
 
@@ -21,8 +22,14 @@ type Props = {
   onDelete: (id: string) => void;
 };
 
-function dirLabel(d: PledgeDirection): string {
-  return d === 'lose' ? '🔻 못 하면' : '🏆 해내면';
+function DirTag({ d }: { d: PledgeDirection }) {
+  const Icon = d === 'lose' ? ArrowDown : Trophy;
+  return (
+    <View style={styles.dirTag}>
+      <Icon size={11} color={colors.accent700} strokeWidth={2} />
+      <Text style={styles.dirTagText}>{d === 'lose' ? '못 하면' : '해내면'}</Text>
+    </View>
+  );
 }
 
 type PledgeState = 'in_progress' | 'not_triggered' | 'to_fulfill' | 'fulfilled';
@@ -41,7 +48,10 @@ export function PledgeCard(props: Props) {
     if (!canAdd) return null;
     return (
       <View style={styles.card}>
-        <Text style={styles.headline}>💛 다짐 걸기</Text>
+        <View style={styles.headlineRow}>
+          <Heart size={16} color={colors.gold} strokeWidth={2} />
+          <Text style={styles.headline}>다짐 걸기</Text>
+        </View>
         <Text style={styles.body}>도전에 가벼운 약속을 걸어보세요. 못 하면 / 해내면 무엇을 할지 — 돈은 오가지 않아요.</Text>
         <Pressable style={styles.primaryBtn} onPress={onAdd} disabled={busy}>
           <Text style={styles.primaryBtnText}>다짐 걸기</Text>
@@ -52,13 +62,16 @@ export function PledgeCard(props: Props) {
 
   return (
     <View style={styles.card}>
-      <Text style={styles.headline}>💛 나의 다짐</Text>
+      <View style={styles.headlineRow}>
+        <Heart size={16} color={colors.gold} strokeWidth={2} />
+        <Text style={styles.headline}>나의 다짐</Text>
+      </View>
       {pledges.map(p => {
         const state = pledgeState(p, myCompleted, myFailed);
         return (
           <View key={p.id} style={styles.pledgeRow}>
             <View style={styles.pledgeHead}>
-              <Text style={styles.dirTag}>{dirLabel(p.direction)}</Text>
+              <DirTag d={p.direction} />
               {state === 'in_progress' && canManage && (
                 <Pressable onPress={() => onDelete(p.id)} disabled={busy} hitSlop={6}>
                   <Text style={styles.removeLink}>거두기</Text>
@@ -72,7 +85,7 @@ export function PledgeCard(props: Props) {
             {state === 'to_fulfill' && (
               <>
                 <Text style={styles.settleNote}>
-                  {p.direction === 'win' ? '🎉 해냈어요! 다짐을 지킬 시간이에요.' : '이번엔 아쉬웠어요. 다짐을 지킬 시간이에요 💛'}
+                  {p.direction === 'win' ? '해냈어요! 다짐을 지킬 시간이에요.' : '이번엔 아쉬웠어요. 다짐을 지킬 시간이에요.'}
                 </Text>
                 {canManage && (
                   <Pressable
@@ -80,7 +93,12 @@ export function PledgeCard(props: Props) {
                     onPress={() => onToggleFulfilled(p.id, true)}
                     disabled={busy}
                   >
-                    {busy ? <ActivityIndicator color={colors.success} /> : <Text style={styles.fulfillBtnText}>✓ 지켰어요</Text>}
+                    {busy ? <ActivityIndicator color={colors.done} /> : (
+                      <>
+                        <Check size={15} color={colors.done} strokeWidth={2.4} />
+                        <Text style={styles.fulfillBtnText}>지켰어요</Text>
+                      </>
+                    )}
                   </Pressable>
                 )}
               </>
@@ -92,13 +110,14 @@ export function PledgeCard(props: Props) {
                 onPress={() => canManage && !busy && onToggleFulfilled(p.id, false)}
                 disabled={!canManage || busy}
               >
-                <Text style={styles.fulfilledText}>✓ 지켰어요</Text>
+                <Check size={15} color={colors.done} strokeWidth={2.4} />
+                <Text style={styles.fulfilledText}>지켰어요</Text>
               </Pressable>
             )}
 
             {state === 'not_triggered' && (
               <Text style={styles.settleNoteMuted}>
-                {p.direction === 'lose' ? '🎉 완주했으니 이 다짐은 안 지켜도 돼요.' : '이번엔 못 채웠어요 — 다음 기회에.'}
+                {p.direction === 'lose' ? '완주했으니 이 다짐은 안 지켜도 돼요.' : '이번엔 못 채웠어요 — 다음 기회에.'}
               </Text>
             )}
           </View>
@@ -126,6 +145,7 @@ const styles = StyleSheet.create({
     borderColor: colors.accent,
     ...shadow.sm,
   },
+  headlineRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   headline: {
     fontSize: fontSize.base,
     color: colors.primary,
@@ -150,14 +170,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   dirTag: {
-    fontSize: fontSize.xs,
-    color: colors.accent700,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
     paddingHorizontal: 8,
     paddingVertical: 2,
     backgroundColor: colors.accent50,
     borderRadius: radius.pill,
+  },
+  dirTagText: {
+    fontSize: fontSize.xs,
+    color: colors.accent700,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
   },
   removeLink: {
     fontSize: fontSize.xs,
@@ -194,21 +219,24 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     paddingVertical: 11,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     borderWidth: 1,
-    borderColor: colors.success,
+    borderColor: colors.done,
     marginTop: 4,
   },
   fulfillBtnText: {
     fontSize: fontSize.sm,
-    color: colors.success,
+    color: colors.done,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },
-  fulfilledRow: { marginTop: 2 },
+  fulfilledRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
   fulfilledText: {
     fontSize: fontSize.sm,
-    color: colors.success,
+    color: colors.done,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },

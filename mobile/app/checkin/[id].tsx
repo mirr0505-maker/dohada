@@ -9,6 +9,7 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
+import { X, Camera, Image as ImageIcon } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
@@ -176,7 +177,7 @@ export default function CheckinScreen() {
         if (error) throw error;
         // 🚀 연속 인증 마일스톤(3·7·21…)이면 등록 즉시 알럿에서 축하 — 메달은 게시글에도 그대로 부착
         const milestone = streakMilestone(inserted?.streak_count);
-        if (milestone) milestoneLine = `🔥 ${milestone.day}일 연속 — ${milestone.label}!\n\n`;
+        if (milestone) milestoneLine = `${milestone.day}일 연속 — ${milestone.label}!\n\n`;
       }
 
       haptic.success();
@@ -214,21 +215,22 @@ export default function CheckinScreen() {
     return (
       <Screen backgroundColor={colors.primary} statusBarStyle="light">
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
-            <Text style={styles.close}>✕</Text>
+          <Pressable onPress={() => router.back()} hitSlop={12} style={styles.close}>
+            <X size={24} color={colors.surface} strokeWidth={2} />
           </Pressable>
           <Text style={styles.title}>오늘 인증</Text>
           <View style={{ width: 32 }} />
         </View>
         <View style={styles.permWrap}>
-          <Text style={styles.permEmoji}>📷</Text>
+          <View style={styles.permEmoji}><Camera size={72} color={colors.surface} strokeWidth={1.5} /></View>
           <Text style={styles.permTitle}>카메라로 인증하면 가장 빨라요</Text>
           <Text style={styles.permDesc}>
             운동·걷기 앱 기록 화면 스샷도 인증으로 OK.{'\n'}시간 표시가 보이는 스샷이면 좋아요.
           </Text>
           <Button label="카메라 권한 허용" size="lg" onPress={requestPermission} />
           <Pressable style={styles.libBtnAlt} onPress={onPickFromLibrary}>
-            <Text style={styles.libBtnAltText}>🖼️ 보관함에서 선택 (앱 스샷)</Text>
+            <ImageIcon size={16} color={colors.surface} strokeWidth={1.8} />
+            <Text style={styles.libBtnAltText}>보관함에서 선택 (앱 스샷)</Text>
           </Pressable>
         </View>
       </Screen>
@@ -245,8 +247,8 @@ export default function CheckinScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12} disabled={submitting}>
-          <Text style={styles.close}>✕</Text>
+        <Pressable onPress={() => router.back()} hitSlop={12} disabled={submitting} style={styles.close}>
+          <X size={24} color={colors.surface} strokeWidth={2} />
         </Pressable>
         <Text style={styles.title}>오늘 인증</Text>
         <View style={{ width: 32 }} />
@@ -273,7 +275,7 @@ export default function CheckinScreen() {
                 <Pressable key={`${uri}-${i}`} onPress={() => setReviewIndex(i)} style={styles.thumbWrap}>
                   <Image source={{ uri }} style={[styles.thumb, i === reviewIndex && styles.thumbActive]} />
                   <Pressable style={styles.thumbX} onPress={() => removePhoto(i)} hitSlop={6} disabled={submitting}>
-                    <Text style={styles.thumbXText}>✕</Text>
+                    <X size={11} color={colors.surface} strokeWidth={2.4} />
                   </Pressable>
                 </Pressable>
               ))}
@@ -309,10 +311,12 @@ export default function CheckinScreen() {
             {photoUris.length < MAX_PROOF_PHOTOS && (
               <View style={styles.addRow}>
                 <Pressable style={styles.addBtn} onPress={() => setCameraMode(true)} disabled={submitting}>
-                  <Text style={styles.addBtnText}>📷 더 찍기</Text>
+                  <Camera size={15} color={colors.surface} strokeWidth={1.8} />
+                  <Text style={styles.addBtnText}>더 찍기</Text>
                 </Pressable>
                 <Pressable style={styles.addBtn} onPress={onPickFromLibrary} disabled={submitting}>
-                  <Text style={styles.addBtnText}>🖼️ 보관함</Text>
+                  <ImageIcon size={15} color={colors.surface} strokeWidth={1.8} />
+                  <Text style={styles.addBtnText}>보관함</Text>
                 </Pressable>
               </View>
             )}
@@ -326,7 +330,8 @@ export default function CheckinScreen() {
               <View style={styles.shutterInner} />
             </Pressable>
             <Pressable style={styles.libBtn} onPress={onPickFromLibrary}>
-              <Text style={styles.libBtnText}>🖼️ 보관함 (앱 스샷)</Text>
+              <ImageIcon size={16} color={colors.surface} strokeWidth={1.8} />
+              <Text style={styles.libBtnText}>보관함 (앱 스샷)</Text>
             </Pressable>
             {photoUris.length > 0 ? (
               <Pressable onPress={() => setCameraMode(false)} hitSlop={8}>
@@ -345,9 +350,9 @@ export default function CheckinScreen() {
 
 // 챌린지 방 종류별 인증 완료 메시지 — solo 는 "동료" 단어 사용 X (조용한 SNS 톤)
 function kindCompleteMessage(kind: ChallengeKind | null): string {
-  if (kind === 'solo')    return '오늘 하루 잘 해냈어요.\n내일 또 만나요. 💛';
-  if (kind === 'cheered') return '응원자들이 곧 응원하러 올 거예요. 💛';
-  return '동료들이 응원하러 올 거예요. 💛';
+  if (kind === 'solo')    return '오늘 하루 잘 해냈어요.\n내일 또 만나요.';
+  if (kind === 'cheered') return '응원자들이 곧 응원하러 올 거예요.';
+  return '동료들이 응원하러 올 거예요.';
 }
 
 const styles = StyleSheet.create({
@@ -358,7 +363,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  close: { fontSize: 24, color: colors.surface, width: 32 },
+  close: { width: 32 },
   title: {
     fontSize: fontSize.lg,
     color: colors.surface,
@@ -399,7 +404,8 @@ const styles = StyleSheet.create({
   thumbXText: { color: colors.surface, fontSize: 11, fontWeight: fontWeight.bold },
   addRow: { flexDirection: 'row', gap: 8 },
   addBtn: {
-    flex: 1, alignItems: 'center', paddingVertical: 11,
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+    paddingVertical: 11,
     backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: radius.pill,
   },
   addBtnText: { color: colors.surface, fontSize: fontSize.sm, fontFamily: fontFamily.medium, fontWeight: fontWeight.medium },
@@ -436,6 +442,9 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.medium,
   },
   libBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 18,
     paddingVertical: 10,
     backgroundColor: 'rgba(255,255,255,0.12)',
@@ -454,6 +463,9 @@ const styles = StyleSheet.create({
   },
   libBtnAlt: {
     marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 20,
     paddingVertical: 12,
     backgroundColor: 'rgba(255,255,255,0.10)',
@@ -472,7 +484,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     gap: 16,
   },
-  permEmoji: { fontSize: 80, marginBottom: 8 },
+  permEmoji: { marginBottom: 8 },
   permTitle: {
     fontSize: fontSize.xl,
     color: colors.surface,

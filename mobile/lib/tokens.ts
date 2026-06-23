@@ -29,6 +29,30 @@ export const colors = {
   typeBrand: '#3B82F6',
   typeCeleb: '#F59E0B',
   typePublic: '#22C55E',
+
+  // ─── 🚀 리디자인 v2 웜 시맨틱 팔레트 (가산식 — 기존 키는 유지, 화면은 Step 3에서 점진 이전) ───
+  // 정본 = DESIGN_GUIDE.md 2번. 신규/리팩터 화면은 아래 토큰을 쓴다.
+  bg: '#FAF7F2',            // 웜 크림 배경 (기존 background #FAFAFA 대체 예정)
+  line: '#ECE6DE',          // 구분선
+  lineSoft: '#F1EBE3',      // 더 옅은 구분선
+  brand: '#FF6B35',         // 앵커 액션·활성 탭·D-day (= 기존 accent 동일색)
+  brandPress: '#E85A28',    // 눌림
+  brandTint: '#FFF1E9',     // 브랜드 면색 (응원·오늘의 나)
+  brandInk: '#C7461F',      // 브랜드 텍스트
+  tintWarm: '#FFF1E9',      // 면색: 응원·오늘의 나
+  tintCream: '#FBF3E4',     // 면색: 완주·박제
+  tintCreamLine: '#EFE3CE',
+  tintSage: '#EDF1EC',      // 면색: 합류·발견
+  tintSageLine: '#DCE8E0',
+  done: '#5C8A6A',          // 완료/성공 세만틱 — 기존 초록 CTA·💚·🟢 전부 이걸로 대체
+  doneTint: '#EAF1EC',
+  doneInk: '#4A7657',
+  gold: '#B8862F',          // 박제·트로피
+  ink: '#2A2622',           // 본문 텍스트
+  sub: '#6B645C',           // 보조 텍스트
+  faint: '#9B938A',         // 흐린 텍스트
+  faint2: '#B0A899',        // 더 흐림
+  onBrand: '#FFFFFF',       // 브랜드 위 텍스트
 } as const;
 
 // 🚀 연속 인증 마일스톤 메달 색 (3·7·21·49·99·180·365·730일 순, stats.STREAK_MILESTONES 와 인덱스 일치).
@@ -73,6 +97,17 @@ export const fontWeight = {
   bold: '700' as const,
   extrabold: '800' as const,
 };
+
+// 🚀 리디자인 v2 타이포 역할 (DESIGN_GUIDE.md 3번). 섹션 제목을 일부러 작게(14) — 무게는 면색·여백으로.
+// Pretendard OTF 가 Regular/Medium/Bold 3종만 로드돼 600(semibold)은 Bold OTF 로 렌더한다.
+export const textStyle = {
+  greeting: { fontSize: fontSize['3xl'], fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },     // 24/700
+  section: { fontSize: fontSize.base, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },         // 14/700 (작은 안내판)
+  cardTitle: { fontSize: fontSize.lg, fontFamily: fontFamily.bold, fontWeight: fontWeight.semibold },     // 16/600
+  body: { fontSize: fontSize.base, fontFamily: fontFamily.regular, fontWeight: fontWeight.regular },      // 14/400
+  caption: { fontSize: fontSize.sm, fontFamily: fontFamily.medium, fontWeight: fontWeight.medium },       // 12/500
+  button: { fontSize: fontSize.md, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },            // 15/700
+} as const;
 
 // ─── 여백 ─────────────────────────────────────
 export const spacing = {

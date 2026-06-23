@@ -15,6 +15,7 @@ import {
 import { uploadProofImage } from '@/lib/upload';
 import { PhotoViewer } from '@/components/PhotoViewer';
 import { PhotoCarousel } from '@/components/PhotoCarousel';
+import { Flag, Heart, Film, EyeOff, MessageCircle, Camera, Image as ImageIcon, X } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { haptic } from '@/lib/haptics';
 import { LogCommentsSheet } from './LogCommentsSheet';
@@ -160,16 +161,18 @@ export function LogTab({
       {/* 🏁 마무리 인사 유예 배너 — 대화 탭과 동일 로직 (유예 중일 때만) */}
       {farewellDaysLeft > 0 && (
         <View style={styles.farewellBar}>
+          <Flag size={14} color={colors.accent700} strokeWidth={1.8} />
           <Text style={styles.farewellText}>
-            🏁 하다 종료 — 마무리 인사 기간이 {farewellDaysLeft}일 남았어요
+            하다 종료 — 마무리 인사 기간이 {farewellDaysLeft}일 남았어요
           </Text>
         </View>
       )}
       {/* 🚀 응원자 시선 — 기록은 도전자의 것, 나는 좋아요·댓글로 함께하는 응원군 */}
       {cheerOnlyOf && (
         <View style={styles.cheerRoleBanner}>
+          <Heart size={15} color={colors.gold} strokeWidth={1.8} />
           <Text style={styles.cheerRoleBannerText}>
-            💛 {cheerOnlyOf}님의 하다예요 · 기록에 좋아요와 댓글로 함께해요
+            {cheerOnlyOf}님의 하다예요 · 기록에 좋아요와 댓글로 함께해요
           </Text>
         </View>
       )}
@@ -222,10 +225,10 @@ export function LogTab({
             </View>
           ) : (
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>🎥</Text>
+              <Film size={48} color={colors.faint} strokeWidth={1.5} />
               <Text style={styles.emptyText}>
                 {cheerOnlyOf
-                  ? `아직 기록이 없어요.\n${cheerOnlyOf}님의 기록이 올라오면 응원해주세요 💛`
+                  ? `아직 기록이 없어요.\n${cheerOnlyOf}님의 기록이 올라오면 응원해주세요`
                   : '아직 기록이 없어요.\n이 하다의 첫 추억을 남겨볼까요?'}
               </Text>
             </View>
@@ -323,7 +326,10 @@ function LogCard({
       {/* 🚀 숨김 기록: 증발시키지 않고 자리에 '숨김 처리됨' 메시지 — 참여/응원 인원이 모두 본다(2026-06-18) */}
       {log.hidden ? (
         <View style={styles.hiddenBox}>
-          <Text style={styles.hiddenTitle}>🙈 숨김 처리된 기록이에요</Text>
+          <View style={styles.hiddenTitleRow}>
+            <EyeOff size={16} color={colors.sub} strokeWidth={1.8} />
+            <Text style={styles.hiddenTitle}>숨김 처리된 기록이에요</Text>
+          </View>
           <Text style={styles.hiddenDesc}>운영 검토 중이라 내용이 잠시 가려졌어요.</Text>
         </View>
       ) : (
@@ -376,7 +382,7 @@ function LogCard({
         </Pressable>
         {canComment && (
           <Pressable style={styles.likeBtn} onPress={onComment} hitSlop={6}>
-            <Text style={styles.likeIcon}>💬</Text>
+            <MessageCircle size={18} color={colors.faint} strokeWidth={1.8} />
             <Text style={styles.likeCount}>{log.comment_count}</Text>
           </Pressable>
         )}
@@ -566,7 +572,7 @@ function LogComposer({
                     disabled={saving}
                     hitSlop={8}
                   >
-                    <Text style={styles.photoRemoveText}>✕</Text>
+                    <X size={12} color={colors.surface} strokeWidth={2.4} />
                   </Pressable>
                 </View>
               ))}
@@ -575,10 +581,12 @@ function LogComposer({
           {photoUris.length < MAX_LOG_PHOTOS && (
             <View style={styles.photoBtnRow}>
               <Pressable style={[styles.photoAddBtn, { flex: 1 }]} onPress={onTakePhoto} disabled={saving}>
-                <Text style={styles.photoAddText}>📷 사진 찍기</Text>
+                <Camera size={16} color={colors.sub} strokeWidth={1.8} />
+                <Text style={styles.photoAddText}>사진 찍기</Text>
               </Pressable>
               <Pressable style={[styles.photoAddBtn, { flex: 1 }]} onPress={onPickPhoto} disabled={saving}>
-                <Text style={styles.photoAddText}>🖼️ 보관함에서</Text>
+                <ImageIcon size={16} color={colors.sub} strokeWidth={1.8} />
+                <Text style={styles.photoAddText}>보관함에서</Text>
               </Pressable>
             </View>
           )}
@@ -625,7 +633,10 @@ const styles = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.background },
   farewellBar: {
     paddingVertical: 8,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     backgroundColor: colors.accent50,
     borderBottomWidth: 1,
     borderBottomColor: colors.accent100,
@@ -640,6 +651,9 @@ const styles = StyleSheet.create({
   cheerRoleBanner: {
     marginHorizontal: 16,
     marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     backgroundColor: colors.accent50,
     borderRadius: radius.md,
     paddingVertical: 10,
@@ -648,11 +662,11 @@ const styles = StyleSheet.create({
     borderColor: colors.accent100,
   },
   cheerRoleBannerText: {
+    flex: 1,
     fontSize: fontSize.sm,
     color: colors.accent700,
     fontFamily: fontFamily.medium,
     fontWeight: fontWeight.semibold,
-    textAlign: 'center',
   },
   list: { padding: 16, gap: 12, flexGrow: 1, paddingBottom: 80 },
   card: {
@@ -706,6 +720,7 @@ const styles = StyleSheet.create({
     gap: 4,
     alignItems: 'center',
   },
+  hiddenTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   hiddenTitle: {
     fontSize: fontSize.base,
     color: colors.primary,
@@ -739,7 +754,6 @@ const styles = StyleSheet.create({
     flex: 1, alignItems: 'center', justifyContent: 'center',
     paddingVertical: 64, gap: 12,
   },
-  emptyEmoji: { fontSize: 56 },
   emptyText: {
     fontSize: fontSize.base, color: colors.primary500,
     fontFamily: fontFamily.regular, textAlign: 'center', lineHeight: 22,
@@ -839,12 +853,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.6)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  photoRemoveText: {
-    color: colors.surface,
-    fontSize: 12,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
   },
   // 🚀 0045: 기록 작성 — 선택 사진 썸네일 줄 (최대 4장)
   photoStrip: {

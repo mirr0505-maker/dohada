@@ -4,8 +4,8 @@
 // profile 탭 제거 — MY 는 우상단 아바타로 일원화 (AppHeader).
 import React, { useEffect, useState } from 'react';
 import { Tabs, router } from 'expo-router';
-import { Text, View, Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Platform } from 'react-native';
+import { House, Flag, Plus, Film, Trophy } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { colors, fontFamily, fontSize, fontWeight, shadow } from '@/lib/tokens';
@@ -45,8 +45,8 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.primary300,
+        tabBarActiveTintColor: colors.brand,
+        tabBarInactiveTintColor: colors.faint2,
         tabBarLabelStyle: {
           fontFamily: fontFamily.medium,
           fontWeight: fontWeight.medium,
@@ -55,7 +55,7 @@ export default function TabsLayout() {
         },
         tabBarStyle: {
           backgroundColor: colors.surface,
-          borderTopColor: colors.primary100,
+          borderTopColor: colors.line,
           borderTopWidth: 1,
           height: Platform.OS === 'ios' ? 84 : 56 + androidBottomPad,
           paddingTop: 8,
@@ -67,8 +67,8 @@ export default function TabsLayout() {
         name="home"
         options={{
           title: '홈',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'home' : 'home-outline'} size={TAB_ICON_SIZE} color={color} />
+          tabBarIcon: ({ color }) => (
+            <House size={TAB_ICON_SIZE} color={color} strokeWidth={1.8} />
           ),
         }}
       />
@@ -76,8 +76,8 @@ export default function TabsLayout() {
         name="my-challenges"
         options={{
           title: '내 하다',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'flag' : 'flag-outline'} size={TAB_ICON_SIZE} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Flag size={TAB_ICON_SIZE} color={color} strokeWidth={1.8} />
           ),
         }}
       />
@@ -91,13 +91,13 @@ export default function TabsLayout() {
               width: 52,
               height: 52,
               borderRadius: 26,
-              backgroundColor: colors.accent,
+              backgroundColor: colors.brand,
               alignItems: 'center',
               justifyContent: 'center',
               marginTop: -18,   // tabBar 위로 살짝 돌출
               ...shadow.lg,
             }}>
-              <Text style={{ color: colors.surface, fontSize: 28, fontWeight: '700', lineHeight: 32 }}>＋</Text>
+              <Plus size={28} color={colors.onBrand} strokeWidth={2.5} />
             </View>
           ),
           tabBarLabel: () => null,
@@ -114,8 +114,8 @@ export default function TabsLayout() {
         name="record"
         options={{
           title: '기록',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'film' : 'film-outline'} size={TAB_ICON_SIZE} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Film size={TAB_ICON_SIZE} color={color} strokeWidth={1.8} />
           ),
         }}
       />
@@ -123,13 +123,13 @@ export default function TabsLayout() {
         name="done"
         options={{
           title: '해냈어요',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'trophy' : 'trophy-outline'} size={TAB_ICON_SIZE} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Trophy size={TAB_ICON_SIZE} color={color} strokeWidth={1.8} />
           ),
           // 🚀 조용한 알림 Dot — 새 공개 완주 이야기가 있을 때만 (탭하면 해제)
           tabBarBadge: doneDotVisible ? '' : undefined,
           tabBarBadgeStyle: {
-            backgroundColor: colors.accent,
+            backgroundColor: colors.brand,
             width: 6,
             height: 6,
             borderRadius: 3,

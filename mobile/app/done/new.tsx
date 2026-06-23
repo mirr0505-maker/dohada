@@ -14,7 +14,9 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { Ionicons } from '@expo/vector-icons';
+import { X, Lock, Plus } from 'lucide-react-native';
+import { CategoryIcon } from '@/components/CategoryIcon';
+import { categorySlugByName } from '@/lib/icons';
 import { Screen } from '@/components/Screen';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
@@ -24,6 +26,7 @@ import { uploadProofImage } from '@/lib/upload';
 import {
   createCompletionStory, fetchMyCompletionStoryForChallenge,
 } from '@/lib/db';
+import { displayTitle } from '@/lib/format';
 import type { StoryVisibility } from '@/lib/types';
 
 // ─── 이야기 6개 필드 — 라벨/플레이스홀더/길이 ─────────────
@@ -212,7 +215,7 @@ export default function NewCompletionStoryScreen() {
   // ─── 렌더 ───
   if (loading) {
     return (
-      <Screen backgroundColor={colors.background}>
+      <Screen backgroundColor={colors.bg}>
         <View style={[styles.center, { flex: 1 }]}>
           <ActivityIndicator color={colors.accent} />
         </View>
@@ -221,7 +224,7 @@ export default function NewCompletionStoryScreen() {
   }
   if (error || !challenge || !stats) {
     return (
-      <Screen backgroundColor={colors.background}>
+      <Screen backgroundColor={colors.bg}>
         <View style={[styles.center, { flex: 1, paddingHorizontal: 24 }]}>
           <Text style={styles.errText}>{error ?? '하다 정보를 불러오지 못했어요.'}</Text>
           <Pressable style={styles.errBtn} onPress={() => router.back()}>
@@ -233,7 +236,7 @@ export default function NewCompletionStoryScreen() {
   }
 
   return (
-    <Screen backgroundColor={colors.background}>
+    <Screen backgroundColor={colors.bg}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -242,7 +245,7 @@ export default function NewCompletionStoryScreen() {
         {/* 헤더 */}
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={8}>
-            <Ionicons name="close" size={24} color={colors.primary} />
+            <X size={24} color={colors.primary} strokeWidth={2} />
           </Pressable>
           <Text style={styles.headerTitle}>완주 이야기 공유</Text>
           <View style={{ width: 24 }} />
@@ -255,17 +258,18 @@ export default function NewCompletionStoryScreen() {
           {/* 챌린지 메타 */}
           <View style={styles.meta}>
             {challenge.category && (
-              <Text style={styles.metaCat}>
-                {challenge.category.emoji} {challenge.category.name}
-              </Text>
+              <View style={styles.metaCat}>
+                <CategoryIcon slug={categorySlugByName[challenge.category.name]} size={13} color={colors.accent700} />
+                <Text style={styles.metaCatText}>{challenge.category.name}</Text>
+              </View>
             )}
-            <Text style={styles.metaTitle}>{challenge.title}</Text>
+            <Text style={styles.metaTitle}>{displayTitle(challenge.title)}</Text>
           </View>
 
           {/* 통계 — 시스템 자동 잠금 */}
           <View style={styles.statsBlock}>
             <View style={styles.lockRow}>
-              <Ionicons name="lock-closed" size={12} color={colors.primary500} />
+              <Lock size={12} color={colors.primary500} strokeWidth={2} />
               <Text style={styles.lockText}>시스템이 증명 · 조작 불가</Text>
             </View>
             <View style={styles.statsGrid}>
@@ -286,13 +290,13 @@ export default function NewCompletionStoryScreen() {
                 <View key={i} style={styles.photoSlot}>
                   <Image source={{ uri }} style={styles.photoImg} />
                   <Pressable style={styles.photoX} onPress={() => removePhoto(i)} hitSlop={8}>
-                    <Ionicons name="close" size={14} color="#fff" />
+                    <X size={14} color="#fff" strokeWidth={2.4} />
                   </Pressable>
                 </View>
               ))}
               {photos.length < MAX_PHOTOS && (
                 <Pressable style={styles.photoAdd} onPress={onAddPhoto}>
-                  <Ionicons name="add" size={28} color={colors.primary500} />
+                  <Plus size={28} color={colors.primary500} strokeWidth={2} />
                 </Pressable>
               )}
             </View>
@@ -326,7 +330,7 @@ export default function NewCompletionStoryScreen() {
             >
               <View style={[styles.radioCircle, visibility === 'public' && styles.radioCircleOn]} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.radioLabel}>🏆 해냈어요 탭에 공개 · 누구나</Text>
+                <Text style={styles.radioLabel}>해냈어요 탭에 공개 · 누구나</Text>
                 <Text style={styles.radioDesc}>다음 사람에게 용기를 전달해요</Text>
               </View>
             </Pressable>
@@ -336,7 +340,7 @@ export default function NewCompletionStoryScreen() {
             >
               <View style={[styles.radioCircle, visibility === 'allies' && styles.radioCircleOn]} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.radioLabel}>🙋 하다 인연에게만</Text>
+                <Text style={styles.radioLabel}>하다 인연에게만</Text>
                 <Text style={styles.radioDesc}>같은 하다 멤버에게만 보여요</Text>
               </View>
             </Pressable>
@@ -469,9 +473,12 @@ const styles = StyleSheet.create({
   // 챌린지 메타
   meta: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 8 },
   metaCat: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    marginBottom: 4,
+  },
+  metaCatText: {
     fontSize: fontSize.xs, color: colors.accent700,
     fontFamily: fontFamily.medium, fontWeight: fontWeight.semibold,
-    marginBottom: 4,
   },
   metaTitle: {
     fontSize: fontSize.xl, color: colors.primary,

@@ -5,17 +5,19 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, Pressable, Alert } from 'react-native';
 import { router } from 'expo-router';
+import { Trophy, Flag, Camera, MessageCircle, Film, FileText, Mail, BookOpen, Shirt, PenLine, type LucideIcon } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { computeProgress, isCompleted, isFinished } from '@/lib/stats';
+import { displayTitle } from '@/lib/format';
 import { haptic } from '@/lib/haptics';
 import type { DbChallenge, ProofWithRelations } from '@/lib/types';
 
 // 박제 자산화 4단계 — 베타 노출용. 가격은 "추후 결정" (책 단계는 베타 보류).
-const ARCHIVE_TIERS = [
-  { emoji: '📜', label: '디지털 인증서 (PDF)', price: '무료', note: '정식 출시 예정' },
-  { emoji: '✉️', label: '종이 인증서 · 우편', price: '추후 결정', note: '인쇄·우편 발송' },
-  { emoji: '📖', label: '포토북',           price: '추후 결정', note: '30일 분량 사진 모음' },
-  { emoji: '👕', label: '굿즈 (티셔츠·키링)', price: '추후 결정', note: '완주 기념' },
+const ARCHIVE_TIERS: { Icon: LucideIcon; label: string; price: string; note: string }[] = [
+  { Icon: FileText, label: '디지털 인증서 (PDF)', price: '무료', note: '정식 출시 예정' },
+  { Icon: Mail,     label: '종이 인증서 · 우편', price: '추후 결정', note: '인쇄·우편 발송' },
+  { Icon: BookOpen, label: '포토북',           price: '추후 결정', note: '30일 분량 사진 모음' },
+  { Icon: Shirt,    label: '굿즈 (티셔츠·키링)', price: '추후 결정', note: '완주 기념' },
 ];
 
 type Props = {
@@ -52,19 +54,31 @@ export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs, myUserId
         contentContainerStyle={{ paddingBottom: 32 }}
         ListHeaderComponent={
           <View style={styles.placeholder}>
-            <Text style={styles.placeholderEmoji}>🏆</Text>
+            <Trophy size={56} color={colors.gold} strokeWidth={1.6} />
             <Text style={styles.placeholderTitle}>박제는 하다 종료 후</Text>
             <Text style={styles.placeholderDesc}>
-              {challenge.title} 이(가) 끝나면{'\n'}
+              {displayTitle(challenge.title)} 이(가) 끝나면{'\n'}
               여기에 모든 추억이 박제됩니다.
             </Text>
             <View style={styles.previewCard}>
               <Text style={styles.previewLabel}>박제될 항목</Text>
-              <View style={{ gap: 6 }}>
-                <Text style={styles.previewItem}>📸 모든 인증 사진 ({proofs.length}장)</Text>
-                <Text style={styles.previewItem}>💬 동료들의 응원 ({totalCheers}번)</Text>
-                <Text style={styles.previewItem}>🎥 기록 (Vlog) ({totalLogs}개)</Text>
-                <Text style={styles.previewItem}>🏆 완주 인증 (하다 끝까지 함께한 분들)</Text>
+              <View style={{ gap: 8 }}>
+                <View style={styles.previewRow}>
+                  <Camera size={15} color={colors.sub} strokeWidth={1.8} />
+                  <Text style={styles.previewItem}>모든 인증 사진 ({proofs.length}장)</Text>
+                </View>
+                <View style={styles.previewRow}>
+                  <MessageCircle size={15} color={colors.sub} strokeWidth={1.8} />
+                  <Text style={styles.previewItem}>동료들의 응원 ({totalCheers}번)</Text>
+                </View>
+                <View style={styles.previewRow}>
+                  <Film size={15} color={colors.sub} strokeWidth={1.8} />
+                  <Text style={styles.previewItem}>기록 (Vlog) ({totalLogs}개)</Text>
+                </View>
+                <View style={styles.previewRow}>
+                  <Trophy size={15} color={colors.gold} strokeWidth={1.8} />
+                  <Text style={styles.previewItem}>완주 인증 (하다 끝까지 함께한 분들)</Text>
+                </View>
               </View>
             </View>
             <ArchiveTiersCard />
@@ -87,8 +101,10 @@ export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs, myUserId
       contentContainerStyle={styles.archiveBody}
       ListHeaderComponent={
         <View style={styles.hero}>
-          <Text style={styles.heroTrophy}>{completed ? '🏆' : '🏁'}</Text>
-          <Text style={styles.heroTitle}>{challenge.title}</Text>
+          {completed
+            ? <Trophy size={64} color={colors.gold} strokeWidth={1.5} />
+            : <Flag size={64} color={colors.sub} strokeWidth={1.5} />}
+          <Text style={styles.heroTitle}>{displayTitle(challenge.title)}</Text>
           <Text style={styles.heroMeta}>
             {challenge.start_date} ~ {challenge.end_date}
           </Text>
@@ -132,7 +148,8 @@ export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs, myUserId
                       router.push(`/done/new?challengeId=${challenge.id}` as any);
                     }}
                   >
-                    <Text style={styles.shareBtnText}>✍️ 완주 이야기 공유하기</Text>
+                    <PenLine size={16} color={colors.surface} strokeWidth={2} />
+                    <Text style={styles.shareBtnText}>완주 이야기 공유하기</Text>
                   </Pressable>
                   <Text style={styles.shareBtnHint}>
                     줄세우기 X · 서로에게 용기를 주는 증언
@@ -152,7 +169,7 @@ export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs, myUserId
 
           <ArchiveTiersCard />
 
-          <Text style={styles.sectionTitle}>📸 인증 타임라인</Text>
+          <Text style={styles.sectionTitle}>인증 타임라인</Text>
         </View>
       }
       renderItem={({ item }) => (
@@ -176,7 +193,9 @@ function ArchiveTiersCard() {
       <View style={{ gap: 10, marginTop: 8 }}>
         {ARCHIVE_TIERS.map(t => (
           <View key={t.label} style={styles.tierRow}>
-            <Text style={styles.tierEmoji}>{t.emoji}</Text>
+            <View style={styles.tierEmoji}>
+              <t.Icon size={22} color={colors.gold} strokeWidth={1.8} />
+            </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.tierLabel}>{t.label}</Text>
               <Text style={styles.tierNote}>{t.note}</Text>
@@ -205,7 +224,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  placeholderEmoji: { fontSize: 56 },
   placeholderTitle: {
     fontSize: fontSize.lg,
     color: colors.primary,
@@ -237,6 +255,7 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.semibold,
     marginBottom: 4,
   },
+  previewRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   previewItem: {
     fontSize: fontSize.sm,
     color: colors.primary,
@@ -274,9 +293,8 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   tierEmoji: {
-    fontSize: 22,
     width: 28,
-    textAlign: 'center',
+    alignItems: 'center',
   },
   tierLabel: {
     fontSize: fontSize.sm,
@@ -312,7 +330,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     borderRadius: radius.pill,
     width: '100%',
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     ...shadow.sm,
   },
   shareBtnText: {
@@ -363,7 +384,6 @@ const styles = StyleSheet.create({
     padding: 24,
     gap: 8,
   },
-  heroTrophy: { fontSize: 72 },
   heroTitle: {
     fontSize: fontSize['2xl'],
     color: colors.primary,

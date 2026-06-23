@@ -1,21 +1,19 @@
-// 🚀 해냈어요 공개 탭 (v2.5)
-//
-// 정체성: "줄세우지 않고, 서로에게 용기를"
-//   - 정렬 = 최신순만 (랭킹 X, 완주 일수 자랑 X)
-//   - 카드엔 시스템 통계 미니 + 첫 작성 필드 발췌
-//   - "용기 받은 N명" 실카운트 (0029 completion_story_reactions)
-//   - 카드 탭 → /done/[id] 상세 (거기서 "나도 도전 시작하기" CTA)
-import React, { useCallback, useEffect, useState } from 'react';
+// 🚀 해냈어요 공개 탭 (리디자인 v2)
+// 정체성: "줄세우지 않고, 서로에게 용기를" — 최신순만(랭킹 X), 시스템 통계 미니 + 발췌 + 용기 받은 N명.
+// 카드 탭 → /done/[id] 상세 ("나도 도전 시작하기" CTA)
+import React, { useCallback, useState } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, Pressable, RefreshControl,
-  ActivityIndicator, Image,
+  View, Text, StyleSheet, FlatList, Pressable, RefreshControl, ActivityIndicator, Image,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { Trophy, HeartHandshake, Sprout } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { AppHeader } from '@/components/AppHeader';
-import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
+import { CategoryIcon } from '@/components/CategoryIcon';
+import { colors, fontFamily, fontSize, fontWeight, radius, textStyle, shadow } from '@/lib/tokens';
+import { categorySlugByName } from '@/lib/icons';
 import { fetchPublicCompletionStories } from '@/lib/db';
-import { formatCheerCount } from '@/lib/format';
+import { formatCheerCount, displayTitle } from '@/lib/format';
 import { ErrorState } from '@/components/ErrorState';
 import { haptic } from '@/lib/haptics';
 import { reportError } from '@/lib/sentry';
@@ -46,29 +44,29 @@ export default function DoneScreen() {
   const onRefresh = useCallback(() => { setRefreshing(true); load(); }, [load]);
 
   return (
-    <Screen backgroundColor={colors.background}>
+    <Screen backgroundColor={colors.bg}>
       <AppHeader />
 
       <View style={styles.intro}>
-        <Text style={styles.title}>🏆 해냈어요</Text>
-        <Text style={styles.sub}>
-          줄세우지 않고, 서로에게 용기를.
-        </Text>
+        <View style={styles.titleRow}>
+          <Trophy size={22} color={colors.gold} strokeWidth={1.8} />
+          <Text style={styles.title}>해냈어요</Text>
+        </View>
+        <Text style={styles.sub}>줄세우지 않고, 서로에게 용기를.</Text>
       </View>
 
       {loading ? (
         <View style={[styles.center, { flex: 1 }]}>
-          <ActivityIndicator color={colors.accent} />
+          <ActivityIndicator color={colors.brand} />
         </View>
       ) : error ? (
         <ErrorState message={error} onRetry={() => { setLoading(true); load(); }} />
       ) : stories.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyEmoji}>🌱</Text>
+          <Sprout size={48} color={colors.faint} strokeWidth={1.5} />
           <Text style={styles.emptyTitle}>아직 공개된 이야기가 없어요</Text>
           <Text style={styles.emptyDesc}>
-            완주한 동료들의 증언이{'\n'}
-            여기에 차곡차곡 쌓일 거예요.
+            완주한 동료들의 증언이{'\n'}여기에 차곡차곡 쌓일 거예요.
           </Text>
         </View>
       ) : (
@@ -77,11 +75,7 @@ export default function DoneScreen() {
           keyExtractor={s => s.id}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, paddingTop: 4, gap: 14 }}
           refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={colors.accent}
-            />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />
           }
           renderItem={({ item }) => <StoryCard story={item} />}
         />
@@ -90,24 +84,20 @@ export default function DoneScreen() {
   );
 }
 
-// ─── 카드 ──────────────────────────────────────────────
+// ─── 카드 ───
 function StoryCard({ story }: { story: CompletionStoryCard }) {
-  // 첫 작성된 필드 발췌 (한 줄 소감 우선, 없으면 다음 순서)
   const excerpt = pickFirst([
     story.story, story.advice_to_starters, story.helped_when_giving_up,
     story.hardest, story.own_tip, story.what_changed,
   ]);
-  const categoryEmoji = story.challenge.category?.emoji ?? '🏆';
+  const catName = story.challenge.category?.name;
 
   return (
     <Pressable
       style={styles.card}
-      onPress={() => {
-        haptic.tap();
-        router.push(`/done/${story.id}` as any);
-      }}
+      onPress={() => { haptic.tap(); router.push(`/done/${story.id}` as any); }}
     >
-      {/* 헤더: 아바타 + 닉네임 + 카테고리 */}
+      {/* 헤더: 아바타 + 닉네임 + 카테고리 + 트로피 */}
       <View style={styles.cardHead}>
         {story.author.avatar_url ? (
           <Image source={{ uri: story.author.avatar_url }} style={styles.avatar} />
@@ -118,15 +108,15 @@ function StoryCard({ story }: { story: CompletionStoryCard }) {
         )}
         <View style={{ flex: 1 }}>
           <Text style={styles.who} numberOfLines={1}>{story.author.nickname}</Text>
-          <Text style={styles.sub2} numberOfLines={1}>
-            {categoryEmoji} {story.challenge.category?.name ?? '하다'}
-          </Text>
+          <View style={styles.metaRow}>
+            {catName ? <CategoryIcon slug={categorySlugByName[catName]} size={12} color={colors.faint} /> : null}
+            <Text style={styles.sub2} numberOfLines={1}>{catName ?? '하다'}</Text>
+          </View>
         </View>
-        <Text style={styles.trophy}>🏆</Text>
+        <Trophy size={20} color={colors.gold} strokeWidth={1.8} />
       </View>
 
-      {/* 챌린지 제목 */}
-      <Text style={styles.chTitle} numberOfLines={2}>{story.challenge.title}</Text>
+      <Text style={styles.chTitle} numberOfLines={2}>{displayTitle(story.challenge.title)}</Text>
 
       {/* 통계 미니 4칸 */}
       <View style={styles.statsRow}>
@@ -136,25 +126,22 @@ function StoryCard({ story }: { story: CompletionStoryCard }) {
         <MiniStat num={Math.round(story.completion_rate)} label="% 완주" />
       </View>
 
-      {/* 발췌 */}
-      {excerpt && (
-        <Text style={styles.excerpt} numberOfLines={3}>
-          "{excerpt}"
-        </Text>
-      )}
+      {excerpt && <Text style={styles.excerpt} numberOfLines={3}>"{excerpt}"</Text>}
 
-      {/* 사진 1장 미리보기 */}
       {story.photo_urls.length > 0 && (
         <Image source={{ uri: story.photo_urls[0] }} style={styles.photoPreview} />
       )}
 
-      {/* 푸터: 용기 받은 N명 (0명이면 기본 카피) + 보러 가기 */}
+      {/* 푸터: 용기 받은 N명 + 보러 가기 */}
       <View style={styles.cardFooter}>
-        <Text style={styles.courageHint}>
-          {story.courage_count > 0
-            ? `🤝 ${formatCheerCount(story.courage_count)}명이 용기를 얻었어요`
-            : '🤝 다음 사람에게 용기가 되는 이야기'}
-        </Text>
+        <View style={styles.courageRow}>
+          <HeartHandshake size={16} color={colors.gold} strokeWidth={1.8} />
+          <Text style={styles.courageHint}>
+            {story.courage_count > 0
+              ? `${formatCheerCount(story.courage_count)}명이 용기를 얻었어요`
+              : '다음 사람에게 용기가 되는 이야기'}
+          </Text>
+        </View>
         <Text style={styles.go}>읽으러 →</Text>
       </View>
     </Pressable>
@@ -171,9 +158,7 @@ function MiniStat({ num, label }: { num: number; label: string }) {
 }
 
 function pickFirst(list: (string | null | undefined)[]): string | null {
-  for (const s of list) {
-    if (s && s.trim()) return s.trim();
-  }
+  for (const s of list) if (s && s.trim()) return s.trim();
   return null;
 }
 
@@ -181,105 +166,39 @@ const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center' },
 
   intro: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 },
-  title: {
-    fontSize: fontSize['2xl'], color: colors.primary,
-    fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
-    letterSpacing: -0.5,
-  },
-  sub: {
-    fontSize: fontSize.sm, color: colors.primary500,
-    fontFamily: fontFamily.medium, fontWeight: fontWeight.medium,
-    marginTop: 4,
-  },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  title: { ...textStyle.greeting, color: colors.ink, letterSpacing: -0.5 },
+  sub: { fontSize: fontSize.sm, color: colors.faint, fontFamily: fontFamily.regular, marginTop: 4 },
 
-  empty: {
-    flex: 1, alignItems: 'center', justifyContent: 'center',
-    paddingHorizontal: 32, gap: 8,
-  },
-  emptyEmoji: { fontSize: 48 },
-  emptyTitle: {
-    fontSize: fontSize.lg, color: colors.primary,
-    fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
-  },
-  emptyDesc: {
-    fontSize: fontSize.sm, color: colors.primary500,
-    fontFamily: fontFamily.regular,
-    textAlign: 'center', lineHeight: 20,
-  },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 10 },
+  emptyTitle: { fontSize: fontSize.lg, color: colors.ink, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
+  emptyDesc: { fontSize: fontSize.sm, color: colors.faint, fontFamily: fontFamily.regular, textAlign: 'center', lineHeight: 20 },
 
-  // 카드
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: 16,
-    gap: 10,
-    ...shadow.sm,
+    backgroundColor: colors.surface, borderRadius: radius.xl,
+    borderWidth: 0.5, borderColor: colors.line,
+    padding: 16, gap: 10, ...shadow.sm,
   },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  avatar: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: colors.accent50, overflow: 'hidden',
-  },
+  avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.brandTint, overflow: 'hidden' },
   avatarFallback: { alignItems: 'center', justifyContent: 'center' },
-  avatarInit: {
-    fontSize: 14, color: colors.accent700,
-    fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
-  },
-  who: {
-    fontSize: fontSize.base, color: colors.primary,
-    fontFamily: fontFamily.bold, fontWeight: fontWeight.semibold,
-  },
-  sub2: {
-    fontSize: fontSize.xs, color: colors.primary500,
-    fontFamily: fontFamily.regular, marginTop: 1,
-  },
-  trophy: { fontSize: 20 },
+  avatarInit: { fontSize: 14, color: colors.brandInk, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
+  who: { fontSize: fontSize.base, color: colors.ink, fontFamily: fontFamily.bold, fontWeight: fontWeight.semibold },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 },
+  sub2: { flex: 1, fontSize: fontSize.xs, color: colors.faint, fontFamily: fontFamily.regular },
 
-  chTitle: {
-    fontSize: fontSize.lg, color: colors.primary,
-    fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
-    letterSpacing: -0.3,
-    marginTop: 2,
-  },
+  chTitle: { ...textStyle.cardTitle, fontSize: fontSize.lg, color: colors.ink, letterSpacing: -0.3, marginTop: 2 },
 
-  statsRow: {
-    flexDirection: 'row', gap: 6,
-    backgroundColor: colors.accent50,
-    borderRadius: radius.md,
-    padding: 10,
-  },
+  statsRow: { flexDirection: 'row', gap: 6, backgroundColor: colors.tintWarm, borderRadius: radius.md, padding: 12 },
   miniCell: { flex: 1, alignItems: 'center' },
-  miniNum: {
-    fontSize: fontSize.base, color: colors.primary,
-    fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
-  },
-  miniLabel: {
-    fontSize: 10, color: colors.primary500,
-    fontFamily: fontFamily.regular, marginTop: 1,
-  },
+  miniNum: { fontSize: fontSize.xl, color: colors.ink, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
+  miniLabel: { fontSize: 11, color: colors.faint, fontFamily: fontFamily.regular, marginTop: 1 },
 
-  excerpt: {
-    fontSize: fontSize.sm, color: colors.primary,
-    fontFamily: fontFamily.regular,
-    lineHeight: 20,
-  },
-  photoPreview: {
-    width: '100%', aspectRatio: 16 / 9,
-    borderRadius: radius.md,
-    backgroundColor: colors.primary100,
-    marginTop: 2,
-  },
+  excerpt: { fontSize: fontSize.sm, color: colors.ink, fontFamily: fontFamily.regular, lineHeight: 20 },
+  photoPreview: { width: '100%', aspectRatio: 16 / 9, borderRadius: radius.md, backgroundColor: colors.line, marginTop: 2 },
 
-  cardFooter: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginTop: 4,
-  },
-  courageHint: {
-    fontSize: fontSize.xs, color: colors.primary500,
-    fontFamily: fontFamily.regular,
-  },
-  go: {
-    fontSize: fontSize.sm, color: colors.accent,
-    fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
-  },
+  cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
+  courageRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  courageHint: { flex: 1, fontSize: fontSize.xs, color: colors.sub, fontFamily: fontFamily.regular },
+  go: { fontSize: fontSize.sm, color: colors.brandInk, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
 });

@@ -6,33 +6,54 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Image, Modal, ScrollView, useWindowDimensions } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  Bell, Menu, MessageCircle, MessageSquare, Heart, Megaphone, Camera, Film,
+  Coffee, HeartHandshake, Undo2, Users, Lock, MapPin, ChevronRight, type LucideIcon,
+} from 'lucide-react-native';
 import * as SecureStore from 'expo-secure-store';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import { fetchMyProfile, fetchMyNotifications, type MyNotification } from '@/lib/db';
 import { notificationRoute } from '@/lib/push';
+import { displayTitle } from '@/lib/format';
 import { haptic } from '@/lib/haptics';
-import { BrandMark } from '@/components/BrandMark';
 
 const BELL_SEEN_KEY = 'bell_seen_at';   // 알림함 마지막 확인 시각 (디바이스 로컬)
 
 // 알림 kind → 행 제목
 const KIND_LABEL: Record<string, string> = {
-  chat: '💬 새 대화',
-  comment: '💬 인증 댓글',
-  log_comment: '📝 기록 댓글',
-  cheer_batch: '💛 응원',
-  log_like_batch: '💚 기록 좋아요',
-  creator_notice: '📢 개설자 공지',
-  proof: '📸 동료 인증',
-  log: '🎥 새 기록',
-  gift: '☕ 한잔 도착',
-  gift_received: '☕ 한잔 받음',
-  gift_donated: '💚 한잔 기부',
-  gift_refund: '↩️ 한잔 환불',
-  recruit_milestone: '👥 참가 인원 도달',
-  recruit_autoclosed: '🔒 모집 자동 마감',
+  chat: '새 대화',
+  comment: '인증 댓글',
+  log_comment: '기록 댓글',
+  cheer_batch: '응원',
+  log_like_batch: '기록 좋아요',
+  creator_notice: '개설자 공지',
+  proof: '동료 인증',
+  log: '새 기록',
+  gift: '한잔 도착',
+  gift_received: '한잔 받음',
+  gift_donated: '한잔 기부',
+  gift_refund: '한잔 환불',
+  recruit_milestone: '참가 인원 도달',
+  recruit_autoclosed: '모집 자동 마감',
+};
+
+// 알림 kind → 행 아이콘 (라벨과 1:1)
+const KIND_ICON: Record<string, LucideIcon> = {
+  chat: MessageCircle,
+  comment: MessageCircle,
+  log_comment: MessageSquare,
+  cheer_batch: Heart,
+  log_like_batch: Heart,
+  creator_notice: Megaphone,
+  proof: Camera,
+  log: Film,
+  gift: Coffee,
+  gift_received: Coffee,
+  gift_donated: HeartHandshake,
+  gift_refund: Undo2,
+  recruit_milestone: Users,
+  recruit_autoclosed: Lock,
 };
 
 export function AppHeader() {
@@ -84,40 +105,48 @@ export function AppHeader() {
 
   return (
     <View style={styles.header}>
-      {/* 좌: 로고 + Do:하다 (한 텍스트 라인) */}
-      <View style={styles.brand}>
-        <BrandMark size="md" color={colors.accent} />
-        <Text style={styles.brandText}>
-          Do:<Text style={styles.brandName}>하다</Text>
-        </Text>
-      </View>
+      {/* 좌: 프로필 (아바타 + 닉네임) → 내 프로필 */}
+      <Pressable
+        style={styles.profile}
+        onPress={() => { haptic.tap(); router.push('/(tabs)/profile' as any); }}
+        hitSlop={6}
+        accessibilityRole="button"
+        accessibilityLabel="내 프로필"
+      >
+        {avatarUrl ? (
+          <Image source={{ uri: avatarUrl }} style={styles.headerAvatar} />
+        ) : (
+          <View style={[styles.headerAvatar, styles.headerAvatarFallback]}>
+            <Text style={styles.headerAvatarInit}>{nickname.slice(0, 1)}</Text>
+          </View>
+        )}
+        <View style={styles.profileText}>
+          <Text style={styles.profileNick} numberOfLines={1}>{nickname}</Text>
+          <Text style={styles.profileSub}>오늘도 한 걸음</Text>
+        </View>
+      </Pressable>
 
-      {/* 우: 알림 + 아바타 */}
+      {/* 우: 벨 + 햄버거(≡) */}
       <View style={styles.rightGroup}>
         <Pressable
-          style={styles.headerIcon}
+          style={styles.iconBtn}
           onPress={() => { haptic.tap(); openBell(); }}
-          hitSlop={6}
+          hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={bellDot ? '알림함 — 새 알림 있음' : '알림함'}
         >
-          <Ionicons name="notifications-outline" size={20} color={colors.primary} />
+          <Bell size={22} color={colors.sub} strokeWidth={1.8} />
           {/* 🚀 조용한 알림 Dot — 마지막 확인 이후 새 알림이 있을 때만 (숫자 X, 점 하나) */}
           {bellDot && <View style={styles.badgeDot} />}
         </Pressable>
         <Pressable
-          onPress={() => { haptic.tap(); router.push('/(tabs)/profile' as any); }}
-          hitSlop={6}
+          style={styles.iconBtn}
+          onPress={() => { haptic.tap(); router.push('/settings' as any); }}
+          hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel="내 정보"
+          accessibilityLabel="설정"
         >
-          {avatarUrl ? (
-            <Image source={{ uri: avatarUrl }} style={styles.headerAvatar} />
-          ) : (
-            <View style={[styles.headerAvatar, styles.headerAvatarFallback]}>
-              <Text style={styles.headerAvatarInit}>{nickname.slice(0, 1)}</Text>
-            </View>
-          )}
+          <Menu size={23} color={colors.sub} strokeWidth={1.8} />
         </Pressable>
       </View>
 
@@ -130,7 +159,10 @@ export function AppHeader() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>🔔 알림</Text>
+            <View style={styles.modalTitleRow}>
+              <Bell size={18} color={colors.ink} strokeWidth={2} />
+              <Text style={styles.modalTitle}>알림</Text>
+            </View>
 
             {notifs.length === 0 ? (
               <Text style={styles.newsEmpty}>
@@ -138,7 +170,9 @@ export function AppHeader() {
               </Text>
             ) : (
               <ScrollView style={{ maxHeight: Math.round(winHeight * 0.5) }} contentContainerStyle={{ gap: 8 }}>
-                {notifs.map(n => (
+                {notifs.map(n => {
+                  const KindIcon = KIND_ICON[n.kind] ?? Bell;
+                  return (
                   <Pressable
                     key={n.id}
                     style={styles.newsRow}
@@ -150,12 +184,18 @@ export function AppHeader() {
                       router.push(notificationRoute(n.kind, n.challenge_id, { proofId: n.proof_id, logId: n.log_id, giftOrderId: n.gift_order_id }) as any);
                     }}
                   >
+                    <View style={styles.newsIcon}>
+                      <KindIcon size={18} color={colors.sub} strokeWidth={1.8} />
+                    </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.newsTitle} numberOfLines={1}>
-                        {KIND_LABEL[n.kind] ?? '🔔 알림'}{n.count > 1 ? ` ${n.count}건` : ''}
+                        {KIND_LABEL[n.kind] ?? '알림'}{n.count > 1 ? ` ${n.count}건` : ''}
                       </Text>
                       {n.challenge_title ? (
-                        <Text style={styles.newsChallenge} numberOfLines={1}>📍 {n.challenge_title}</Text>
+                        <View style={styles.newsChallengeRow}>
+                          <MapPin size={11} color={colors.faint} strokeWidth={1.8} />
+                          <Text style={styles.newsChallenge} numberOfLines={1}>{displayTitle(n.challenge_title)}</Text>
+                        </View>
                       ) : null}
                       <Text style={styles.newsTags} numberOfLines={2}>
                         {n.count > 1
@@ -164,9 +204,10 @@ export function AppHeader() {
                       </Text>
                     </View>
                     <Text style={styles.newsTime}>{formatNotifTime(n.created_at)}</Text>
-                    <Text style={styles.newsArrow}>→</Text>
+                    <ChevronRight size={16} color={colors.faint2} strokeWidth={2} />
                   </Pressable>
-                ))}
+                  );
+                })}
               </ScrollView>
             )}
 
@@ -203,59 +244,54 @@ function formatNotifTime(iso: string): string {
 
 const styles = StyleSheet.create({
   header: {
-    position: 'relative',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.primary100,
-    ...shadow.sm,
+    borderBottomWidth: 0.5,
+    borderBottomColor: colors.line,
   },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  brandText: {
-    fontSize: fontSize.xl,
-    color: colors.primary,
+  // 좌: 프로필
+  profile: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1 },
+  profileText: { flexShrink: 1 },
+  profileNick: {
+    fontSize: fontSize.md,
+    color: colors.ink,
     fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-    letterSpacing: -0.4,
+    fontWeight: fontWeight.semibold,
+    lineHeight: 18,
   },
-  brandName: {
-    // 🚀 한국어 브랜드명 '하다' = 로고색(주황) 포인트. 콜론은 brandText 기본색(검정) 유지 (Option B)
-    color: colors.accent,
-  },
+  profileSub: { fontSize: fontSize.sm, color: colors.faint, fontFamily: fontFamily.regular },
+  // 우: 벨 + 햄버거
   rightGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 14,
   },
-
-  headerIcon: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: colors.primary50,
-    alignItems: 'center', justifyContent: 'center',
-    position: 'relative', // 🚀 뱃지 도트 얹기 위해 포지션 추가
+  iconBtn: {
+    position: 'relative',   // 뱃지 도트 얹기
+    padding: 2,
   },
   badgeDot: {
     position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.accent,
+    top: 0,
+    right: 0,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: colors.brand,
   },
   headerAvatar: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: colors.accent50,
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: colors.brandTint,
     overflow: 'hidden',
   },
   headerAvatarFallback: { alignItems: 'center', justifyContent: 'center' },
   headerAvatarInit: {
     fontSize: 14,
-    color: colors.accent700,
+    color: colors.brandInk,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },
@@ -275,12 +311,12 @@ const styles = StyleSheet.create({
     gap: 16,
     ...shadow.lg,
   },
+  modalTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
   modalTitle: {
     fontSize: fontSize.lg,
     color: colors.primary,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
-    marginBottom: 8,
   },
   newsRow: {
     flexDirection: 'row',
@@ -291,18 +327,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary50,
     borderRadius: radius.md,
   },
+  newsIcon: { width: 24, alignItems: 'center' },
   newsTitle: {
     fontSize: fontSize.base,
     color: colors.primary,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },
+  newsChallengeRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
   newsChallenge: {
+    flex: 1,
     fontSize: fontSize.xs,
-    color: colors.accent700,
+    color: colors.brandInk,
     fontFamily: fontFamily.medium,
     fontWeight: fontWeight.medium,
-    marginTop: 2,
   },
   newsTags: {
     fontSize: fontSize.xs,
@@ -315,12 +353,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     color: colors.primary500,
     fontFamily: fontFamily.regular,
-  },
-  newsArrow: {
-    fontSize: fontSize.lg,
-    color: colors.accent,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
   },
   newsEmpty: {
     fontSize: fontSize.base,
@@ -343,7 +375,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   modalCloseBtn: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.brand,
     borderRadius: radius.lg,
     paddingVertical: 14,
     alignItems: 'center',

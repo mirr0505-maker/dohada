@@ -6,6 +6,7 @@ import {
   View, Text, Pressable, Modal, StyleSheet, TextInput, ActivityIndicator, Alert,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { Coffee } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { haptic } from '@/lib/haptics';
 import {
@@ -106,10 +107,14 @@ export function GiftSheet({
         <Pressable style={styles.sheet} onPress={() => {}}>
           {step === 'tier' && (
             <>
-              <Text style={styles.title}>☕ {recipientNickname}님에게 한잔</Text>
+              <View style={styles.titleRow}>
+                <Coffee size={18} color={colors.accent} strokeWidth={2} />
+                <Text style={styles.title}>{recipientNickname}님에게 한잔</Text>
+              </View>
               <Text style={styles.sub}>오늘의 인증을 봤다면, 진짜 한 잔으로 응원해요</Text>
               {GIFT_TIERS.map(t => (
                 <Pressable key={t.tier} style={styles.tierCard} onPress={() => onPickTier(t.tier)}>
+                  <Coffee size={20} color={colors.accent} strokeWidth={1.8} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.tierLabel}>{t.label}</Text>
                     <Text style={styles.tierDesc}>{t.desc}</Text>
@@ -117,7 +122,7 @@ export function GiftSheet({
                   <Text style={styles.tierPrice}>{t.price.toLocaleString()}원</Text>
                 </Pressable>
               ))}
-              <Text style={styles.mockNote}>🧪 베타 테스트 — 모의 결제예요. 실제 결제·계좌 연결이 없어 돈이 빠져나가지 않아요.</Text>
+              <Text style={styles.mockNote}>베타 테스트 — 모의 결제예요. 실제 결제·계좌 연결이 없어 돈이 빠져나가지 않아요.</Text>
             </>
           )}
 
@@ -172,13 +177,13 @@ export function GiftSheet({
                   ? <ActivityIndicator color={colors.surface} />
                   : <Text style={styles.primaryBtnText}>{selectedTier.price.toLocaleString()}원 보내기 (모의 결제)</Text>}
               </Pressable>
-              <Text style={styles.mockNote}>🧪 실제 결제·계좌 연결 없음 · 베타 모의 결제 (돈 안 빠져나가요)</Text>
+              <Text style={styles.mockNote}>실제 결제·계좌 연결 없음 · 베타 모의 결제 (돈 안 빠져나가요)</Text>
             </>
           )}
 
           {step === 'done' && (
             <>
-              <Text style={styles.doneEmoji}>☕</Text>
+              <View style={styles.doneEmoji}><Coffee size={40} color={colors.accent} strokeWidth={1.8} /></View>
               <Text style={styles.title}>한잔을 보냈어요!</Text>
               <Text style={styles.sub}>{recipientNickname}님이 받으면 알림으로 알려드릴게요</Text>
               <Pressable style={styles.primaryBtn} onPress={() => { haptic.tap(); onClose(); }}>
@@ -208,6 +213,7 @@ const styles = StyleSheet.create({
     gap: 12,
     ...shadow.lg,
   },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   title: {
     fontSize: fontSize.lg,
     color: colors.primary,
@@ -283,5 +289,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
   },
-  doneEmoji: { fontSize: 48, textAlign: 'center' },
+  doneEmoji: { alignSelf: 'center', marginBottom: 4 },
 });

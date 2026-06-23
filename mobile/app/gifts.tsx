@@ -4,7 +4,9 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, Pressable, SectionList, StyleSheet, ActivityIndicator } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { ArrowLeft, Coffee } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
+import { displayTitle } from '@/lib/format';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import { haptic } from '@/lib/haptics';
@@ -14,7 +16,7 @@ import {
 
 function tierLabel(tier: string): string {
   return GIFT_TIERS.find(t => t.tier === tier)?.label
-    ?? (tier === 'grand_cup' ? '🎁 거하게 한잔' : '☕ 한잔');
+    ?? (tier === 'grand_cup' ? '거하게 한잔' : '한잔');
 }
 
 function formatDate(iso: string): string {
@@ -35,8 +37,8 @@ type ChipTone = 'receive' | 'donate' | 'pending' | 'closed';
 function outcomeChip(item: GiftHistoryRow): { label: string; tone: ChipTone; sort: number } {
   const received = item.direction === 'received';
   switch (item.status) {
-    case 'delivered':   return { label: '받음 ☕', tone: 'receive', sort: 1 };
-    case 'donated':     return { label: '기부 💚', tone: 'donate',  sort: 2 };
+    case 'delivered':   return { label: '받음', tone: 'receive', sort: 1 };
+    case 'donated':     return { label: '기부', tone: 'donate',  sort: 2 };
     case 'paid':        return { label: received ? '받기 전' : item.order_type === 'bet' ? '진행 중' : '전달됨', tone: 'pending', sort: 0 };
     case 'issued':      return { label: '교환권',  tone: 'pending', sort: 0 };
     case 'created':     return { label: '결제 대기', tone: 'pending', sort: 3 };
@@ -76,19 +78,19 @@ export default function GiftHistoryScreen() {
     const received = rows.filter(r => r.order_type !== 'bet' && r.direction === 'received').sort(byOutcomeThenRecent);
     const bets     = rows.filter(r => r.order_type === 'bet').sort(byOutcomeThenRecent);
     const out: { title: string; data: GiftHistoryRow[] }[] = [];
-    if (sent.length)     out.push({ title: '📤 건넨 한잔', data: sent });
-    if (received.length) out.push({ title: '📥 받은 한잔', data: received });
-    if (bets.length)     out.push({ title: '🤝 내기 한잔', data: bets });
+    if (sent.length)     out.push({ title: '건넨 한잔', data: sent });
+    if (received.length) out.push({ title: '받은 한잔', data: received });
+    if (bets.length)     out.push({ title: '내기 한잔', data: bets });
     return out;
   }, [rows]);
 
   return (
-    <Screen backgroundColor={colors.background}>
+    <Screen backgroundColor={colors.bg}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="뒤로가기">
-          <Text style={styles.back}>←</Text>
+          <ArrowLeft size={24} color={colors.primary} strokeWidth={2} />
         </Pressable>
-        <Text style={styles.headerTitle}>☕ 한잔 내역</Text>
+        <Text style={styles.headerTitle}>한잔 내역</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -113,7 +115,7 @@ export default function GiftHistoryScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.rowTitle} numberOfLines={1}>{rowTitle(item)}</Text>
                   {item.challenge_title ? (
-                    <Text style={styles.rowMeta} numberOfLines={1}>{item.challenge_title}</Text>
+                    <Text style={styles.rowMeta} numberOfLines={1}>{displayTitle(item.challenge_title)}</Text>
                   ) : null}
                 </View>
                 <View style={styles.rowRight}>
@@ -127,7 +129,7 @@ export default function GiftHistoryScreen() {
           }}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>☕</Text>
+              <Coffee size={48} color={colors.faint} strokeWidth={1.5} />
               <Text style={styles.emptyText}>
                 아직 주고받은 한잔이 없어요.{'\n'}동료의 인증에서 따뜻한 한잔을 보내보세요.
               </Text>
@@ -150,7 +152,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.primary100,
   },
-  back: { fontSize: 22, color: colors.primary },
   headerTitle: {
     fontSize: fontSize.lg,
     color: colors.primary,
@@ -204,7 +205,7 @@ const styles = StyleSheet.create({
   chipReceiveBg: { backgroundColor: colors.accent50 },
   chipReceiveText: { color: colors.accent700 },
   chipDonateBg: { backgroundColor: 'rgba(34, 197, 94, 0.10)' },
-  chipDonateText: { color: colors.success },
+  chipDonateText: { color: colors.done },
   chipPendingBg: { backgroundColor: 'rgba(59, 130, 246, 0.10)' },
   chipPendingText: { color: colors.info },
   chipClosedBg: { backgroundColor: colors.primary100 },
@@ -215,7 +216,6 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.regular,
   },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, paddingVertical: 64 },
-  emptyEmoji: { fontSize: 56 },
   emptyText: {
     fontSize: fontSize.base,
     color: colors.primary500,
