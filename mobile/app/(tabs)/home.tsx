@@ -20,7 +20,6 @@ import {
   Sprout, Footprints, Heart, Moon, PartyPopper, Crown, Users, User, Handshake,
   Target, Repeat, Check, type LucideIcon,
 } from 'lucide-react-native';
-import { BrandMark } from '@/components/BrandMark';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow, textStyle } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import {
@@ -332,9 +331,9 @@ export default function HomeScreen() {
             accessibilityRole="button"
             accessibilityLabel="하다 구경 — 남들은 무슨 하다 하나"
           >
-            <Telescope size={18} color={colors.faint} strokeWidth={1.8} />
-            <Text style={styles.peekBarText}>남들은 무슨 하다 하나, 구경하기</Text>
-            <ChevronRight size={16} color={colors.faint2} strokeWidth={1.8} />
+            <Telescope size={18} color={colors.brand} strokeWidth={2} />
+            <Text style={styles.peekBarText}>남들 하다, 구경</Text>
+            <ChevronRight size={18} color={colors.brand} strokeWidth={2} />
           </Pressable>
 
           {isColdStart ? (
@@ -423,8 +422,7 @@ export default function HomeScreen() {
                 <Text style={styles.endLine2}>내일 또, 한 걸음.</Text>
               </View>
               <View style={styles.homeSign}>
-                <BrandMark size="sm" color={colors.faint2} />
-                <Text style={styles.homeSignText}>Do:하다</Text>
+                <Image source={require('../../assets/images/icon.png')} style={styles.homeSignIcon} resizeMode="contain" />
               </View>
             </>
           ) : (
@@ -665,8 +663,7 @@ export default function HomeScreen() {
             <Text style={styles.endLine2}>내일 또, 한 걸음.</Text>
           </View>
           <View style={styles.homeSign}>
-            <BrandMark size="sm" color={colors.faint2} />
-            <Text style={styles.homeSignText}>Do:하다</Text>
+            <Image source={require('../../assets/images/icon.png')} style={styles.homeSignIcon} resizeMode="contain" />
           </View>
           </>
           )}
@@ -942,14 +939,18 @@ const styles = StyleSheet.create({
   // 🔭 하다 구경 — 최상단 얇은 바
   peekBar: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    marginHorizontal: 20, marginTop: 12, marginBottom: 4,
-    paddingVertical: 9, paddingHorizontal: 12,
+    marginHorizontal: 20, marginTop: 12, marginBottom: 8,
+    paddingVertical: 13, paddingHorizontal: 16,
+    backgroundColor: colors.brandTint,
+    borderRadius: radius.pill,
+    borderWidth: 1, borderColor: colors.brand,
+    ...shadow.sm,
   },
-  peekBarText: { flex: 1, fontSize: fontSize.sm, color: colors.sub, fontFamily: fontFamily.regular },
+  peekBarText: { flex: 1, fontSize: fontSize.base, color: colors.brandInk, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
 
-  // 로고 워터마크 서명 (홈 맨 아래, 헤더에서 뺀 로고의 정착지)
-  homeSign: { alignItems: 'center', gap: 6, marginTop: 28, opacity: 0.5 },
-  homeSignText: { fontSize: fontSize.sm, color: colors.faint2, fontFamily: fontFamily.medium, letterSpacing: 0.5 },
+  // 로고 서명 (홈 맨 아래, 헤더에서 뺀 로고의 정착지) — 앱 아이콘 로고
+  homeSign: { alignItems: 'center', marginTop: 28 },
+  homeSignIcon: { width: 40, height: 40, borderRadius: 10 },
 
   // 오늘 할 일 앵커 (tintWarm + 오렌지 CTA, 화면당 1 그림자)
   anchor: {
