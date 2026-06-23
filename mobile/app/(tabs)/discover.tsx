@@ -16,7 +16,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { colors, fontFamily, fontSize, fontWeight, radius, textStyle, shadow } from '@/lib/tokens';
 import { categorySlugByName } from '@/lib/icons';
 import { useSession } from '@/lib/session';
-import { fetchBrowseChallenges, toggleChallengeVote } from '@/lib/db';
+import { fetchBrowseChallenges, toggleChallengeVote, fetchMyInterests } from '@/lib/db';
 import { formatCheerCount, displayTitle } from '@/lib/format';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
@@ -38,6 +38,9 @@ const KIND_BADGE: Record<string, { Icon: LucideIcon; label: string; color: strin
   cheered: { Icon: Heart,     label: '응원받기', color: colors.gold },
 };
 
+// '내 관심' 필터 키 — categoryFilter 가 분류명이 아니라 이 값일 때, 내 정보에 등록한 관심 대분류만 노출
+const INTEREST_FILTER_KEY = '__my_interests__';
+
 export default function DiscoverScreen() {
   const session = useSession();
   const myUserId = session?.user?.id;
@@ -45,8 +48,10 @@ export default function DiscoverScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // 카테고리 필터 — 로드된 목록에 존재하는 분류만 칩으로 (null = 전체)
+  // 카테고리 필터 — 로드된 목록에 존재하는 분류만 칩으로 (null = 전체, INTEREST_FILTER_KEY = 내 관심)
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  // 내 정보(프로필)에 등록한 관심 대분류 id 집합 — '내 관심' 필터용
+  const [myInterestIds, setMyInterestIds] = useState<Set<number>>(new Set());
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -54,10 +59,13 @@ export default function DiscoverScreen() {
     return Array.from(set);
   }, [items]);
 
-  const filteredItems = useMemo(
-    () => (categoryFilter ? items.filter(c => c.category?.name === categoryFilter) : items),
-    [items, categoryFilter],
-  );
+  const filteredItems = useMemo(() => {
+    // '내 관심' = 내가 등록한 관심 대분류에 속한 하다만
+    if (categoryFilter === INTEREST_FILTER_KEY) {
+      return items.filter(c => c.category_id != null && myInterestIds.has(c.category_id));
+    }
+    return categoryFilter ? items.filter(c => c.category?.name === categoryFilter) : items;
+  }, [items, categoryFilter, myInterestIds]);
 
   React.useEffect(() => {
     if (session === null) router.replace('/login');
@@ -66,8 +74,13 @@ export default function DiscoverScreen() {
   const load = useCallback(async () => {
     try {
       setError(null);
-      const data = await fetchBrowseChallenges();
+      // 하다 구경 목록 + 내 관심 대분류를 함께 로드 ('내 관심' 칩 필터용)
+      const [data, interests] = await Promise.all([
+        fetchBrowseChallenges(),
+        myUserId ? fetchMyInterests(myUserId).catch(() => []) : Promise.resolve([]),
+      ]);
       setItems(data);
+      setMyInterestIds(new Set(interests.map(i => i.category_id)));
     } catch (e: any) {
       reportError(e, { where: 'discover/fetchBrowseChallenges' });
       setError(e?.message ?? '하다 구경을 불러오지 못했어요.');
@@ -75,7 +88,7 @@ export default function DiscoverScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [myUserId]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -144,8 +157,8 @@ export default function DiscoverScreen() {
         </Text>
       </View>
 
-      {/* 카테고리 필터 칩 — 목록에 있는 분류만 */}
-      {!loading && !error && categories.length > 1 && (
+      {/* 카테고리 필터 칩 — 전체 / 내 관심 / 목록에 있는 분류만 */}
+      {!loading && !error && (categories.length > 1 || (myInterestIds.size > 0 && items.length > 0)) && (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -158,6 +171,18 @@ export default function DiscoverScreen() {
           >
             <Text style={[styles.filterChipText, !categoryFilter && styles.filterChipTextActive]}>전체</Text>
           </Pressable>
+          {/* 내 관심 — '전체' 다음, 기존 칩과 동일한 텍스트 버튼 (등록한 관심이 있을 때만) */}
+          {myInterestIds.size > 0 && (
+            <Pressable
+              style={[styles.filterChip, categoryFilter === INTEREST_FILTER_KEY && styles.filterChipActive]}
+              onPress={() => {
+                haptic.tap();
+                setCategoryFilter(categoryFilter === INTEREST_FILTER_KEY ? null : INTEREST_FILTER_KEY);
+              }}
+            >
+              <Text style={[styles.filterChipText, categoryFilter === INTEREST_FILTER_KEY && styles.filterChipTextActive]}>내 관심</Text>
+            </Pressable>
+          )}
           {categories.map(name => {
             const active = categoryFilter === name;
             return (
@@ -197,7 +222,11 @@ export default function DiscoverScreen() {
             <View style={styles.empty}>
               <Telescope size={48} color={colors.faint} strokeWidth={1.5} />
               <Text style={styles.emptyText}>
-                {categoryFilter ? `${categoryFilter} 분류의 하다가 아직 없어요.` : '아직 살펴볼 하다가 없어요.'}
+                {categoryFilter === INTEREST_FILTER_KEY
+                  ? '내 관심 분류의 하다가 아직 없어요.'
+                  : categoryFilter
+                  ? `${categoryFilter} 분류의 하다가 아직 없어요.`
+                  : '아직 살펴볼 하다가 없어요.'}
               </Text>
             </View>
           }
