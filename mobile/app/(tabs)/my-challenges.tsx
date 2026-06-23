@@ -80,10 +80,10 @@ export default function MyChallengesScreen() {
         <ErrorState message={error} onRetry={() => { setLoading(true); load(); }} />
       ) : (
         (() => {
-          // 내가 하는 하다(나홀로·다함께·누구나·응원받기 개설자) vs 내가 응원하는 하다(응원하기로 들어간 cheered) 분리
+          // 내가 하는 하다(나홀로·다함께·누구나·응원받기 개설자)만 노출 — 응원하기로 들어간 cheered 방은 제외.
+          //   응원방은 홈 '오늘, 응원으로 힘주기'와 완전 중복이라 내 하다 탭에선 들어냄 (응원자≠도전자, v2.17 정체성).
           const isCheererRoom = (c: ChallengeWithCount) => c.kind === 'cheered' && c.creator_id !== myUserId;
           const doing    = challenges.filter(c => !isCheererRoom(c));
-          const cheering = challenges.filter(c => isCheererRoom(c));
           // 진행 중 vs 종료 분리 (KST 자정 기준)
           const todayStr = getKstTodayRange().kstDateStr;
           const active   = doing.filter(c => todayStr <= c.end_date);
@@ -107,17 +107,6 @@ export default function MyChallengesScreen() {
               }
               ListFooterComponent={
                 <>
-                  {/* 💛 내가 응원하는 하다 — 도전자 아닌 응원자 역할 */}
-                  {cheering.length > 0 && (
-                    <View style={styles.band}>
-                      <Text style={styles.bandTitle}>응원하는 하다</Text>
-                      {cheering.map(item => {
-                        const isFin = todayStr > item.end_date;
-                        return <Card key={item.id} challenge={item} myUserId={myUserId} finished={isFin} />;
-                      })}
-                    </View>
-                  )}
-
                   {finished.length > 0 && (
                     <View style={styles.band}>
                       <Text style={styles.bandTitle}>끝낸 하다</Text>
