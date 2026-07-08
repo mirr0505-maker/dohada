@@ -7,11 +7,11 @@
 //   - 맨 아래 🌙 "오늘은 여기까지예요" 끝 마커 (무한 스크롤 차단)
 //
 // 도전 인연 정의 (베타 v2.5) = 현재 같은 챌린지의 멤버 (×횟수 누적은 Phase 2)
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, Pressable, ScrollView, StyleSheet, RefreshControl, Image, Alert, Modal,
 } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { joinChallenge } from '@/lib/invite';
 import { Screen } from '@/components/Screen';
 import { AppHeader } from '@/components/AppHeader';
@@ -32,15 +32,20 @@ import {
 import { ErrorState } from '@/components/ErrorState';
 import { ChallengeCardSkeleton } from '@/components/Skeleton';
 import { OpenJoinPreviewSheet } from '@/components/home/OpenJoinPreviewSheet';
+import { PresenceLine } from '@/components/home/PresenceLine';
+import { FellowReflections } from '@/components/home/FellowReflections';
+import { WhatsNewModal } from '@/components/WhatsNewModal';
 import { PhotoViewer } from '@/components/PhotoViewer';
 import { PhotoCarousel } from '@/components/PhotoCarousel';
 import { StreakMedal } from '@/components/challenge/StreakMedal';
 import { streakMilestone } from '@/lib/stats';
+import { todayGreeting } from '@/lib/notifications';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import type { CompletionStoryCard, OpenChallengeCard } from '@/lib/types';
 import { getChallengeDDay, getKstTodayRange, formatCheerCount, displayTitle } from '@/lib/format';
 import { CategoryIcon } from '@/components/CategoryIcon';
+import { HostBadge } from '@/components/HostBadge';
 import { categorySlugByName } from '@/lib/icons';
 
 // ─── 🚀 오늘 나의 도전용 헬퍼 및 메타 ─────────────────
@@ -280,6 +285,14 @@ export default function HomeScreen() {
   }, [todayProofs]);
   const [checkinPickerOpen, setCheckinPickerOpen] = useState(false);
 
+  // 🚀 아침 인사 카드: _layout 이 알림 탭 시 ?greet=<ts> 로 보내면 홈 상단에 그날 인사말을 띄운다.
+  //   (iOS "미리보기 표시: 안 함" 이면 알림 배너엔 텍스트가 안 떠서, 앱 안에서 인사말을 읽게 하는 자리)
+  const { greet } = useLocalSearchParams<{ greet?: string }>();
+  const [greetCard, setGreetCard] = useState<{ title: string; body: string } | null>(null);
+  useEffect(() => {
+    if (greet) setGreetCard(todayGreeting());
+  }, [greet]);
+
   // 오늘 인증 액션 — 0개면 완료 안내, 1개면 즉시 인증, 여러 개면 선택 모달
   const onCheckinAction = () => {
     haptic.tap();
@@ -301,6 +314,24 @@ export default function HomeScreen() {
   return (
     <Screen backgroundColor={colors.bg}>
       <AppHeader />
+
+      {/* 🚀 아침 인사 카드 — 알림 탭으로 들어왔을 때 그날 요일 인사말을 한 번 보여준다 (× 로 닫기) */}
+      {greetCard && (
+        <View style={styles.greetCard}>
+          <View style={styles.greetTextCol}>
+            <Text style={styles.greetTitle}>{greetCard.title}</Text>
+            <Text style={styles.greetBody}>{greetCard.body}</Text>
+          </View>
+          <Pressable
+            onPress={() => { haptic.tap(); setGreetCard(null); }}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="인사말 닫기"
+          >
+            <Text style={styles.greetClose}>✕</Text>
+          </Pressable>
+        </View>
+      )}
 
       {/* 🚀 홈 페이지 제목 — 다른 탭(내하다·구경·기록 24px)과 위계 통일 + 무게감(밋밋함 보완) */}
       <View style={styles.intro}>
@@ -335,6 +366,9 @@ export default function HomeScreen() {
             <Text style={styles.peekBarText}>남들 하다, 구경</Text>
             <ChevronRight size={18} color={colors.brand} strokeWidth={2} />
           </Pressable>
+
+          {/* 🚀 W2 지금 함께 — 최근 30분 활동 동료 앰비언트 라인 (0명이면 스스로 숨김) */}
+          <PresenceLine />
 
           {isColdStart ? (
             /* 🚀 콜드스타트(도전 0개): 빈 카드 스택 → 살아있는 온램프 한 장 + 합류 우선 + 접힌 힌트 */
@@ -591,6 +625,9 @@ export default function HomeScreen() {
             </Pressable>
           )}
 
+          {/* 🚀 W2 동료 회고 목격 — 동료들의 오늘 회고 한 줄 (비면 스스로 숨김, 읽기 전용) */}
+          <FellowReflections />
+
           {/* [구조 2] 오늘, 도전 인연들의 하루 섹션 */}
           <Text style={styles.sectionLabel}>오늘, 하다 인연들의 하루</Text>
           {visibleCompletions.length > 0 || todayProofs.length > 0 ? (
@@ -671,6 +708,9 @@ export default function HomeScreen() {
       )}
 
       <PhotoViewer photos={viewer?.photos ?? null} initialIndex={viewer?.index ?? 0} onClose={() => setViewer(null)} />
+
+      {/* 🚀 업데이트 소식 — 새 릴리스 태그일 때 1회 노출 (OTA 인지 + 강제종료 2회 안내) */}
+      <WhatsNewModal />
 
       {/* 🚀 미인증 챌린지 선택 모달 — 인증할 도전이 여러 개일 때 */}
       <Modal
@@ -809,7 +849,7 @@ function TodayProofCard({ proof, onViewPhoto }: { proof: FellowProof; onViewPhot
   return (
     <Pressable
       style={styles.card}
-      onPress={() => { haptic.tap(); router.push(`/room/${proof.challenge_id}` as any); }}
+      onPress={() => { haptic.tap(); router.push(`/room/${proof.challenge_id}?tab=proof&proofId=${proof.id}` as any); }}
     >
       <View style={styles.cardHead}>
         {proof.avatar_url ? (
@@ -902,6 +942,9 @@ function JoinCard({ challenge, onJoin }: { challenge: OpenChallengeCard; onJoin:
           </Text>
         </View>
       </View>
+      {/* 🚀 0058: 명사·조직이 연 하다면 주최자 신뢰 표식 (일반 하다는 미노출) */}
+      <HostBadge hostTier={challenge.host_tier} hostLabel={challenge.host_label} />
+
       {challenge.description && (
         <Text style={styles.caption} numberOfLines={2}>"{challenge.description}"</Text>
       )}
@@ -935,6 +978,20 @@ const styles = StyleSheet.create({
   intro: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 4 },
   introTitle: { ...textStyle.greeting, color: colors.ink, letterSpacing: -0.5 },
   introSub: { fontSize: fontSize.sm, color: colors.faint, fontFamily: fontFamily.regular, marginTop: 3 },
+
+  // 🌅 아침 인사 카드 (알림 탭 진입 시 그날 인사말)
+  greetCard: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 12,
+    marginHorizontal: 20, marginTop: 12,
+    padding: 16,
+    backgroundColor: colors.accent50,
+    borderRadius: radius['2xl'],
+    borderWidth: 1, borderColor: colors.accent100,
+  },
+  greetTextCol: { flex: 1 },
+  greetTitle: { fontSize: fontSize.base, color: colors.ink, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
+  greetBody: { fontSize: fontSize.sm, color: colors.faint, fontFamily: fontFamily.regular, marginTop: 4, lineHeight: 20 },
+  greetClose: { fontSize: 16, color: colors.faint2, fontFamily: fontFamily.bold },
 
   // 🔭 하다 구경 — 최상단 얇은 바
   peekBar: {

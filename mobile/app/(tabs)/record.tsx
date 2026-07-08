@@ -93,7 +93,7 @@ function RecordCard({ log }: { log: LogWithChallenge }) {
   return (
     <Pressable
       style={styles.card}
-      onPress={() => { haptic.tap(); router.push(`/room/${log.challenge_id}?tab=log` as any); }}
+      onPress={() => { haptic.tap(); router.push(`/room/${log.challenge_id}?tab=log&logId=${log.id}` as any); }}
     >
       {/* 헤더 */}
       <View style={styles.cardHead}>
@@ -137,8 +137,9 @@ function RecordCard({ log }: { log: LogWithChallenge }) {
               <Text style={styles.footCount}>{formatCheerCount(log.like_count)}</Text>
             </View>
             <View style={styles.footMeta}>
-              <MessageCircle size={15} color={colors.faint} strokeWidth={1.8} />
-              <Text style={styles.footCount}>{formatCheerCount(log.comment_count)}</Text>
+              {/* 댓글 있으면 말풍선·숫자를 브랜드 톤으로 (0이면 회색 그대로) */}
+              <MessageCircle size={15} color={log.comment_count > 0 ? colors.brand : colors.faint} strokeWidth={1.8} />
+              <Text style={[styles.footCount, log.comment_count > 0 && { color: colors.brandInk }]}>{formatCheerCount(log.comment_count)}</Text>
             </View>
             <Text style={styles.go}>이어 보기 →</Text>
           </View>

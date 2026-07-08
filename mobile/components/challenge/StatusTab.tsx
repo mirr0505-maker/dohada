@@ -6,6 +6,7 @@ import { User, Heart, Globe, Handshake, Calendar, Lock, Users, BarChart3, Check,
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { computeStreak, memberPassedDays, isRecruiting, recruitCloseAtMs } from '@/lib/stats';
 import { displayTitle } from '@/lib/format';
+import { HostBadge } from '@/components/HostBadge';
 import type { DbChallenge, MemberWithToday, ProofWithRelations } from '@/lib/types';
 
 // 🚀 방 타입 배지 — 둘러보기 KIND_BADGE 와 동일한 아이콘 언어 (User/Heart/Globe/Handshake)
@@ -110,6 +111,8 @@ export function StatusTab({ challenge, members, proofs, myUserId, betSlot, pledg
             </View>
           </View>
           <Text style={styles.infoTitle}>{displayTitle(challenge.title)}</Text>
+          {/* 🚀 0058: 명사·조직이 연 하다면 주최자 정체(신뢰 표식) — canonical 위치 */}
+          <HostBadge hostTier={challenge.host_tier} hostLabel={challenge.host_label} />
           {/* 🚀 안내문 (나홀로 제외) — 합류 전 미리보기와 동일한 소개를 방 안에서도 보존 */}
           {challenge.intro_image_url ? (
             <Image source={{ uri: challenge.intro_image_url }} style={styles.infoIntroImage} resizeMode="cover" />

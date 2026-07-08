@@ -205,24 +205,24 @@ export default function CompletionStoryDetailScreen() {
           })}
         </View>
 
-        {/* 용기 받았어요 — 단일 반응, 사용자당 1회 토글 */}
+        {/* 용기 받았어요 — 이 화면의 주 행동(글쓴이에게 용기 되돌리기). 단일 반응, 사용자당 1회 토글 */}
         <View style={styles.courageRow}>
           <Pressable
             style={[styles.courageBtn, couraged && styles.courageBtnActive]}
             onPress={onCourage}
             hitSlop={6}
             accessibilityRole="button"
-            accessibilityLabel={`용기 받았어요${courageCount > 0 ? `, ${courageCount}명` : ''}${couraged ? ', 내가 보냄' : ''}`}
+            accessibilityLabel={`용기 받았어요, ${courageCount}명${couraged ? ', 내가 보냄' : ''}`}
           >
-            <HeartHandshake size={15} color={couraged ? colors.accent700 : colors.primary500} strokeWidth={2} />
+            <HeartHandshake size={18} color={couraged ? colors.surface : colors.accent} strokeWidth={2} />
             <Text style={[styles.courageBtnText, couraged && styles.courageBtnTextActive]}>
-              용기 받았어요{courageCount > 0 ? ` ${formatCheerCount(courageCount)}` : ''}
+              용기 받았어요 · {formatCheerCount(courageCount)}
             </Text>
           </Pressable>
           <Text style={styles.courageHint}>
             {courageCount > 0
               ? `이 이야기로 ${formatCheerCount(courageCount)}명이 용기를 얻었어요`
-              : '서로에게 용기를 주는 증언'}
+              : '처음으로 용기를 보내보세요'}
           </Text>
         </View>
 
@@ -352,28 +352,31 @@ const styles = StyleSheet.create({
     alignItems: 'center', gap: 6,
   },
   courageBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 18, paddingVertical: 10,
-    backgroundColor: colors.primary50,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    alignSelf: 'stretch',
+    paddingHorizontal: 24, paddingVertical: 16,
+    backgroundColor: colors.surface,
     borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: 'transparent',
+    borderWidth: 2,
+    borderColor: colors.accent,
+    ...shadow.sm,
   },
   courageBtnActive: {
-    backgroundColor: colors.accent50,
+    backgroundColor: colors.accent,
     borderColor: colors.accent,
   },
   courageBtnText: {
-    fontSize: fontSize.sm, color: colors.primary500,
-    fontFamily: fontFamily.medium, fontWeight: fontWeight.medium,
+    fontSize: fontSize.base, color: colors.accent,
+    fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
+    letterSpacing: -0.2,
   },
   courageBtnTextActive: {
-    color: colors.accent700,
-    fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
+    color: colors.surface,
   },
   courageHint: {
     fontSize: fontSize.xs, color: colors.primary500,
     fontFamily: fontFamily.regular,
+    marginTop: 2,
   },
 
   // CTA
@@ -385,13 +388,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   ctaBtn: {
-    paddingHorizontal: 28, paddingVertical: 16,
-    backgroundColor: colors.accent,
+    paddingHorizontal: 24, paddingVertical: 13,
+    backgroundColor: colors.surface,
     borderRadius: radius.pill,
-    ...shadow.sm,
+    borderWidth: 1, borderColor: colors.accent,
   },
   ctaText: {
-    fontSize: fontSize.base, color: colors.surface,
+    fontSize: fontSize.sm, color: colors.accent,
     fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
     letterSpacing: -0.2,
   },

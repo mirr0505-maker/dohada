@@ -15,6 +15,7 @@ import { useSession } from '@/lib/session';
 import { fetchMyChallenges, fetchMyGivenUpChallenges, type GivenUpChallenge } from '@/lib/db';
 import { ErrorState } from '@/components/ErrorState';
 import { ChallengeCardSkeleton } from '@/components/Skeleton';
+import { DailyRhythmCard } from '@/components/home/DailyRhythmCard';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import type { ChallengeWithCount } from '@/lib/types';
@@ -97,6 +98,15 @@ export default function MyChallengesScreen() {
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />
               }
               renderItem={({ item }) => <Card challenge={item} myUserId={myUserId} />}
+              // 🚀 W2 하루 리듬 — 아침 다짐·저녁 회고 (홈에서 이동: 개인적 다짐 = 내 하다 맥락).
+              //   제목 바로 밑 + list paddingHorizontal 20 으로 아래 카드와 너비 일치. 내 하다 0개면 숨김.
+              //   다짐(따뜻한 틴트) 아래 얇은 구분선으로 '하단 내 하다' 목록과 시각적으로 분리.
+              ListHeaderComponent={doing.length > 0 ? (
+                <View>
+                  <DailyRhythmCard userId={myUserId} />
+                  <View style={styles.rhythmDivider} />
+                </View>
+              ) : null}
               ListEmptyComponent={
                 <View style={styles.empty}>
                   <Sprout size={48} color={colors.faint} strokeWidth={1.5} />
@@ -241,6 +251,7 @@ const styles = StyleSheet.create({
   subDesc: { fontSize: fontSize.sm, color: colors.faint, fontFamily: fontFamily.regular, marginTop: 4 },
 
   list: { paddingHorizontal: 20, paddingBottom: 24, gap: 12, flexGrow: 1 },
+  rhythmDivider: { height: 1, backgroundColor: colors.lineSoft, marginTop: 16 },
   band: { marginTop: 28, gap: 12 },
   bandTitle: { ...textStyle.section, color: colors.sub, paddingHorizontal: 2 },
 

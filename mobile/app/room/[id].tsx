@@ -896,7 +896,7 @@ export default function ChallengeRoom() {
       backgroundColor={colors.bg}
       edges={activeTab === 'chat' ? ['top'] : ['top', 'bottom']}
     >
-      {/* ─── 헤더 — 챌린지명 라인에 stacked avatars (탭=멤버 시트) ─── */}
+      {/* ─── 헤더 — 우측에 멤버 아바타(탭=멤버 시트) + 초대, 세로 중앙 정렬 ─── */}
       <View style={styles.header}>
         <Pressable
           onPress={() => router.back()}
@@ -918,14 +918,6 @@ export default function ChallengeRoom() {
             <Text style={styles.title} numberOfLines={1}>
               {displayTitle(challenge.title)}
             </Text>
-            <Pressable
-              onPress={() => { haptic.tap(); setMemberSheetOpen(true); }}
-              hitSlop={6}
-              accessibilityRole="button"
-              accessibilityLabel={`멤버 ${memberCount}명 보기`}
-            >
-              <StackedAvatars members={members} totalCount={memberCount} />
-            </Pressable>
           </View>
           <View style={styles.headerSubtitleRow}>
             <Text style={styles.subtitle}>{roomKindLabel(challenge.kind, memberCount)}</Text>
@@ -943,6 +935,15 @@ export default function ChallengeRoom() {
             )}
           </View>
         </View>
+        {/* 🚀 멤버 아바타 — 헤더 행에 두어 초대 버튼과 세로 중앙 정렬 (제목 줄에 떠 보이던 문제 해소) */}
+        <Pressable
+          onPress={() => { haptic.tap(); setMemberSheetOpen(true); }}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={`멤버 ${memberCount}명 보기`}
+        >
+          <StackedAvatars members={members} totalCount={memberCount} />
+        </Pressable>
         {challenge.kind !== 'solo' ? (
           // 🚀 비멤버는 초대 불가지만 숨기지 않고 회색 비활성으로 노출. 모집 마감/종료 방도 회색.
           <Pressable
@@ -1326,6 +1327,11 @@ export default function ChallengeRoom() {
         proofId={activeProofId}
         writeLocked={writeLocked}
         myUserId={myUserId}
+        // 🚀 맥락 헤더 — 어떤 인증에 다는 댓글인지 (대화 탭과 구분)
+        target={(() => {
+          const p = proofs.find(x => x.id === activeProofId);
+          return p ? { photoUrl: p.photo_url, authorName: p.author?.nickname ?? '동료', caption: p.caption } : null;
+        })()}
         onClose={() => setActiveProofId(null)}
         onCountChange={(pid, delta) => {
           setProofs(prev => prev.map(p =>
@@ -1437,7 +1443,7 @@ function StackedAvatars({ members, totalCount }: { members: MemberWithToday[]; t
           {m.avatar_url ? (
             <Image source={{ uri: m.avatar_url }} style={styles.stackedAvatarImg} />
           ) : (
-            <Text style={{ fontSize: 12 }}>🐰</Text>
+            <Text style={{ fontSize: 16 }}>🐰</Text>
           )}
         </View>
       ))}
@@ -1589,8 +1595,13 @@ function ProofCard({
         accessibilityRole="button"
         accessibilityLabel={`댓글 ${proof.comment_count}개 보기`}
       >
-        <MessageCircle size={20} color={colors.primary300} strokeWidth={1.8} />
-        <Text style={styles.cheerCount}>댓글 {proof.comment_count}</Text>
+        {/* 댓글 있으면 말풍선·숫자를 브랜드 톤으로 (0이면 회색 그대로) */}
+        <MessageCircle
+          size={20}
+          color={proof.comment_count > 0 ? colors.brand : colors.primary300}
+          strokeWidth={1.8}
+        />
+        <Text style={[styles.cheerCount, proof.comment_count > 0 && { color: colors.brandInk }]}>댓글 {proof.comment_count}</Text>
       </Pressable>
     </View>
   );
@@ -1663,8 +1674,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   stackedAvatar: {
-    width: 26, height: 26,
-    borderRadius: 13,
+    width: 32, height: 32,
+    borderRadius: 16,
     backgroundColor: colors.primary50,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1677,7 +1688,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent50,
   },
   stackedMoreText: {
-    fontSize: 10,
+    fontSize: 11,
     color: colors.accent700,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,

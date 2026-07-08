@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
   curationStrong: { color: colors.brandInk, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
 
   // 칩 높이를 lineHeight+height 로 결정화 (이모지·기기 무관, 갤S9 잘림 방지)
-  filterRow: { flexGrow: 0, height: 48, marginBottom: 8 },
+  filterRow: { flexGrow: 0, minHeight: 48, marginBottom: 8 },
   filterRowInner: { paddingHorizontal: 20, gap: 8, alignItems: 'center' },
   filterChip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
@@ -347,7 +347,10 @@ const styles = StyleSheet.create({
   },
   filterChipActive: { backgroundColor: colors.brandTint, borderColor: colors.brand },
   filterChipText: {
-    fontSize: fontSize.sm, lineHeight: 18, includeFontPadding: false,
+    // 🚀 갤S9 재발픽스: 고정 lineHeight 제거 — 시스템 글자 크기를 키우면 fontSize 는 배율만큼
+    //   커지는데 고정 lineHeight(18)는 안 커져 글자 하단이 잘렸다. 자연 줄높이로 두면 박스가
+    //   배율을 따라와 잘리지 않는다. 하드 클립하던 filterRow.height(48)→minHeight 와 짝.
+    fontSize: fontSize.sm, includeFontPadding: false,
     color: colors.sub, fontFamily: fontFamily.medium, fontWeight: fontWeight.medium,
   },
   filterChipTextActive: { color: colors.brandInk, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },

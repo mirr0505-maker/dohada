@@ -19,6 +19,16 @@ const WEEKLY_GREETINGS = [
   { weekday: 1, id: 'daily-greeting-sun', title: '일요일이에요 🍃',       body: '지난 한 주를 돌아보며, 천천히, 하다' },
 ];
 
+// 🚀 오늘 요일의 아침 인사 (홈 상단 카드용)
+//   iOS "미리보기 표시: 안 함" 이면 알림 배너엔 텍스트가 안 뜨므로, 탭 시 앱 안에서 인사말을 보여준다.
+//   문구는 배너와 동일한 단일 소스(WEEKLY_GREETINGS)에서 — 끄기 안내 줄은 카드엔 붙이지 않는다.
+export function todayGreeting(): { title: string; body: string } {
+  const jsDay = new Date().getDay();     // 0=일 … 6=토
+  const expoWeekday = jsDay + 1;         // expo 규약(1=일 … 7=토)로 변환
+  const g = WEEKLY_GREETINGS.find(x => x.weekday === expoWeekday) ?? WEEKLY_GREETINGS[0];
+  return { title: g.title, body: g.body };
+}
+
 // 앱 부팅 시 알림 표시 방식 (foreground 에서도 띄움)
 Notifications.setNotificationHandler({
   handleNotification: async () => ({

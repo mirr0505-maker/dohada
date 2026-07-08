@@ -9,7 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-import { ArrowLeft, Pencil, Camera, Plus, Trophy, Flag, Coffee, Check } from 'lucide-react-native';
+import { ArrowLeft, Pencil, Camera, Plus, Trophy, Flag, Coffee, Check, Wrench } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { ListRow } from '@/components/ListRow';
 import { CategoryIcon } from '@/components/CategoryIcon';
@@ -20,7 +20,7 @@ import { haptic } from '@/lib/haptics';
 import {
   fetchMyProfile, updateMyNickname, updateMyAvatar,
   fetchMyInterests, addInterest, removeInterest, fetchCategoryTree,
-  fetchMyChallenges, fetchMyFootprints,
+  fetchMyChallenges, fetchMyFootprints, fetchIsAdmin,
   type MyInterest, type DbCategory, type MyFootprints,
 } from '@/lib/db';
 import type { ChallengeWithCount } from '@/lib/types';
@@ -40,6 +40,7 @@ export default function ProfileScreen() {
   const [editingInterests, setEditingInterests] = useState(false);
   const [finishedChs, setFinishedChs] = useState<ChallengeWithCount[]>([]);
   const [footprints, setFootprints] = useState<MyFootprints | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (session === null) router.replace('/login');
@@ -51,6 +52,7 @@ export default function ProfileScreen() {
     fetchMyInterests(myUserId).then(setInterests).catch(() => {});
     fetchCategoryTree().then(t => setCategories(t.categories)).catch(() => {});
     fetchMyFootprints(myUserId).then(setFootprints).catch(() => {});
+    fetchIsAdmin().then(setIsAdmin).catch(() => setIsAdmin(false));
     // 완주 보관함 — 종료된 하다만 (KST 자정 기준). 행의 개수 표시에 사용.
     fetchMyChallenges(myUserId).then(all => {
       const today = getKstTodayRange().kstDateStr;
@@ -195,6 +197,19 @@ export default function ProfileScreen() {
             )}
           </View>
         </View>
+
+        {/* 🚀 운영자 콘솔 진입점 — is_admin 일 때만. 권한 강제는 서버(RPC), 여기선 노출 게이트만 */}
+        {isAdmin && (
+          <View style={styles.section}>
+            <View style={styles.setgroup}>
+              <ListRow
+                icon={Wrench}
+                label="운영자 콘솔"
+                onPress={() => { haptic.tap(); router.push('/admin' as any); }}
+              />
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       <NicknameEditModal

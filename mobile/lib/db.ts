@@ -501,6 +501,8 @@ export async function fetchOpenChallenges(myUserId: string | undefined): Promise
       subcategory: c.subcategory ? { name: c.subcategory.name } : null,
       votes_by_type: votesByType,
       my_votes: myVotes,
+      host_tier: c.host_tier ?? 'individual',  // 🚀 0058: 주최 계층 (값 없으면 individual 폴백)
+      host_label: c.host_label ?? null,         // 🚀 0058: 주최자명 (figure/org 만 채워짐)
       gave_up_at: c.gave_up_at ?? null,
     };
   });
@@ -569,6 +571,86 @@ export async function fetchBrowseChallenges(limit = 60): Promise<BrowseChallenge
 export async function referenceChallenge(sourceChallengeId: string): Promise<void> {
   const { error } = await supabase.rpc('reference_challenge', { p_challenge_id: sourceChallengeId });
   if (error) throw error;
+}
+
+// 🚀 파장(선한 영향력) 탭 3층 집계 (0054) — 나 → 우리 → 세상.
+//   parang_stats RPC 는 SECURITY DEFINER 로 RLS 를 우회하되 집계 스칼라만 내려준다(신원 컬럼 없음).
+//   비교/랭킹 아님 — 숫자는 '번진 이야기'의 강조점일 뿐. 실패 시 throw 하여 화면이 빈 상태로 처리.
+export interface ParangStats {
+  mine:  { reference_total: number; cheers_given: number; courage_received: number };
+  ours:  { week_cheers: number; week_new_starts: number };
+  world: { donated_count: number; donated_amount: number };
+}
+export async function fetchParangStats(): Promise<ParangStats> {
+  const { data, error } = await supabase.rpc('parang_stats');
+  if (error) throw error;
+  return data as ParangStats;
+}
+
+// 🚀 파장 = 기여 피드 (0060) — 자동 이벤트(참조·완주·기부) 통합 목록.
+//   parang_feed RPC 는 SECURITY DEFINER 로 RLS 를 우회하되 신원 컬럼 없이 공개 콘텐츠만 내려준다.
+//   v1 = 자동 이벤트만(사용자 글·반응은 v2). 실패 시 throw 하여 화면이 빈 상태로 처리.
+export interface ParangFeedItem {
+  event_type: 'reference' | 'completion' | 'donation';
+  challenge_id: string | null;   // CTA용 (reference·completion). donation 은 익명 null.
+  title: string | null;          // 하다 제목. donation 은 null.
+  count: number | null;          // reference = 따라 시작한 사람 수. 그 외 null.
+  amount: number | null;         // donation = 기부 금액. 그 외 null.
+  created_at: string;
+}
+export async function fetchParangFeed(): Promise<ParangFeedItem[]> {
+  const { data, error } = await supabase.rpc('parang_feed');
+  if (error) throw error;
+  return (data ?? []) as ParangFeedItem[];
+}
+
+// 🚀 파장 = 사용자 기여 글 (0061, 피드 v2) — 인증/기록을 "파장에 나누기"로 올린 공개 글.
+//   parang_posts RPC 는 SECURITY DEFINER 로 멤버십 RLS 를 우회하되 화이트리스트 컬럼만 내려준다.
+//   비익명 글은 사용자가 스스로 공개 나눔한 것이라 nickname/avatar 노출이 정상, 익명 글은 null.
+//   (작성 화면·FeedCard·차단 필터는 v2b. 실패 시 throw 하여 화면이 빈 상태로 처리.)
+export interface ParangPost {
+  post_type: 'proof' | 'log';
+  post_id: string;
+  challenge_id: string;
+  title: string;                       // 하다 제목
+  body: string | null;                 // caption(proof) / content(log)
+  photo_url: string | null;            // 커버(첫 장)
+  photo_urls?: string[];               // 🚀 0062: 사진 전체(최대 3~4장). 비면 [photo_url] 폴백
+  author_nickname: string | null;      // 익명이면 null → 클라가 "어떤 이의 걸음"
+  author_avatar: string | null;        // 익명이면 null
+  reference_count: number;             // 이 하다를 따라 시작한 사람 수(은은한 "움직인 수")
+  courage_count: number;               // 용기받았어요 집계
+  mine_couraged: boolean;              // 내 반응 여부
+  created_at: string;
+}
+export async function fetchParangPosts(): Promise<ParangPost[]> {
+  const { data, error } = await supabase.rpc('parang_posts');
+  if (error) throw error;
+  return (data ?? []) as ParangPost[];
+}
+
+// 🚀 파장 "용기 받았어요" 반응 토글 (0061) — 사용자당 글당 1회, 취소 가능.
+//   parang_reactions 는 (target_type, target_id, user_id) PK — insert/delete 로 토글.
+export async function toggleParangCourage(args: {
+  postType: 'proof' | 'log';
+  postId: string;
+  userId: string;
+  currentlyCouraged: boolean;
+}): Promise<void> {
+  if (args.currentlyCouraged) {
+    const { error } = await supabase
+      .from('parang_reactions')
+      .delete()
+      .eq('target_type', args.postType)
+      .eq('target_id', args.postId)
+      .eq('user_id', args.userId);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase
+      .from('parang_reactions')
+      .insert({ target_type: args.postType, target_id: args.postId, user_id: args.userId });
+    if (error) throw error;
+  }
 }
 
 // ─── 카테고리 시스템 (0007 categories + subcategories) ─
@@ -803,6 +885,8 @@ export async function createLog(args: {
   title: string;
   content: string;
   photoUrls?: string[];   // 🚀 0045: 기록 사진 (최대 4장). photo_url 은 커버(첫 장)
+  shareToParang?: boolean;   // 🚀 파장에 나누기 (v2b) — 이 기록을 공개 파장 피드로
+  parangAnon?: boolean;      // 🚀 익명으로 나누기 (share 켠 경우만 의미)
 }): Promise<void> {
   const title = args.title.trim();
   const content = args.content.trim();
@@ -813,6 +897,7 @@ export async function createLog(args: {
   const hidden = await moderateUgcText(`${title}\n${content}`);   // 🚀 검수 (v2.19: block→차단, flag·allow→통과·미숨김)
 
   const photos = (args.photoUrls ?? []).slice(0, 4);
+  const shareToParang = args.shareToParang ?? false;
   const { error } = await supabase.from('logs').insert({
     challenge_id: args.challengeId,
     user_id: args.userId,
@@ -821,6 +906,8 @@ export async function createLog(args: {
     hidden,
     photo_url: photos[0] ?? null,
     photo_urls: photos,
+    share_to_parang: shareToParang,                          // 🚀 파장 나누기 (기본 false)
+    parang_anon: shareToParang ? (args.parangAnon ?? false) : false,   // 공유 안 하면 익명 플래그 무의미
   });
   if (error) throw error;
 }
@@ -1467,6 +1554,10 @@ function mapStoryReactions(row: any, myUserId?: string): CompletionStoryCard {
     //   (홈 완주 리본·해냈어요 탭·완주 상세). 숨겨졌으면 '익명' 폴백으로 타입 불변식(author: DbUser) 회복.
     //   참고: reference_rls-users-join-undercount (비멤버는 users 조인을 못 읽음).
     author: row.author ?? { id: row.user_id, email: null, nickname: '익명', avatar_url: null, created_at: row.created_at },
+    // 🚀 RLS 가드(동일 계열): challenge(challenges) 임베드도 열람자가 방 멤버가 아니면 null 이 된다.
+    //   (challenges SELECT = 멤버 전용). 비멤버가 공개 완주 이야기를 보면 challenge=null → 'title of null' 크래시.
+    //   빈 제목 폴백으로 타입 불변식(challenge.title: string) 회복 — displayTitle('') 은 무해.
+    challenge: row.challenge ?? { title: '', category: null },
     courage_count: reactions.length,
     couraged_by_me: myUserId ? reactions.some(r => r.user_id === myUserId) : false,
   } as CompletionStoryCard;
@@ -1834,4 +1925,205 @@ export async function fetchBlockedUserIds(): Promise<Set<string>> {
   if (error) throw error;
   const rows = (data ?? []) as (string | { blocked_user_ids: string })[];
   return new Set(rows.map(r => (typeof r === 'string' ? r : r.blocked_user_ids)));
+}
+
+// ─── W2: 하루의 리듬(아침 다짐·저녁 회고) + 지금 함께(presence) — 0056 ───────────────
+// 아침 다짐(intention) / 저녁 회고(reflection). 전역 노트(challenge_id 항상 null).
+// note_date 는 서버가 KST 로 결정 → 클라는 날짜를 넘기지 않는다(하루 경계 일관).
+export type DailyNoteKind = 'intention' | 'reflection';
+export type DailyNoteVisibility = 'fellow' | 'private';
+
+export type DailyNote = {
+  id: string;
+  user_id: string;
+  challenge_id: string | null;
+  kind: DailyNoteKind;
+  content: string;
+  note_date: string;
+  visibility: DailyNoteVisibility;
+  created_at: string;
+};
+
+// 동료의 오늘 회고(홈 목격 피드용) — 작성자 표시용 최소 정보만.
+export type FellowReflection = {
+  id: string;
+  content: string;
+  created_at: string;
+  user_id: string;
+  nickname: string;
+  avatar_url: string | null;
+};
+
+// 🚀 오늘(KST) 다짐/회고 작성 — 1인 1일 kind별 1개(upsert 덮어쓰기).
+//   UGC 검수(block→차단)는 다른 작성 함수와 동일하게 재사용. note_date 는 서버 KST 기본값에 맡긴다.
+export async function createDailyNote(args: {
+  userId: string;
+  kind: DailyNoteKind;
+  content: string;
+  visibility?: DailyNoteVisibility;
+}): Promise<void> {
+  const trimmed = args.content.trim();
+  if (!trimmed) throw new Error('내용을 입력해주세요.');
+  if (trimmed.length > 200) throw new Error('200자 이내로 적어주세요.');
+  await moderateUgcText(trimmed);   // 🚀 검수 (block→차단, flag·allow→통과·미숨김 — v2.19)
+  const { error } = await supabase.from('daily_notes').upsert(
+    {
+      user_id: args.userId,
+      kind: args.kind,
+      content: trimmed,
+      visibility: args.visibility ?? 'fellow',
+      // note_date 미포함 — 서버 기본값(KST 오늘)이 채우고, 같은 날 재작성은 onConflict 로 덮어쓴다.
+    },
+    { onConflict: 'user_id,kind,note_date' },
+  );
+  if (error) throw error;
+}
+
+// 🚀 오늘(KST) 내 해당 kind 노트 1개 or null — 프롬프트가 이미 작성됐는지 판단용.
+export async function fetchMyDailyNote(
+  userId: string,
+  kind: DailyNoteKind,
+): Promise<DailyNote | null> {
+  const { kstDateStr } = getKstTodayRange();   // KST 오늘 "YYYY-MM-DD"
+  const { data, error } = await supabase
+    .from('daily_notes')
+    .select('id, user_id, challenge_id, kind, content, note_date, visibility, created_at')
+    .eq('user_id', userId)
+    .eq('kind', kind)
+    .eq('note_date', kstDateStr)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as DailyNote) ?? null;
+}
+
+// 🚀 동료들의 오늘(KST) 회고 — 목격받기 피드. RLS 가 가시성(fellow + 하다 공유) 보장.
+//   차단(양방향) 사용자는 제외 — 모든 동료 피드 공통 안전 규칙.
+export async function fetchFellowReflections(limit = 20): Promise<FellowReflection[]> {
+  const { kstDateStr } = getKstTodayRange();
+  const { data, error } = await supabase
+    .from('daily_notes')
+    .select(`
+      id, content, created_at, user_id,
+      users:user_id(nickname, avatar_url)
+    `)
+    .eq('kind', 'reflection')
+    .eq('visibility', 'fellow')
+    .eq('note_date', kstDateStr)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  const blocked = await fetchBlockedUserIds();   // 🚀 차단(양방향) 제외
+  return (data ?? [])
+    .filter((n: any) => !blocked.has(n.user_id))
+    .map((n: any) => ({
+      id: n.id,
+      content: n.content,
+      created_at: n.created_at,
+      user_id: n.user_id,
+      nickname: n.users?.nickname ?? '',   // 작성자 임베드 null 폴백 가드
+      avatar_url: n.users?.avatar_url ?? null,
+    }));
+}
+
+// 🚀 지금 함께 — 최근 30분 내 활동한 동료 수(본인 제외, 신원 없음). 홈 상단 앰비언트 라인.
+export async function fetchPresenceNow(): Promise<number> {
+  const { data, error } = await supabase.rpc('presence_now');
+  if (error) throw error;
+  return (data as number | null) ?? 0;
+}
+
+// ─── 운영자(Admin) 콘솔 Step A1 (0059) ────────────────────────────────
+// 🔒 모든 admin RPC 는 서버(DB)에서 is_admin() 게이트로 강제된다. 아래 클라 래퍼는 UX 노출용일 뿐 —
+//    비-admin 이 호출하면 RPC 가 'admin only' exception 을 던져 throw 로 전파된다(화면 처리).
+//    ReportTargetType 은 위 3b 신고·차단 정의를 재사용.
+export type AdminReport = {
+  report_id: string;
+  target_type: ReportTargetType;
+  target_id: string;
+  reason: string;
+  detail: string | null;
+  created_at: string;
+  reporter_nickname: string | null;
+  author_nickname: string | null;
+  preview: string | null;
+  is_hidden: boolean;
+};
+
+export type AdminHiddenItem = {
+  target_type: ReportTargetType;
+  target_id: string;
+  preview: string | null;
+  author_nickname: string | null;
+  created_at: string;
+};
+
+export type AdminChallengeSearchResult = {
+  id: string;
+  title: string;
+  kind: ChallengeKind;
+  host_tier: string;
+  host_label: string | null;
+  created_at: string;
+};
+
+// 현재 로그인 사용자가 운영자인지. admin 진입점 노출 판단용(권한 강제는 서버).
+export async function fetchIsAdmin(): Promise<boolean> {
+  const { data, error } = await supabase.rpc('is_admin');
+  if (error) throw error;
+  return (data as boolean | null) ?? false;
+}
+
+// pending 신고 큐 (미리보기·작성자·현재 hidden 포함, 최신순).
+export async function adminListReports(): Promise<AdminReport[]> {
+  const { data, error } = await supabase.rpc('admin_list_reports');
+  if (error) throw error;
+  return (data ?? []) as AdminReport[];
+}
+
+// 대상 콘텐츠 숨김/복구 (숨김=true, 복구=false).
+export async function adminSetContentHidden(
+  targetType: ReportTargetType,
+  targetId: string,
+  hidden: boolean,
+): Promise<void> {
+  const { error } = await supabase.rpc('admin_set_content_hidden', {
+    p_target_type: targetType,
+    p_target_id: targetId,
+    p_hidden: hidden,
+  });
+  if (error) throw error;
+}
+
+// 신고 처리 (검토완료 reviewed / 무시 dismissed).
+export async function adminResolveReport(reportId: string, status: 'reviewed' | 'dismissed'): Promise<void> {
+  const { error } = await supabase.rpc('admin_resolve_report', { p_report_id: reportId, p_status: status });
+  if (error) throw error;
+}
+
+// 숨김된 콘텐츠 전체 (오판 복구용, 6종 union, 최신순).
+export async function adminListHidden(): Promise<AdminHiddenItem[]> {
+  const { data, error } = await supabase.rpc('admin_list_hidden');
+  if (error) throw error;
+  return (data ?? []) as AdminHiddenItem[];
+}
+
+// 명사/조직 무대 지정 (host_tier: individual/figure/org, host_label: 표시용 주최자명).
+export async function adminSetHostTier(
+  challengeId: string,
+  tier: 'individual' | 'figure' | 'org',
+  label: string | null,
+): Promise<void> {
+  const { error } = await supabase.rpc('admin_set_host_tier', {
+    p_challenge_id: challengeId,
+    p_tier: tier,
+    p_label: label,
+  });
+  if (error) throw error;
+}
+
+// host_tier 지정 대상 하다 검색 (title ilike, ≤30).
+export async function adminSearchChallenges(q: string): Promise<AdminChallengeSearchResult[]> {
+  const { data, error } = await supabase.rpc('admin_search_challenges', { p_q: q });
+  if (error) throw error;
+  return (data ?? []) as AdminChallengeSearchResult[];
 }

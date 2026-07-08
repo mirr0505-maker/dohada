@@ -25,9 +25,11 @@ type Props = {
   onClose: () => void;
   onCountChange?: (logId: string, delta: 1 | -1) => void;
   writeLocked?: boolean;         // 박제 — 새 댓글 작성 잠금 (열람은 가능)
+  // 🚀 맥락 헤더(B) — 어떤 기록에 달리는 댓글인지 상단에 보여줌 (없으면 미표시).
+  target?: { photoUrl: string | null; title: string; authorName: string } | null;
 };
 
-export function LogCommentsSheet({ logId, myUserId, onClose, onCountChange, writeLocked = false }: Props) {
+export function LogCommentsSheet({ logId, myUserId, onClose, onCountChange, writeLocked = false, target }: Props) {
   const [items, setItems] = useState<LogCommentWithAuthor[]>([]);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
@@ -165,6 +167,23 @@ export function LogCommentsSheet({ logId, myUserId, onClose, onCountChange, writ
           </Pressable>
         </View>
 
+        {/* 🚀 맥락 헤더 — 어떤 기록에 대한 댓글인지 (대화 탭과 구분) */}
+        {target ? (
+          <View style={styles.ctxHeader}>
+            {target.photoUrl ? (
+              <Image source={{ uri: target.photoUrl }} style={styles.ctxThumb} />
+            ) : (
+              <View style={[styles.ctxThumb, styles.ctxThumbFallback]}>
+                <Text style={{ fontSize: 18 }}>📓</Text>
+              </View>
+            )}
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={styles.ctxTitle} numberOfLines={1}>{target.title}</Text>
+              <Text style={styles.ctxSub} numberOfLines={1}>{target.authorName}님의 기록</Text>
+            </View>
+          </View>
+        ) : null}
+
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -265,13 +284,17 @@ function CommentItem({
           <Text style={{ fontSize: 16 }}>🐰</Text>
         </View>
       )}
-      <View style={{ flex: 1, gap: 2 }}>
-        <View style={styles.rowHead}>
+      <View style={{ flex: 1, gap: 3 }}>
+        {/* 인스타식: 이름+본문 한 줄 흐름 → 채팅 말풍선(이름 위·본문 아래) 느낌 제거 */}
+        <Text style={styles.commentLine}>
           <Text style={styles.author}>{item.author?.nickname ?? '익명'}</Text>
+          {'  '}
+          <Text style={styles.content}>{item.content}</Text>
+        </Text>
+        <View style={styles.metaRow}>
           <Text style={styles.time}>{formatTime(item.created_at)}</Text>
+          {mine ? <Text style={styles.deleteHint}>길게 눌러 수정/삭제</Text> : null}
         </View>
-        <Text style={styles.content}>{item.content}</Text>
-        {mine ? <Text style={styles.deleteHint}>길게 눌러 수정/삭제</Text> : null}
       </View>
     </Pressable>
   );
@@ -320,13 +343,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowHead: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
-  author: {
+  // 맥락 헤더 (어떤 기록의 댓글인지)
+  ctxHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: colors.primary50,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.primary100,
+  },
+  ctxThumb: { width: 40, height: 40, borderRadius: radius.sm, overflow: 'hidden' },
+  ctxThumbFallback: {
+    backgroundColor: colors.primary100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ctxTitle: {
     fontSize: fontSize.sm,
     color: colors.primary,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },
+  ctxSub: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+  },
+  // 인스타식 댓글: 이름+본문 한 줄, 시각은 아래로 demote
+  commentLine: { fontSize: fontSize.base, lineHeight: 21 },
+  author: {
+    fontSize: fontSize.base,
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   time: {
     fontSize: fontSize.xs,
     color: colors.primary500,
@@ -336,13 +389,11 @@ const styles = StyleSheet.create({
     fontSize: fontSize.base,
     color: colors.primary,
     fontFamily: fontFamily.regular,
-    lineHeight: 20,
   },
   deleteHint: {
     fontSize: fontSize.xs,
     color: colors.primary500,
     fontFamily: fontFamily.regular,
-    marginTop: 2,
   },
   empty: {
     flex: 1,

@@ -95,7 +95,13 @@ export function AppHeader() {
     setModalVisible(true);
     setBellDot(false);
     SecureStore.setItemAsync(BELL_SEEN_KEY, new Date().toISOString()).catch(() => {});
-  }, []);
+    // 🚀 열 때 항상 최신 알림 재조회 — 푸시 탭으로 열릴 땐 이미 홈이 포커스 상태라
+    //    useFocusEffect 가 재실행되지 않아 방금 온 알림이 목록에서 빠지던 문제
+    //    (다른 탭 갔다 와야 보임) 방지.
+    if (myUserId && myUserId !== 'dev') {
+      fetchMyNotifications(myUserId).then(setNotifs).catch(() => {});
+    }
+  }, [myUserId]);
 
   // 🚀 푸시 탭 진입: _layout 이 ?bell=<timestamp> 를 붙여 홈으로 보냄 → 알림함 자동 오픈
   const { bell } = useLocalSearchParams<{ bell?: string }>();

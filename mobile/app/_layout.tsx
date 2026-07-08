@@ -125,8 +125,16 @@ export default function RootLayout() {
 
     if (session === null) return;                  // 미로그인 — 로그인 화면 흐름 우선
 
-    // bell 파라미터는 매번 달라야 AppHeader 가 재오픈 — timestamp 사용
-    const target = `/(tabs)/home?bell=${Date.now()}`;
+    // 🚀 서버 푸시(flush)만 data.kind 를 싣는다 — 로컬 '매일 안부'(아침 인사)는 data 없음.
+    //    매일 안부는 알림함(notification_queue)에 대응 행이 없어 알림함 대신 홈만 연다.
+    //    단, iOS "미리보기 표시: 안 함" 이면 배너에 인사말 텍스트가 안 뜨므로, 홈에서 그날
+    //    인사말 카드(?greet)를 띄워 앱 안에서 인사말을 읽게 한다.
+    const pushData = (lastNotificationResponse.notification.request.content?.data ?? {}) as { kind?: string };
+    const isServerPush = !!pushData.kind;
+
+    // 서버 푸시: 알림함 자동 오픈(?bell). 아침 인사: 홈 + 그날 인사말 카드(?greet).
+    //   파라미터는 매번 달라야 홈/헤더가 재반응 — timestamp 사용
+    const target = isServerPush ? `/(tabs)/home?bell=${Date.now()}` : `/(tabs)/home?greet=${Date.now()}`;
     setTimeout(() => {
       try {
         // 콜드 스타트로 아직 온보딩/로그인 라우트라면 홈으로 replace (뒤로가기에 온보딩 안 남게)
@@ -134,6 +142,7 @@ export default function RootLayout() {
         if (PRE_MAIN.includes(pathnameRef.current)) {
           router.replace(target as any);
         } else {
+          // 이미 앱 안(워밍 탭): 서버 푸시=홈+알림함 오픈, 아침 인사=홈으로 이동(bell 없음)
           router.navigate(target as any);
         }
       } catch (e) {

@@ -1,7 +1,7 @@
 # CLAUDE.md — Do : 하다 작업 규칙
 
 이 파일은 Claude Code가 이 저장소에서 작업할 때 **반드시 따라야 하는 지침**이다.
-서브에이전트 위임 없이 메인 세션이 코드 작성·검증·정책 검토까지 직접 수행한다.
+메인 세션(Advisor)은 판단·설계·검증을 맡고, 구현 노동은 Worker(Opus 4.8 서브에이전트)에게 위임한다 — 상세는 아래 「모델 역할 분담」.
 
 **Phase 1 MVP 의 단일 진실원천은 [`MVP_SCOPE.md`](docs/MVP_SCOPE.md) (v2.5) 이다.**
 **제품·비전 전체 청사진은 [`BLUEPRINT.md`](BLUEPRINT.md) (구 PITCH 흡수, 2026-06-13).**
@@ -214,6 +214,40 @@
 **순수 JS(마이그레이션·EF 무변경) → OTA(preview·production 양 채널 배포 ✓). 검증 tsc 0. 안드로이드 초대→합류 차단 버그.**
 - **초대장 스크롤 불가** (FEEDBACK #49): [`invite/[id].tsx`](mobile/app/invite/[id].tsx) — 카톡 초대 링크로 진입하는 하다 인연 초대장에 `ScrollView` 가 없어, 안내문(`description`)+개설자 한마디(`invitation_message`)가 길면 중앙 정렬(`center`: `flex:1`+`justifyContent:'center'`)된 카드가 화면 위아래로 넘쳐 하단 '함께 하기' 버튼에 닿을 수 없었음(안드로이드는 시스템 내비바까지 겹쳐 더 심함, 링크만 보내도 안내문/한마디는 챌린지 데이터라 그대로 렌더). 수정 = 본문을 `ScrollView` 로 감싸고 컨테이너 `flex:1→flexGrow:1`(+`justifyContent:'center'`·`paddingVertical:24`) → 짧으면(로딩·에러) 중앙 정렬 유지, 길면 끝까지 스크롤. `Screen` 이 하단 SafeArea(`edges` bottom) 보정 → 버튼이 내비바 위로 확보. **`flexGrow`(≠`flex`)** 라야 넘칠 때 카드 위가 안 잘리고 스크롤됨
 
+### 신규 코드 위치 (v2.24 — 월드와이드 prosocial: 파장·하루 리듬·무대 토대, 2026-07-07)
+**단일 진실원천: [`docs/WORLDWIDE_EXECUTION_PLAN.md`](docs/WORLDWIDE_EXECUTION_PLAN.md) (실행) + [`BLUEPRINT.md`](BLUEPRINT.md) 3.5절 (비전).** "소비가 아니라 기여가 지위가 되는 SNS" — 자랑을 '나눔=초대'로 구원. 정체성 게이트 승계(비교/랭킹/거대숫자 단독 금지).
+- **탭바 재구성**: [`_layout.tsx`](mobile/app/(tabs)/_layout.tsx) — ⊕(생성)를 우하단 FAB로, 하단 5탭 = 홈/내도전/**파장**/기록/해냈어요 (create-tab 은 `href:null` 라우트만 유지).
+- **W1 파장 탭 (선한 영향력)** — 초기엔 나→우리→세상 3층 대시보드였으나 **v2.26에서 기여 피드로 재설계됨(WaveLayer 삭제, 아래 v2.26 참조)**. 집계 RPC [`0057_parang_stats.sql`](supabase/migrations/0057_parang_stats.sql) `parang_stats()` SECURITY DEFINER(신원 0)는 **슬림 헤더**로 존속. db=`fetchParangStats`. ⚠️ 파일번호: 기존 0054·0055(browse fix/restore, 문서 미기재분)와 충돌로 parang을 **0057**로 재번호(함수 이미 운영 반영).
+- **W2 하루 리듬 + 지금 함께**: DB=[`0056_daily_notes.sql`](supabase/migrations/0056_daily_notes.sql) `daily_notes`(아침 다짐/저녁 회고, KST 서버날짜, 1일1kind upsert, RLS `shares_challenge_with`) + `presence_now()` int RPC(내 하다 멤버 최근 30분 활동, 신원 0). UI=[`components/home/`](mobile/components/home/) `PresenceLine`·`DailyRhythmCard`·`DailyNoteComposeSheet`·`FellowReflections`, [`home.tsx`](mobile/app/(tabs)/home.tsx)는 import+3배치만. **아침/저녁=인앱 프롬프트만(푸시 없음)**. db=`createDailyNote`(moderateUgcText 내부)·`fetchMyDailyNote`·`fetchFellowReflections`·`fetchPresenceNow`. KST 15시=아침↔저녁 경계.
+- **W3 Step 1 무대 토대 (3계층)**: DB=[`0058_host_tier.sql`](supabase/migrations/0058_host_tier.sql) `challenges.host_tier`(individual/figure/org, kind와 직교)·`host_label`(주최자명). [`HostBadge.tsx`](mobile/components/HostBadge.tsx)(individual→null, ⭐명사/🏛️공식) → 현황 탭·홈 JoinCard 2곳. **명사/조직 지정 = 수동 운영 SQL만**(`update challenges set host_tier='figure', host_label='유재석' …`), 셀프서비스 없음.
+- **보류(scale-gated 🅰 — 조기 투자 금지=코드 부풀리기 방지)**: pod 연합(W3 Step2)·cap-exemption·광고+스폰서십(W4)·i18n(Phase G). **착수 트리거**는 실행 SoT의 "W3 착수 조건" 참조(첫 host 온보딩 시 cap-exemption / 한 하다 100명+·대형 유입 host 직전 = pod). W1·W2·W3-1 전부 운영 DB 적용 + OTA preview·production 완료.
+
+### 신규 코드 위치 (v2.25 — 운영자(Admin) 콘솔, 2026-07-07)
+**앱 내 운영 도구. SoT = [`docs/WORLDWIDE_EXECUTION_PLAN.md`](docs/WORLDWIDE_EXECUTION_PLAN.md) "운영자(Admin) 콘솔" + 메모 `project_admin-console`.**
+- **admin 식별 = `users.is_admin`** (mirr0505@gmail.com만 true, [`0059_admin.sql`](supabase/migrations/0059_admin.sql) seed). 추가 = `update users set is_admin=true where email='…'`.
+- DB: [`0059_admin.sql`](supabase/migrations/0059_admin.sql) — `is_admin()` SECURITY DEFINER 헬퍼 + admin RPC 6종(`admin_list_reports`·`admin_set_content_hidden`·`admin_resolve_report`·`admin_list_hidden`·`admin_set_host_tier`·`admin_search_challenges`). 신고·숨김은 0047 재활용(target_type↔테이블 매핑 = `apply_report_autohide` 미러). db.ts 래퍼 7종(`fetchIsAdmin`·`adminListReports`·…).
+- 🔒 **보안 불변식**: admin RPC는 전부 SECURITY DEFINER라 RLS 우회 → **반드시 첫 줄 `is_admin()` 검사, 아니면 raise**(게이트 없으면 아무 로그인 사용자나 전체 신고·콘텐츠 열람/수정 = 치명적). 클라 게이트는 UX용. **새 admin RPC 추가 시 무조건 is_admin() 먼저.**
+- UI: [`admin.tsx`](mobile/app/admin.tsx)(checking/ok/denied 방어) + [`components/admin/`](mobile/components/admin/) `ReportQueue`(신고큐)·`HostTierAssign`(명사/조직 지정)·`HiddenRestore`(숨김 복구). 진입점 = 프로필 하단 "🛠 운영자 콘솔"(is_admin만). Phase A 스코프. Phase B(후속) = ban·운영지표·결제(당장 SQL). 0059 적용 + OTA 완료.
+
+### 신규 코드 위치 (v2.26 — 파장 = 기여 피드 재설계, 2026-07-08)
+**파장 탭이 "숫자 대시보드"→"피드"로 진화(WaveLayer 삭제). "자랑질과의 화해": 좋아요 없이 '움직인 사람 수'가 화폐. SoT=[`docs/WORLDWIDE_EXECUTION_PLAN.md`](docs/WORLDWIDE_EXECUTION_PLAN.md) "W1-b".**
+- 🎨 **비주얼 규칙(엄수)**: 데코 이모지 금지 → **lucide 라인 아이콘만**(네비바 톤). **신규 색 금지** → tokens 기존 팔레트만(응원4+평가4=8색 외 X), 피드=중립+브랜드 오렌지, 색은 반응 활성 상태만.
+- **v1 자동 이벤트**: DB=[`0060_parang_feed.sql`](supabase/migrations/0060_parang_feed.sql) `parang_feed()` SECURITY DEFINER(참조∪완주∪기부, 신원 0). [`FeedCard.tsx`](mobile/components/parang/FeedCard.tsx)(Repeat/Trophy/HeartHandshake). db=`fetchParangFeed`. parang.tsx=슬림 3수치 스트립+FlatList 피드.
+- **v2 사용자 글+반응**: DB=[`0061_parang_posts.sql`](supabase/migrations/0061_parang_posts.sql) — proofs/logs `share_to_parang`·`parang_anon` 컬럼 + `parang_reactions`(용기받았어요, 본인만 RLS) + `parang_posts()` RPC(**익명이면 author null**, 비익명은 의도된 신원 노출). UI=[`PostCard.tsx`](mobile/components/parang/PostCard.tsx)(User/Footprints/Heart). 인증([`checkin/[id].tsx`](mobile/app/checkin/[id].tsx))·기록([`LogTab.tsx`](mobile/components/challenge/LogTab.tsx) `createLog`) 작성에 **"파장에 나누기"+"익명" 토글**(기본 OFF, **updateLog 제외**). 반응=나도할래요(→`create?ref=` 따라하기 0050 재활용)·용기받았어요(toggle). **좋아요·랭킹 없음**, "움직인 수"=reference_count 은은하게.
+- 중복: donation·reference는 파장 고유, completion은 해냈어요와 소재 겹치나 altitude 달라 **유지(ⓐ)**. 0060·0061 적용 + OTA preview·production 완료.
+
+### 신규 코드 위치 (v2.27 — 알림·완주이야기·기록·다짐·파장 다듬기, 2026-07-08)
+**전부 클라 위주(파장 사진만 마이그레이션). 실기기 확인 완료. OTA preview·production 배포 완료.**
+- **아침 인사 앱 내 노출**: 08시 로컬 "아침 인사"(요일별 7개, [`notifications.ts`](mobile/lib/notifications.ts))가 배너에 텍스트 없이 "Do:하다"만 뜬 건 **iOS "미리보기 표시: 안 함"** 설정 탓(앱 버그 아님, 코드로 못 덮음 → 메모 `reference_ios-notif-show-previews`). 해법=알림 탭 시 홈에서 그날 인사말 노출: [`notifications.ts`](mobile/lib/notifications.ts) `todayGreeting()`(요일별 단일소스) + [`_layout.tsx`](mobile/app/_layout.tsx) 로컬 알림 탭 → `홈?greet=<ts>`(워밍 탭도 홈 이동 확실화) + [`home.tsx`](mobile/app/(tabs)/home.tsx) 상단 인사말 카드(× 닫기). 아침 인사는 서버푸시 아님(data.kind 없음 → 알림함 안 열림).
+- **완주이야기 위계 반전**: [`done/[id].tsx`](mobile/app/done/[id].tsx) — 이 화면의 **주 행동 = "용기 받았어요"**(읽은 이가 글쓴이에게 되돌리는 제스처)로 격상: 주황 2px 테두리·전폭·큰 버튼(활성=주황 채움), **카운트 0·1 항상 노출**(`용기 받았어요 · N`). "나도 시작하기" CTA는 **보조 아웃라인**으로 낮춤. (메모 `project_completion-story-hierarchy` — 위계 반전 금지)
+- **기록 이어보기 정밀 착지**: [`record.tsx`](mobile/app/(tabs)/record.tsx) "이어 보기" → `?tab=log&logId=${log.id}`(맨 위 아님, 그 기록 카드로 스크롤 포커스 — 알림 딥링크 인프라 재사용). 5탭 컨텍스트 보존 사상 유지(단일 상세 라우트 안 만듦).
+- **오늘 다짐/회고 카드 홈→내 하다 이동**: 개인적 다짐 = 내 하다 맥락. [`home.tsx`](mobile/app/(tabs)/home.tsx)에서 제거 → [`my-challenges.tsx`](mobile/app/(tabs)/my-challenges.tsx) FlatList `ListHeaderComponent`(제목 바로 밑·paddingHorizontal 20 카드 너비 일치·내 하다 0개면 숨김) + 다짐 카드 아래 구분선. [`DailyRhythmCard.tsx`](mobile/components/home/DailyRhythmCard.tsx) 완료상태 배경 흰색→**accent50 틴트**(흰 챌린지 카드와 구분). **①지금 함께(PresenceLine)·③동료 회고(FellowReflections)는 홈 유지**(쓰기=내 하다 / 읽기·목격=홈).
+- **파장 3종 다듬기**: ① 사진 여러 장 — [`0062_parang_photo_urls.sql`](supabase/migrations/0062_parang_photo_urls.sql) `parang_posts()` drop·재생성으로 `photo_urls[]` 반환(폴백 `[photo_url]`) + [`db.ts`](mobile/lib/db.ts) `ParangPost.photo_urls` + [`PostCard.tsx`](mobile/components/parang/PostCard.tsx) `PhotoCarousel`(방·홈처럼 좌우 스와이프). ② 누적=이벤트 30+글 30 최신순 병합, 무한스크롤 없음(오래된 건 조회 제외, 정상). ③ 나열식 개선=**위계 차등**: [`FeedCard.tsx`](mobile/components/parang/FeedCard.tsx) 자동 이벤트를 테두리·흰배경 없는 **옅은 앰비언트 라인**(작은 아이콘·sub 톤)으로 낮춰 사용자 글(PostCard)이 주인공. **⚠️ 0062 migration 먼저**(운영 적용 완료) → OTA.
+- **파장 반응 위계(PostCard)**: [`PostCard.tsx`](mobile/components/parang/PostCard.tsx) — "용기받았어요"를 **좌측·주 버튼**(브랜드 테두리·굵은 글씨, 활성=주황 채움), "나도 할래요"를 **우측 끝·보조**(중립 테두리·흐린 글씨)로. `justify-content: space-between`. 완주이야기 위계와 동일 결(주 메시지=글쓴이에게 용기 되돌리기).
+- **홈 "오늘의 인증" 카드 딥링크**: [`home.tsx`](mobile/app/(tabs)/home.tsx) `TodayProofCard` 탭 → `?tab=proof&proofId=${proof.id}`(방 인증 탭에서 그 인증글로 스크롤 포커스 — 기록 이어보기와 동일 인프라). 기존엔 `/room/${challenge_id}` 로만 가 엉뚱한 화면.
+- **지금 함께(PresenceLine) 문구·정렬**: [`PresenceLine.tsx`](mobile/components/home/PresenceLine.tsx) — "지금 N명…각자의 하다를" → **"최근 30분, 동료 N명이 함께 걷고 있어요."**(30분 활동 = 정직·명료) + `alignSelf:flex-start` 제거·`marginHorizontal:20`(peekBar·카드와 정렬, 좌측 치우침 해소).
+- **업데이트 소식 모달**: OTA는 조용히 적용돼 테스터가 업데이트를 모름 + iOS 외부채널 없음 → 앱 내 유일 알림. [`releaseNotes.ts`](mobile/lib/releaseNotes.ts) `RELEASE_NOTE`(tag·lines·tip) + [`WhatsNewModal.tsx`](mobile/components/WhatsNewModal.tsx)(홈 마운트, tag 바뀌면 1회 노출→SecureStore 저장). **운용=알릴 소식 있는 OTA만 tag 갱신**(조용히 낼 땐 tag 유지, 정식 땐 tag=''). tip에 강제종료 2회 안내. (메모 `project_update-news-modal`)
+
 ### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.
 - 인증 완료 Alert / 카톡 초대 / 생성 후 Alert / 챌린지방 헤더 부제 / FAB 라벨 — 모두 분류별 분기 완료
@@ -369,12 +403,40 @@ UI/UX, 네비게이션, 디자인 토큰 적용, 빈 상태 화면 등은 Expo G
 
 ## 작업 흐름
 
-- 모든 작업은 메인 세션이 직접 수행한다 (서브에이전트 위임 없음).
+- 구현(코드 작성·수정·테스트 작성)은 Worker(Opus 4.8 서브에이전트)에게 위임한다 — 「모델 역할 분담」 참조.
 - 한 STEP(통합기획서 Week 단위) 안에서 자유롭게 진행 가능. Day 캘린더에
   강제로 맞추지 않는다. **흐름이 끊기지 않게 한 번에 쭉 진행하는 것이 우선.**
 - 큰 수정은 AS-IS→TO-BE 보고 후 진행, 작은 수정은 바로 진행 후 한 줄 보고.
-- 정책·미성년자·박제·결제·검수 검토는 통합기획서 8장 기준으로 메인이 직접 점검.
+- 정책·미성년자·박제·결제·검수 검토는 통합기획서 8장 기준으로 Advisor(메인)가 직접 점검.
 - 진척 변경 시 통합기획서 D.10 (v4.0.1 이후 이력) 또는 별도 PROGRESS.md에 갱신.
+
+---
+
+## 모델 역할 분담: Advisor / Worker
+
+메인 세션(Fable 5)은 **Advisor** — 판단에 집중하고 구현 노동은 Worker(Opus 4.8 서브에이전트)에게 위임한다.
+
+### Advisor(메인 세션)가 직접 하는 일
+- 요구사항 분석, 작업 분해, 설계 결정
+- Worker에게 줄 작업 브리프 작성
+- 결과 검증: diff 직접 확인, 테스트 직접 실행
+- 최종 커밋 승인, 사용자 보고
+
+### Worker(Opus 4.8 서브에이전트)에게 위임하는 일
+- 코드 작성·수정, 테스트 작성 등 구현 작업 전부
+- `Agent` 도구로 위임하고 `model`은 `"opus"`를 지정한다
+- 서로 독립적인 작업은 한 메시지에서 병렬로 위임한다
+
+### 브리프 기준 (토큰 절약의 핵심)
+- **Advisor가 이미 파악한 컨텍스트(파일 경로·관련 함수·원인)를 브리프에 담아 Worker가 재탐색하지 않게 한다.** 재탐색이 최대 토큰 낭비원.
+- 프로젝트 컨벤션, 알려진 함정, 완료 기준(통과해야 할 테스트·tsc 0)을 명시한다.
+- 브리프는 필요한 것만 — 무관한 배경 설명으로 부풀리지 않는다.
+
+### 경계 (무분별한 위임·토큰 낭비 방지)
+- **한두 줄 수정·텍스트/문서 편집처럼 위임 오버헤드가 더 큰 작업은 Advisor가 직접 처리한다.** 위임 자체가 토큰을 쓴다 — 작은 일에 Worker를 부르지 않는다.
+- Worker의 완료 보고를 그대로 믿지 않는다. diff와 테스트로 직접 확인한 뒤 승인한다.
+- 검증 실패는 **수정 브리프로 재위임**한다. Advisor의 직접 수정은 사소한 마무리에만 허용.
+- 같은 범위를 Worker에게 맡겼으면 Advisor가 중복으로 다시 탐색·구현하지 않는다.
 
 ---
 

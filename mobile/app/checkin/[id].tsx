@@ -4,12 +4,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, Pressable, TextInput, StyleSheet, Alert, Image,
-  ActivityIndicator, AppState, Platform, KeyboardAvoidingView,
+  ActivityIndicator, AppState, Platform, KeyboardAvoidingView, Switch,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
-import { X, Camera, Image as ImageIcon } from 'lucide-react-native';
+import { X, Camera, Image as ImageIcon, Waves } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
@@ -29,6 +29,8 @@ export default function CheckinScreen() {
   const [cameraMode, setCameraMode] = useState(true);         // 카메라 촬영 vs 선택 사진 검토
   const [reviewIndex, setReviewIndex] = useState(0);          // 검토 중 보고 있는 장
   const [caption, setCaption] = useState('');
+  const [shareToParang, setShareToParang] = useState(false);   // 🚀 파장에 나누기 (기본 OFF)
+  const [parangAnon, setParangAnon] = useState(false);         // 🚀 익명으로 나누기 (공유 켠 경우만)
   const [submitting, setSubmitting] = useState(false);
   const [pickerBusy, setPickerBusy] = useState(false);   // ImagePicker 호출 동안 CameraView unmount (native UI 충돌 방지)
   const MAX_PROOF_PHOTOS = 3;
@@ -173,6 +175,8 @@ export default function CheckinScreen() {
           photo_url: urls[0],
           photo_urls: urls,
           caption: caption.trim() || null,
+          share_to_parang: shareToParang,                          // 🚀 파장 나누기 (기본 false)
+          parang_anon: shareToParang ? parangAnon : false,         // 공유 안 하면 익명 플래그 무의미
         }).select('streak_count').maybeSingle();   // maybeSingle: RLS 로 못 돌려받아도 인증 자체는 성공 처리
         if (error) throw error;
         // 🚀 연속 인증 마일스톤(3·7·21…)이면 등록 즉시 알럿에서 축하 — 메달은 게시글에도 그대로 부착
@@ -298,6 +302,36 @@ export default function CheckinScreen() {
         </View>
       )}
 
+      {/* 🚀 파장에 나누기 — 인증 검토 화면 하단 한 줄. ON 이면 익명 서브 토글 노출 (기본 OFF) */}
+      {!cameraMode && photoUris.length > 0 && (
+        <View style={styles.parangBox}>
+          <View style={styles.parangRow}>
+            <Waves size={18} color={shareToParang ? colors.accent : colors.primary300} strokeWidth={1.8} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.parangLabel}>파장에 나누기</Text>
+              <Text style={styles.parangHint}>이 순간을 세상과 나눠요</Text>
+            </View>
+            <Switch
+              value={shareToParang}
+              onValueChange={setShareToParang}
+              disabled={submitting}
+              trackColor={{ false: 'rgba(255,255,255,0.2)', true: colors.accent }}
+            />
+          </View>
+          {shareToParang && (
+            <View style={[styles.parangRow, styles.parangSubRow]}>
+              <Text style={[styles.parangLabel, { flex: 1 }]}>익명으로 나누기</Text>
+              <Switch
+                value={parangAnon}
+                onValueChange={setParangAnon}
+                disabled={submitting}
+                trackColor={{ false: 'rgba(255,255,255,0.2)', true: colors.accent }}
+              />
+            </View>
+          )}
+        </View>
+      )}
+
       <View style={styles.bottom}>
         {!cameraMode && photoUris.length > 0 ? (
           <View style={{ gap: 8 }}>
@@ -410,6 +444,30 @@ const styles = StyleSheet.create({
   },
   addBtnText: { color: colors.surface, fontSize: fontSize.sm, fontFamily: fontFamily.medium, fontWeight: fontWeight.medium },
   captionBox: { paddingHorizontal: 16, paddingBottom: 12 },
+  // 🚀 파장에 나누기 토글 (다크 화면 — 흰 텍스트 + 브랜드 accent 활성)
+  parangBox: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: radius.md,
+    gap: 10,
+  },
+  parangRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  parangSubRow: { paddingLeft: 30 },   // 아이콘 폭만큼 들여써 서브 토글임을 표시
+  parangLabel: {
+    fontSize: fontSize.base,
+    color: colors.surface,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
+  },
+  parangHint: {
+    fontSize: fontSize.xs,
+    color: colors.primary300,
+    fontFamily: fontFamily.regular,
+    marginTop: 2,
+  },
   captionInput: {
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: radius.md,

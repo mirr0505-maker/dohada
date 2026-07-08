@@ -1,11 +1,11 @@
-// 🚀 5탭 bottom navigation (v2.5 SNS-first 재설계)
-// 탭: 홈 (피드) / 내도전 / + (가운데 큰 버튼) / 기록 / 해냈어요
-// + 탭은 listener 로 /create 모달 트리거.
+// 🚀 5탭 bottom navigation (탭바 재구성)
+// 탭: 홈 (피드) / 내도전 / 파장 / 기록 / 해냈어요
+// 생성(+)은 하단 탭이 아닌 우하단 FAB 로 이동 — 눌러 /create 모달 트리거.
 // profile 탭 제거 — MY 는 우상단 아바타로 일원화 (AppHeader).
 import React, { useEffect, useState } from 'react';
 import { Tabs, router } from 'expo-router';
-import { View, Platform } from 'react-native';
-import { House, Flag, Plus, Film, Trophy } from 'lucide-react-native';
+import { View, Pressable, Platform } from 'react-native';
+import { House, Flag, Waves, Plus, Film, Trophy } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { colors, fontFamily, fontSize, fontWeight, shadow } from '@/lib/tokens';
@@ -41,7 +41,11 @@ export default function TabsLayout() {
     SecureStore.setItemAsync(DONE_SEEN_KEY, new Date().toISOString()).catch(() => {});
   };
 
+  // 🚀 FAB 위치 — 탭바 높이 위로 띄운다 (Android edge-to-edge 인셋 재사용)
+  const tabBarHeight = Platform.OS === 'ios' ? 84 : 56 + androidBottomPad;
+
   return (
+    <View style={{ flex: 1 }}>
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -82,32 +86,12 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="create-tab"
+        name="parang"
         options={{
-          title: '',
-          tabBarAccessibilityLabel: '하다 만들기',
-          tabBarIcon: () => (
-            <View style={{
-              width: 52,
-              height: 52,
-              borderRadius: 26,
-              backgroundColor: colors.brand,
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginTop: -18,   // tabBar 위로 살짝 돌출
-              ...shadow.lg,
-            }}>
-              <Plus size={28} color={colors.onBrand} strokeWidth={2.5} />
-            </View>
+          title: '파장',
+          tabBarIcon: ({ color }) => (
+            <Waves size={TAB_ICON_SIZE} color={color} strokeWidth={1.8} />
           ),
-          tabBarLabel: () => null,
-        }}
-        listeners={{
-          tabPress: (e) => {
-            e.preventDefault();
-            haptic.tap();
-            router.push('/create');
-          },
         }}
       />
       <Tabs.Screen
@@ -143,9 +127,32 @@ export default function TabsLayout() {
           tabPress: markDoneSeen,
         }}
       />
-      {/* discover / profile 은 v2.5 에서 탭 X — 라우트는 직접 접근 가능 유지 */}
+      {/* create-tab / discover / profile 은 탭 X — 라우트는 직접 접근 가능 유지 */}
+      <Tabs.Screen name="create-tab" options={{ href: null }} />
       <Tabs.Screen name="discover" options={{ href: null }} />
       <Tabs.Screen name="profile"  options={{ href: null }} />
     </Tabs>
+
+      {/* 🚀 하다 만들기 FAB — 우하단 플로팅, 탭바 위로 뜬다 */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="하다 만들기"
+        onPress={() => { haptic.tap(); router.push('/create'); }}
+        style={{
+          position: 'absolute',
+          right: 20,
+          bottom: tabBarHeight + 16,
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          backgroundColor: colors.brand,
+          alignItems: 'center',
+          justifyContent: 'center',
+          ...shadow.lg,
+        }}
+      >
+        <Plus size={28} color={colors.onBrand} strokeWidth={2.5} />
+      </Pressable>
+    </View>
   );
 }

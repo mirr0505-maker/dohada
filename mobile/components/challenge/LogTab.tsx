@@ -4,7 +4,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, TextInput, Pressable, StyleSheet, FlatList, Modal,
-  KeyboardAvoidingView, Platform, Alert, Image, ScrollView,
+  KeyboardAvoidingView, Platform, Alert, Image, ScrollView, Switch,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -15,7 +15,7 @@ import {
 import { uploadProofImage } from '@/lib/upload';
 import { PhotoViewer } from '@/components/PhotoViewer';
 import { PhotoCarousel } from '@/components/PhotoCarousel';
-import { Flag, Heart, Film, EyeOff, MessageCircle, Camera, Image as ImageIcon, X } from 'lucide-react-native';
+import { Flag, Heart, Film, EyeOff, MessageCircle, Camera, Image as ImageIcon, X, Waves } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { haptic } from '@/lib/haptics';
 import { LogCommentsSheet } from './LogCommentsSheet';
@@ -249,6 +249,11 @@ export function LogTab({
         logId={activeLogId}
         writeLocked={writeLocked}
         myUserId={myUserId}
+        // 🚀 맥락 헤더 — 어떤 기록에 다는 댓글인지 (대화 탭과 구분)
+        target={(() => {
+          const l = logs.find(x => x.id === activeLogId);
+          return l ? { photoUrl: l.photo_url, title: l.title, authorName: l.author?.nickname ?? '동료' } : null;
+        })()}
         onClose={() => setActiveLogId(null)}
         onCountChange={(lid, delta) => {
           setLogs(prev => prev.map(x =>
@@ -382,8 +387,13 @@ function LogCard({
         </Pressable>
         {canComment && (
           <Pressable style={styles.likeBtn} onPress={onComment} hitSlop={6}>
-            <MessageCircle size={18} color={colors.faint} strokeWidth={1.8} />
-            <Text style={styles.likeCount}>{log.comment_count}</Text>
+            {/* 댓글 있으면 말풍선·숫자를 브랜드 톤으로 (0이면 회색 그대로) */}
+            <MessageCircle
+              size={18}
+              color={log.comment_count > 0 ? colors.brand : colors.faint}
+              strokeWidth={1.8}
+            />
+            <Text style={[styles.likeCount, log.comment_count > 0 && { color: colors.brandInk }]}>{log.comment_count}</Text>
           </Pressable>
         )}
       </View>
@@ -425,9 +435,11 @@ function LogComposer({
   const [content, setContent] = useState('');
   const [photoUris, setPhotoUris] = useState<string[]>([]);   // 🚀 0045: 기록 사진 최대 4장
   const [saving, setSaving] = useState(false);
+  const [shareToParang, setShareToParang] = useState(false);   // 🚀 파장에 나누기 (작성 시에만)
+  const [parangAnon, setParangAnon] = useState(false);
 
   const MAX_LOG_PHOTOS = 4;
-  const reset = () => { setTitle(''); setContent(''); setPhotoUris([]); };
+  const reset = () => { setTitle(''); setContent(''); setPhotoUris([]); setShareToParang(false); setParangAnon(false); };
 
   // 수정 모드 진입 시 기존 값 채우기
   useEffect(() => {
@@ -505,7 +517,7 @@ function LogComposer({
       if (editingLog) {
         await updateLog({ logId: editingLog.id, title, content, photoUrls });
       } else {
-        await createLog({ challengeId, userId: myUserId, title, content, photoUrls });
+        await createLog({ challengeId, userId: myUserId, title, content, photoUrls, shareToParang, parangAnon });
       }
       haptic.success();
       reset();
@@ -605,6 +617,36 @@ function LogComposer({
             editable={!saving}
           />
           <Text style={styles.counter}>{content.length} / 4000</Text>
+
+          {/* 🚀 파장에 나누기 — 이 기록을 공개 파장 피드로. 작성 시에만(수정 X), 기본 OFF */}
+          {!editingLog && (
+            <View style={styles.parangBox}>
+              <View style={styles.parangRow}>
+                <Waves size={18} color={shareToParang ? colors.brand : colors.sub} strokeWidth={1.8} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.parangLabel}>파장에 나누기</Text>
+                  <Text style={styles.parangHint}>이 순간을 세상과 나눠요</Text>
+                </View>
+                <Switch
+                  value={shareToParang}
+                  onValueChange={setShareToParang}
+                  disabled={saving}
+                  trackColor={{ false: colors.primary100, true: colors.brand }}
+                />
+              </View>
+              {shareToParang && (
+                <View style={[styles.parangRow, styles.parangSubRow]}>
+                  <Text style={[styles.parangLabel, { flex: 1 }]}>익명으로 나누기</Text>
+                  <Switch
+                    value={parangAnon}
+                    onValueChange={setParangAnon}
+                    disabled={saving}
+                    trackColor={{ false: colors.primary100, true: colors.brand }}
+                  />
+                </View>
+              )}
+            </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </Modal>
@@ -872,5 +914,27 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     color: colors.primary500,
     fontFamily: fontFamily.regular,
+  },
+  // 🚀 파장에 나누기 토글 박스
+  parangBox: {
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.primary100,
+    paddingTop: 16,
+    gap: 12,
+  },
+  parangRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  parangSubRow: { paddingLeft: 30 },   // 아이콘 폭만큼 들여써 서브 토글임을 표시
+  parangLabel: {
+    fontSize: fontSize.base,
+    color: colors.primary,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
+  },
+  parangHint: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+    marginTop: 2,
   },
 });
