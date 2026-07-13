@@ -619,7 +619,8 @@ export interface ParangPost {
   author_nickname: string | null;      // 익명이면 null → 클라가 "어떤 이의 걸음"
   author_avatar: string | null;        // 익명이면 null
   reference_count: number;             // 이 하다를 따라 시작한 사람 수(은은한 "움직인 수")
-  courage_count: number;               // 용기받았어요 집계
+  courage_count: number;               // 공명해요 집계
+  comment_count: number;               // 🚀 0063: 숨김 아닌 댓글 수
   mine_couraged: boolean;              // 내 반응 여부
   created_at: string;
 }
@@ -651,6 +652,59 @@ export async function toggleParangCourage(args: {
       .insert({ target_type: args.postType, target_id: args.postId, user_id: args.userId });
     if (error) throw error;
   }
+}
+
+// 🚀 공명 글 댓글 (0063) — 익명 토글 · SNS형 하단 댓글. 익명이면 작성자 null.
+export type ParangComment = {
+  id: string;
+  content: string;
+  anon: boolean;
+  author_nickname: string | null;   // 익명이면 null → 클라가 "어떤 이"
+  author_avatar: string | null;
+  mine: boolean;                     // 내 댓글인지 (삭제 노출용)
+  created_at: string;
+};
+
+// 한 글의 댓글 목록 — SECURITY DEFINER RPC(익명 신원 숨김·차단·숨김 필터 내부 처리).
+export async function fetchParangComments(
+  postType: 'proof' | 'log',
+  postId: string,
+): Promise<ParangComment[]> {
+  const { data, error } = await supabase.rpc('parang_comments', {
+    p_target_type: postType,
+    p_target_id: postId,
+  });
+  if (error) throw error;
+  return (data ?? []) as ParangComment[];
+}
+
+// 댓글 작성 — 검수(block→차단) 후 insert. anon 기본 true(기본 익명).
+export async function addParangComment(args: {
+  postType: 'proof' | 'log';
+  postId: string;
+  userId: string;
+  content: string;
+  anon?: boolean;
+}): Promise<void> {
+  const trimmed = args.content.trim();
+  if (!trimmed) throw new Error('내용을 입력해주세요.');
+  if (trimmed.length > 200) throw new Error('200자 이내로 적어주세요.');
+  const hidden = await moderateUgcText(trimmed);   // 🚀 검수 (block→throw)
+  const { error } = await supabase.from('parang_comments').insert({
+    target_type: args.postType,
+    target_id: args.postId,
+    user_id: args.userId,
+    content: trimmed,
+    anon: args.anon ?? true,
+    hidden,
+  });
+  if (error) throw error;
+}
+
+// 내 댓글 삭제 (RLS 본인 한정)
+export async function deleteParangComment(id: string): Promise<void> {
+  const { error } = await supabase.from('parang_comments').delete().eq('id', id);
+  if (error) throw error;
 }
 
 // ─── 카테고리 시스템 (0007 categories + subcategories) ─

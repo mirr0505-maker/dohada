@@ -59,7 +59,7 @@ export default function ParangScreen() {
       <View style={styles.intro}>
         <View style={styles.titleRow}>
           <Waves size={22} color={colors.sub} strokeWidth={1.8} />
-          <Text style={styles.title}>파장</Text>
+          <Text style={styles.title}>공명</Text>
         </View>
         <Text style={styles.sub}>당신의 한 걸음이 번져가는 곳</Text>
       </View>
@@ -102,12 +102,12 @@ export default function ParangScreen() {
           ListHeaderComponent={header}
           ListEmptyComponent={
             <Text style={styles.empty}>
-              아직 번진 파장은 조용해요.{'\n'}작은 걸음 하나가 곧 물결이 돼요.
+              아직 번진 공명은 조용해요.{'\n'}작은 걸음 하나가 곧 물결이 돼요.
             </Text>
           }
           ListFooterComponent={
             feed.length > 0
-              ? <Text style={styles.footNote}>파장은 겨루는 점수가 아니라, 조용히 번지는 이야기예요.</Text>
+              ? <Text style={styles.footNote}>공명은 겨루는 점수가 아니라, 조용히 번지는 이야기예요.</Text>
               : null
           }
           contentContainerStyle={styles.scroll}

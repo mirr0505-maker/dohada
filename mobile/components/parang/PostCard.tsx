@@ -4,13 +4,15 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { User, Footprints, Heart } from 'lucide-react-native';
+import { User, Footprints, Heart, MessageCircle } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { toggleParangCourage, type ParangPost } from '@/lib/db';
 import { formatCheerCount } from '@/lib/format';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { haptic } from '@/lib/haptics';
 import { PhotoCarousel } from '@/components/PhotoCarousel';
+import { PhotoViewer } from '@/components/PhotoViewer';
+import { ParangComments } from './ParangComments';
 
 export function PostCard({ post }: { post: ParangPost }) {
   const router = useRouter();
@@ -22,6 +24,9 @@ export function PostCard({ post }: { post: ParangPost }) {
   const [userId, setUserId] = useState<string | null>(null);
   const [couraged, setCouraged] = useState(post.mine_couraged);
   const [count, setCount] = useState(post.courage_count);
+  const [showComments, setShowComments] = useState(false);
+  const [commentCount, setCommentCount] = useState(post.comment_count);
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);   // 사진 전체화면 뷰어
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user.id ?? null));
   }, []);
@@ -75,18 +80,23 @@ export function PostCard({ post }: { post: ParangPost }) {
       {post.body ? <Text style={styles.body}>{post.body}</Text> : null}
 
       {photos.length > 0 ? (
-        <PhotoCarousel photos={photos} aspectRatio={4 / 3} borderRadius={radius.lg} />
+        <PhotoCarousel
+          photos={photos}
+          aspectRatio={4 / 3}
+          borderRadius={radius.lg}
+          onPressPhoto={(i) => setViewerIndex(i)}
+        />
       ) : null}
 
       {/* 은은한 "움직인 수" — 좋아요 아닌, 조용히 번진 걸음의 흔적 */}
       <Text style={styles.ripple}>
         {post.reference_count > 0
-          ? `이 걸음을 따라 ${formatCheerCount(post.reference_count)}명이 시작했어요`
+          ? `이 공명에 ${formatCheerCount(post.reference_count)}명이 반응했어요`
           : '아직 조용하지만, 누군가 보고 있어요'}
       </Text>
 
-      {/* 반응 — 용기받았어요(주, 좌측·강조) · 나도 할래요(보조, 우측 끝).
-          이 화면의 주 메시지 = 글쓴이에게 용기 되돌리기 (완주이야기 위계와 동일 결). */}
+      {/* 반응 — 공명해요(주, 좌측·강조) · 나도 할래요(보조, 우측 끝).
+          공명 = 이 걸음에 마음이 울렸다는 되돌림 (완주이야기 위계와 동일 결). */}
       <View style={styles.actions}>
         <Pressable style={[styles.courageBtn, couraged && styles.courageBtnOn]} onPress={onCourage} hitSlop={6}>
           <Heart
@@ -96,7 +106,7 @@ export function PostCard({ post }: { post: ParangPost }) {
             fill={couraged ? colors.surface : 'none'}
           />
           <Text style={[styles.courageText, couraged && styles.courageTextOn]}>
-            용기받았어요{count > 0 ? ` ${formatCheerCount(count)}` : ''}
+            공명해요{count > 0 ? ` ${formatCheerCount(count)}` : ''}
           </Text>
         </Pressable>
 
@@ -109,6 +119,32 @@ export function PostCard({ post }: { post: ParangPost }) {
           <Text style={styles.followText}>나도 할래요</Text>
         </Pressable>
       </View>
+
+      {/* 댓글 — "댓글 N개" 탭 → 그 자리 인라인 펼침 (모달 아님) */}
+      <Pressable
+        style={styles.commentToggle}
+        onPress={() => { haptic.tap(); setShowComments(s => !s); }}
+        hitSlop={6}
+      >
+        <MessageCircle size={15} color={colors.sub} strokeWidth={1.8} />
+        <Text style={styles.commentToggleText}>
+          {commentCount > 0 ? `댓글 ${formatCheerCount(commentCount)}개` : '댓글 달기'}
+        </Text>
+      </Pressable>
+      {showComments ? (
+        <ParangComments
+          postType={post.post_type}
+          postId={post.post_id}
+          userId={userId}
+          onCountChange={setCommentCount}
+        />
+      ) : null}
+
+      <PhotoViewer
+        photos={viewerIndex !== null ? photos : null}
+        initialIndex={viewerIndex ?? 0}
+        onClose={() => setViewerIndex(null)}
+      />
     </View>
   );
 }
@@ -170,4 +206,6 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
   },
   followText: { fontSize: fontSize.sm, color: colors.sub, fontFamily: fontFamily.medium, fontWeight: fontWeight.medium },
+  commentToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 2 },
+  commentToggleText: { fontSize: fontSize.sm, color: colors.sub, fontFamily: fontFamily.medium, fontWeight: fontWeight.medium },
 });

@@ -308,7 +308,7 @@ export default function CheckinScreen() {
           <View style={styles.parangRow}>
             <Waves size={18} color={shareToParang ? colors.accent : colors.primary300} strokeWidth={1.8} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.parangLabel}>파장에 나누기</Text>
+              <Text style={styles.parangLabel}>공명에 나누기</Text>
               <Text style={styles.parangHint}>이 순간을 세상과 나눠요</Text>
             </View>
             <Switch
