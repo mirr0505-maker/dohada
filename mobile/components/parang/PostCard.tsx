@@ -88,12 +88,13 @@ export function PostCard({ post }: { post: ParangPost }) {
         />
       ) : null}
 
-      {/* 은은한 "움직인 수" — 좋아요 아닌, 조용히 번진 걸음의 흔적 */}
-      <Text style={styles.ripple}>
-        {post.reference_count > 0
-          ? `이 공명에 ${formatCheerCount(post.reference_count)}명이 반응했어요`
-          : '아직 조용하지만, 누군가 보고 있어요'}
-      </Text>
+      {/* 은은한 "움직인 수" — 좋아요 아닌, 조용히 번진 걸음의 흔적.
+          reference>0=따라 시작 / 둘 다 0=아직 조용 / 공명해요만 있으면 라인 숨김(모순 방지, count 는 로컬 반영) */}
+      {post.reference_count > 0 ? (
+        <Text style={styles.ripple}>이 공명에 {formatCheerCount(post.reference_count)}명이 반응했어요</Text>
+      ) : count === 0 ? (
+        <Text style={styles.ripple}>아직 조용하지만, 누군가 보고 있어요</Text>
+      ) : null}
 
       {/* 반응 — 공명해요(주, 좌측·강조) · 나도 할래요(보조, 우측 끝).
           공명 = 이 걸음에 마음이 울렸다는 되돌림 (완주이야기 위계와 동일 결). */}
@@ -126,8 +127,8 @@ export function PostCard({ post }: { post: ParangPost }) {
         onPress={() => { haptic.tap(); setShowComments(s => !s); }}
         hitSlop={6}
       >
-        <MessageCircle size={15} color={colors.sub} strokeWidth={1.8} />
-        <Text style={styles.commentToggleText}>
+        <MessageCircle size={15} color={commentCount > 0 ? colors.brand : colors.sub} strokeWidth={1.8} />
+        <Text style={[styles.commentToggleText, commentCount > 0 && styles.commentToggleTextOn]}>
           {commentCount > 0 ? `댓글 ${formatCheerCount(commentCount)}개` : '댓글 달기'}
         </Text>
       </Pressable>
@@ -208,4 +209,5 @@ const styles = StyleSheet.create({
   followText: { fontSize: fontSize.sm, color: colors.sub, fontFamily: fontFamily.medium, fontWeight: fontWeight.medium },
   commentToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 2 },
   commentToggleText: { fontSize: fontSize.sm, color: colors.sub, fontFamily: fontFamily.medium, fontWeight: fontWeight.medium },
+  commentToggleTextOn: { color: colors.brand, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
 });

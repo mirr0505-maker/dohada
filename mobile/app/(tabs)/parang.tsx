@@ -112,6 +112,8 @@ export default function ParangScreen() {
           }
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets={true}
         />
       )}
     </Screen>
