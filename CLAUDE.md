@@ -248,6 +248,16 @@
 - **지금 함께(PresenceLine) 문구·정렬**: [`PresenceLine.tsx`](mobile/components/home/PresenceLine.tsx) — "지금 N명…각자의 하다를" → **"최근 30분, 동료 N명이 함께 걷고 있어요."**(30분 활동 = 정직·명료) + `alignSelf:flex-start` 제거·`marginHorizontal:20`(peekBar·카드와 정렬, 좌측 치우침 해소).
 - **업데이트 소식 모달**: OTA는 조용히 적용돼 테스터가 업데이트를 모름 + iOS 외부채널 없음 → 앱 내 유일 알림. [`releaseNotes.ts`](mobile/lib/releaseNotes.ts) `RELEASE_NOTE`(tag·lines·tip) + [`WhatsNewModal.tsx`](mobile/components/WhatsNewModal.tsx)(홈 마운트, tag 바뀌면 1회 노출→SecureStore 저장). **운용=알릴 소식 있는 OTA만 tag 갱신**(조용히 낼 땐 tag 유지, 정식 땐 tag=''). tip에 강제종료 2회 안내. (메모 `project_update-news-modal`)
 
+### 신규 코드 위치 (v2.28 — 파장→공명 리브랜드 + 공명 인라인 댓글(0063), 2026-07-13)
+**"파장"의 UI 카피를 전부 "공명"으로 리브랜드(코드 식별자 `parang`·주석은 유지 = 하다 리브랜드 원칙, 리스크 최소) + 공명 글에 익명 인라인 댓글 추가. SoT=[`docs/WORLDWIDE_EXECUTION_PLAN.md`](docs/WORLDWIDE_EXECUTION_PLAN.md) "W1-b".**
+- **리브랜드(UI만)**: 탭명·[`parang.tsx`](mobile/app/(tabs)/parang.tsx) 화면 제목·빈 상태·푸터·인증([`checkin/[id].tsx`](mobile/app/checkin/[id].tsx))·기록([`LogTab.tsx`](mobile/components/challenge/LogTab.tsx))의 "공명에 나누기" 토글까지 사용자 노출 "파장"=0. 반응 버튼 "용기받았어요"→**"공명해요"**([`PostCard.tsx`](mobile/components/parang/PostCard.tsx)). ※ 완주이야기의 "용기 받았어요"는 별개 기능이라 유지.
+- **ripple 문구**: reference>0 → "이 공명에 N명이 반응했어요"(=따라 시작한 사람) / reference·공명해요(로컬 count) 둘 다 0 → "아직 조용하지만, 누군가 보고 있어요" / **공명해요만 있으면 라인 숨김**(모순 방지 — count 로컬 반영이라 누르면 즉시 사라짐).
+- **공명 인라인 댓글 (0063)**: DB=[`0063_parang_comments.sql`](supabase/migrations/0063_parang_comments.sql) — `parang_comments`(target proof/log·content·**anon 기본 true**·hidden) + `parang_comments()` **SECURITY DEFINER RPC**(익명이면 작성자 null·`mine` 불리언으로만 삭제 노출=**신원 역추적 차단**·차단/숨김 내부 필터) + `parang_posts()` 재생성(`comment_count` 추가). db=`fetchParangComments`·`addParangComment(anon)`·`deleteParangComment`(검수 moderateUgcText 재사용). UI=[`ParangComments.tsx`](mobile/components/parang/ParangComments.tsx)(신규) — "댓글 N개" 탭→**인라인 펼침(모달 아님)**·익명 토글 기본 ON(끄면 실명 닉네임)·**수정 없음 삭제만**. 댓글 있으면 아이콘·글씨 브랜드색 강조.
+- **사진 전체화면 복구**: PostCard 사진 탭 → `PhotoViewer`(방·홈과 동일 — PhotoCarousel `onPressPhoto` 누락됐던 것).
+- **키보드 인셋**: 공명 FlatList `automaticallyAdjustKeyboardInsets`(iOS)+`keyboardShouldPersistTaps` — 인라인 입력창 키보드 가림 해소(iOS 확인). ⚠️ Android 키보드는 미검증(edge-to-edge 별도 보정 가능성).
+- **결정(2026-07-13)**: ① 리브랜드=UI만(코드 parang 유지) ② 댓글 익명 기본 ON·per-comment 토글 ③ 인라인(모달 X)·"댓글 N개" 탭 펼침 ④ 수정 없음 삭제만 ⑤ ripple은 reference+공명해요 둘 다 0일 때만.
+- **배포 (⚠️ 0063 migration 먼저, 운영 적용 완료)**: 리브랜드 OTA → 0063 적용 → 댓글·사진 OTA → 키보드·색상 픽스 OTA. 전부 preview·production 완료. 검증 tsc 0 + npm test 71/71.
+
 ### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.
 - 인증 완료 Alert / 카톡 초대 / 생성 후 Alert / 챌린지방 헤더 부제 / FAB 라벨 — 모두 분류별 분기 완료
