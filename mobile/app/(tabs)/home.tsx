@@ -16,7 +16,7 @@ import { joinChallenge } from '@/lib/invite';
 import { Screen } from '@/components/Screen';
 import { AppHeader } from '@/components/AppHeader';
 import {
-  Telescope, ChevronRight, ChevronUp, ChevronDown, Camera, PenLine, Globe,
+  House, Telescope, ChevronRight, ChevronUp, ChevronDown, Camera, PenLine, Globe,
   Sprout, Footprints, Heart, Moon, PartyPopper, Crown, Users, User, Handshake,
   Target, Repeat, Check, type LucideIcon,
 } from 'lucide-react-native';
@@ -335,7 +335,10 @@ export default function HomeScreen() {
 
       {/* 🚀 홈 페이지 제목 — 다른 탭(내하다·구경·기록 24px)과 위계 통일 + 무게감(밋밋함 보완) */}
       <View style={styles.intro}>
-        <Text style={styles.introTitle}>오늘, 나의 하다</Text>
+        <View style={styles.titleRow}>
+          <House size={22} color={colors.sub} strokeWidth={1.8} />
+          <Text style={styles.introTitle}>오늘, 나의 하다</Text>
+        </View>
         <Text style={styles.introSub}>하다 인연들과 함께</Text>
       </View>
 
@@ -976,6 +979,7 @@ const styles = StyleSheet.create({
 
   // 🚀 홈 페이지 제목 (다른 탭 24px 제목과 위계 통일)
   intro: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 4 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   introTitle: { ...textStyle.greeting, color: colors.ink, letterSpacing: -0.5 },
   introSub: { fontSize: fontSize.sm, color: colors.faint, fontFamily: fontFamily.regular, marginTop: 3 },
 

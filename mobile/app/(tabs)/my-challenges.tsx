@@ -6,7 +6,7 @@ import {
   View, Text, Pressable, FlatList, StyleSheet, RefreshControl,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { Sprout } from 'lucide-react-native';
+import { Sprout, Flag } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { AppHeader } from '@/components/AppHeader';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -63,7 +63,10 @@ export default function MyChallengesScreen() {
     <Screen backgroundColor={colors.bg}>
       <AppHeader />
       <View style={styles.subHeader}>
-        <Text style={styles.subTitle}>내 하다</Text>
+        <View style={styles.titleRow}>
+          <Flag size={22} color={colors.sub} strokeWidth={1.8} />
+          <Text style={styles.subTitle}>내 하다</Text>
+        </View>
         <Text style={styles.subDesc}>
           {challenges.length === 0
             ? '아직 하다가 없어요. 하단 ⊕ 로 시작해볼까요?'
@@ -247,6 +250,7 @@ function computeProgress(start: string, end: string) {
 
 const styles = StyleSheet.create({
   subHeader: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   subTitle: { ...textStyle.greeting, color: colors.ink, letterSpacing: -0.5 },
   subDesc: { fontSize: fontSize.sm, color: colors.faint, fontFamily: fontFamily.regular, marginTop: 4 },
 
