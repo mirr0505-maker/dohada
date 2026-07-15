@@ -3,16 +3,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, TextInput, StyleSheet, ScrollView, Pressable,
-  KeyboardAvoidingView, Platform, Alert, ActivityIndicator, Image,
+  KeyboardAvoidingView, Platform, Alert, ActivityIndicator, Image, Linking,
 } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import {
   Timer, Zap, Sprout, Leaf, TreeDeciduous, Mountain, Star,
   Flame, CalendarDays, Calendar, Repeat, Target,
   Camera, Image as ImageIcon, MapPin,
-  Heart, User, Handshake, Globe, Check, X, type LucideIcon,
+  Heart, User, Handshake, Globe, Check, X, Landmark, Lock, type LucideIcon,
 } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
+import { CreateGuideModal } from '@/components/CreateGuideModal';
+import { SUPPORT_EMAIL } from '@/lib/support';
 import { CategoryIcon } from '@/components/CategoryIcon';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
@@ -234,6 +236,8 @@ export default function CreateChallenge() {
   return (
     <Screen backgroundColor={colors.bg}>
       <Stack.Screen options={{ headerShown: false }} />
+      {/* 🚀 하다 시작 안내 — 자체 판단으로 노출 (7일 숨김) */}
+      <CreateGuideModal />
 
       {/* 헤더 */}
       <View style={styles.header}>
@@ -943,58 +947,118 @@ function Step5ProofType({
   );
 }
 
-// ─── Step 6: 방 타입 ───
+// ─── Step 6: 방 타입 (3그룹: 내 하다 / 우리 하다 / 특별 하다) ───
 function Step6RoomType({
   value, setValue, durationDays,
 }: { value: ChallengeKind; setValue: (v: ChallengeKind) => void; durationDays: number }) {
-  return (
-    <View style={{ gap: 12 }}>
-      {ROOM_TYPES.map(r => {
-        const active = value === r.value;
-        const isDisabled = durationDays === 1 && (r.value === 'solo' || r.value === 'cheered');
-        return (
-          <Pressable
-            key={r.value}
-            disabled={isDisabled}
-            style={[
-              styles.option,
-              active && styles.optionActive,
-              isDisabled && styles.optionDisabled,
-            ]}
-            onPress={() => {
-              if (isDisabled) return;
-              setValue(r.value);
-            }}
-          >
-            <r.Icon size={24} color={active ? colors.brandInk : isDisabled ? colors.faint2 : colors.sub} strokeWidth={1.8} />
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={[
-                  styles.optionTitle,
-                  active && styles.optionTitleActive,
-                  isDisabled && { color: colors.primary300 }
-                ]}>
-                  {r.label}
-                </Text>
-                {r.recommended && !isDisabled && (
-                  <View style={styles.recommendBadge}>
-                    <Text style={styles.recommendBadgeText}>추천</Text>
-                  </View>
-                )}
-                {isDisabled && (
-                  <Text style={{ fontSize: 11, color: colors.primary500, fontFamily: fontFamily.medium }}>
-                    (1일 하다 불가)
-                  </Text>
-                )}
+  // 선택 가능한 일반 방 타입 카드 (내/우리 공통) — 기존 렌더 로직·스타일 그대로 재사용
+  const renderRoomCard = (rValue: ChallengeKind) => {
+    const r = ROOM_TYPES.find(x => x.value === rValue)!;
+    const active = value === r.value;
+    const isDisabled = durationDays === 1 && (r.value === 'solo' || r.value === 'cheered');
+    return (
+      <Pressable
+        key={r.value}
+        disabled={isDisabled}
+        style={[
+          styles.option,
+          active && styles.optionActive,
+          isDisabled && styles.optionDisabled,
+        ]}
+        onPress={() => {
+          if (isDisabled) return;
+          setValue(r.value);
+        }}
+      >
+        <r.Icon size={24} color={active ? colors.brandInk : isDisabled ? colors.faint2 : colors.sub} strokeWidth={1.8} />
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={[
+              styles.optionTitle,
+              active && styles.optionTitleActive,
+              isDisabled && { color: colors.primary300 }
+            ]}>
+              {r.label}
+            </Text>
+            {r.recommended && !isDisabled && (
+              <View style={styles.recommendBadge}>
+                <Text style={styles.recommendBadgeText}>추천</Text>
               </View>
-              <Text style={styles.optionDesc}>
-                {isDisabled ? '1일 하다는 다같이 하는 방에서만 가능해요.' : r.desc}
+            )}
+            {isDisabled && (
+              <Text style={{ fontSize: 11, color: colors.primary500, fontFamily: fontFamily.medium }}>
+                (1일 하다 불가)
               </Text>
-            </View>
-            {active && <Check size={20} color={colors.brand} strokeWidth={2.4} />}
-          </Pressable>
-        );
-      })}
+            )}
+          </View>
+          <Text style={styles.optionDesc}>
+            {isDisabled ? '1일 하다는 다같이 하는 방에서만 가능해요.' : r.desc}
+          </Text>
+        </View>
+        {active && <Check size={20} color={colors.brand} strokeWidth={2.4} />}
+      </Pressable>
+    );
+  };
+
+  // 🚀 특별 하다 안내 Alert — 유명인은 자동, 공식은 운영팀 인증 (선택 불가·정보 전용)
+  const onPressCeleb = () => {
+    haptic.tap();
+    Alert.alert('⭐ 유명인 하다', '직접 만들 수는 없어요. 누구나 합류 하다에 1,000명의 동료가 모이면, 그 하다를 연 사람에게 유명인 칭호가 조용히 붙어요. 아바타에 금빛 테두리가 생기고, 이름 옆에 작은 별이 달려요.\n\n지금의 작은 한 걸음이 언젠가 무대가 될지도 몰라요.', [{ text: '알겠어요' }]);
+  };
+  const onPressOfficial = () => {
+    haptic.tap();
+    Alert.alert('🏛️ 공식 하다', '기업·공공기관·단체라면, 운영팀 확인을 거쳐 공식 하다를 열어드려요. 사칭을 막기 위해 직접 만들 수는 없고, 문의를 주시면 함께 준비해요.', [
+      { text: '문의하기', onPress: () => Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('[Do:하다] 특별 하다(공식) 개설 문의')}`).catch(() => Alert.alert('문의', `메일 앱을 열 수 없어요. ${SUPPORT_EMAIL} 로 보내주세요.`)) },
+      { text: '닫기', style: 'cancel' },
+    ]);
+  };
+
+  // 특별 하다 정보 카드 (선택 불가 — 잠금 톤)
+  const renderSpecialCard = (Icon: LucideIcon, label: string, desc: string, onPress: () => void) => (
+    <Pressable style={[styles.option, styles.specialCard]} onPress={onPress}>
+      <Icon size={24} color={colors.faint2} strokeWidth={1.8} />
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.optionTitle, styles.specialCardTitle]}>{label}</Text>
+        <Text style={styles.optionDesc}>{desc}</Text>
+      </View>
+      <Lock size={16} color={colors.faint2} strokeWidth={2} />
+    </Pressable>
+  );
+
+  return (
+    <View style={{ gap: 20 }}>
+      {/* 내 하다 */}
+      <View style={{ gap: 12 }}>
+        <View style={styles.groupHeader}>
+          <Text style={styles.groupTitle}>내 하다</Text>
+          <Text style={styles.groupSub}>혼자, 또는 지인의 응원을 받으며</Text>
+        </View>
+        {renderRoomCard('cheered')}
+        {renderRoomCard('solo')}
+      </View>
+
+      {/* 우리 하다 */}
+      <View style={{ gap: 12 }}>
+        <View style={styles.groupHeader}>
+          <Text style={styles.groupTitle}>우리 하다</Text>
+          <Text style={styles.groupSub}>아는 사람과, 또는 누구나 함께</Text>
+        </View>
+        {renderRoomCard('closed')}
+        {renderRoomCard('open')}
+      </View>
+
+      {/* 특별 하다 (선택 불가·정보 전용) */}
+      <View style={{ gap: 12 }}>
+        <View style={styles.groupHeader}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={styles.groupTitle}>특별 하다</Text>
+            <Lock size={13} color={colors.sub} strokeWidth={2} />
+          </View>
+          <Text style={styles.groupSub}>유명인·공식이 이끄는</Text>
+        </View>
+        {renderSpecialCard(Star, '유명인', '누구나 합류가 크게 번지면 자동으로 열려요', onPressCeleb)}
+        {renderSpecialCard(Landmark, '공식 (기업·기관)', '운영팀 인증으로 열려요', onPressOfficial)}
+      </View>
     </View>
   );
 }
@@ -1279,6 +1343,26 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },
+  // 🚀 방 타입 3그룹 헤더 (내/우리/특별 하다)
+  groupHeader: { gap: 2 },
+  groupTitle: {
+    fontSize: fontSize.base,
+    color: colors.ink,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  groupSub: {
+    fontSize: fontSize.xs,
+    color: colors.sub,
+    fontFamily: fontFamily.regular,
+  },
+  // 🚀 특별 하다 정보 카드 — 선택 불가(잠금) 톤: 옅은 배경 + 점선 테두리
+  specialCard: {
+    backgroundColor: colors.background,
+    borderColor: colors.lineSoft,
+    borderStyle: 'dashed',
+  },
+  specialCardTitle: { color: colors.sub },
   smallNote: {
     fontSize: fontSize.xs,
     color: colors.primary500,
