@@ -10,6 +10,7 @@ import { Sprout, Flag } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { AppHeader } from '@/components/AppHeader';
 import { StatusBadge } from '@/components/StatusBadge';
+import { HostBadge } from '@/components/HostBadge';
 import { colors, fontFamily, fontSize, fontWeight, radius, textStyle, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import { fetchMyChallenges, fetchMyGivenUpChallenges, type GivenUpChallenge } from '@/lib/db';
@@ -214,6 +215,10 @@ function Card({ challenge: c, myUserId, finished = false }: { challenge: Challen
           <StatusBadge status={c.is_today_checked ? 'done' : 'todo'} />
         )}
       </View>
+
+      {/* 🚀 0073: 명사·조직이 연 하다면 주최자 신뢰 표식 — 내가 참여 중인 하다가 누가 연 것인지.
+          일반 하다는 HostBadge 가 null 을 반환해 card gap 도 먹지 않는다(레이아웃 무변화). */}
+      <HostBadge hostTier={c.host_tier} hostLabel={c.host_label} />
 
       {/* 숫자 — 연속일수 큰 숫자(번복금지 결정) / 끝낸·응원은 메타만 */}
       {finished ? (

@@ -66,15 +66,18 @@ Deno.serve(async (req) => {
   // 내기 주문에서 실제 적용할 티어·모드 — 다인 내기는 챌린지 설정을 서버가 강제(클라값 무시)
   let effectiveTier = productTier;
   let effectiveMode = betDonationMode;
+  // 주최자 등급 — org 하다는 내기 금지 (아래 orderPolicy 가 판정). 내기 게이트에서만 조회한다.
+  let hostTier: 'individual' | 'figure' | 'org' = 'individual';
 
   // 🚀 내기 주문 서버 게이트 — 클라이언트가 절대 결정 못 하는 것 (PHASE2 2.1)
   if (type === 'bet') {
     const { data: ch } = await service
       .from('challenges')
-      .select('kind, creator_id, end_date, bet_tier, bet_donation_mode')
+      .select('kind, creator_id, end_date, bet_tier, bet_donation_mode, host_tier')
       .eq('id', challengeId)
       .maybeSingle();
     if (!ch) return json(404, { error: 'challenge_not_found' });
+    if (ch.host_tier === 'org' || ch.host_tier === 'figure') hostTier = ch.host_tier;
     // 이미 종료된 챌린지엔 새 내기 금지 (KST)
     const todayKst = new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10);
     if (todayKst > ch.end_date) return json(403, { error: 'bet_challenge_finished' });
@@ -131,6 +134,7 @@ Deno.serve(async (req) => {
     senderIsMember: memberIds.has(user.id),
     recipientIsMember: memberIds.has(effectiveRecipient),
     sentTodayCount: todayRes.count ?? 0,
+    hostTier,                    // org 하다면 내기 거부 (응원은 영향 없음)
   });
   if (!verdict.ok) return json(403, { error: verdict.reason });
 

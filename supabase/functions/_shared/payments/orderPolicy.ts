@@ -5,6 +5,9 @@ import { type OrderType, type ProductTier, priceOf } from './catalog.ts';
 // 응원 한잔 일일 발신 한도 — 어뷰징·결제사고 폭발 반경 제한 (PHASE2_FINTECH_PLAN.md 1.2)
 export const DAILY_CHEER_LIMIT = 3;
 
+// 하다 주최자 등급 (challenges.host_tier, 0058) — 조직(org)은 내기 금지 대상
+export type HostTier = 'individual' | 'figure' | 'org';
+
 export type CreateOrderContext = {
   orderType: OrderType;
   tier: ProductTier;
@@ -14,6 +17,7 @@ export type CreateOrderContext = {
   senderIsMember: boolean;        // 같은 챌린지 활성 멤버인가 (도전 인연 = 같은 방)
   recipientIsMember: boolean;
   sentTodayCount: number;         // 오늘(KST) 보낸 응원 한잔 건수 (취소·결제실패 제외)
+  hostTier: HostTier;             // 하다 주최자 등급 (challenges.host_tier) — org 는 내기 금지
 };
 
 export type CreateOrderVerdict =
@@ -43,9 +47,17 @@ export function validateCreateOrder(ctx: CreateOrderContext): CreateOrderVerdict
       return { ok: false, reason: 'daily_limit_exceeded' };
     }
   }
-  // 5. 내기 한잔은 자기 몫 주문 — 수신자 = 본인만 허용 (남의 몫 결제 금지)
-  if (ctx.orderType === 'bet' && ctx.senderId !== ctx.recipientId) {
-    return { ok: false, reason: 'bet_order_must_be_self' };
+  // 5. 내기 한잔 전용 규칙
+  if (ctx.orderType === 'bet') {
+    // 5-a. 조직(org) 하다는 내기 금지 — 기관의 도박성 유도 = 규제·평판 리스크
+    //      (WORLDWIDE_EXECUTION_PLAN.md:170 "org 는 bet_tier 강제 null"). 응원 한잔은 막지 않는다.
+    if (ctx.hostTier === 'org') {
+      return { ok: false, reason: 'bet_not_allowed_for_org' };
+    }
+    // 5-b. 자기 몫 주문 — 수신자 = 본인만 허용 (남의 몫 결제 금지)
+    if (ctx.senderId !== ctx.recipientId) {
+      return { ok: false, reason: 'bet_order_must_be_self' };
+    }
   }
   return { ok: true, amount };
 }

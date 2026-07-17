@@ -7,6 +7,7 @@ import { Mail, AlertTriangle, Crown, Users, Calendar } from 'lucide-react-native
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
 import { CategoryIcon } from '@/components/CategoryIcon';
+import { HostBadge } from '@/components/HostBadge';
 import { categorySlugByName } from '@/lib/icons';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
@@ -130,6 +131,9 @@ export default function InviteScreen() {
 
             {/* 개설자 및 인원 정보 */}
             <View style={styles.metaBox}>
+              {/* 🚀 0073: 명사·조직이 연 하다면 주최자 신뢰 표식 — '함께 하기' 를 누르기 직전이 배지가 가장 필요한 지점.
+                  일반 하다는 HostBadge 가 null 을 반환해 metaBox gap 도 먹지 않는다(레이아웃 무변화). */}
+              <HostBadge hostTier={challenge.host_tier} hostLabel={challenge.host_label} />
               <View style={styles.metaRow}>
                 <Crown size={14} color={colors.sub} strokeWidth={1.8} />
                 <Text style={styles.metaText}>개설자: @{challenge.creator_nickname}</Text>

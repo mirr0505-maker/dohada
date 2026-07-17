@@ -76,9 +76,10 @@ export function HostTierAssign() {
       ) : (
         <>
           {/* 면제 후보 — 지금 면제를 줄지 판단하는 목록 */}
-          <Text style={styles.sectionTitle}>성장 중인 누구나 하다</Text>
+          <Text style={styles.sectionTitle}>성장 중인 하다 · 지정한 하다</Text>
           <Text style={styles.sectionHint}>
-            모집 중이고 100명을 넘은 하다예요. 면제를 주면 기간 50% 자동 마감 없이 계속 자라요.
+            모집 중이고 100명을 넘은 누구나 하다예요. 면제를 주면 기간 50% 자동 마감 없이 계속 자라요.
+            {'\n'}이미 명사·공식으로 지정한 하다도 종류와 무관하게 여기 남아요.
           </Text>
           {growing.loading ? (
             <View style={styles.center}><ActivityIndicator color={colors.accent} /></View>

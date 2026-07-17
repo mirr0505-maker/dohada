@@ -1138,6 +1138,8 @@ export type InviteInfo = {
   intro_image_url: string | null;        // 🚀 0037: 안내문 이미지
   bet_tier: string | null;               // 🚀 0040: 다인 내기 티어 (null=내기 없음)
   bet_donation_mode: string | null;      // 🚀 0040: 다인 내기 기부 모드
+  host_tier?: 'individual' | 'figure' | 'org';  // 🚀 0073: 주최 계층 — 합류 결정 직전 신뢰 표식
+  host_label?: string | null;                   // 🚀 0073: 표시용 주최자명 (figure/org 일 때)
   member_count: number;
   creator_nickname: string;
   category: { emoji: string; name: string } | null;

@@ -3,6 +3,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test \"__tests__/*.test.ts\""
+    "test": "node --import ./__tests__/_ts-resolve.mjs --test \"__tests__/*.test.ts\""
   }
 }

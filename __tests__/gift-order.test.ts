@@ -66,6 +66,7 @@ const baseCtx: CreateOrderContext = {
   senderIsMember: true,
   recipientIsMember: true,
   sentTodayCount: 0,
+  hostTier: 'individual',
 };
 
 test('주문 정책 — 정상 주문은 서버 카탈로그 금액으로 승인', () => {
@@ -104,6 +105,30 @@ test('주문 정책 — 내기 주문은 자기 몫만 (남의 몫 결제 금지
   assert.deepEqual(ok, { ok: true, amount: 20_000 });
   const bad = validateCreateOrder({ ...baseCtx, orderType: 'bet', tier: 'grand_cup' });
   assert.deepEqual(bad, { ok: false, reason: 'bet_order_must_be_self' });
+});
+
+// ─── 조직(org) 하다 내기 차단 (ORG_HADA_PLAN.md Step 1-b) ────────────────
+// 기관의 도박성 유도 = 규제·평판 리스크 → org 는 내기 절대 금지.
+// 클라 게이트(isBetVisible)는 EF 직호출을 못 막으므로 이 서버 판정이 진짜 방어선이다.
+const orgBetCtx: CreateOrderContext = {
+  ...baseCtx, orderType: 'bet', tier: 'grand_cup', recipientId: 'user-a', hostTier: 'org',
+};
+
+test('주문 정책 — 조직(org) 하다는 내기 거부 (자기 몫 주문이어도)', () => {
+  assert.deepEqual(validateCreateOrder(orgBetCtx), { ok: false, reason: 'bet_not_allowed_for_org' });
+});
+
+test('주문 정책 — 조직(org) 하다도 응원 한잔은 허용 (내기만 막는다)', () => {
+  assert.deepEqual(validateCreateOrder({ ...baseCtx, hostTier: 'org' }), { ok: true, amount: 5_000 });
+});
+
+test('주문 정책 — 개인(individual)·명사(figure) 하다의 내기는 기존 동작 유지', () => {
+  for (const hostTier of ['individual', 'figure'] as const) {
+    assert.deepEqual(
+      validateCreateOrder({ ...orgBetCtx, hostTier }), { ok: true, amount: 20_000 },
+      `hostTier=${hostTier} 는 내기 허용`,
+    );
+  }
 });
 
 // ─── 결제 대조: 금액 위변조 방어 ─────────────────────────

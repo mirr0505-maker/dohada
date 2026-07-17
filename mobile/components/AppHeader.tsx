@@ -8,7 +8,7 @@ import { View, Text, Pressable, StyleSheet, Image, Modal, ScrollView, useWindowD
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import {
   Bell, Menu, MessageCircle, MessageSquare, Heart, Megaphone, Camera, Film,
-  Coffee, HeartHandshake, Undo2, Users, Lock, MapPin, ChevronRight, Star, type LucideIcon,
+  Coffee, HeartHandshake, Undo2, Users, Lock, MapPin, ChevronRight, Star, Landmark, type LucideIcon,
 } from 'lucide-react-native';
 import * as SecureStore from 'expo-secure-store';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
@@ -38,6 +38,7 @@ const KIND_LABEL: Record<string, string> = {
   recruit_milestone: '참가 인원 도달',
   recruit_autoclosed: '모집 자동 마감',
   host_promoted: '유명인이 되었어요',
+  host_assigned: '무대 지정',
 };
 
 // 알림 kind → 행 아이콘 (라벨과 1:1)
@@ -57,6 +58,7 @@ const KIND_ICON: Record<string, LucideIcon> = {
   recruit_milestone: Users,
   recruit_autoclosed: Lock,
   host_promoted: Star,
+  host_assigned: Landmark,   // 🚀 0074: 무대(명사/공식) 지정
 };
 
 export function AppHeader() {

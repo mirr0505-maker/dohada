@@ -78,8 +78,9 @@ export function HostTierCard({ item, onChanged }: { item: AdminChallengeCardItem
         </Text>
       </Pressable>
 
-      {/* 캡 면제는 누구나(open) 하다에만 의미가 있다 — 서버도 거부 */}
-      {item.kind === 'open' && (
+      {/* 캡 면제는 누구나(open) 하다에만 의미가 있다 — 서버도 거부.
+          🚀 0074: 단 조직(org) 하다는 광장이라 kind 무관 면제 가능 → 토글 노출 */}
+      {(item.kind === 'open' || item.host_tier === 'org') && (
         <Pressable
           style={[styles.exemptRow, item.recruit_cap_exempt && styles.exemptRowOn]}
           disabled={exempting}

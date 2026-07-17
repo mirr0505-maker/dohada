@@ -47,6 +47,8 @@ export function StatusTab({ challenge, members, proofs, myUserId, betSlot, pledg
   const recruiting = isRecruiting(challenge);
   const manualLocked = !!challenge.recruit_locked;
   const beforeMidpoint = Date.now() < recruitCloseAtMs(challenge.start_date, challenge.end_date);
+  // 🚀 0074: 조직 하다는 캡(기간 50% 자동 마감) 면제 → 잠금을 언제든 다시 열 수 있다(DB set_recruit_lock 과 동일 기준).
+  const canReopen = beforeMidpoint || challenge.host_tier === 'org';
 
   // 멤버별 통계 (인증한 고유 날짜 수 / 본인 진행일수)
   // 분모는 합류일 기준 — 시작 후 합류한 동료도 자기 출발선으로 공정하게 계산 (v2.8)
@@ -167,12 +169,12 @@ export function StatusTab({ challenge, members, proofs, myUserId, betSlot, pledg
                 <Text style={styles.recruitBtnText}>모집 잠그기</Text>
               </Pressable>
             )}
-            {isCreator && manualLocked && beforeMidpoint && (
+            {isCreator && manualLocked && canReopen && (
               <Pressable style={[styles.recruitBtn, styles.recruitBtnReopen]} onPress={() => onRecruitLock?.(false)} hitSlop={6}>
                 <Text style={[styles.recruitBtnText, styles.recruitBtnReopenText]}>다시 열기</Text>
               </Pressable>
             )}
-            {isCreator && !recruiting && !beforeMidpoint && (
+            {isCreator && !recruiting && !canReopen && (
               <Text style={styles.recruitFixed}>기간 절반{'\n'}경과로 고정</Text>
             )}
           </View>

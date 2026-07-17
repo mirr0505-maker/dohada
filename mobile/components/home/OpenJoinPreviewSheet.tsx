@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import { Globe, Crown, Users, Calendar } from 'lucide-react-native';
 import { CategoryIcon } from '@/components/CategoryIcon';
+import { HostBadge } from '@/components/HostBadge';
 import { categorySlugByName } from '@/lib/icons';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { getChallengeDDay, displayTitle } from '@/lib/format';
@@ -58,6 +59,9 @@ export function OpenJoinPreviewSheet({ challenge, joining, onClose, onConfirm }:
                 )}
 
                 <View style={styles.metaBox}>
+                  {/* 🚀 0073: 명사·조직이 연 하다면 주최자 신뢰 표식 — 홈 JoinCard 에서 넘어와 실제로 합류를 확정하는 지점.
+                      일반 하다는 HostBadge 가 null 을 반환해 metaBox gap 도 먹지 않는다(레이아웃 무변화). */}
+                  <HostBadge hostTier={challenge.host_tier} hostLabel={challenge.host_label} />
                   <View style={styles.metaRow}>
                     <Crown size={14} color={colors.sub} strokeWidth={1.8} />
                     <Text style={styles.metaText}>개설자: {challenge.creator?.nickname ?? '도전자'}</Text>

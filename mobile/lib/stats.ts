@@ -48,10 +48,19 @@ export function recruitCloseAtMs(startDate: string, endDate: string): number {
 // 누구나 방 신규 합류 가능 여부 = 모집 중인가.
 //   마감 조건: 개설자 수동 잠금(recruit_locked) 또는 도전 기간 50% 경과.
 //   open 외 종류엔 이 개념이 없음 → true (호출부에서 open 카드/방에만 사용).
+// ⚠️ DB is_recruiting()(0043→0064→0074)과 미러 — 한쪽만 고치면 "클라는 마감인데 DB 는 합류 허용" 불일치.
 export function isRecruiting(
-  challenge: { kind: string; start_date: string; end_date: string; recruit_locked?: boolean | null },
+  challenge: {
+    kind: string; start_date: string; end_date: string;
+    recruit_locked?: boolean | null;
+    host_tier?: string | null;
+  },
   nowMs: number = Date.now(),
 ): boolean {
+  // 🚀 0074: 조직(org) 하다는 모집 캡 면제. 0043 캡("기간 50% 자동 마감")은 "서로를 목격하는 동료"를
+  //   지키는 장치인데 조직 하다는 애초에 광장이라 전제가 성립하지 않는다.
+  //   ⚠️ 면제하는 것은 캡뿐 — 개설자가 손수 잠근 방은 org 라도 모집 중이 아니다.
+  if (challenge.host_tier === 'org') return !challenge.recruit_locked;
   if (challenge.kind !== 'open') return true;
   if (challenge.recruit_locked) return false;
   return nowMs < recruitCloseAtMs(challenge.start_date, challenge.end_date);

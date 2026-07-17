@@ -32,7 +32,8 @@ export function notificationRoute(
   // 🚀 0043: 모집 임계 넛지·자동마감 안내 → 현황 탭 (개설자 모집 잠금 토글이 있는 곳)
   if (kind === 'recruit_milestone' || kind === 'recruit_autoclosed') return `/room/${challengeId}?tab=status`;
   // 🚀 0064: 유명인 승격 안내 → 승격을 만든 그 하다의 현황 탭
-  if (kind === 'host_promoted') return `/room/${challengeId}?tab=status`;
+  // 🚀 0074: 무대 지정 안내 → 주최자 배지가 보이는 그 하다의 현황 탭
+  if (kind === 'host_promoted' || kind === 'host_assigned') return `/room/${challengeId}?tab=status`;
   if (kind === 'log' || kind === 'log_comment' || kind === 'log_like_batch') {
     if (!target?.logId) return `/room/${challengeId}?tab=log`;
     return `/room/${challengeId}?tab=log&logId=${target.logId}${kind === 'log_comment' ? '&comments=1' : ''}`;

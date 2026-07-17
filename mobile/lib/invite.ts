@@ -48,7 +48,10 @@ export async function joinChallenge(challengeId: string, userId: string): Promis
     if (await isExistingMember(challengeId, userId)) return 'already_member';
     throw infoErr ?? new Error('하다를 찾을 수 없어요.');
   }
-  const ch = info as { kind: string; start_date: string; end_date: string; bet_tier: string | null };
+  const ch = info as {
+    kind: string; start_date: string; end_date: string; bet_tier: string | null;
+    host_tier: string | null;   // 🚀 0073: get_invite_info 가 반환 — 0074 org 캡 면제 판정에 필요
+  };
 
   // 🚀 종료(시간 경과) 방 신규 합류 차단 — 포기 방은 위 RPC 가 이미 예외로 막음.
   //    단, 이미 멤버라면 방(박제) 진입은 허용.
@@ -61,7 +64,9 @@ export async function joinChallenge(challengeId: string, userId: string): Promis
   // 🚀 0043: 누구나(open) 방 모집 마감 시 신규 합류 차단.
   //    recruit_locked(개설자 수동 잠금)은 RPC 가 주지 않아 여기선 기간 50% 경과만 막고,
   //    수동 잠금은 서버 RLS(members_self_insert)가 INSERT 단에서 최종 차단한다(이중 가드).
-  if (!isRecruiting({ kind: ch.kind, start_date: ch.start_date, end_date: ch.end_date })) {
+  if (!isRecruiting({
+    kind: ch.kind, start_date: ch.start_date, end_date: ch.end_date, host_tier: ch.host_tier,
+  })) {
     if (await isExistingMember(challengeId, userId)) return 'already_member';
     throw new Error('모집이 마감된 하다예요.\n이미 시작돼 멤버들끼리 진행 중이에요.');
   }
