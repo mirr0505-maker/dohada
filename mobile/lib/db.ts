@@ -2203,7 +2203,7 @@ export async function adminSetHostTier(
 }
 
 // 🚀 0064: 모집 캡 면제 부여/해제 — 누구나(open) 하다만.
-//   면제된 하다는 기간 50% 자동 마감을 받지 않고 계속 자란다 → 누적 1,000명 도달 시 개설자 자동 승격(figure).
+//   면제된 하다는 기간 50% 자동 마감을 받지 않고 계속 자란다. 승격은 별개 — 0067 심사(adminReviewPromotion).
 export async function adminSetRecruitExempt(challengeId: string, exempt: boolean): Promise<void> {
   const { error } = await supabase.rpc('admin_set_recruit_exempt', {
     p_challenge_id: challengeId,
@@ -2219,13 +2219,48 @@ export async function adminSearchChallenges(q: string): Promise<AdminChallengeSe
   return (data ?? []) as AdminChallengeSearchResult[];
 }
 
-// 🚀 0065: 성장 중인 누구나 하다 — 검색 없이 기본 노출할 승격 후보 (누적 참여 desc, ≤30).
+// 🚀 0065: 성장 중인 누구나 하다 (0067 에서 조건·페이지네이션 개편).
 export type AdminGrowingChallenge = AdminChallengeSearchResult & {
-  member_count: number;   // 누적 참여 (포기 포함 — 0064 승격 임계와 같은 기준)
+  member_count: number;   // 누적 참여 (포기 포함 — 0067 승격 임계와 같은 기준)
 };
 
-export async function adminListGrowingChallenges(): Promise<AdminGrowingChallenge[]> {
-  const { data, error } = await supabase.rpc('admin_list_growing_challenges');
+// 🚀 0067: 면제 후보 — 아직 모집 중 + 미면제 + 누적 100명 이상 (누적 desc). 면제를 줄지 판단하는 목록.
+export async function adminListGrowingChallenges(limit = 10, offset = 0): Promise<AdminGrowingChallenge[]> {
+  const { data, error } = await supabase.rpc('admin_list_growing_challenges', { p_limit: limit, p_offset: offset });
   if (error) throw error;
   return (data ?? []) as AdminGrowingChallenge[];
+}
+
+// 🚀 0067: 이미 면제된 누구나 하다 — 면제를 주면 후보 목록에서 사라져 다시 찾을 길이 없다. 모니터링·해제용.
+export async function adminListExemptChallenges(limit = 10, offset = 0): Promise<AdminGrowingChallenge[]> {
+  const { data, error } = await supabase.rpc('admin_list_exempt_challenges', { p_limit: limit, p_offset: offset });
+  if (error) throw error;
+  return (data ?? []) as AdminGrowingChallenge[];
+}
+
+// 🚀 0067: 승격 심사 큐 — 1,000명을 넘은 누구나 하다 (개설자가 아직 individual 인 것만).
+//   ⚠️ 면제 여부는 조건이 아니라 표시일 뿐 — 면제 없이 바이럴로 자란 하다도 심사 대상이다.
+export type AdminPromotionCandidate = {
+  id: string;
+  title: string;
+  creator_id: string;
+  creator_nickname: string | null;
+  member_count: number;          // 누적 참여 (라이브 — 심사 대기 중에도 계속 는다)
+  recruit_cap_exempt: boolean;
+  created_at: string;
+};
+
+export async function adminListPromotionQueue(limit = 10, offset = 0): Promise<AdminPromotionCandidate[]> {
+  const { data, error } = await supabase.rpc('admin_list_promotion_queue', { p_limit: limit, p_offset: offset });
+  if (error) throw error;
+  return (data ?? []) as AdminPromotionCandidate[];
+}
+
+// 🚀 0067: 심사 액션 — 승인(개설자 유명인 승격 + 알림) / 보류(큐에서 제외). 승인은 되돌릴 수 없다.
+export async function adminReviewPromotion(challengeId: string, approve: boolean): Promise<void> {
+  const { error } = await supabase.rpc('admin_review_promotion', {
+    p_challenge_id: challengeId,
+    p_approve: approve,
+  });
+  if (error) throw error;
 }

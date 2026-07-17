@@ -8,6 +8,7 @@ import { Screen } from '@/components/Screen';
 import { colors, fontFamily, fontSize, fontWeight } from '@/lib/tokens';
 import { fetchIsAdmin } from '@/lib/db';
 import { ReportQueue } from '@/components/admin/ReportQueue';
+import { PromotionQueue } from '@/components/admin/PromotionQueue';
 import { HostTierAssign } from '@/components/admin/HostTierAssign';
 import { HiddenRestore } from '@/components/admin/HiddenRestore';
 
@@ -38,6 +39,9 @@ export default function AdminScreen() {
         <ScrollView contentContainerStyle={styles.body}>
           <Text style={styles.section}>신고 큐</Text>
           <ReportQueue />
+
+          <Text style={styles.section}>승격 심사</Text>
+          <PromotionQueue />
 
           <Text style={styles.section}>명사·조직 지정</Text>
           <HostTierAssign />
