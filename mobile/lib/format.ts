@@ -6,6 +6,13 @@ export function formatCheerCount(n: number): string {
   return n >= 100 ? '99+' : String(n);
 }
 
+// 🚀 0075: 원화 표시 — 완주 매칭 기부의 약정 금액·누적 매칭액.
+// ⚠️ 위 formatCheerCount 의 '99+' 약화를 여기에 적용하면 안 된다.
+//    그건 응원·평가 카운트의 비교 압박을 피하려는 정책이고, 이 금액은 조직이 공개한 약속이라 정확해야 한다(표시광고).
+export function formatWon(amount: number): string {
+  return `${Math.max(0, Math.round(amount)).toLocaleString('ko-KR')}원`;
+}
+
 // 🚀 제목 표시 정리 — 맨 앞 이모지(+뒤따르는 공백) 1덩어리 제거.
 // 옛 추천 제목("📚 100일 책 읽기")이나 사용자가 앞에 붙인 이모지를 표시 시점에 가린다
 // (DB 원본은 보존 — 리디자인 "8개 예외 외 이모지 금지" 정체성을 기존 데이터에도 적용).

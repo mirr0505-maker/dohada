@@ -2,7 +2,7 @@
 //   HostTierAssign 의 세 목록(검색 결과 · 면제 후보 · 면제된 하다)이 같은 카드를 쓴다.
 import React, { useCallback, useState } from 'react';
 import { View, Text, Pressable, TextInput, StyleSheet, Alert } from 'react-native';
-import { adminSetHostTier, adminSetRecruitExempt, type AdminChallengeSearchResult } from '@/lib/db';
+import { adminSetHostTier, adminSetRecruitExempt, adminSetSponsorMatching, type AdminChallengeSearchResult } from '@/lib/db';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 
 type Tier = 'individual' | 'figure' | 'org';
@@ -26,6 +26,9 @@ export function HostTierCard({ item, onChanged }: { item: AdminChallengeCardItem
   const [pickLabel, setPickLabel] = useState('');
   const [applying, setApplying] = useState(false);
   const [exempting, setExempting] = useState(false);
+  const [sponsorAmount, setSponsorAmount] = useState('');           // 🚀 0075: 완주자 1명당 금액(원)
+  const [sponsorBeneficiary, setSponsorBeneficiary] = useState(''); // 🚀 0075: 기부처 표시명
+  const [sponsoring, setSponsoring] = useState(false);
 
   // 펼칠 때 현재 값으로 초기화
   const onToggleOpen = useCallback(() => {
@@ -67,6 +70,24 @@ export function HostTierCard({ item, onChanged }: { item: AdminChallengeCardItem
     }
   }, [exempting, item.id, item.recruit_cap_exempt, onChanged]);
 
+  // 🚀 0075: 완주 매칭 기부 약정 — 조직(org) 하다만 (서버 RPC 도 org 아니면 거부).
+  //   앱은 약정과 완주 수를 표시만 한다 — 여기서 정하는 건 '무엇을 표시할지' 뿐이고 송금은 조직이 오프라인으로 직접.
+  //   금액을 비우고 적용하면 약정 해제(기부처도 함께 지워짐).
+  const onApplySponsor = useCallback(async () => {
+    if (sponsoring) return;
+    setSponsoring(true);
+    try {
+      const amount = sponsorAmount.trim() === '' ? null : Number(sponsorAmount);
+      await adminSetSponsorMatching(item.id, amount, sponsorBeneficiary.trim() || null);
+      onChanged();
+      Alert.alert(amount === null ? '약정 해제됨' : '약정 적용됨');
+    } catch (e: any) {
+      Alert.alert('실패', e?.message ?? String(e));
+    } finally {
+      setSponsoring(false);
+    }
+  }, [sponsoring, sponsorAmount, sponsorBeneficiary, item.id, onChanged]);
+
   return (
     <View style={styles.card}>
       <Pressable onPress={onToggleOpen}>
@@ -93,6 +114,33 @@ export function HostTierCard({ item, onChanged }: { item: AdminChallengeCardItem
             {exempting ? '적용 중…' : item.recruit_cap_exempt ? '해제' : '부여'}
           </Text>
         </Pressable>
+      )}
+
+      {/* 🚀 0075: 매칭 기부 약정 입력 — 이미 org 로 지정된 하다에만.
+          현재 값 prefill 은 없다 — 목록 RPC 3종이 이 컬럼을 반환하지 않는다(반환시키려면 함수 본문 3개를 복사·유지해야 한다).
+          약정 확인은 사용자에게 실제로 보이는 화면(방 현황 탭)에서 한다. */}
+      {item.host_tier === 'org' && (
+        <View style={styles.editArea}>
+          <Text style={styles.sponsorLabel}>완주 매칭 기부 — 비우고 적용하면 해제</Text>
+          <TextInput
+            style={styles.input}
+            value={sponsorAmount}
+            onChangeText={t => setSponsorAmount(t.replace(/[^0-9]/g, ''))}
+            keyboardType="number-pad"
+            placeholder="완주자 1명당 금액(원)"
+            placeholderTextColor={colors.faint}
+          />
+          <TextInput
+            style={styles.input}
+            value={sponsorBeneficiary}
+            onChangeText={setSponsorBeneficiary}
+            placeholder="기부처 (예: 유니세프)"
+            placeholderTextColor={colors.faint}
+          />
+          <Pressable style={styles.applyBtn} disabled={sponsoring} onPress={onApplySponsor}>
+            <Text style={styles.applyBtnText}>{sponsoring ? '적용 중…' : '약정 적용'}</Text>
+          </Pressable>
+        </View>
       )}
 
       {open && (
@@ -148,6 +196,7 @@ const styles = StyleSheet.create({
   exemptTextOn: { color: colors.gold, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
   exemptAction: { fontSize: fontSize.xs, color: colors.faint, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
   editArea: { gap: 10, marginTop: 10, paddingTop: 10, borderTopWidth: 0.5, borderTopColor: colors.line },
+  sponsorLabel: { fontSize: fontSize.xs, color: colors.sub, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
   tierRow: { flexDirection: 'row', gap: 8 },
   tierChip: {
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.pill,

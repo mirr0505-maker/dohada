@@ -172,6 +172,25 @@ export function isCompleted(
   return goalStatus(challenge, myProofs, joinedAt).isComplete;
 }
 
+// 🚀 0075: 이 하다의 완주자 수 — 조직이 "완주자 1명당 N원 기부" 를 약정한 하다의 표시용 집계.
+//   판정은 goalStatus(단일 소스)에 그대로 위임한다 — 여기서 새로 세지 않는다
+//   (KST·frequency·늦합류 비례·count 조기완주가 전부 그 함수에 이미 있다).
+//   ⚠️ 주최자(role='host', 0069)는 방을 열었을 뿐 도전자가 아니므로 제외 — 세면 조직 자신이 기부 대상이 된다.
+//   ⚠️ 포기한 멤버도 제외 — memberCount(db.ts) 와 같은 기준.
+export function countCompleters(
+  challenge: DbChallenge,
+  members: { user_id: string; joined_at: string; gave_up_at: string | null; role?: string | null }[],
+  proofs: ProofWithRelations[],
+): number {
+  let completers = 0;
+  for (const m of members) {
+    if (m.role === 'host' || m.gave_up_at) continue;
+    const myProofs = proofs.filter(p => p.user_id === m.user_id);
+    if (goalStatus(challenge, myProofs, m.joined_at).isComplete) completers += 1;
+  }
+  return completers;
+}
+
 // 실패 여부: 종료일이 지났고 목표 인증 횟수를 못 채운 경우 true (= isCompleted 의 보완)
 export function isFailed(
   challenge: DbChallenge,

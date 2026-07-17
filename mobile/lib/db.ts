@@ -2,7 +2,7 @@
 // RLS 가 알아서 가드해주니까 여기선 단순 fetch/insert/delete.
 import { supabase } from './supabase';
 import { getKstTodayRange } from './format';
-import { isRecruiting, goalStatus, isFinished } from './stats';   // 🚀 0043: 모집 마감 판정 + 다짐 내역 완주 판정
+import { isRecruiting, goalStatus, isFinished, countCompleters } from './stats';   // 🚀 0043: 모집 마감 판정 + 다짐 내역 완주 판정 + 0075 완주자 집계
 import type {
   ChallengeWithCount, ChallengeKind, ChallengeGoalType, ChallengeMemberRole, ChallengeFrequency, MemberWithToday, ProofWithRelations, DbChallenge,
   CommentWithAuthor, CheerType,
@@ -1140,6 +1140,8 @@ export type InviteInfo = {
   bet_donation_mode: string | null;      // 🚀 0040: 다인 내기 기부 모드
   host_tier?: 'individual' | 'figure' | 'org';  // 🚀 0073: 주최 계층 — 합류 결정 직전 신뢰 표식
   host_label?: string | null;                   // 🚀 0073: 표시용 주최자명 (figure/org 일 때)
+  sponsor_amount_per_completer?: number | null; // 🚀 0075: 완주 매칭 기부 약정 — 완주자 1명당 금액(원)
+  sponsor_beneficiary?: string | null;          // 🚀 0075: 기부처 표시명
   member_count: number;
   creator_nickname: string;
   category: { emoji: string; name: string } | null;
@@ -1222,6 +1224,15 @@ export async function fetchRoomData(challengeId: string, myUserId: string) {
   }
   const todayCheckedCount = checkedTodayIds.size;
 
+  // 🚀 0075: 완주 매칭 기부 표시용 완주자 수 — memberCount 와 같은 이유로 프로필 가시성과 분리해 센다
+  //   (members 는 users 조인이 RLS 로 null 인 비멤버에게 깎여, 그 값으로 세면 조직의 기부액이 실제보다 적게 공개된다).
+  //   판정·주최자 제외는 stats.countCompleters 단일 소스.
+  const completerCount = countCompleters(
+    resChallenge.data as DbChallenge,
+    (resMembers.data ?? []) as any,
+    proofsRaw as any,
+  );
+
   const members: MemberWithToday[] = (resMembers.data ?? [])
     .filter((m: any) => m.users)
     .map((m: any) => ({
@@ -1269,6 +1280,7 @@ export async function fetchRoomData(challengeId: string, myUserId: string) {
     members,
     memberCount,
     todayCheckedCount,
+    completerCount,
     proofs,
     totalLogs: resLogCount.count ?? 0,
   };
@@ -2229,6 +2241,22 @@ export async function adminSetHostTier(
     p_challenge_id: challengeId,
     p_tier: tier,
     p_label: label,
+  });
+  if (error) throw error;
+}
+
+// 🚀 0075: 완주 매칭 기부 약정 설정/해제 — 조직(org) 하다만 (서버가 거부).
+//   앱은 약정과 완주 수를 표시만 한다. 송금은 조직이 오프라인으로 직접 — gift_orders 를 타지 않는다.
+//   amount=null 이면 약정 해제(기부처도 함께 지워짐).
+export async function adminSetSponsorMatching(
+  challengeId: string,
+  amount: number | null,
+  beneficiary: string | null,
+): Promise<void> {
+  const { error } = await supabase.rpc('admin_set_sponsor_matching', {
+    p_challenge_id: challengeId,
+    p_amount: amount,
+    p_beneficiary: beneficiary,
   });
   if (error) throw error;
 }

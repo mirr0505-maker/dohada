@@ -2,10 +2,10 @@
 // v4: 카드 = 아바타 + 닉네임 + 연속 일수 + 인증률 % + 진행률 바. 본인 강조.
 import React, { useMemo } from 'react';
 import { View, Text, FlatList, StyleSheet, Image, Pressable } from 'react-native';
-import { User, Heart, Globe, Handshake, Calendar, Lock, Users, BarChart3, Check, Flame, Landmark, type LucideIcon } from 'lucide-react-native';
+import { User, Heart, Globe, Handshake, Calendar, Lock, Users, BarChart3, Check, Flame, Landmark, HeartHandshake, type LucideIcon } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { computeStreak, memberPassedDays, isRecruiting, recruitCloseAtMs } from '@/lib/stats';
-import { displayTitle } from '@/lib/format';
+import { displayTitle, formatWon } from '@/lib/format';
 import { HostBadge } from '@/components/HostBadge';
 import { HostMark, HostAvatarRing } from '@/components/HostMark';
 import type { DbChallenge, MemberWithToday, ProofWithRelations } from '@/lib/types';
@@ -33,12 +33,13 @@ type Props = {
   members: MemberWithToday[];
   proofs: ProofWithRelations[];
   myUserId: string | undefined;
+  completerCount?: number;   // 🚀 0075: 이 하다의 완주자 수 (완주 매칭 기부 약정이 있을 때만 표시) — db.ts 가 계산
   betSlot?: React.ReactNode;   // 🎯 나와의 내기 카드 (도전자 본인에게만, 부모가 구성) — 없으면 미노출
   pledgeSlot?: React.ReactNode;   // 💛 다짐 카드 (무현금 사회적 스테이크, 멤버 본인 — 부모가 구성)
   onRecruitLock?: (locked: boolean) => void;   // 🚀 0043: 개설자 모집 잠금/해제 (누구나 방 전용)
 };
 
-export function StatusTab({ challenge, members, proofs, myUserId, betSlot, pledgeSlot, onRecruitLock }: Props) {
+export function StatusTab({ challenge, members, proofs, myUserId, completerCount = 0, betSlot, pledgeSlot, onRecruitLock }: Props) {
 
   // 🚀 0043: 누구나 방 모집 상태 — 모집 중 / 수동 잠금 / 기간 50% 자동 마감.
   // "모집 마감" 은 신규 합류만 막음(종료 아님). 잠금 토글은 개설자 본인만, 다시 열기는 50% 경과 전까지만.
@@ -124,6 +125,28 @@ export function StatusTab({ challenge, members, proofs, myUserId, betSlot, pledg
           <Text style={styles.infoTitle}>{displayTitle(challenge.title)}</Text>
           {/* 🚀 0058: 명사·조직이 연 하다면 주최자 정체(신뢰 표식) — canonical 위치 */}
           <HostBadge hostTier={challenge.host_tier} hostLabel={challenge.host_label} />
+          {/* 🚀 0075: 완주 매칭 기부 — 조직이 "완주자 1명당 N원" 을 약정한 하다. 앱은 약정과 완주 수를 표시만 한다.
+              ⚠️ 카피의 주어는 주최자다 — 앱의 보증이 아니고(표시광고법), 송금도 조직이 오프라인으로 직접 한다.
+              org 강등 시 자동으로 사라지도록 host_tier 도 함께 본다 (0075: 강등은 컬럼을 지우지 않는다). */}
+          {challenge.host_tier === 'org' && challenge.sponsor_amount_per_completer ? (
+            <View style={styles.sponsorCard}>
+              <View style={styles.sponsorHeader}>
+                <HeartHandshake size={13} color={colors.doneInk} strokeWidth={1.8} />
+                <Text style={styles.sponsorLabel}>완주 매칭 기부</Text>
+              </View>
+              <Text style={styles.sponsorText}>
+                {/* '에서' = 기관 주격 — 표시명 받침 유무와 무관하게 자연스럽다 ('환경부에서'·'유니세프에서') */}
+                {challenge.host_label?.trim() ? `「${challenge.host_label.trim()}」에서 ` : '주최자가 '}
+                완주자 1명당 {formatWon(challenge.sponsor_amount_per_completer)}을{' '}
+                {challenge.sponsor_beneficiary?.trim() ? `「${challenge.sponsor_beneficiary.trim()}」에 ` : ''}
+                기부하기로 했어요
+              </Text>
+              <Text style={styles.sponsorProgress}>
+                지금까지 {completerCount}명 완주 · {formatWon(challenge.sponsor_amount_per_completer * completerCount)}
+              </Text>
+              <Text style={styles.sponsorNote}>주최자가 약속한 내용이에요 · 하다가 대신 전달하지 않아요</Text>
+            </View>
+          ) : null}
           {/* 🚀 안내문 (나홀로 제외) — 합류 전 미리보기와 동일한 소개를 방 안에서도 보존 */}
           {challenge.intro_image_url ? (
             <Image source={{ uri: challenge.intro_image_url }} style={styles.infoIntroImage} resizeMode="cover" />
@@ -498,6 +521,38 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     backgroundColor: colors.primary100,
     marginTop: 6,
+  },
+  // 🚀 0075: 매칭 기부 카드 — HostBadge(org)·주최 태그와 같은 sage 톤 (기관=차분한 색). 광고 배너처럼 튀지 않게.
+  sponsorCard: {
+    marginTop: 6,
+    padding: 12,
+    backgroundColor: colors.tintSage,
+    borderRadius: radius.lg,
+    gap: 4,
+  },
+  sponsorHeader: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  sponsorLabel: {
+    fontSize: fontSize.xs,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    color: colors.doneInk,
+  },
+  sponsorText: {
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontFamily: fontFamily.regular,
+    lineHeight: 20,
+  },
+  sponsorProgress: {
+    fontSize: fontSize.sm,
+    color: colors.doneInk,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  sponsorNote: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
   },
   infoMessageWrap: {
     marginTop: 6,

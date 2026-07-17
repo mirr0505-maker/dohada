@@ -89,6 +89,8 @@ export default function ChallengeRoom() {
   // 적게 잡혀도 이 값들로 실제 인원·오늘 인증 수를 표시한다 (홈 카드와 동일 기준, 분모·분자 모두 정확).
   const [memberCount, setMemberCount] = useState(0);
   const [todayCheckedCount, setTodayCheckedCount] = useState(0);
+  // 🚀 0075: 완주자 수 — 조직이 완주 매칭 기부를 약정한 하다의 현황 탭에서만 쓴다 (위와 같은 이유로 db 에서 계산)
+  const [completerCount, setCompleterCount] = useState(0);
   const [proofs, setProofs] = useState<ProofWithRelations[]>([]);
   const [totalLogs, setTotalLogs] = useState(0);   // 박제 통계·ImpactModal 용 기록 수
   const [loading, setLoading] = useState(true);
@@ -159,6 +161,7 @@ export default function ChallengeRoom() {
       setMembers(data.members);
       setMemberCount(data.memberCount);
       setTodayCheckedCount(data.todayCheckedCount);
+      setCompleterCount(data.completerCount);
       setProofs(data.proofs);
       setTotalLogs(data.totalLogs);
       // 받은 한잔은 부가 정보 — 실패해도 방 로딩을 막지 않음
@@ -1173,6 +1176,7 @@ export default function ChallengeRoom() {
           members={members}
           proofs={proofs}
           myUserId={myUserId}
+          completerCount={completerCount}
           betSlot={betSlot}
           pledgeSlot={pledgeSlot}
           onRecruitLock={onRecruitLock}

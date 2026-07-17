@@ -13,7 +13,7 @@ import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/
 import { useSession } from '@/lib/session';
 import { joinChallenge, setPendingInvite, clearPendingInvite } from '@/lib/invite';
 import { fetchChallengeDetailForInvite } from '@/lib/db';
-import { getChallengeDDay, displayTitle } from '@/lib/format';
+import { getChallengeDDay, displayTitle, formatWon } from '@/lib/format';
 import { betBadgeText } from '@/lib/payments';
 import { haptic } from '@/lib/haptics';
 
@@ -149,6 +149,21 @@ export default function InviteScreen() {
                 </Text>
               </View>
             </View>
+
+            {/* 🚀 0075: 완주 매칭 기부 약정 — "내 완주가 기부로 이어진다" 는 합류 결정에 영향을 주는 정보라
+                '함께 하기' 직전에 알린다 (0073 이 주최자 배지를 여기 얹은 것과 같은 이유).
+                ⚠️ 주어는 주최자 — 앱의 보증이 아니다. 진행 중 완주 수는 방(현황 탭)에서 본다. */}
+            {challenge.host_tier === 'org' && challenge.sponsor_amount_per_completer ? (
+              <View style={styles.sponsorBox}>
+                <Text style={styles.sponsorText}>
+                  {challenge.host_label?.trim() ? `「${challenge.host_label.trim()}」에서 ` : '주최자가 '}
+                  완주자 1명당 {formatWon(challenge.sponsor_amount_per_completer)}을{' '}
+                  {challenge.sponsor_beneficiary?.trim() ? `「${challenge.sponsor_beneficiary.trim()}」에 ` : ''}
+                  기부하기로 했어요
+                </Text>
+                <Text style={styles.sponsorNote}>주최자가 약속한 내용이에요 · 하다가 대신 전달하지 않아요</Text>
+              </View>
+            ) : null}
 
             {/* 🎯 다인 내기 걸린 방 — 합류 전 고지 (성인 인증 필요) */}
             {betBadgeText(challenge.bet_tier) ? (
@@ -301,6 +316,27 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontFamily: fontFamily.medium,
     fontWeight: fontWeight.medium,
+  },
+  // 🚀 0075: 매칭 기부 — HostBadge(org)·현황 탭 카드와 같은 sage 톤 (기관=차분한 색)
+  sponsorBox: {
+    width: '100%',
+    backgroundColor: colors.tintSage,
+    borderRadius: radius.lg,
+    padding: 12,
+    marginBottom: 12,
+    gap: 4,
+  },
+  sponsorText: {
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.medium,
+    lineHeight: 20,
+  },
+  sponsorNote: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
   },
   betBadge: {
     width: '100%',
