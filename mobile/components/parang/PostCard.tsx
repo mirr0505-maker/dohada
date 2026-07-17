@@ -12,7 +12,7 @@ import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { haptic } from '@/lib/haptics';
 import { PhotoCarousel } from '@/components/PhotoCarousel';
 import { PhotoViewer } from '@/components/PhotoViewer';
-import { HostMark, hostRingStyle } from '@/components/HostMark';
+import { HostMark, HostAvatarRing } from '@/components/HostMark';
 import { ParangComments } from './ParangComments';
 
 export function PostCard({ post }: { post: ParangPost }) {
@@ -61,12 +61,16 @@ export function PostCard({ post }: { post: ParangPost }) {
           <View style={[styles.avatar, styles.avatarNeutral]}>
             <User size={18} color={colors.faint} strokeWidth={1.8} />
           </View>
-        ) : post.author_avatar ? (
-          <Image source={{ uri: post.author_avatar }} style={[styles.avatar, hostRingStyle(post.author_host_tier)]} />
         ) : (
-          <View style={[styles.avatar, styles.avatarNeutral, hostRingStyle(post.author_host_tier)]}>
-            <Text style={styles.avatarInitial}>{post.author_nickname?.slice(0, 1)}</Text>
-          </View>
+          <HostAvatarRing hostTier={post.author_host_tier} size={36}>
+            {post.author_avatar ? (
+              <Image source={{ uri: post.author_avatar }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, styles.avatarNeutral]}>
+                <Text style={styles.avatarInitial}>{post.author_nickname?.slice(0, 1)}</Text>
+              </View>
+            )}
+          </HostAvatarRing>
         )}
         <View style={{ flex: 1 }}>
           {/* 익명 글은 RPC 가 author_host_tier 까지 null 로 내려 마크·테두리가 자동으로 안 붙는다 */}

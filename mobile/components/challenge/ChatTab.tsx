@@ -10,6 +10,7 @@ import { Megaphone, ChevronDown, ChevronUp, MessageCircle, Flag } from 'lucide-r
 import { supabase } from '@/lib/supabase';
 import { fetchChatMessages, sendChatMessage, type ChatMessageWithAuthor } from '@/lib/db';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
+import { HostAvatarRing } from '@/components/HostMark';
 import { haptic } from '@/lib/haptics';
 
 type Props = {
@@ -82,7 +83,7 @@ export function ChatTab({ challengeId, myUserId, isMember, farewellDaysLeft = 0,
             // 작성자 정보 fetch (단건)
             const { data: authorRow } = await supabase
               .from('users')
-              .select('id, nickname, avatar_url')
+              .select('id, nickname, avatar_url, host_tier')
               .eq('id', newRow.user_id)
               .maybeSingle();
             if (!mounted) return;                               // unmount 후 setState 차단
@@ -99,6 +100,7 @@ export function ChatTab({ challengeId, myUserId, isMember, farewellDaysLeft = 0,
                   id: authorRow?.id ?? newRow.user_id!,
                   nickname: authorRow?.nickname ?? '',
                   avatar_url: authorRow?.avatar_url ?? null,
+                  host_tier: authorRow?.host_tier ?? null,
                 },
               }];
             });
@@ -238,14 +240,17 @@ export function ChatTab({ challengeId, myUserId, isMember, farewellDaysLeft = 0,
           const mine = item.user_id === myUserId;
           return (
             <View style={[styles.row, mine && styles.rowMine]}>
+              {/* 🚀 0064: 대화는 글이 빽빽해 마크(⭐)가 잡음이 된다 → 금빛 링만 */}
               {!mine && (
-                item.author.avatar_url ? (
-                  <Image source={{ uri: item.author.avatar_url }} style={styles.avatar} />
-                ) : (
-                  <View style={[styles.avatar, styles.avatarFallback]}>
-                    <Text style={{ fontSize: 14 }}>{item.author.nickname?.slice(0, 1) || '🐰'}</Text>
-                  </View>
-                )
+                <HostAvatarRing hostTier={item.author.host_tier} size={32}>
+                  {item.author.avatar_url ? (
+                    <Image source={{ uri: item.author.avatar_url }} style={styles.avatar} />
+                  ) : (
+                    <View style={[styles.avatar, styles.avatarFallback]}>
+                      <Text style={{ fontSize: 14 }}>{item.author.nickname?.slice(0, 1) || '🐰'}</Text>
+                    </View>
+                  )}
+                </HostAvatarRing>
               )}
               <View style={{ maxWidth: '75%' }}>
                 {!mine && (

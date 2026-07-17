@@ -7,6 +7,7 @@ import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/
 import { computeStreak, memberPassedDays, isRecruiting, recruitCloseAtMs } from '@/lib/stats';
 import { displayTitle } from '@/lib/format';
 import { HostBadge } from '@/components/HostBadge';
+import { HostMark, HostAvatarRing } from '@/components/HostMark';
 import type { DbChallenge, MemberWithToday, ProofWithRelations } from '@/lib/types';
 
 // 🚀 방 타입 배지 — 둘러보기 KIND_BADGE 와 동일한 아이콘 언어 (User/Heart/Globe/Handshake)
@@ -202,13 +203,15 @@ function StatusCard({
   return (
     <View style={[styles.card, isMine && styles.cardMine, gaveUp && styles.cardGaveUp]}>
       <View style={styles.avatarWrap}>
-        {member.avatar_url ? (
-          <Image source={{ uri: member.avatar_url }} style={styles.avatar} />
-        ) : (
-          <View style={[styles.avatar, styles.avatarFallback]}>
-            <Text style={{ fontSize: 18 }}>{member.nickname?.slice(0, 1) || '🐰'}</Text>
-          </View>
-        )}
+        <HostAvatarRing hostTier={member.host_tier} size={48}>
+          {member.avatar_url ? (
+            <Image source={{ uri: member.avatar_url }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarFallback]}>
+              <Text style={{ fontSize: 18 }}>{member.nickname?.slice(0, 1) || '🐰'}</Text>
+            </View>
+          )}
+        </HostAvatarRing>
         {todayChecked && !gaveUp && (
           <View style={styles.checkBadge}>
             <Check size={11} color={colors.surface} strokeWidth={3} />
@@ -221,6 +224,7 @@ function StatusCard({
           <Text style={styles.name} numberOfLines={1}>
             {member.nickname}{isMine ? ' (나)' : ''}
           </Text>
+          <HostMark hostTier={member.host_tier} />
           {gaveUp ? (
             <Text style={styles.gaveUpTag}>포기</Text>
           ) : isCheerer ? (
@@ -290,7 +294,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary100,
     borderRadius: radius.pill,
   },
-  avatarWrap: { width: 48, height: 48, position: 'relative' },
+  // 🚀 0064: 크기를 아바타(48) 로 못 박지 않는다 — 금빛 링이 붙으면 56 이 되고, 인증 배지는 그 바깥 모서리에 붙어야 한다
+  avatarWrap: { position: 'relative' },
   avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primary50 },
   avatarFallback: { alignItems: 'center', justifyContent: 'center' },
   checkBadge: {

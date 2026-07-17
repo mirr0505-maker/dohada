@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import { Crown, Check, Pause } from 'lucide-react-native';
 import type { MemberWithToday } from '@/lib/types';
-import { HostMark, hostRingStyle } from '@/components/HostMark';
+import { HostMark, HostAvatarRing } from '@/components/HostMark';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 
 type Props = {
@@ -71,19 +71,20 @@ export function MemberSheet({
               const paused = isPaused(item.paused_until);
               return (
                 <View style={[styles.row, isMe && styles.rowMine]}>
-                  {/* 🚀 0064: 금빛 테두리(유명인)는 오늘 인증 테두리보다 뒤 — 계층은 상시, 인증 여부는 아래 상태줄이 그대로 전한다 */}
-                  <View style={[
-                    styles.avatar,
-                    item.today_checked && styles.avatarChecked,
-                    paused && { opacity: 0.5 },
-                    hostRingStyle(item.host_tier),
-                  ]}>
-                    {item.avatar_url ? (
-                      <Image source={{ uri: item.avatar_url }} style={styles.avatarImg} />
-                    ) : (
-                      <Text style={{ fontSize: 18 }}>🐰</Text>
-                    )}
-                  </View>
+                  {/* 🚀 0064: 금빛 링(유명인)은 아바타 바깥을 감싼다 — 오늘 인증 테두리(accent)와 겹치지 않고 공존 */}
+                  <HostAvatarRing hostTier={item.host_tier} size={44}>
+                    <View style={[
+                      styles.avatar,
+                      item.today_checked && styles.avatarChecked,
+                      paused && { opacity: 0.5 },
+                    ]}>
+                      {item.avatar_url ? (
+                        <Image source={{ uri: item.avatar_url }} style={styles.avatarImg} />
+                      ) : (
+                        <Text style={{ fontSize: 18 }}>🐰</Text>
+                      )}
+                    </View>
+                  </HostAvatarRing>
                   <View style={{ flex: 1 }}>
                     <View style={styles.nameRow}>
                       <Text style={styles.name} numberOfLines={1}>

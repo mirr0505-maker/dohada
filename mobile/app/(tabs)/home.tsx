@@ -45,6 +45,7 @@ import { haptic } from '@/lib/haptics';
 import type { CompletionStoryCard, OpenChallengeCard } from '@/lib/types';
 import { getChallengeDDay, getKstTodayRange, formatCheerCount, displayTitle } from '@/lib/format';
 import { CategoryIcon } from '@/components/CategoryIcon';
+import { HostMark, HostAvatarRing } from '@/components/HostMark';
 import { HostBadge } from '@/components/HostBadge';
 import { categorySlugByName } from '@/lib/icons';
 
@@ -855,15 +856,20 @@ function TodayProofCard({ proof, onViewPhoto }: { proof: FellowProof; onViewPhot
       onPress={() => { haptic.tap(); router.push(`/room/${proof.challenge_id}?tab=proof&proofId=${proof.id}` as any); }}
     >
       <View style={styles.cardHead}>
-        {proof.avatar_url ? (
-          <Image source={{ uri: proof.avatar_url }} style={styles.avatar} />
-        ) : (
-          <View style={[styles.avatar, styles.avatarFallback]}>
-            <Text style={styles.avatarInit}>{proof.nickname.slice(0, 1)}</Text>
-          </View>
-        )}
+        <HostAvatarRing hostTier={proof.host_tier} size={36}>
+          {proof.avatar_url ? (
+            <Image source={{ uri: proof.avatar_url }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarFallback]}>
+              <Text style={styles.avatarInit}>{proof.nickname.slice(0, 1)}</Text>
+            </View>
+          )}
+        </HostAvatarRing>
         <View style={{ flex: 1 }}>
-          <Text style={styles.who}>{proof.nickname}</Text>
+          <View style={styles.whoRow}>
+            <Text style={styles.who}>{proof.nickname}</Text>
+            <HostMark hostTier={proof.host_tier} />
+          </View>
           <Text style={styles.sub}>{relTime(proof.created_at)} · 오늘의 인증</Text>
         </View>
       </View>
@@ -1320,7 +1326,9 @@ const styles = StyleSheet.create({
     fontSize: 14, color: colors.accent700,
     fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
   },
+  whoRow: { flexDirection: 'row', alignItems: 'center' },
   who: {
+    flexShrink: 1,
     fontSize: fontSize.base, color: colors.primary,
     fontFamily: fontFamily.bold, fontWeight: fontWeight.semibold,
   },

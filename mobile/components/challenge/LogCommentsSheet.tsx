@@ -15,6 +15,7 @@ import {
   fetchLogComments, addLogComment, updateLogComment, deleteLogComment,
   type LogCommentWithAuthor,
 } from '@/lib/db';
+import { HostAvatarRing } from '@/components/HostMark';
 import { supabase } from '@/lib/supabase';
 import { haptic } from '@/lib/haptics';
 import { reportError } from '@/lib/sentry';
@@ -277,13 +278,16 @@ function CommentItem({
 }: { item: LogCommentWithAuthor; mine: boolean; onMine: () => void }) {
   return (
     <Pressable style={styles.row} onLongPress={mine ? onMine : undefined} delayLongPress={400}>
-      {item.author?.avatar_url ? (
-        <Image source={{ uri: item.author.avatar_url }} style={styles.avatar} />
-      ) : (
-        <View style={[styles.avatar, styles.avatarFallback]}>
-          <Text style={{ fontSize: 16 }}>🐰</Text>
-        </View>
-      )}
+      {/* 🚀 0064: 댓글은 글이 빽빽해 마크(⭐)가 잡음이 된다 → 금빛 링만 */}
+      <HostAvatarRing hostTier={item.author?.host_tier} size={36}>
+        {item.author?.avatar_url ? (
+          <Image source={{ uri: item.author.avatar_url }} style={styles.avatar} />
+        ) : (
+          <View style={[styles.avatar, styles.avatarFallback]}>
+            <Text style={{ fontSize: 16 }}>🐰</Text>
+          </View>
+        )}
+      </HostAvatarRing>
       <View style={{ flex: 1, gap: 3 }}>
         {/* 인스타식: 이름+본문 한 줄 흐름 → 채팅 말풍선(이름 위·본문 아래) 느낌 제거 */}
         <Text style={styles.commentLine}>

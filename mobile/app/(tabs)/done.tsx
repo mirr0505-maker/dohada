@@ -10,7 +10,7 @@ import { Trophy, HeartHandshake, Sprout } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { AppHeader } from '@/components/AppHeader';
 import { CategoryIcon } from '@/components/CategoryIcon';
-import { HostMark, hostRingStyle } from '@/components/HostMark';
+import { HostMark, HostAvatarRing } from '@/components/HostMark';
 import { colors, fontFamily, fontSize, fontWeight, radius, textStyle, shadow } from '@/lib/tokens';
 import { categorySlugByName } from '@/lib/icons';
 import { fetchPublicCompletionStories } from '@/lib/db';
@@ -100,13 +100,15 @@ function StoryCard({ story }: { story: CompletionStoryCard }) {
     >
       {/* 헤더: 아바타 + 닉네임 + 카테고리 + 트로피 */}
       <View style={styles.cardHead}>
-        {story.author.avatar_url ? (
-          <Image source={{ uri: story.author.avatar_url }} style={[styles.avatar, hostRingStyle(story.author.host_tier)]} />
-        ) : (
-          <View style={[styles.avatar, styles.avatarFallback, hostRingStyle(story.author.host_tier)]}>
-            <Text style={styles.avatarInit}>{story.author.nickname.slice(0, 1)}</Text>
-          </View>
-        )}
+        <HostAvatarRing hostTier={story.author.host_tier} size={36}>
+          {story.author.avatar_url ? (
+            <Image source={{ uri: story.author.avatar_url }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarFallback]}>
+              <Text style={styles.avatarInit}>{story.author.nickname.slice(0, 1)}</Text>
+            </View>
+          )}
+        </HostAvatarRing>
         <View style={{ flex: 1 }}>
           <View style={styles.whoRow}>
             <Text style={styles.who} numberOfLines={1}>{story.author.nickname}</Text>

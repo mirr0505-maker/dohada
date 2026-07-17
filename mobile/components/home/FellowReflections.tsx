@@ -5,6 +5,7 @@ import { View, Text, Image, StyleSheet } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { fetchFellowReflections, type FellowReflection } from '@/lib/db';
+import { HostMark, HostAvatarRing } from '@/components/HostMark';
 
 export function FellowReflections() {
   const [items, setItems] = useState<FellowReflection[]>([]);
@@ -27,14 +28,17 @@ export function FellowReflections() {
         return (
           <View key={r.id} style={styles.card}>
             <View style={styles.head}>
-              {r.avatar_url ? (
-                <Image source={{ uri: r.avatar_url }} style={styles.avatar} />
-              ) : (
-                <View style={[styles.avatar, styles.avatarFallback]}>
-                  <Text style={styles.avatarInit}>{name.slice(0, 1)}</Text>
-                </View>
-              )}
+              <HostAvatarRing hostTier={r.host_tier} size={24}>
+                {r.avatar_url ? (
+                  <Image source={{ uri: r.avatar_url }} style={styles.avatar} />
+                ) : (
+                  <View style={[styles.avatar, styles.avatarFallback]}>
+                    <Text style={styles.avatarInit}>{name.slice(0, 1)}</Text>
+                  </View>
+                )}
+              </HostAvatarRing>
               <Text style={styles.name}>{name}</Text>
+              <HostMark hostTier={r.host_tier} />
             </View>
             <Text style={styles.content}>{r.content}</Text>
           </View>

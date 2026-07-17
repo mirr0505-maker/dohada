@@ -26,6 +26,7 @@ export type FellowProof = {
   user_id: string;
   nickname: string;
   avatar_url: string | null;
+  host_tier?: string | null;   // 🚀 0064: 작성자 계층 — 아바타 금빛 링 + 마크
 };
 
 // "도전 인연 = 현재 같은 챌린지의 멤버" (v2.5) — 내가 멤버인 챌린지의 동료 인증만.
@@ -45,7 +46,7 @@ export async function fetchFellowProofs(myUserId: string, limit = 10): Promise<F
     .from('proofs')
     .select(`
       id, photo_url, photo_urls, caption, created_at, challenge_id, user_id, streak_count,
-      users (nickname, avatar_url),
+      users (nickname, avatar_url, host_tier),
       challenges!inner (title, creator_id, gave_up_at)
     `)
     .in('challenge_id', ids)
@@ -69,6 +70,7 @@ export async function fetchFellowProofs(myUserId: string, limit = 10): Promise<F
     user_id: p.user_id,
     nickname: p.users?.nickname ?? '',
     avatar_url: p.users?.avatar_url ?? null,
+    host_tier: p.users?.host_tier ?? null,
   }));
 }
 
@@ -757,7 +759,7 @@ export type LogWithAuthor = {
   photo_url: string | null;     // 커버(=첫 장)
   photo_urls: string[];         // 🚀 0045: 기록 사진 전체 (최대 4장)
   created_at: string;
-  author: { id: string; nickname: string; avatar_url: string | null };
+  author: { id: string; nickname: string; avatar_url: string | null; host_tier?: string | null };
   like_count: number;
   liked_by_me: boolean;
   comment_count: number;
@@ -769,7 +771,7 @@ export async function fetchLogs(challengeId: string, myUserId: string, limit = 3
     .from('logs')
     .select(`
       id, challenge_id, user_id, title, content, photo_url, photo_urls, hidden, created_at,
-      users:user_id(id, nickname, avatar_url),
+      users:user_id(id, nickname, avatar_url, host_tier),
       log_likes(user_id),
       log_comments(count)
     `)
@@ -794,6 +796,7 @@ export async function fetchLogs(challengeId: string, myUserId: string, limit = 3
         id: l.users?.id ?? l.user_id,
         nickname: l.users?.nickname ?? '',
         avatar_url: l.users?.avatar_url ?? null,
+        host_tier: l.users?.host_tier ?? null,   // 임베드 null 폴백 가드 유지
       },
       like_count: likes.length,
       liked_by_me: likes.some(x => x.user_id === myUserId),
@@ -815,7 +818,7 @@ export async function fetchRecentLogs(myUserId: string, limit = 30): Promise<Log
     .from('logs')
     .select(`
       id, challenge_id, user_id, title, content, photo_url, photo_urls, hidden, created_at,
-      users:user_id(id, nickname, avatar_url),
+      users:user_id(id, nickname, avatar_url, host_tier),
       log_likes(user_id),
       log_comments(count),
       challenge:challenge_id (
@@ -843,6 +846,7 @@ export async function fetchRecentLogs(myUserId: string, limit = 30): Promise<Log
         id: l.users?.id ?? l.user_id,
         nickname: l.users?.nickname ?? '',
         avatar_url: l.users?.avatar_url ?? null,
+        host_tier: l.users?.host_tier ?? null,   // 임베드 null 폴백 가드 유지
       },
       like_count: likes.length,
       liked_by_me: likes.some(x => x.user_id === myUserId),
@@ -863,13 +867,13 @@ export type LogCommentWithAuthor = {
   user_id: string;
   content: string;
   created_at: string;
-  author: { id: string; nickname: string; avatar_url: string | null };
+  author: { id: string; nickname: string; avatar_url: string | null; host_tier?: string | null };
 };
 
 export async function fetchLogComments(logId: string): Promise<LogCommentWithAuthor[]> {
   const { data, error } = await supabase
     .from('log_comments')
-    .select('id, log_id, user_id, content, created_at, users:user_id(id, nickname, avatar_url)')
+    .select('id, log_id, user_id, content, created_at, users:user_id(id, nickname, avatar_url, host_tier)')
     .eq('log_id', logId)
     .eq('hidden', false)   // 🚀 3b
     .order('created_at', { ascending: true });
@@ -885,6 +889,7 @@ export async function fetchLogComments(logId: string): Promise<LogCommentWithAut
       id: c.users?.id ?? c.user_id,
       nickname: c.users?.nickname ?? '',
       avatar_url: c.users?.avatar_url ?? null,
+      host_tier: c.users?.host_tier ?? null,   // 임베드 null 폴백 가드 유지
     },
   }));
 }
@@ -1039,13 +1044,13 @@ export type ChatMessageWithAuthor = {
   content: string;
   created_at: string;
   is_notice?: boolean;
-  author: { id: string; nickname: string; avatar_url: string | null };
+  author: { id: string; nickname: string; avatar_url: string | null; host_tier?: string | null };
 };
 
 export async function fetchChatMessages(challengeId: string, limit = 100): Promise<ChatMessageWithAuthor[]> {
   const { data, error } = await supabase
     .from('chat_messages')
-    .select('id, challenge_id, user_id, content, created_at, is_notice, users:user_id(id, nickname, avatar_url)')
+    .select('id, challenge_id, user_id, content, created_at, is_notice, users:user_id(id, nickname, avatar_url, host_tier)')
     .eq('challenge_id', challengeId)
     .eq('hidden', false)   // 🚀 3b
     .order('created_at', { ascending: true })
@@ -1063,6 +1068,7 @@ export async function fetchChatMessages(challengeId: string, limit = 100): Promi
       id: m.users?.id ?? m.user_id,
       nickname: m.users?.nickname ?? '',
       avatar_url: m.users?.avatar_url ?? null,
+      host_tier: m.users?.host_tier ?? null,   // 임베드 null 폴백 가드 유지
     },
   }));
 }
@@ -2013,6 +2019,7 @@ export type FellowReflection = {
   user_id: string;
   nickname: string;
   avatar_url: string | null;
+  host_tier?: string | null;   // 🚀 0064: 작성자 계층 — 아바타 금빛 링
 };
 
 // 🚀 오늘(KST) 다짐/회고 작성 — 1인 1일 kind별 1개(upsert 덮어쓰기).
@@ -2065,7 +2072,7 @@ export async function fetchFellowReflections(limit = 20): Promise<FellowReflecti
     .from('daily_notes')
     .select(`
       id, content, created_at, user_id,
-      users:user_id(nickname, avatar_url)
+      users:user_id(nickname, avatar_url, host_tier)
     `)
     .eq('kind', 'reflection')
     .eq('visibility', 'fellow')
@@ -2083,6 +2090,7 @@ export async function fetchFellowReflections(limit = 20): Promise<FellowReflecti
       user_id: n.user_id,
       nickname: n.users?.nickname ?? '',   // 작성자 임베드 null 폴백 가드
       avatar_url: n.users?.avatar_url ?? null,
+      host_tier: n.users?.host_tier ?? null,
     }));
 }
 
@@ -2198,4 +2206,15 @@ export async function adminSearchChallenges(q: string): Promise<AdminChallengeSe
   const { data, error } = await supabase.rpc('admin_search_challenges', { p_q: q });
   if (error) throw error;
   return (data ?? []) as AdminChallengeSearchResult[];
+}
+
+// 🚀 0065: 성장 중인 누구나 하다 — 검색 없이 기본 노출할 승격 후보 (누적 참여 desc, ≤30).
+export type AdminGrowingChallenge = AdminChallengeSearchResult & {
+  member_count: number;   // 누적 참여 (포기 포함 — 0064 승격 임계와 같은 기준)
+};
+
+export async function adminListGrowingChallenges(): Promise<AdminGrowingChallenge[]> {
+  const { data, error } = await supabase.rpc('admin_list_growing_challenges');
+  if (error) throw error;
+  return (data ?? []) as AdminGrowingChallenge[];
 }

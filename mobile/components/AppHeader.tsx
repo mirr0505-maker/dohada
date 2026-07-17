@@ -14,7 +14,7 @@ import * as SecureStore from 'expo-secure-store';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import { fetchMyProfile, fetchMyNotifications, type MyNotification } from '@/lib/db';
-import { HostMark, hostRingStyle } from '@/components/HostMark';
+import { HostMark, HostAvatarRing } from '@/components/HostMark';
 import { notificationRoute } from '@/lib/push';
 import { displayTitle } from '@/lib/format';
 import { haptic } from '@/lib/haptics';
@@ -123,13 +123,15 @@ export function AppHeader() {
         accessibilityRole="button"
         accessibilityLabel="내 프로필"
       >
-        {avatarUrl ? (
-          <Image source={{ uri: avatarUrl }} style={[styles.headerAvatar, hostRingStyle(hostTier)]} />
-        ) : (
-          <View style={[styles.headerAvatar, styles.headerAvatarFallback, hostRingStyle(hostTier)]}>
-            <Text style={styles.headerAvatarInit}>{nickname.slice(0, 1)}</Text>
-          </View>
-        )}
+        <HostAvatarRing hostTier={hostTier} size={34}>
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.headerAvatar} />
+          ) : (
+            <View style={[styles.headerAvatar, styles.headerAvatarFallback]}>
+              <Text style={styles.headerAvatarInit}>{nickname.slice(0, 1)}</Text>
+            </View>
+          )}
+        </HostAvatarRing>
         <View style={styles.profileText}>
           <View style={styles.profileNickRow}>
             <Text style={styles.profileNick} numberOfLines={1}>{nickname}</Text>

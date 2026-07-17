@@ -48,7 +48,7 @@ import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import { computeProgress, computeStreak, isCompleted, isFailed, isFinished, getFarewellState, isRecruiting, streakMilestone } from '@/lib/stats';
 import { StreakMedal } from '@/components/challenge/StreakMedal';
-import { HostMark, hostRingStyle } from '@/components/HostMark';
+import { HostMark, HostAvatarRing } from '@/components/HostMark';
 import * as SecureStore from 'expo-secure-store';
 import { joinChallenge } from '@/lib/invite';
 import { formatCheerCount, getKstTodayRange, displayTitle } from '@/lib/format';
@@ -1493,13 +1493,15 @@ function ProofCard({
   return (
     <View style={styles.proofCard}>
       <View style={styles.proofHeader}>
-        {proof.author?.avatar_url ? (
-          <Image source={{ uri: proof.author.avatar_url }} style={[styles.proofAvatar, hostRingStyle(proof.author?.host_tier)]} />
-        ) : (
-          <View style={[styles.proofAvatar, styles.proofAvatarFallback, hostRingStyle(proof.author?.host_tier)]}>
-            <Text style={{ fontSize: 18 }}>🐰</Text>
-          </View>
-        )}
+        <HostAvatarRing hostTier={proof.author?.host_tier} size={36}>
+          {proof.author?.avatar_url ? (
+            <Image source={{ uri: proof.author.avatar_url }} style={styles.proofAvatar} />
+          ) : (
+            <View style={[styles.proofAvatar, styles.proofAvatarFallback]}>
+              <Text style={{ fontSize: 18 }}>🐰</Text>
+            </View>
+          )}
+        </HostAvatarRing>
         <View style={{ flex: 1 }}>
           <View style={styles.proofAuthorRow}>
             <Text style={styles.proofAuthor}>{proof.author?.nickname ?? '익명'}</Text>

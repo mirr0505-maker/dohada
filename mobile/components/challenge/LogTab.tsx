@@ -15,6 +15,7 @@ import {
 import { uploadProofImage } from '@/lib/upload';
 import { PhotoViewer } from '@/components/PhotoViewer';
 import { PhotoCarousel } from '@/components/PhotoCarousel';
+import { HostMark, HostAvatarRing } from '@/components/HostMark';
 import { Flag, Heart, Film, EyeOff, MessageCircle, Camera, Image as ImageIcon, X, Waves } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { haptic } from '@/lib/haptics';
@@ -311,17 +312,22 @@ function LogCard({
   return (
     <Pressable style={styles.card} onLongPress={onLongPress} delayLongPress={400}>
       <View style={styles.cardHeader}>
-        {log.author.avatar_url ? (
-          <Image source={{ uri: log.author.avatar_url }} style={styles.avatar} />
-        ) : (
-          <View style={[styles.avatar, styles.avatarFallback]}>
-            <Text style={{ fontSize: 14 }}>{log.author.nickname?.slice(0, 1) || '🐰'}</Text>
-          </View>
-        )}
+        <HostAvatarRing hostTier={log.author.host_tier} size={36}>
+          {log.author.avatar_url ? (
+            <Image source={{ uri: log.author.avatar_url }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarFallback]}>
+              <Text style={{ fontSize: 14 }}>{log.author.nickname?.slice(0, 1) || '🐰'}</Text>
+            </View>
+          )}
+        </HostAvatarRing>
         <View style={{ flex: 1 }}>
-          <Text style={styles.authorName} numberOfLines={1}>
-            {log.author.nickname || '동료'}{isMine ? ' (나)' : ''}
-          </Text>
+          <View style={styles.authorNameRow}>
+            <Text style={styles.authorName} numberOfLines={1}>
+              {log.author.nickname || '동료'}{isMine ? ' (나)' : ''}
+            </Text>
+            <HostMark hostTier={log.author.host_tier} />
+          </View>
           <Text style={styles.authorMeta}>
             {dayN}일째 · {formatRel(log.created_at)}{isMine ? ' · 길게 눌러 수정/삭제' : ''}
           </Text>
@@ -721,7 +727,9 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.accent50 },
   avatarFallback: { alignItems: 'center', justifyContent: 'center' },
+  authorNameRow: { flexDirection: 'row', alignItems: 'center' },
   authorName: {
+    flexShrink: 1,
     fontSize: fontSize.base,
     color: colors.primary,
     fontFamily: fontFamily.bold,

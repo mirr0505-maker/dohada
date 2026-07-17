@@ -9,6 +9,7 @@ import { Film, MessageCircle, BookOpen, EyeOff } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { AppHeader } from '@/components/AppHeader';
 import { CategoryIcon } from '@/components/CategoryIcon';
+import { HostMark, HostAvatarRing } from '@/components/HostMark';
 import { colors, fontFamily, fontSize, fontWeight, radius, textStyle, shadow } from '@/lib/tokens';
 import { categorySlugByName } from '@/lib/icons';
 import { useSession } from '@/lib/session';
@@ -97,15 +98,20 @@ function RecordCard({ log }: { log: LogWithChallenge }) {
     >
       {/* 헤더 */}
       <View style={styles.cardHead}>
-        {log.author.avatar_url ? (
-          <Image source={{ uri: log.author.avatar_url }} style={styles.avatar} />
-        ) : (
-          <View style={[styles.avatar, styles.avatarFallback]}>
-            <Text style={styles.avatarInit}>{log.author.nickname.slice(0, 1)}</Text>
-          </View>
-        )}
+        <HostAvatarRing hostTier={log.author.host_tier} size={36}>
+          {log.author.avatar_url ? (
+            <Image source={{ uri: log.author.avatar_url }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarFallback]}>
+              <Text style={styles.avatarInit}>{log.author.nickname.slice(0, 1)}</Text>
+            </View>
+          )}
+        </HostAvatarRing>
         <View style={{ flex: 1 }}>
-          <Text style={styles.who} numberOfLines={1}>{log.author.nickname}</Text>
+          <View style={styles.whoRow}>
+            <Text style={styles.who} numberOfLines={1}>{log.author.nickname}</Text>
+            <HostMark hostTier={log.author.host_tier} />
+          </View>
           <View style={styles.metaRow}>
             {catName ? <CategoryIcon slug={categorySlugByName[catName]} size={12} color={colors.faint} /> : null}
             <Text style={styles.meta} numberOfLines={1}>{displayTitle(log.challenge.title)}</Text>
@@ -179,7 +185,8 @@ const styles = StyleSheet.create({
   avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.brandTint, overflow: 'hidden' },
   avatarFallback: { alignItems: 'center', justifyContent: 'center' },
   avatarInit: { fontSize: 14, color: colors.brandInk, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
-  who: { fontSize: fontSize.base, color: colors.ink, fontFamily: fontFamily.bold, fontWeight: fontWeight.semibold },
+  whoRow: { flexDirection: 'row', alignItems: 'center' },
+  who: { flexShrink: 1, fontSize: fontSize.base, color: colors.ink, fontFamily: fontFamily.bold, fontWeight: fontWeight.semibold },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 },
   meta: { flex: 1, fontSize: fontSize.xs, color: colors.faint, fontFamily: fontFamily.regular },
   time: { fontSize: fontSize.xs, color: colors.faint, fontFamily: fontFamily.regular },
