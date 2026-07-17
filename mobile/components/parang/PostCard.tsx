@@ -62,7 +62,7 @@ export function PostCard({ post }: { post: ParangPost }) {
             <User size={18} color={colors.faint} strokeWidth={1.8} />
           </View>
         ) : (
-          <HostAvatarRing hostTier={post.author_host_tier} size={36}>
+          <HostAvatarRing hostTier={post.author_host_tier} earlyTier={post.author_early_tier} size={36}>
             {post.author_avatar ? (
               <Image source={{ uri: post.author_avatar }} style={styles.avatar} />
             ) : (

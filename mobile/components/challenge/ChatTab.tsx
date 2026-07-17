@@ -83,7 +83,7 @@ export function ChatTab({ challengeId, myUserId, isMember, farewellDaysLeft = 0,
             // 작성자 정보 fetch (단건)
             const { data: authorRow } = await supabase
               .from('users')
-              .select('id, nickname, avatar_url, host_tier')
+              .select('id, nickname, avatar_url, host_tier, early_tier')
               .eq('id', newRow.user_id)
               .maybeSingle();
             if (!mounted) return;                               // unmount 후 setState 차단
@@ -101,6 +101,7 @@ export function ChatTab({ challengeId, myUserId, isMember, farewellDaysLeft = 0,
                   nickname: authorRow?.nickname ?? '',
                   avatar_url: authorRow?.avatar_url ?? null,
                   host_tier: authorRow?.host_tier ?? null,
+                  early_tier: authorRow?.early_tier ?? null,
                 },
               }];
             });
@@ -242,7 +243,7 @@ export function ChatTab({ challengeId, myUserId, isMember, farewellDaysLeft = 0,
             <View style={[styles.row, mine && styles.rowMine]}>
               {/* 🚀 0064: 대화는 글이 빽빽해 마크(⭐)가 잡음이 된다 → 금빛 링만 */}
               {!mine && (
-                <HostAvatarRing hostTier={item.author.host_tier} size={32}>
+                <HostAvatarRing hostTier={item.author.host_tier} earlyTier={item.author.early_tier} size={32}>
                   {item.author.avatar_url ? (
                     <Image source={{ uri: item.author.avatar_url }} style={styles.avatar} />
                   ) : (

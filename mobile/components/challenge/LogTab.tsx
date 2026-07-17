@@ -312,7 +312,7 @@ function LogCard({
   return (
     <Pressable style={styles.card} onLongPress={onLongPress} delayLongPress={400}>
       <View style={styles.cardHeader}>
-        <HostAvatarRing hostTier={log.author.host_tier} size={36}>
+        <HostAvatarRing hostTier={log.author.host_tier} earlyTier={log.author.early_tier} size={36}>
           {log.author.avatar_url ? (
             <Image source={{ uri: log.author.avatar_url }} style={styles.avatar} />
           ) : (

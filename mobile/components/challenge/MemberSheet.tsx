@@ -72,7 +72,7 @@ export function MemberSheet({
               return (
                 <View style={[styles.row, isMe && styles.rowMine]}>
                   {/* 🚀 0064: 금빛 링(유명인)은 아바타 바깥을 감싼다 — 오늘 인증 테두리(accent)와 겹치지 않고 공존 */}
-                  <HostAvatarRing hostTier={item.host_tier} size={44}>
+                  <HostAvatarRing hostTier={item.host_tier} earlyTier={item.early_tier} size={44}>
                     <View style={[
                       styles.avatar,
                       item.today_checked && styles.avatarChecked,

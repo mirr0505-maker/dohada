@@ -203,7 +203,7 @@ function StatusCard({
   return (
     <View style={[styles.card, isMine && styles.cardMine, gaveUp && styles.cardGaveUp]}>
       <View style={styles.avatarWrap}>
-        <HostAvatarRing hostTier={member.host_tier} size={48}>
+        <HostAvatarRing hostTier={member.host_tier} earlyTier={member.early_tier} size={48}>
           {member.avatar_url ? (
             <Image source={{ uri: member.avatar_url }} style={styles.avatar} />
           ) : (

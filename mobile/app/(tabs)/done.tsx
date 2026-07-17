@@ -100,7 +100,7 @@ function StoryCard({ story }: { story: CompletionStoryCard }) {
     >
       {/* 헤더: 아바타 + 닉네임 + 카테고리 + 트로피 */}
       <View style={styles.cardHead}>
-        <HostAvatarRing hostTier={story.author.host_tier} size={36}>
+        <HostAvatarRing hostTier={story.author.host_tier} earlyTier={story.author.early_tier} size={36}>
           {story.author.avatar_url ? (
             <Image source={{ uri: story.author.avatar_url }} style={styles.avatar} />
           ) : (

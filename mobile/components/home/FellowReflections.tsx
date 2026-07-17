@@ -28,7 +28,7 @@ export function FellowReflections() {
         return (
           <View key={r.id} style={styles.card}>
             <View style={styles.head}>
-              <HostAvatarRing hostTier={r.host_tier} size={24}>
+              <HostAvatarRing hostTier={r.host_tier} earlyTier={r.early_tier} size={24}>
                 {r.avatar_url ? (
                   <Image source={{ uri: r.avatar_url }} style={styles.avatar} />
                 ) : (

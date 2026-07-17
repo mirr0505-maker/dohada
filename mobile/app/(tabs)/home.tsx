@@ -856,7 +856,7 @@ function TodayProofCard({ proof, onViewPhoto }: { proof: FellowProof; onViewPhot
       onPress={() => { haptic.tap(); router.push(`/room/${proof.challenge_id}?tab=proof&proofId=${proof.id}` as any); }}
     >
       <View style={styles.cardHead}>
-        <HostAvatarRing hostTier={proof.host_tier} size={36}>
+        <HostAvatarRing hostTier={proof.host_tier} earlyTier={proof.early_tier} size={36}>
           {proof.avatar_url ? (
             <Image source={{ uri: proof.avatar_url }} style={styles.avatar} />
           ) : (

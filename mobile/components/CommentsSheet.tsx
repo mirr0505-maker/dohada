@@ -249,7 +249,7 @@ function CommentItem({
       delayLongPress={400}
     >
       {/* 🚀 0064: 댓글은 글이 빽빽해 마크(⭐)가 잡음이 된다 → 금빛 링만 */}
-      <HostAvatarRing hostTier={item.author?.host_tier} size={36}>
+      <HostAvatarRing hostTier={item.author?.host_tier} earlyTier={item.author?.early_tier} size={36}>
         {item.author?.avatar_url ? (
           <Image source={{ uri: item.author.avatar_url }} style={styles.avatar} />
         ) : (

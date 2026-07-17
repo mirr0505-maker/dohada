@@ -34,7 +34,8 @@ export default function ProfileScreen() {
   const myUserId = session?.user?.id;
   const [nickname, setNickname] = useState<string>('도전자');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [hostTier, setHostTier] = useState<string | null>(null);   // 🚀 0064: 내 계층 (figure→금빛 테두리 + ⭐)
+  const [hostTier, setHostTier] = useState<string | null>(null);    // 🚀 0064: 내 계층 (figure→금빛 테두리 + ⭐)
+  const [earlyTier, setEarlyTier] = useState<string | null>(null);  // 🚀 0066: 내 창립 티어 (founder/beta→오렌지 테두리, 마크 없음)
   const [editingNick, setEditingNick] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [interests, setInterests] = useState<MyInterest[]>([]);
@@ -50,7 +51,7 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     if (!myUserId || myUserId === 'dev') return;
-    fetchMyProfile(myUserId).then(p => { setNickname(p.nickname); setAvatarUrl(p.avatar_url); setHostTier(p.host_tier); }).catch(() => {});
+    fetchMyProfile(myUserId).then(p => { setNickname(p.nickname); setAvatarUrl(p.avatar_url); setHostTier(p.host_tier); setEarlyTier(p.early_tier); }).catch(() => {});
     fetchMyInterests(myUserId).then(setInterests).catch(() => {});
     fetchCategoryTree().then(t => setCategories(t.categories)).catch(() => {});
     fetchMyFootprints(myUserId).then(setFootprints).catch(() => {});
@@ -118,7 +119,7 @@ export default function ProfileScreen() {
         {/* 프로필 카드 — 아바타(카메라 뱃지) + 닉네임 + 이메일 */}
         <View style={styles.profileCard}>
           <Pressable onPress={onChangeAvatar} disabled={uploadingAvatar} hitSlop={6} style={styles.avatarWrap}>
-            <HostAvatarRing hostTier={hostTier} size={88}>
+            <HostAvatarRing hostTier={hostTier} earlyTier={earlyTier} size={88}>
               {avatarUrl ? (
                 <Image source={{ uri: avatarUrl }} style={styles.avatar} />
               ) : (

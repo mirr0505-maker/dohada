@@ -1493,7 +1493,7 @@ function ProofCard({
   return (
     <View style={styles.proofCard}>
       <View style={styles.proofHeader}>
-        <HostAvatarRing hostTier={proof.author?.host_tier} size={36}>
+        <HostAvatarRing hostTier={proof.author?.host_tier} earlyTier={proof.author?.early_tier} size={36}>
           {proof.author?.avatar_url ? (
             <Image source={{ uri: proof.author.avatar_url }} style={styles.proofAvatar} />
           ) : (

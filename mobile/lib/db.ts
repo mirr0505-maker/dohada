@@ -27,6 +27,7 @@ export type FellowProof = {
   nickname: string;
   avatar_url: string | null;
   host_tier?: string | null;   // 🚀 0064: 작성자 계층 — 아바타 금빛 링 + 마크
+  early_tier?: string | null;  // 🚀 0066: 작성자 창립 티어 — 아바타 오렌지 링 (마크 없음)
 };
 
 // "도전 인연 = 현재 같은 챌린지의 멤버" (v2.5) — 내가 멤버인 챌린지의 동료 인증만.
@@ -46,7 +47,7 @@ export async function fetchFellowProofs(myUserId: string, limit = 10): Promise<F
     .from('proofs')
     .select(`
       id, photo_url, photo_urls, caption, created_at, challenge_id, user_id, streak_count,
-      users (nickname, avatar_url, host_tier),
+      users (nickname, avatar_url, host_tier, early_tier),
       challenges!inner (title, creator_id, gave_up_at)
     `)
     .in('challenge_id', ids)
@@ -71,6 +72,7 @@ export async function fetchFellowProofs(myUserId: string, limit = 10): Promise<F
     nickname: p.users?.nickname ?? '',
     avatar_url: p.users?.avatar_url ?? null,
     host_tier: p.users?.host_tier ?? null,
+    early_tier: p.users?.early_tier ?? null,
   }));
 }
 
@@ -621,6 +623,7 @@ export interface ParangPost {
   author_nickname: string | null;      // 익명이면 null → 클라가 "어떤 이의 걸음"
   author_avatar: string | null;        // 익명이면 null
   author_host_tier: string | null;     // 🚀 0064: 작성자 계층 (익명이면 null — 티어도 신원 힌트라 함께 가림)
+  author_early_tier: string | null;    // 🚀 0066: 작성자 창립 티어 (익명이면 null — 창립 집합도 희소해서 신원 힌트)
   reference_count: number;             // 이 하다를 따라 시작한 사람 수(은은한 "움직인 수")
   courage_count: number;               // 공명해요 집계
   comment_count: number;               // 🚀 0063: 숨김 아닌 댓글 수
@@ -759,7 +762,7 @@ export type LogWithAuthor = {
   photo_url: string | null;     // 커버(=첫 장)
   photo_urls: string[];         // 🚀 0045: 기록 사진 전체 (최대 4장)
   created_at: string;
-  author: { id: string; nickname: string; avatar_url: string | null; host_tier?: string | null };
+  author: { id: string; nickname: string; avatar_url: string | null; host_tier?: string | null; early_tier?: string | null };
   like_count: number;
   liked_by_me: boolean;
   comment_count: number;
@@ -771,7 +774,7 @@ export async function fetchLogs(challengeId: string, myUserId: string, limit = 3
     .from('logs')
     .select(`
       id, challenge_id, user_id, title, content, photo_url, photo_urls, hidden, created_at,
-      users:user_id(id, nickname, avatar_url, host_tier),
+      users:user_id(id, nickname, avatar_url, host_tier, early_tier),
       log_likes(user_id),
       log_comments(count)
     `)
@@ -796,7 +799,8 @@ export async function fetchLogs(challengeId: string, myUserId: string, limit = 3
         id: l.users?.id ?? l.user_id,
         nickname: l.users?.nickname ?? '',
         avatar_url: l.users?.avatar_url ?? null,
-        host_tier: l.users?.host_tier ?? null,   // 임베드 null 폴백 가드 유지
+        host_tier: l.users?.host_tier ?? null,     // 임베드 null 폴백 가드 유지
+        early_tier: l.users?.early_tier ?? null,
       },
       like_count: likes.length,
       liked_by_me: likes.some(x => x.user_id === myUserId),
@@ -818,7 +822,7 @@ export async function fetchRecentLogs(myUserId: string, limit = 30): Promise<Log
     .from('logs')
     .select(`
       id, challenge_id, user_id, title, content, photo_url, photo_urls, hidden, created_at,
-      users:user_id(id, nickname, avatar_url, host_tier),
+      users:user_id(id, nickname, avatar_url, host_tier, early_tier),
       log_likes(user_id),
       log_comments(count),
       challenge:challenge_id (
@@ -846,7 +850,8 @@ export async function fetchRecentLogs(myUserId: string, limit = 30): Promise<Log
         id: l.users?.id ?? l.user_id,
         nickname: l.users?.nickname ?? '',
         avatar_url: l.users?.avatar_url ?? null,
-        host_tier: l.users?.host_tier ?? null,   // 임베드 null 폴백 가드 유지
+        host_tier: l.users?.host_tier ?? null,     // 임베드 null 폴백 가드 유지
+        early_tier: l.users?.early_tier ?? null,
       },
       like_count: likes.length,
       liked_by_me: likes.some(x => x.user_id === myUserId),
@@ -867,13 +872,13 @@ export type LogCommentWithAuthor = {
   user_id: string;
   content: string;
   created_at: string;
-  author: { id: string; nickname: string; avatar_url: string | null; host_tier?: string | null };
+  author: { id: string; nickname: string; avatar_url: string | null; host_tier?: string | null; early_tier?: string | null };
 };
 
 export async function fetchLogComments(logId: string): Promise<LogCommentWithAuthor[]> {
   const { data, error } = await supabase
     .from('log_comments')
-    .select('id, log_id, user_id, content, created_at, users:user_id(id, nickname, avatar_url, host_tier)')
+    .select('id, log_id, user_id, content, created_at, users:user_id(id, nickname, avatar_url, host_tier, early_tier)')
     .eq('log_id', logId)
     .eq('hidden', false)   // 🚀 3b
     .order('created_at', { ascending: true });
@@ -889,7 +894,8 @@ export async function fetchLogComments(logId: string): Promise<LogCommentWithAut
       id: c.users?.id ?? c.user_id,
       nickname: c.users?.nickname ?? '',
       avatar_url: c.users?.avatar_url ?? null,
-      host_tier: c.users?.host_tier ?? null,   // 임베드 null 폴백 가드 유지
+      host_tier: c.users?.host_tier ?? null,     // 임베드 null 폴백 가드 유지
+      early_tier: c.users?.early_tier ?? null,
     },
   }));
 }
@@ -1044,13 +1050,13 @@ export type ChatMessageWithAuthor = {
   content: string;
   created_at: string;
   is_notice?: boolean;
-  author: { id: string; nickname: string; avatar_url: string | null; host_tier?: string | null };
+  author: { id: string; nickname: string; avatar_url: string | null; host_tier?: string | null; early_tier?: string | null };
 };
 
 export async function fetchChatMessages(challengeId: string, limit = 100): Promise<ChatMessageWithAuthor[]> {
   const { data, error } = await supabase
     .from('chat_messages')
-    .select('id, challenge_id, user_id, content, created_at, is_notice, users:user_id(id, nickname, avatar_url, host_tier)')
+    .select('id, challenge_id, user_id, content, created_at, is_notice, users:user_id(id, nickname, avatar_url, host_tier, early_tier)')
     .eq('challenge_id', challengeId)
     .eq('hidden', false)   // 🚀 3b
     .order('created_at', { ascending: true })
@@ -1068,7 +1074,8 @@ export async function fetchChatMessages(challengeId: string, limit = 100): Promi
       id: m.users?.id ?? m.user_id,
       nickname: m.users?.nickname ?? '',
       avatar_url: m.users?.avatar_url ?? null,
-      host_tier: m.users?.host_tier ?? null,   // 임베드 null 폴백 가드 유지
+      host_tier: m.users?.host_tier ?? null,     // 임베드 null 폴백 가드 유지
+      early_tier: m.users?.early_tier ?? null,
     },
   }));
 }
@@ -1377,12 +1384,13 @@ export type MyProfile = {
   nickname: string;
   avatar_url: string | null;
   host_tier: string | null;   // 🚀 0064: 내 계층 — 헤더 아바타 금빛 테두리·닉네임 마크
+  early_tier: string | null;  // 🚀 0066: 내 창립 티어 — 헤더 아바타 오렌지 테두리 (마크 없음)
 };
 
 export async function fetchMyProfile(userId: string): Promise<MyProfile> {
   const { data, error } = await supabase
     .from('users')
-    .select('nickname, avatar_url, host_tier')
+    .select('nickname, avatar_url, host_tier, early_tier')
     .eq('id', userId)
     .single();
   if (error) throw error;
@@ -1390,6 +1398,7 @@ export async function fetchMyProfile(userId: string): Promise<MyProfile> {
     nickname: data?.nickname ?? '도전자',
     avatar_url: data?.avatar_url ?? null,
     host_tier: data?.host_tier ?? null,
+    early_tier: data?.early_tier ?? null,
   };
 }
 
@@ -1593,7 +1602,7 @@ export async function fetchPublicCompletionStories(args: {
     .from('completion_stories')
     .select(`
       *,
-      author:user_id (id, email, nickname, avatar_url, created_at, host_tier),
+      author:user_id (id, email, nickname, avatar_url, created_at, host_tier, early_tier),
       challenge:challenge_id (
         title,
         category:category_id (emoji, name)
@@ -1619,8 +1628,8 @@ function mapStoryReactions(row: any, myUserId?: string): CompletionStoryCard {
     //   공개 완주 이야기를 모르는 사람이 보면 author=null → 렌더에서 'nickname of null' 크래시
     //   (홈 완주 리본·해냈어요 탭·완주 상세). 숨겨졌으면 '익명' 폴백으로 타입 불변식(author: DbUser) 회복.
     //   참고: reference_rls-users-join-undercount (비멤버는 users 조인을 못 읽음).
-    //   (host_tier 도 null 폴백 — 신원을 모르는 폴백에 금빛 테두리가 붙으면 안 된다)
-    author: row.author ?? { id: row.user_id, email: null, nickname: '익명', avatar_url: null, created_at: row.created_at, host_tier: null },
+    //   (host_tier·early_tier 도 null 폴백 — 신원을 모르는 폴백에 링이 붙으면 안 된다)
+    author: row.author ?? { id: row.user_id, email: null, nickname: '익명', avatar_url: null, created_at: row.created_at, host_tier: null, early_tier: null },
     // 🚀 RLS 가드(동일 계열): challenge(challenges) 임베드도 열람자가 방 멤버가 아니면 null 이 된다.
     //   (challenges SELECT = 멤버 전용). 비멤버가 공개 완주 이야기를 보면 challenge=null → 'title of null' 크래시.
     //   빈 제목 폴백으로 타입 불변식(challenge.title: string) 회복 — displayTitle('') 은 무해.
@@ -1670,7 +1679,7 @@ export async function fetchCompletionStory(id: string, myUserId?: string): Promi
     .from('completion_stories')
     .select(`
       *,
-      author:user_id (id, email, nickname, avatar_url, created_at, host_tier),
+      author:user_id (id, email, nickname, avatar_url, created_at, host_tier, early_tier),
       challenge:challenge_id (
         title,
         category:category_id (emoji, name)
@@ -2020,6 +2029,7 @@ export type FellowReflection = {
   nickname: string;
   avatar_url: string | null;
   host_tier?: string | null;   // 🚀 0064: 작성자 계층 — 아바타 금빛 링
+  early_tier?: string | null;  // 🚀 0066: 작성자 창립 티어 — 아바타 오렌지 링
 };
 
 // 🚀 오늘(KST) 다짐/회고 작성 — 1인 1일 kind별 1개(upsert 덮어쓰기).
@@ -2072,7 +2082,7 @@ export async function fetchFellowReflections(limit = 20): Promise<FellowReflecti
     .from('daily_notes')
     .select(`
       id, content, created_at, user_id,
-      users:user_id(nickname, avatar_url, host_tier)
+      users:user_id(nickname, avatar_url, host_tier, early_tier)
     `)
     .eq('kind', 'reflection')
     .eq('visibility', 'fellow')
@@ -2091,6 +2101,7 @@ export async function fetchFellowReflections(limit = 20): Promise<FellowReflecti
       nickname: n.users?.nickname ?? '',   // 작성자 임베드 null 폴백 가드
       avatar_url: n.users?.avatar_url ?? null,
       host_tier: n.users?.host_tier ?? null,
+      early_tier: n.users?.early_tier ?? null,
     }));
 }
 

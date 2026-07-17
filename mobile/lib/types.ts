@@ -8,6 +8,7 @@ export type DbUser = {
   avatar_url: string | null;
   created_at: string;
   host_tier?: string | null;   // 🚀 0064: 사용자 계층 (individual/figure/org) — 아바타 금빛 테두리·닉네임 마크
+  early_tier?: string | null;  // 🚀 0066: 창립 티어 (founder/beta, null=일반) — 아바타 오렌지 테두리 (마크 없음)
 };
 
 // 챌린지 방 4종
