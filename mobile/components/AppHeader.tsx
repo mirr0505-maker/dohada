@@ -8,12 +8,13 @@ import { View, Text, Pressable, StyleSheet, Image, Modal, ScrollView, useWindowD
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import {
   Bell, Menu, MessageCircle, MessageSquare, Heart, Megaphone, Camera, Film,
-  Coffee, HeartHandshake, Undo2, Users, Lock, MapPin, ChevronRight, type LucideIcon,
+  Coffee, HeartHandshake, Undo2, Users, Lock, MapPin, ChevronRight, Star, type LucideIcon,
 } from 'lucide-react-native';
 import * as SecureStore from 'expo-secure-store';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import { fetchMyProfile, fetchMyNotifications, type MyNotification } from '@/lib/db';
+import { HostMark, hostRingStyle } from '@/components/HostMark';
 import { notificationRoute } from '@/lib/push';
 import { displayTitle } from '@/lib/format';
 import { haptic } from '@/lib/haptics';
@@ -36,6 +37,7 @@ const KIND_LABEL: Record<string, string> = {
   gift_refund: '한잔 환불',
   recruit_milestone: '참가 인원 도달',
   recruit_autoclosed: '모집 자동 마감',
+  host_promoted: '유명인이 되었어요',
 };
 
 // 알림 kind → 행 아이콘 (라벨과 1:1)
@@ -54,6 +56,7 @@ const KIND_ICON: Record<string, LucideIcon> = {
   gift_refund: Undo2,
   recruit_milestone: Users,
   recruit_autoclosed: Lock,
+  host_promoted: Star,
 };
 
 export function AppHeader() {
@@ -62,6 +65,7 @@ export function AppHeader() {
   const myUserId = session?.user?.id;
   const [nickname, setNickname] = useState<string>('도전자');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [hostTier, setHostTier] = useState<string | null>(null);   // 🚀 0064: 내 계층 (figure→금빛 테두리 + ⭐)
 
   // 🚀 알림함 모달 + dot
   const [modalVisible, setModalVisible] = useState(false);
@@ -73,7 +77,7 @@ export function AppHeader() {
     useCallback(() => {
       if (!myUserId || myUserId === 'dev') return;
       fetchMyProfile(myUserId)
-        .then(p => { setNickname(p.nickname); setAvatarUrl(p.avatar_url); })
+        .then(p => { setNickname(p.nickname); setAvatarUrl(p.avatar_url); setHostTier(p.host_tier); })
         .catch(() => {});
       fetchMyNotifications(myUserId)
         .then(async list => {
@@ -120,14 +124,17 @@ export function AppHeader() {
         accessibilityLabel="내 프로필"
       >
         {avatarUrl ? (
-          <Image source={{ uri: avatarUrl }} style={styles.headerAvatar} />
+          <Image source={{ uri: avatarUrl }} style={[styles.headerAvatar, hostRingStyle(hostTier)]} />
         ) : (
-          <View style={[styles.headerAvatar, styles.headerAvatarFallback]}>
+          <View style={[styles.headerAvatar, styles.headerAvatarFallback, hostRingStyle(hostTier)]}>
             <Text style={styles.headerAvatarInit}>{nickname.slice(0, 1)}</Text>
           </View>
         )}
         <View style={styles.profileText}>
-          <Text style={styles.profileNick} numberOfLines={1}>{nickname}</Text>
+          <View style={styles.profileNickRow}>
+            <Text style={styles.profileNick} numberOfLines={1}>{nickname}</Text>
+            <HostMark hostTier={hostTier} />
+          </View>
           <Text style={styles.profileSub}>오늘도 한 걸음</Text>
         </View>
       </Pressable>
@@ -262,7 +269,9 @@ const styles = StyleSheet.create({
   // 좌: 프로필
   profile: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1 },
   profileText: { flexShrink: 1 },
+  profileNickRow: { flexDirection: 'row', alignItems: 'center', flexShrink: 1 },
   profileNick: {
+    flexShrink: 1,   // 마크(⭐)와 한 줄에 놓이므로 긴 닉네임은 닉네임 쪽이 줄어들며 말줄임
     fontSize: fontSize.md,
     color: colors.ink,
     fontFamily: fontFamily.bold,

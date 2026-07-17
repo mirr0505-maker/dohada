@@ -2,7 +2,7 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, Pressable, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import {
-  adminSearchChallenges, adminSetHostTier,
+  adminSearchChallenges, adminSetHostTier, adminSetRecruitExempt,
   type AdminChallengeSearchResult,
 } from '@/lib/db';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
@@ -27,6 +27,7 @@ export function HostTierAssign() {
   const [pickTier, setPickTier] = useState<Tier>('individual');
   const [pickLabel, setPickLabel] = useState('');
   const [applyingId, setApplyingId] = useState<string | null>(null);
+  const [exemptingId, setExemptingId] = useState<string | null>(null);   // 🚀 0064: 캡 면제 토글 중인 항목
 
   const onSearch = useCallback(async () => {
     const q = query.trim();
@@ -66,6 +67,21 @@ export function HostTierAssign() {
     }
   }, [applyingId, pickTier, pickLabel, query]);
 
+  // 🚀 0064: 모집 캡 면제 토글 — 면제된 누구나 하다만 기간 50% 자동 마감 없이 자라
+  //   누적 1,000명에서 개설자가 유명인으로 자동 승격된다. open 하다에만 의미 있음(서버도 거부).
+  const onToggleExempt = useCallback(async (item: AdminChallengeSearchResult) => {
+    if (exemptingId) return;
+    setExemptingId(item.id);
+    try {
+      await adminSetRecruitExempt(item.id, !item.recruit_cap_exempt);
+      setResults(await adminSearchChallenges(query.trim()));
+    } catch (e: any) {
+      Alert.alert('실패', e?.message ?? String(e));
+    } finally {
+      setExemptingId(null);
+    }
+  }, [exemptingId, query]);
+
   return (
     <View style={styles.wrap}>
       <View style={styles.searchRow}>
@@ -99,6 +115,22 @@ export function HostTierAssign() {
                     {item.host_label ? ` · ${item.host_label}` : ''}
                   </Text>
                 </Pressable>
+
+                {/* 🚀 0064: 모집 캡 면제 — 누구나 하다만 (이 하다를 1,000명까지 키울지) */}
+                {item.kind === 'open' && (
+                  <Pressable
+                    style={[styles.exemptRow, item.recruit_cap_exempt && styles.exemptRowOn]}
+                    disabled={exemptingId === item.id}
+                    onPress={() => onToggleExempt(item)}
+                  >
+                    <Text style={[styles.exemptText, item.recruit_cap_exempt && styles.exemptTextOn]}>
+                      {item.recruit_cap_exempt ? '✓ 모집 캡 면제 — 계속 자람' : '모집 캡 면제'}
+                    </Text>
+                    <Text style={styles.exemptAction}>
+                      {exemptingId === item.id ? '적용 중…' : item.recruit_cap_exempt ? '해제' : '부여'}
+                    </Text>
+                  </Pressable>
+                )}
 
                 {open && (
                   <View style={styles.editArea}>
@@ -154,6 +186,15 @@ const styles = StyleSheet.create({
   card: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: 14, gap: 4, ...shadow.sm },
   title: { fontSize: fontSize.base, color: colors.ink, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
   meta: { fontSize: fontSize.xs, color: colors.faint, fontFamily: fontFamily.regular, marginTop: 2 },
+  exemptRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginTop: 8, paddingHorizontal: 12, paddingVertical: 8,
+    borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.primary50,
+  },
+  exemptRowOn: { borderColor: colors.gold, backgroundColor: colors.surface },
+  exemptText: { fontSize: fontSize.sm, color: colors.sub, fontFamily: fontFamily.medium, fontWeight: fontWeight.medium },
+  exemptTextOn: { color: colors.gold, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
+  exemptAction: { fontSize: fontSize.xs, color: colors.faint, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
   editArea: { gap: 10, marginTop: 10, paddingTop: 10, borderTopWidth: 0.5, borderTopColor: colors.line },
   tierRow: { flexDirection: 'row', gap: 8 },
   tierChip: {

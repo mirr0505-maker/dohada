@@ -12,6 +12,7 @@ import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { haptic } from '@/lib/haptics';
 import { PhotoCarousel } from '@/components/PhotoCarousel';
 import { PhotoViewer } from '@/components/PhotoViewer';
+import { HostMark, hostRingStyle } from '@/components/HostMark';
 import { ParangComments } from './ParangComments';
 
 export function PostCard({ post }: { post: ParangPost }) {
@@ -61,16 +62,20 @@ export function PostCard({ post }: { post: ParangPost }) {
             <User size={18} color={colors.faint} strokeWidth={1.8} />
           </View>
         ) : post.author_avatar ? (
-          <Image source={{ uri: post.author_avatar }} style={styles.avatar} />
+          <Image source={{ uri: post.author_avatar }} style={[styles.avatar, hostRingStyle(post.author_host_tier)]} />
         ) : (
-          <View style={[styles.avatar, styles.avatarNeutral]}>
+          <View style={[styles.avatar, styles.avatarNeutral, hostRingStyle(post.author_host_tier)]}>
             <Text style={styles.avatarInitial}>{post.author_nickname?.slice(0, 1)}</Text>
           </View>
         )}
         <View style={{ flex: 1 }}>
-          <Text style={styles.name} numberOfLines={1}>
-            {anon ? '어떤 이의 걸음' : post.author_nickname}
-          </Text>
+          {/* 익명 글은 RPC 가 author_host_tier 까지 null 로 내려 마크·테두리가 자동으로 안 붙는다 */}
+          <View style={styles.nameRow}>
+            <Text style={styles.name} numberOfLines={1}>
+              {anon ? '어떤 이의 걸음' : post.author_nickname}
+            </Text>
+            <HostMark hostTier={post.author_host_tier} />
+          </View>
           <Text style={styles.meta} numberOfLines={1}>
             {post.title} · {relTime(post.created_at)}
           </Text>
@@ -176,7 +181,8 @@ const styles = StyleSheet.create({
   avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.bg },
   avatarNeutral: { alignItems: 'center', justifyContent: 'center' },
   avatarInitial: { fontSize: 15, color: colors.sub, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
-  name: { fontSize: fontSize.md, color: colors.ink, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
+  nameRow: { flexDirection: 'row', alignItems: 'center' },
+  name: { flexShrink: 1, fontSize: fontSize.md, color: colors.ink, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
   meta: { fontSize: fontSize.xs, color: colors.faint, fontFamily: fontFamily.regular, marginTop: 2 },
   body: { fontSize: fontSize.md, color: colors.ink, fontFamily: fontFamily.regular, lineHeight: 22 },
   ripple: { fontSize: fontSize.sm, color: colors.faint, fontFamily: fontFamily.regular },

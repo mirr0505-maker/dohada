@@ -48,6 +48,7 @@ import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import { computeProgress, computeStreak, isCompleted, isFailed, isFinished, getFarewellState, isRecruiting, streakMilestone } from '@/lib/stats';
 import { StreakMedal } from '@/components/challenge/StreakMedal';
+import { HostMark, hostRingStyle } from '@/components/HostMark';
 import * as SecureStore from 'expo-secure-store';
 import { joinChallenge } from '@/lib/invite';
 import { formatCheerCount, getKstTodayRange, displayTitle } from '@/lib/format';
@@ -1493,14 +1494,17 @@ function ProofCard({
     <View style={styles.proofCard}>
       <View style={styles.proofHeader}>
         {proof.author?.avatar_url ? (
-          <Image source={{ uri: proof.author.avatar_url }} style={styles.proofAvatar} />
+          <Image source={{ uri: proof.author.avatar_url }} style={[styles.proofAvatar, hostRingStyle(proof.author?.host_tier)]} />
         ) : (
-          <View style={[styles.proofAvatar, styles.proofAvatarFallback]}>
+          <View style={[styles.proofAvatar, styles.proofAvatarFallback, hostRingStyle(proof.author?.host_tier)]}>
             <Text style={{ fontSize: 18 }}>🐰</Text>
           </View>
         )}
         <View style={{ flex: 1 }}>
-          <Text style={styles.proofAuthor}>{proof.author?.nickname ?? '익명'}</Text>
+          <View style={styles.proofAuthorRow}>
+            <Text style={styles.proofAuthor}>{proof.author?.nickname ?? '익명'}</Text>
+            <HostMark hostTier={proof.author?.host_tier} />
+          </View>
           <Text style={styles.proofTime}>{formatTime(proof.created_at)}</Text>
         </View>
         {!mine && onMore && (
@@ -1805,6 +1809,7 @@ const styles = StyleSheet.create({
   },
   proofHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   proofAvatar: { width: 36, height: 36, borderRadius: 18, overflow: 'hidden' },
+  proofAuthorRow: { flexDirection: 'row', alignItems: 'center' },
   proofAvatarFallback: {
     backgroundColor: colors.primary50,
     alignItems: 'center',

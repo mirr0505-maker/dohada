@@ -618,6 +618,7 @@ export interface ParangPost {
   photo_urls?: string[];               // 🚀 0062: 사진 전체(최대 3~4장). 비면 [photo_url] 폴백
   author_nickname: string | null;      // 익명이면 null → 클라가 "어떤 이의 걸음"
   author_avatar: string | null;        // 익명이면 null
+  author_host_tier: string | null;     // 🚀 0064: 작성자 계층 (익명이면 null — 티어도 신원 힌트라 함께 가림)
   reference_count: number;             // 이 하다를 따라 시작한 사람 수(은은한 "움직인 수")
   courage_count: number;               // 공명해요 집계
   comment_count: number;               // 🚀 0063: 숨김 아닌 댓글 수
@@ -1366,18 +1367,23 @@ export async function sendCreatorNotice(args: {
 }
 
 // ─── 내 프로필 (닉네임 + 아바타 수정) ─────────────────
-export type MyProfile = { nickname: string; avatar_url: string | null };
+export type MyProfile = {
+  nickname: string;
+  avatar_url: string | null;
+  host_tier: string | null;   // 🚀 0064: 내 계층 — 헤더 아바타 금빛 테두리·닉네임 마크
+};
 
 export async function fetchMyProfile(userId: string): Promise<MyProfile> {
   const { data, error } = await supabase
     .from('users')
-    .select('nickname, avatar_url')
+    .select('nickname, avatar_url, host_tier')
     .eq('id', userId)
     .single();
   if (error) throw error;
   return {
     nickname: data?.nickname ?? '도전자',
     avatar_url: data?.avatar_url ?? null,
+    host_tier: data?.host_tier ?? null,
   };
 }
 
@@ -1581,7 +1587,7 @@ export async function fetchPublicCompletionStories(args: {
     .from('completion_stories')
     .select(`
       *,
-      author:user_id (id, email, nickname, avatar_url, created_at),
+      author:user_id (id, email, nickname, avatar_url, created_at, host_tier),
       challenge:challenge_id (
         title,
         category:category_id (emoji, name)
@@ -1607,7 +1613,8 @@ function mapStoryReactions(row: any, myUserId?: string): CompletionStoryCard {
     //   공개 완주 이야기를 모르는 사람이 보면 author=null → 렌더에서 'nickname of null' 크래시
     //   (홈 완주 리본·해냈어요 탭·완주 상세). 숨겨졌으면 '익명' 폴백으로 타입 불변식(author: DbUser) 회복.
     //   참고: reference_rls-users-join-undercount (비멤버는 users 조인을 못 읽음).
-    author: row.author ?? { id: row.user_id, email: null, nickname: '익명', avatar_url: null, created_at: row.created_at },
+    //   (host_tier 도 null 폴백 — 신원을 모르는 폴백에 금빛 테두리가 붙으면 안 된다)
+    author: row.author ?? { id: row.user_id, email: null, nickname: '익명', avatar_url: null, created_at: row.created_at, host_tier: null },
     // 🚀 RLS 가드(동일 계열): challenge(challenges) 임베드도 열람자가 방 멤버가 아니면 null 이 된다.
     //   (challenges SELECT = 멤버 전용). 비멤버가 공개 완주 이야기를 보면 challenge=null → 'title of null' 크래시.
     //   빈 제목 폴백으로 타입 불변식(challenge.title: string) 회복 — displayTitle('') 은 무해.
@@ -1657,7 +1664,7 @@ export async function fetchCompletionStory(id: string, myUserId?: string): Promi
     .from('completion_stories')
     .select(`
       *,
-      author:user_id (id, email, nickname, avatar_url, created_at),
+      author:user_id (id, email, nickname, avatar_url, created_at, host_tier),
       challenge:challenge_id (
         title,
         category:category_id (emoji, name)
@@ -2117,6 +2124,7 @@ export type AdminChallengeSearchResult = {
   kind: ChallengeKind;
   host_tier: string;
   host_label: string | null;
+  recruit_cap_exempt: boolean;   // 🚀 0064: 모집 캡 면제 (이 하다를 1,000명까지 키울지)
   created_at: string;
 };
 
@@ -2171,6 +2179,16 @@ export async function adminSetHostTier(
     p_challenge_id: challengeId,
     p_tier: tier,
     p_label: label,
+  });
+  if (error) throw error;
+}
+
+// 🚀 0064: 모집 캡 면제 부여/해제 — 누구나(open) 하다만.
+//   면제된 하다는 기간 50% 자동 마감을 받지 않고 계속 자란다 → 누적 1,000명 도달 시 개설자 자동 승격(figure).
+export async function adminSetRecruitExempt(challengeId: string, exempt: boolean): Promise<void> {
+  const { error } = await supabase.rpc('admin_set_recruit_exempt', {
+    p_challenge_id: challengeId,
+    p_exempt: exempt,
   });
   if (error) throw error;
 }

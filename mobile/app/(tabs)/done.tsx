@@ -10,6 +10,7 @@ import { Trophy, HeartHandshake, Sprout } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { AppHeader } from '@/components/AppHeader';
 import { CategoryIcon } from '@/components/CategoryIcon';
+import { HostMark, hostRingStyle } from '@/components/HostMark';
 import { colors, fontFamily, fontSize, fontWeight, radius, textStyle, shadow } from '@/lib/tokens';
 import { categorySlugByName } from '@/lib/icons';
 import { fetchPublicCompletionStories } from '@/lib/db';
@@ -100,14 +101,17 @@ function StoryCard({ story }: { story: CompletionStoryCard }) {
       {/* 헤더: 아바타 + 닉네임 + 카테고리 + 트로피 */}
       <View style={styles.cardHead}>
         {story.author.avatar_url ? (
-          <Image source={{ uri: story.author.avatar_url }} style={styles.avatar} />
+          <Image source={{ uri: story.author.avatar_url }} style={[styles.avatar, hostRingStyle(story.author.host_tier)]} />
         ) : (
-          <View style={[styles.avatar, styles.avatarFallback]}>
+          <View style={[styles.avatar, styles.avatarFallback, hostRingStyle(story.author.host_tier)]}>
             <Text style={styles.avatarInit}>{story.author.nickname.slice(0, 1)}</Text>
           </View>
         )}
         <View style={{ flex: 1 }}>
-          <Text style={styles.who} numberOfLines={1}>{story.author.nickname}</Text>
+          <View style={styles.whoRow}>
+            <Text style={styles.who} numberOfLines={1}>{story.author.nickname}</Text>
+            <HostMark hostTier={story.author.host_tier} />
+          </View>
           <View style={styles.metaRow}>
             {catName ? <CategoryIcon slug={categorySlugByName[catName]} size={12} color={colors.faint} /> : null}
             <Text style={styles.sub2} numberOfLines={1}>{catName ?? '하다'}</Text>
@@ -183,7 +187,8 @@ const styles = StyleSheet.create({
   avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.brandTint, overflow: 'hidden' },
   avatarFallback: { alignItems: 'center', justifyContent: 'center' },
   avatarInit: { fontSize: 14, color: colors.brandInk, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
-  who: { fontSize: fontSize.base, color: colors.ink, fontFamily: fontFamily.bold, fontWeight: fontWeight.semibold },
+  whoRow: { flexDirection: 'row', alignItems: 'center' },
+  who: { flexShrink: 1, fontSize: fontSize.base, color: colors.ink, fontFamily: fontFamily.bold, fontWeight: fontWeight.semibold },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 },
   sub2: { flex: 1, fontSize: fontSize.xs, color: colors.faint, fontFamily: fontFamily.regular },
 

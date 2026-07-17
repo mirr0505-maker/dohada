@@ -257,6 +257,7 @@ function composeMessage(kind: string, rows: any[]): { title: string; body: strin
   if (kind === 'log')         return { title: '🎥 새 기록', body: head.preview ?? '동료가 새 기록을 남겼어요' };
   if (kind === 'recruit_milestone')  return { title: '👥 참가 인원 도달', body: head.preview ?? '참가 인원이 도달했어요' };
   if (kind === 'recruit_autoclosed') return { title: '🔒 모집 자동 마감', body: head.preview ?? '도전 기간 절반이 지나 모집이 마감됐어요' };
+  if (kind === 'host_promoted')      return { title: '⭐ 유명인이 되었어요', body: head.preview ?? '1,000명이 함께한 하다를 열었어요' };
   return { title: 'Do : 하다', body: head.preview ?? '' };
 }
 

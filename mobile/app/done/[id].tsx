@@ -14,6 +14,7 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Trash2, Trophy, HeartHandshake } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
+import { HostMark } from '@/components/HostMark';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import { fetchCompletionStory, deleteCompletionStory, toggleStoryCourage } from '@/lib/db';
@@ -170,7 +171,7 @@ export default function CompletionStoryDetailScreen() {
           <View style={styles.trophyEmoji}><Trophy size={44} color={colors.gold} strokeWidth={1.6} /></View>
           <Text style={styles.trophyTitle}>{displayTitle(story.challenge.title)}</Text>
           <Text style={styles.trophyMeta}>
-            {story.author.nickname} · {year} · Do : 하다
+            {story.author.nickname}<HostMark hostTier={story.author.host_tier} /> · {year} · Do : 하다
           </Text>
         </View>
 
