@@ -244,9 +244,11 @@ export default function HomeScreen() {
   const goalDone = (c: MyChallengeDetail) =>
     isCountGoal(c) && c.target_count != null && c.my_proof_count >= c.target_count;
   // 오늘 인증이 필요한 방 (주기형 + 시작했고 + 오늘 미인증 + cheered 응원자 제외)
+  // 🚀 0069: 조직 하다 주최자(my_role='host')도 제외 — 주최자는 인증 주체가 아니다(응원자와 같은 결)
   const needsTodayCheck = (c: MyChallengeDetail) =>
     !isCountGoal(c) &&
     !c.is_today_checked &&
+    c.my_role !== 'host' &&
     !(c.kind === 'cheered' && c.creator_id !== myUserId) &&
     c.start_date <= kstTodayStr;
 

@@ -29,6 +29,9 @@ export type ChallengeFrequency = 'daily' | 'weekly3' | 'weekly1';
 //   count   : 목표 횟수형 (기간 내 target_count 개 달성하면 완주 — 100대명산·올레 완주 등)
 export type ChallengeGoalType = 'cadence' | 'count';
 
+// 🚀 0069: 방 안에서 갈리는 역할 — 'host'(조직 하다의 주최자)는 도전자가 아니라 집계에서 제외된다.
+export type ChallengeMemberRole = 'member' | 'host';
+
 export type DbChallenge = {
   id: string;
   creator_id: string;
@@ -106,6 +109,7 @@ export type ChallengeWithCount = DbChallenge & {
   has_new_log?: boolean;
   my_proof_count?: number;   // 🚀 0041: 내 총 인증 수 (count 유형 진행도 N/목표)
   reference_count?: number;  // 🚀 0050: 하다 구경에서 따라하기로 참조된 횟수 (조용한 목격받기)
+  my_role?: ChallengeMemberRole;   // 🚀 0069: 이 방에서 내 역할 — 'host'(조직 주최자)면 인증 의무·배지 없음
 };
 
 export type MemberWithToday = DbUser & {
@@ -113,6 +117,7 @@ export type MemberWithToday = DbUser & {
   paused_until: string | null;
   joined_at: string;     // 정렬용 — '시간의 흐름' (비교 압박 회피)
   gave_up_at: string | null;   // 도전 포기 (soft delete) — 본인 화면 hide, 다른 멤버는 '포기' 라벨
+  role: ChallengeMemberRole;   // 🚀 0069: 'host'(조직 하다 주최자)는 도전자 집계·인증 분모에서 제외
 };
 
 export type ProofWithRelations = DbProof & {

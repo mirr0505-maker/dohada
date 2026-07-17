@@ -4,7 +4,7 @@ import { supabase } from './supabase';
 import { getKstTodayRange } from './format';
 import { isRecruiting, goalStatus, isFinished } from './stats';   // 🚀 0043: 모집 마감 판정 + 다짐 내역 완주 판정
 import type {
-  ChallengeWithCount, ChallengeKind, ChallengeGoalType, ChallengeFrequency, MemberWithToday, ProofWithRelations, DbChallenge,
+  ChallengeWithCount, ChallengeKind, ChallengeGoalType, ChallengeMemberRole, ChallengeFrequency, MemberWithToday, ProofWithRelations, DbChallenge,
   CommentWithAuthor, CheerType,
   OpenChallengeCard, ChallengeVoteType, ChallengeVoteCounts, BrowseChallengeCard,
   DbCompletionStory, CompletionStoryCard, StoryVisibility,
@@ -86,12 +86,15 @@ export async function fetchMyChallenges(myUserId?: string): Promise<ChallengeWit
   //    RLS 가 open 챌린지를 비멤버에도 SELECT 허용하기 때문에 명시적 필터 필요.
   const { data: memberships, error: mErr } = await supabase
     .from('challenge_members')
-    .select('challenge_id')
+    .select('challenge_id, role')   // 🚀 0069: role='host' = 조직 하다 주최자 (인증 의무·진행 배지 없음)
     .eq('user_id', myUserId)
     .is('gave_up_at', null);
   if (mErr) throw mErr;
   const ids = (memberships ?? []).map((m: any) => m.challenge_id);
   if (!ids.length) return [];
+  const myRoleMap = new Map<string, ChallengeMemberRole>(
+    (memberships ?? []).map((m: any) => [m.challenge_id, (m.role ?? 'member') as ChallengeMemberRole]),
+  );
 
   // 2. 그 챌린지들만 fetch
   const { data, error } = await supabase
@@ -132,7 +135,8 @@ export async function fetchMyChallenges(myUserId?: string): Promise<ChallengeWit
   }
 
   // 5. 최근 24시간 내 타인의 새 대화 및 새 기록 데이터 가져오기
-  const [resNewChats, resNewLogs] = await Promise.all([
+  //    + 🚀 0069: 방별 주최자(role='host') 수 — challenge_members(count) 에서 빼서 '함께 N명' 을 도전자만으로.
+  const [resNewChats, resNewLogs, resHosts] = await Promise.all([
     supabase
       .from('chat_messages')
       .select('challenge_id')
@@ -144,8 +148,18 @@ export async function fetchMyChallenges(myUserId?: string): Promise<ChallengeWit
       .select('challenge_id')
       .in('challenge_id', ids)
       .neq('user_id', myUserId)
-      .gte('created_at', oneDayAgo)
+      .gte('created_at', oneDayAgo),
+    supabase
+      .from('challenge_members')
+      .select('challenge_id')
+      .in('challenge_id', ids)
+      .eq('role', 'host')
   ]);
+
+  const hostCountMap = new Map<string, number>();
+  for (const h of (resHosts.data ?? []) as any[]) {
+    hostCountMap.set(h.challenge_id, (hostCountMap.get(h.challenge_id) ?? 0) + 1);
+  }
 
   const hasNewChatSet = new Set<string>();
   for (const c of (resNewChats.data ?? []) as any[]) {
@@ -184,9 +198,11 @@ export async function fetchMyChallenges(myUserId?: string): Promise<ChallengeWit
       start_date: c.start_date,
       end_date: c.end_date,
       created_at: c.created_at,
-      member_count: c.challenge_members?.[0]?.count ?? 0,
+      // 🚀 0069: 주최자는 도전자가 아니므로 '함께 N명' 에서 뺀다
+      member_count: Math.max(0, (c.challenge_members?.[0]?.count ?? 0) - (hostCountMap.get(c.id) ?? 0)),
       is_today_checked: myTodayProofSet.has(c.id),
       my_streak: streak,
+      my_role: myRoleMap.get(c.id) ?? 'member',   // 🚀 0069
       has_new_chat: c.kind !== 'solo' && hasNewChatSet.has(c.id),
       has_new_log: c.kind !== 'solo' && hasNewLogSet.has(c.id),
       goal_type: (c.goal_type ?? 'cadence') as ChallengeGoalType,   // 🚀 0041
@@ -303,12 +319,15 @@ export async function fetchMyChallengesWithDetails(myUserId: string): Promise<My
   //    RLS 가 open 챌린지를 비멤버에도 SELECT 허용 → 명시적 필터 필요.
   const { data: memberships, error: mErr } = await supabase
     .from('challenge_members')
-    .select('challenge_id')
+    .select('challenge_id, role')   // 🚀 0069: role='host' = 조직 하다 주최자 (인증 의무·진행 배지 없음)
     .eq('user_id', myUserId)
     .is('gave_up_at', null);
   if (mErr) throw mErr;
   const myIds = (memberships ?? []).map((m: any) => m.challenge_id);
   if (!myIds.length) return [];
+  const myRoleMap = new Map<string, ChallengeMemberRole>(
+    (memberships ?? []).map((m: any) => [m.challenge_id, (m.role ?? 'member') as ChallengeMemberRole]),
+  );
 
   // 1. 본인 멤버 챌린지만 fetch
   const { data: challenges, error } = await supabase
@@ -358,14 +377,20 @@ export async function fetchMyChallengesWithDetails(myUserId: string): Promise<My
   }
 
   // 5. 멤버 top 5 (가입 순 — 시간의 흐름 톤)
+  //    + 🚀 0069: 방별 주최자(role='host') 수 — '동료 N/M 완료' 분모에서 빼려면 주최자 수를 알아야 한다.
   const { data: members } = await supabase
     .from('challenge_members')
-    .select('challenge_id, joined_at, users(id, nickname, avatar_url)')
+    .select('challenge_id, joined_at, role, users(id, nickname, avatar_url)')
     .in('challenge_id', challengeIds)
     .is('gave_up_at', null)
     .order('joined_at', { ascending: true });
   const topMembersMap = new Map<string, MyChallengeDetail['top_members']>();
+  const hostCountMap = new Map<string, number>();
   for (const m of (members ?? []) as any[]) {
+    if (m.role === 'host') {
+      hostCountMap.set(m.challenge_id, (hostCountMap.get(m.challenge_id) ?? 0) + 1);
+      continue;   // 주최자는 도전자 얼굴 줄(top_members)에도 안 낀다
+    }
     const arr = topMembersMap.get(m.challenge_id) ?? [];
     if (arr.length < 5 && m.users) {
       arr.push({ id: m.users.id, nickname: m.users.nickname, avatar_url: m.users.avatar_url });
@@ -383,7 +408,8 @@ export async function fetchMyChallengesWithDetails(myUserId: string): Promise<My
     start_date: c.start_date,
     end_date: c.end_date,
     created_at: c.created_at,
-    member_count: c.challenge_members?.[0]?.count ?? 0,
+    // 🚀 0069: 주최자는 도전자가 아니므로 '동료 N/M 완료' 분모에서 뺀다
+    member_count: Math.max(0, (c.challenge_members?.[0]?.count ?? 0) - (hostCountMap.get(c.id) ?? 0)),
     is_impact: !!c.category?.is_impact,
     category_name: c.category?.name ?? null,
     today_check_count: todayCountMap.get(c.id) ?? 0,
@@ -394,6 +420,7 @@ export async function fetchMyChallengesWithDetails(myUserId: string): Promise<My
     target_count: c.target_count ?? null,
     my_proof_count: myProofCountMap.get(c.id) ?? 0,
     reference_count: c.reference_count ?? 0,   // 🚀 0050: 따라하기 참조 횟수
+    my_role: myRoleMap.get(c.id) ?? 'member',   // 🚀 0069
     gave_up_at: c.gave_up_at ?? null,
   }));
 }
@@ -1143,7 +1170,8 @@ export async function fetchRoomData(challengeId: string, myUserId: string) {
     supabase
       .from('challenge_members')
       // user_id 직접 포함 — 비멤버는 users(*) 조인이 RLS 로 null 이라 프로필 없이도 멤버를 식별해야 함
-      .select('user_id, paused_until, joined_at, gave_up_at, users(*)')
+      // role(0069) — 조직 하다 주최자('host')는 도전자가 아니라 인원·인증 집계에서 빠진다
+      .select('user_id, paused_until, joined_at, gave_up_at, role, users(*)')
       .eq('challenge_id', challengeId)
       .order('joined_at', { ascending: true }),
     supabase
@@ -1175,7 +1203,9 @@ export async function fetchRoomData(challengeId: string, myUserId: string) {
   // 비멤버는 다른 멤버의 users(프로필) 행을 RLS(users_self_read)로 못 읽어 아래 members 가 적게 잡히지만,
   // challenge_members 행 자체는 open 방에서 열람 가능하므로 여기서 활성(포기 안 함) 수를 직접 센다.
   // (홈 '관심 도전' 카드의 member_count 와 같은 기준 — 홈/방 인원 표시 일치)
-  const activeMembers = (resMembers.data ?? []).filter((m: any) => m.gave_up_at === null);
+  // 🚀 0069: 조직 하다 주최자(role='host')는 도전자가 아니므로 인원 수에서 뺀다 —
+  //   주최자를 세면 인포바 분모(📸 N/N)가 영원히 안 채워지는 1명을 안고 간다.
+  const activeMembers = (resMembers.data ?? []).filter((m: any) => m.gave_up_at === null && m.role !== 'host');
   const memberCount = activeMembers.length;
 
   // 🚀 오늘 인증한 활성 멤버 수도 프로필 가시성과 분리해 센다.
@@ -1198,6 +1228,7 @@ export async function fetchRoomData(challengeId: string, myUserId: string) {
       paused_until: m.paused_until ?? null,
       gave_up_at:   m.gave_up_at   ?? null,
       joined_at: m.joined_at,
+      role: (m.role ?? 'member') as ChallengeMemberRole,   // 🚀 0069
       today_checked: proofsRaw.some((p: any) => {
         if (p.user_id !== m.users.id) return false;
         const t = Date.parse(p.created_at);

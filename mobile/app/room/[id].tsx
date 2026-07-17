@@ -419,6 +419,10 @@ export default function ChallengeRoom() {
   }, [me, challenge, myUserId]);
   const todayChecked = me?.today_checked ?? false;
   const isCreator = challenge?.creator_id === myUserId;
+  // 🚀 0069: 조직 하다 주최자 — 방을 열었을 뿐 도전자가 아니다. 인증 FAB·완주 판정 대상에서 제외.
+  const iAmHost = me?.role === 'host';
+  // 도전자 명단(인원수·아바타·현황)에서 주최자를 뺀 목록 — memberCount(db.ts 0069) 와 같은 기준
+  const challengerMembers = useMemo(() => members.filter(m => m.role !== 'host'), [members]);
   // cheered 방은 creator 만 인증/기록 가능, 나머지 멤버는 응원만
   const isCheeredCheerOnly = challenge?.kind === 'cheered' && isMember && !isCreator;
   // 응원자 시선 안내용 — 이 방의 도전자(개설자) 닉네임
@@ -943,7 +947,7 @@ export default function ChallengeRoom() {
           accessibilityRole="button"
           accessibilityLabel={`멤버 ${memberCount}명 보기`}
         >
-          <StackedAvatars members={members} totalCount={memberCount} />
+          <StackedAvatars members={challengerMembers} totalCount={memberCount} />
         </Pressable>
         {challenge.kind !== 'solo' ? (
           // 🚀 비멤버는 초대 불가지만 숨기지 않고 회색 비활성으로 노출. 모집 마감/종료 방도 회색.
@@ -1182,6 +1186,7 @@ export default function ChallengeRoom() {
           totalLogs={totalLogs}
           myUserId={myUserId}
           subjectJoinedAt={subjectJoinedAt}
+          isHost={iAmHost}
         />
       )}
 
@@ -1227,6 +1232,8 @@ export default function ChallengeRoom() {
         }
         // 응원자(응원 동료) = 관객·응원군 — 작성 FAB 없음. 응원은 카드별 응원/댓글, 역할 안내는 상단 배너가 담당.
         if (isCheeredCheerOnly) return null;
+        // 🚀 0069: 조직 하다 주최자 = 인증 주체가 아님 → 인증 FAB 없음. 기록 FAB 은 남긴다(주최자 공지·후기용).
+        if (iAmHost && activeTab === 'proof') return null;
         if (activeTab === 'log') {
           if (writeLocked) return null;   // 박제 후엔 새 기록 작성 X
           return (
@@ -1346,7 +1353,7 @@ export default function ChallengeRoom() {
       <MemberSheet
         visible={memberSheetOpen}
         onClose={() => setMemberSheetOpen(false)}
-        members={members}
+        members={challengerMembers}
         memberCount={memberCount}
         isMember={isMember}
         myUserId={myUserId}

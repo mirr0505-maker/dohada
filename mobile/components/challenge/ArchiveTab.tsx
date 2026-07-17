@@ -27,9 +27,10 @@ type Props = {
   totalLogs: number;
   myUserId: string | undefined;
   subjectJoinedAt?: string | null;   // 완주 판정 주체의 합류 시각 — 늦합류자 비례 완주 (v2.8)
+  isHost?: boolean;   // 🚀 0069: 조직 하다 주최자 — 도전자가 아니라 완주/실패 판정 대상이 아님
 };
 
-export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs, myUserId, subjectJoinedAt = null }: Props) {
+export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs, myUserId, subjectJoinedAt = null, isHost = false }: Props) {
   // 🚀 P-③: isFinished 만 보던 분기를 성공/실패로 세분화.
   //   진행 중     → 박제 안내 placeholder
   //   실패한 종료 → 인증 타임라인은 그대로 노출 (회고), "완주 이야기 공유" X + 격려 메시지
@@ -138,8 +139,8 @@ export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs, myUserId
               <Text style={styles.heroMessage}>
                 그냥, 하다.{'\n'}더 나은 나, 더 나은 세상.
               </Text>
-              {/* 완주 이야기 작성은 도전 주체만 — cheered 방 응원자는 축하 톤만 보고 작성 X */}
-              {myUserId === subjectUserId && (
+              {/* 완주 이야기 작성은 도전 주체만 — cheered 방 응원자·조직 주최자(0069)는 축하 톤만 보고 작성 X */}
+              {myUserId === subjectUserId && !isHost && (
                 <>
                   <Pressable
                     style={styles.shareBtn}
@@ -160,9 +161,11 @@ export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs, myUserId
           ) : (
             <View style={styles.failBox}>
               <Text style={styles.failTitle}>하다가 종료되었어요</Text>
+              {/* 🚀 0069: 주최자는 도전자가 아니라 완주 기준을 적용받지 않는다 — '못 닿았다' 격려는 오판 */}
               <Text style={styles.failDesc}>
-                완주 기준에 못 닿았지만, 시작한 것 자체가 한 걸음이에요.{'\n'}
-                남긴 인증·기록은 그대로 박제됩니다.
+                {isHost
+                  ? '주최한 하다가 마무리됐어요.\n동료들이 남긴 인증·기록은 그대로 박제됩니다.'
+                  : '완주 기준에 못 닿았지만, 시작한 것 자체가 한 걸음이에요.\n남긴 인증·기록은 그대로 박제됩니다.'}
               </Text>
             </View>
           )}

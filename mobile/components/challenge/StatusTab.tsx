@@ -2,7 +2,7 @@
 // v4: 카드 = 아바타 + 닉네임 + 연속 일수 + 인증률 % + 진행률 바. 본인 강조.
 import React, { useMemo } from 'react';
 import { View, Text, FlatList, StyleSheet, Image, Pressable } from 'react-native';
-import { User, Heart, Globe, Handshake, Calendar, Lock, Users, BarChart3, Check, Flame, type LucideIcon } from 'lucide-react-native';
+import { User, Heart, Globe, Handshake, Calendar, Lock, Users, BarChart3, Check, Flame, Landmark, type LucideIcon } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { computeStreak, memberPassedDays, isRecruiting, recruitCloseAtMs } from '@/lib/stats';
 import { displayTitle } from '@/lib/format';
@@ -57,6 +57,8 @@ export function StatusTab({ challenge, members, proofs, myUserId, betSlot, pledg
       // 🚀 cheered(응원받기) = 도전자(개설자)만 도전 — 응원 동료는 인증 주체가 아님.
       // 인증률(0%)로 표시하면 '실패하는 도전자'처럼 보이므로 '응원 중' 으로 구분.
       const isCheerer = isCheered && m.id !== challenge.creator_id;
+      // 🚀 0069: 조직 하다 주최자 — 방을 열었을 뿐 도전자가 아님. 응원자와 같은 이유로 인증률에서 분리.
+      const isHost = m.role === 'host';
       const myProofs = proofs.filter(p => p.user_id === m.id);
       const uniqDays = new Set(myProofs.map(p => p.created_at.slice(0, 10))).size;
       const streak = computeStreak(myProofs);
@@ -66,30 +68,36 @@ export function StatusTab({ challenge, members, proofs, myUserId, betSlot, pledg
         const target = challenge.target_count ?? 0;
         const current = myProofs.length;
         const rate = Math.min(100, Math.round((current / Math.max(1, target)) * 100));
-        return { member: m, isCheerer, isCount: true, uniqDays: current, myDays: target, rate, streak, todayChecked };
+        return { member: m, isCheerer, isHost, isCount: true, uniqDays: current, myDays: target, rate, streak, todayChecked };
       }
       const myDays = memberPassedDays(challenge, m.joined_at);
       const rate = Math.min(100, Math.round((uniqDays / Math.max(1, myDays)) * 100));
-      return { member: m, isCheerer, isCount: false, uniqDays, myDays, rate, streak, todayChecked };
+      return { member: m, isCheerer, isHost, isCount: false, uniqDays, myDays, rate, streak, todayChecked };
     });
   }, [members, proofs, challenge]);
 
   // 시간의 흐름 정렬 — 가입 순 (members 가 이미 joined_at asc).
   // 본인만 맨 위로 옮김. 인증률 desc 정렬 X (비교 압박 회피, v3.5 조용한 SNS).
   const sorted = useMemo(() => {
-    // 🚀 cheered(응원받기) = 도전자(개설자)가 방의 주인공 → 최상단 고정, 그 다음 본인(응원자), 나머지.
-    if (challenge.kind === 'cheered') {
-      const creator = rows.find(r => r.member.id === challenge.creator_id);
-      const me = (myUserId && myUserId !== challenge.creator_id) ? rows.find(r => r.member.id === myUserId) : undefined;
-      const rest = rows.filter(r => r.member.id !== challenge.creator_id && r.member.id !== myUserId);
-      return [...(creator ? [creator] : []), ...(me ? [me] : []), ...rest];
-    }
-    const me = rows.find(r => r.member.id === myUserId);
-    if (me) {
-      const rest = rows.filter(r => r.member.id !== myUserId);
-      return [me, ...rest];
-    }
-    return rows;
+    // 🚀 0069: 조직 하다 주최자는 도전자 명단이 아니라 그 위에 따로 선다 — 아래 정렬은 도전자끼리만.
+    const host = rows.find(r => r.isHost);
+    const challengers = rows.filter(r => !r.isHost);
+    const ordered = (() => {
+      // 🚀 cheered(응원받기) = 도전자(개설자)가 방의 주인공 → 최상단 고정, 그 다음 본인(응원자), 나머지.
+      if (challenge.kind === 'cheered') {
+        const creator = challengers.find(r => r.member.id === challenge.creator_id);
+        const me = (myUserId && myUserId !== challenge.creator_id) ? challengers.find(r => r.member.id === myUserId) : undefined;
+        const rest = challengers.filter(r => r.member.id !== challenge.creator_id && r.member.id !== myUserId);
+        return [...(creator ? [creator] : []), ...(me ? [me] : []), ...rest];
+      }
+      const me = challengers.find(r => r.member.id === myUserId);
+      if (me) {
+        const rest = challengers.filter(r => r.member.id !== myUserId);
+        return [me, ...rest];
+      }
+      return challengers;
+    })();
+    return [...(host ? [host] : []), ...ordered];
   }, [rows, myUserId, challenge]);
 
   return (
@@ -195,10 +203,10 @@ function formatDate(dateStr: string): string {
 function StatusCard({
   row, isMine,
 }: {
-  row: { member: MemberWithToday; isCheerer: boolean; isCount: boolean; uniqDays: number; myDays: number; rate: number; streak: number; todayChecked: boolean };
+  row: { member: MemberWithToday; isCheerer: boolean; isHost: boolean; isCount: boolean; uniqDays: number; myDays: number; rate: number; streak: number; todayChecked: boolean };
   isMine: boolean;
 }) {
-  const { member, isCheerer, isCount, uniqDays, myDays, rate, streak, todayChecked } = row;
+  const { member, isCheerer, isHost, isCount, uniqDays, myDays, rate, streak, todayChecked } = row;
   const gaveUp = !!member.gave_up_at;
   return (
     <View style={[styles.card, isMine && styles.cardMine, gaveUp && styles.cardGaveUp]}>
@@ -212,7 +220,7 @@ function StatusCard({
             </View>
           )}
         </HostAvatarRing>
-        {todayChecked && !gaveUp && (
+        {todayChecked && !gaveUp && !isHost && (
           <View style={styles.checkBadge}>
             <Check size={11} color={colors.surface} strokeWidth={3} />
           </View>
@@ -227,6 +235,11 @@ function StatusCard({
           <HostMark hostTier={member.host_tier} />
           {gaveUp ? (
             <Text style={styles.gaveUpTag}>포기</Text>
+          ) : isHost ? (
+            <View style={styles.hostTag}>
+              <Landmark size={11} color={colors.doneInk} strokeWidth={2} />
+              <Text style={styles.hostTagText}>주최</Text>
+            </View>
           ) : isCheerer ? (
             <View style={styles.cheererTag}>
               <Heart size={11} color={colors.accent700} strokeWidth={2} />
@@ -242,14 +255,16 @@ function StatusCard({
         <Text style={styles.subtext}>
           {gaveUp
             ? '그만뒀어요'
-            : isCheerer
+            : isHost
+              ? '이 하다를 열고 지켜보고 있어요'
+              : isCheerer
               ? '응원으로 함께하고 있어요'
               : isCount
                 ? `${uniqDays}/${myDays}개 달성`
                 : `${uniqDays}/${myDays}일${isMine && !todayChecked ? '  · 오늘 인증 전' : ''}`}
         </Text>
-        {/* 응원 동료는 인증률 바 없음 — 도전 주체가 아니므로 (비교 압박·실패 표시 회피) */}
-        {!gaveUp && !isCheerer && (
+        {/* 응원 동료·주최자는 인증률 바 없음 — 도전 주체가 아니므로 (비교 압박·실패 표시 회피) */}
+        {!gaveUp && !isCheerer && !isHost && (
           <View style={styles.track}>
             <View
               style={[
@@ -338,6 +353,22 @@ const styles = StyleSheet.create({
   cheererTagText: {
     fontSize: fontSize.xs,
     color: colors.accent700,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+  },
+  // 🚀 0069: 주최 태그 — HostBadge(org) 와 같은 sage 톤 (기관=차분한 색, 도전자 accent 와 구분)
+  hostTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    backgroundColor: colors.tintSage,
+    borderRadius: radius.pill,
+  },
+  hostTagText: {
+    fontSize: fontSize.xs,
+    color: colors.doneInk,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },

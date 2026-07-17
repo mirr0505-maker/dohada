@@ -178,6 +178,8 @@ export default function MyChallengesScreen() {
 function Card({ challenge: c, myUserId, finished = false }: { challenge: ChallengeWithCount; myUserId?: string; finished?: boolean }) {
   const { daysLeft, progress, dayN, totalDays } = computeProgress(c.start_date, c.end_date);
   const isCheeredParticipant = c.kind === 'cheered' && c.creator_id !== myUserId;
+  // 🚀 0069: 조직 하다 주최자 — 도전자가 아니므로 '오늘 인증' 배지·연속일수 숫자를 매기지 않는다
+  const isHost = c.my_role === 'host';
   const isCount = c.goal_type === 'count';
   const formatDt = (d: string) => d.replace(/-/g, '.');
 
@@ -202,6 +204,8 @@ function Card({ challenge: c, myUserId, finished = false }: { challenge: Challen
         <Text style={styles.cardTitle} numberOfLines={1}>{displayTitle(c.title)}</Text>
         {finished ? (
           <View style={styles.tagNeutral}><Text style={styles.tagNeutralText}>종료</Text></View>
+        ) : isHost ? (
+          <View style={styles.tagNeutral}><Text style={styles.tagNeutralText}>주최</Text></View>
         ) : isCount ? (
           <View style={styles.tagTodo}><Text style={styles.tagTodoText}>진행 {c.my_proof_count ?? 0}/{c.target_count ?? 0}</Text></View>
         ) : isCheeredParticipant ? (
@@ -214,6 +218,8 @@ function Card({ challenge: c, myUserId, finished = false }: { challenge: Challen
       {/* 숫자 — 연속일수 큰 숫자(번복금지 결정) / 끝낸·응원은 메타만 */}
       {finished ? (
         <Text style={styles.cardMeta}>{formatDt(c.start_date)} ~ {formatDt(c.end_date)} · 박제 보기 →</Text>
+      ) : isHost ? (
+        <Text style={styles.cardMeta}>주최 중 · 도전자 {c.member_count}명 · D-{daysLeft}</Text>
       ) : isCheeredParticipant ? (
         <Text style={styles.cardMeta}>응원 중 · 함께 {c.member_count}명 · D-{daysLeft}</Text>
       ) : (
