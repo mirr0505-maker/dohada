@@ -1,0 +1,62 @@
+-- 🚀 0070 — challenges 개설자 컬럼 권한상승 차단 (0068·0069 와 같은 부류, 3번째 인스턴스)
+--
+-- 문제 (0022:50-53):
+--   challenges_creator_update 는 `using/with check (creator_id = auth.uid())` 로
+--   "내가 만든 하다냐"만 본다. 어느 컬럼을 쓰는지는 안 막는다.
+--   (RLS 는 '행'을 고르는 장치라서 — 컬럼 제한은 GRANT 의 일이다. 0068 과 동일한 교훈)
+--   그런데 클라가 실제로 쓰는 컬럼은 invitation_message 단 하나(db.ts updateInvitationMessage)다.
+--   나머지 전 컬럼이 개설자에게 열려 있었고, 그중엔 셀프로 만지면 안 되는 것들이 있다:
+--
+--     host_tier / host_label
+--       → 아무 개설자나 자기 하다에 '🏛️ 공식 · 환경부' 배지를 셀프 부여 = 사칭.
+--         0058:7 "셀프서비스 신청 UI 금지 = 큐레이션 품질" 이 UI 에만 있고 DB 엔 없었다는 뜻.
+--         닉네임에도 사칭 방어가 없어(users.nickname = trim+20자뿐) 배지가 유일한 방어선인데
+--         그 배지가 셀프 부여 가능하면 조직 인증의 신뢰 모델 전체가 무너진다.
+--     start_date / end_date / frequency / target_count / goal_type
+--       → 완주 조건 소급 변경. "3일 남았는데 end_date 를 어제로" = 완주 조작.
+--         박제는 영구(수칙 3)인데 그 판정 근거를 사후에 바꿀 수 있으면 박제가 거짓이 된다.
+--     recruit_locked / recruit_warn_level / recruit_autoclose_notified / recruit_cap_exempt
+--       → set_recruit_lock(0043·0064)이 강제하는 "50% 지나면 재개방 거부"·"면제는 운영자만" 우회.
+--     bet_tier / bet_donation_mode
+--       → 내기 설정 셀프 변경. create_challenge 의 kind·count형 게이트(0040·0041)를 우회하고,
+--         bet_tier != null 은 미성년 합류 차단(invite.ts)의 트리거이기도 하다.
+--     browse_visible / browse_image_visible / reference_count
+--       → 하다 구경 노출·참조수(🔁 N번 참조) 조작.
+--     gave_up_at
+--       → notify_creator_gave_up RPC 우회 = 멤버 전원 종료 알림 없이 조용히 방 종료.
+--
+-- 클라가 challenges 에 실제로 쓰는 경로는 이게 전부다 (전수 grep 확인):
+--   UPDATE: db.ts updateInvitationMessage(invitation_message) — 이 1개뿐.
+--   INSERT: 없음. 생성은 create_challenge RPC(SECURITY DEFINER, owner postgres) 전용.
+--           → INSERT 는 되돌려주지 않는다. challenges_creator_insert(0001:116) 정책은
+--             남겨두되 grant 가 없어 실질 무효 = 의도된 상태.
+--   그 외 개설자 동작은 전부 SECURITY DEFINER RPC 경유라 grant 회수의 영향을 받지 않는다:
+--     set_recruit_lock(0064) · notify_creator_gave_up(0022) · admin_set_host_tier(0059·0069) ·
+--     admin_set_recruit_exempt(0064) · admin_review_promotion(0067) · create_challenge(0041)
+--
+-- ⚠️ service_role 은 건드리지 않는다 (Edge Function 들이 challenges 를 읽고 쓴다).
+-- DELETE 는 행 단위라 그대로. SELECT 도 그대로.
+-- 재실행 안전 — revoke/grant 는 멱등.
+
+-- 테이블 단위 UPDATE/INSERT 회수 (기존 컬럼 단위 권한도 함께 지워져 재실행해도 상태 동일)
+revoke update, insert on public.challenges from authenticated;
+revoke update, insert on public.challenges from anon;
+
+-- 클라가 실제로 바꾸는 컬럼만 되돌려 준다 — 초대장 문구 1개.
+grant update (invitation_message) on public.challenges to authenticated;
+
+-- 적용 후 검증 (앱 = authenticated 세션에서. SQL Editor 는 postgres 권한이라 통과해버림)
+--   ① 셀프 배지 시도:
+--        supabase.from('challenges').update({ host_tier:'org', host_label:'환경부' }).eq('id', <내가 만든 하다>)
+--      → 42501 permission denied for table challenges 이어야 한다.
+--      (start_date/end_date/bet_tier/recruit_cap_exempt/reference_count 도 동일하게 42501)
+--   ② 정상 경로 유지: 내가 만든 하다 → 초대장 문구 수정 → 저장 성공.
+--   ③ 하다 생성(create_challenge RPC) 정상 동작 — INSERT grant 없이도 되어야 한다(SECURITY DEFINER).
+--   ④ 개설자 포기 → 멤버 전원에게 종료 알림 (notify_creator_gave_up RPC 경유라 무영향).
+--   ⑤ 운영자 콘솔에서 host_tier 지정 정상 (admin_set_host_tier = SECURITY DEFINER).
+--
+-- 부여 권한 확인:
+--   select privilege_type, column_name from information_schema.column_privileges
+--     where table_name = 'challenges' and grantee = 'authenticated'
+--     and privilege_type in ('INSERT','UPDATE');
+--   -- 기대: UPDATE = invitation_message 1행뿐. INSERT 행 없음.

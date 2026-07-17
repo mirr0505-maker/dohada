@@ -722,14 +722,13 @@ export async function addParangComment(args: {
   const trimmed = args.content.trim();
   if (!trimmed) throw new Error('내용을 입력해주세요.');
   if (trimmed.length > 200) throw new Error('200자 이내로 적어주세요.');
-  const hidden = await moderateUgcText(trimmed);   // 🚀 검수 (block→throw)
+  await moderateUgcText(trimmed);   // 🚀 검수 (block→throw)
   const { error } = await supabase.from('parang_comments').insert({
     target_type: args.postType,
     target_id: args.postId,
     user_id: args.userId,
     content: trimmed,
     anon: args.anon ?? true,
-    hidden,
   });
   if (error) throw error;
 }
@@ -927,12 +926,14 @@ export async function fetchLogComments(logId: string): Promise<LogCommentWithAut
   }));
 }
 
-// 🚀 3a/3b 일반 UGC 검수 — moderate-text(text 모드). block→throw(등록 차단), 그 외(allow·flag)→노출.
-//   댓글·기록·완주이야기·대화 작성/편집 직전 호출. 반환값(hidden)을 insert/update 에 실어준다.
+// 🚀 3a/3b 일반 UGC 검수 — moderate-text(text 모드). block→throw(등록 차단), 그 외(allow·flag)→그대로 게시.
+//   댓글·기록·완주이야기·대화 작성/편집 직전 호출하는 차단 게이트.
+//   hidden 은 클라가 정하지 않는다 — 서버(신고 3건 누적 트리거 0047 · 운영자 RPC 0059)만 정하는 값.
+//   (클라가 hidden 을 실어 보내면 작성자의 '수정' 한 번이 서버의 숨김을 되돌린다.)
 //   우회 분기 없음. 검수 자체 실패(API 오류)도 EF 가 block 반환 → 안전 측 차단.
-async function moderateUgcText(content: string): Promise<boolean> {
+async function moderateUgcText(content: string): Promise<void> {
   const text = content.trim();
-  if (!text) return false;   // 빈 텍스트는 각 함수의 자체 검증이 이미 처리
+  if (!text) return;   // 빈 텍스트는 각 함수의 자체 검증이 이미 처리
   const { data, error } = await supabase.functions.invoke<{
     verdict: 'allow' | 'flag' | 'block'; reason: string | null; category: string | null;
   }>('moderate-text', { body: { mode: 'text', content: text } });
@@ -946,7 +947,7 @@ async function moderateUgcText(content: string): Promise<boolean> {
   if (!data || data.verdict === 'block') {
     throw new Error(data?.reason ?? '부적절한 내용이 포함되어 있어요. 표현을 바꿔주세요.');
   }
-  return false;   // allow·flag 모두 노출 (hidden=false)
+  // 통과 — 그대로 게시 (hidden 은 컬럼 default false, 서버만 true 로 바꾼다)
 }
 
 export async function addLogComment(args: {
@@ -957,12 +958,11 @@ export async function addLogComment(args: {
   const trimmed = args.content.trim();
   if (!trimmed) throw new Error('댓글을 입력해주세요.');
   if (trimmed.length > 280) throw new Error('280자 이내로 적어주세요.');
-  const hidden = await moderateUgcText(trimmed);   // 🚀 검수 (v2.19: block→차단, flag·allow→통과·미숨김)
+  await moderateUgcText(trimmed);   // 🚀 검수 (v2.19: block→차단, flag·allow→통과·미숨김)
   const { error } = await supabase.from('log_comments').insert({
     log_id: args.logId,
     user_id: args.userId,
     content: trimmed,
-    hidden,
   });
   if (error) throw error;
 }
@@ -987,7 +987,7 @@ export async function createLog(args: {
   if (title.length > 80) throw new Error('제목은 80자 이내로 적어주세요.');
   if (!content) throw new Error('내용을 입력해주세요.');
   if (content.length > 4000) throw new Error('내용은 4000자 이내로 적어주세요.');
-  const hidden = await moderateUgcText(`${title}\n${content}`);   // 🚀 검수 (v2.19: block→차단, flag·allow→통과·미숨김)
+  await moderateUgcText(`${title}\n${content}`);   // 🚀 검수 (v2.19: block→차단, flag·allow→통과·미숨김)
 
   const photos = (args.photoUrls ?? []).slice(0, 4);
   const shareToParang = args.shareToParang ?? false;
@@ -996,7 +996,6 @@ export async function createLog(args: {
     user_id: args.userId,
     title,
     content,
-    hidden,
     photo_url: photos[0] ?? null,
     photo_urls: photos,
     share_to_parang: shareToParang,                          // 🚀 파장 나누기 (기본 false)
@@ -1018,12 +1017,13 @@ export async function updateLog(args: {
   if (title.length > 80) throw new Error('제목은 80자 이내로 적어주세요.');
   if (!content) throw new Error('내용을 입력해주세요.');
   if (content.length > 4000) throw new Error('내용은 4000자 이내로 적어주세요.');
-  const hidden = await moderateUgcText(`${title}\n${content}`);   // 🚀 검수 (v2.19: block→차단, flag·allow→통과·미숨김)
+  await moderateUgcText(`${title}\n${content}`);   // 🚀 검수 (v2.19: block→차단, flag·allow→통과·미숨김)
 
   const photos = (args.photoUrls ?? []).slice(0, 4);
+  // hidden 은 payload 에서 제외 — 수정이 서버의 숨김(신고 3건 누적·운영자)을 되돌리면 안 된다
   const { error } = await supabase
     .from('logs')
-    .update({ title, content, hidden, photo_url: photos[0] ?? null, photo_urls: photos })
+    .update({ title, content, photo_url: photos[0] ?? null, photo_urls: photos })
     .eq('id', args.logId);
   if (error) throw error;
 }
@@ -1042,10 +1042,10 @@ export async function updateLogComment(args: {
   const trimmed = args.content.trim();
   if (!trimmed) throw new Error('댓글을 입력해주세요.');
   if (trimmed.length > 280) throw new Error('280자 이내로 적어주세요.');
-  const hidden = await moderateUgcText(trimmed);   // 🚀 검수 (v2.19: block→차단, flag·allow→통과·미숨김)
+  await moderateUgcText(trimmed);   // 🚀 검수 (v2.19: block→차단, flag·allow→통과·미숨김)
   const { error } = await supabase
     .from('log_comments')
-    .update({ content: trimmed, hidden })
+    .update({ content: trimmed })
     .eq('id', args.commentId);
   if (error) throw error;
 }
@@ -1115,12 +1115,11 @@ export async function sendChatMessage(args: {
   const trimmed = args.content.trim();
   if (!trimmed) throw new Error('메시지를 입력해주세요.');
   if (trimmed.length > 1000) throw new Error('1000자 이내로 적어주세요.');
-  const hidden = await moderateUgcText(trimmed);   // 🚀 검수 (v2.19: block→차단, flag·allow→통과·미숨김)
+  await moderateUgcText(trimmed);   // 🚀 검수 (v2.19: block→차단, flag·allow→통과·미숨김)
   const { error } = await supabase.from('chat_messages').insert({
     challenge_id: args.challengeId,
     user_id: args.userId,
     content: trimmed,
-    hidden,
   });
   if (error) throw error;
 }
@@ -1534,13 +1533,12 @@ export async function addComment(args: {
   const trimmed = args.content.trim();
   if (!trimmed) throw new Error('내용을 입력해주세요.');
   if (trimmed.length > 280) throw new Error('280자 이내로 적어주세요.');
-  const hidden = await moderateUgcText(trimmed);   // 🚀 검수 (v2.19: block→차단, flag·allow→통과·미숨김)
+  await moderateUgcText(trimmed);   // 🚀 검수 (v2.19: block→차단, flag·allow→통과·미숨김)
 
   const { error } = await supabase.from('comments').insert({
     proof_id: args.proofId,
     user_id: args.userId,
     content: trimmed,
-    hidden,
   });
   if (error) throw error;
 }
@@ -1592,7 +1590,7 @@ export async function createCompletionStory(args: {
   visibility?: StoryVisibility;
 }): Promise<DbCompletionStory> {
   // 🚀 3a 검수 — 자유 서술 필드 전체를 합쳐 검수
-  const hidden = await moderateUgcText(
+  await moderateUgcText(
     [args.story, args.hardest, args.helpedWhenGivingUp, args.adviceToStarters, args.ownTip, args.whatChanged]
       .filter(Boolean).join('\n'),
   );
@@ -1601,7 +1599,6 @@ export async function createCompletionStory(args: {
     .insert({
       challenge_id: args.challengeId,
       user_id: args.userId,
-      hidden,
       // 시스템 통계는 트리거가 채움 — 일단 0 으로 전달 (NOT NULL 통과용)
       total_days: 0,
       proof_count: 0,
@@ -1765,7 +1762,8 @@ export async function updateCompletionStory(args: {
   const moderationText =
     [args.story, args.hardest, args.helpedWhenGivingUp, args.adviceToStarters, args.ownTip, args.whatChanged]
       .filter(Boolean).join('\n');
-  if (moderationText) patch.hidden = await moderateUgcText(moderationText);   // 🚀 검수 (v2.19: block→차단, flag·allow→통과·미숨김)
+  // 🚀 검수 (v2.19: block→차단, flag·allow→통과·미숨김). hidden 은 patch 에 넣지 않는다 — 서버만 정한다
+  if (moderationText) await moderateUgcText(moderationText);
   const { error } = await supabase
     .from('completion_stories')
     .update(patch)
