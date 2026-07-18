@@ -49,6 +49,7 @@ export type DbChallenge = {
   goal_type?: ChallengeGoalType;      // 🚀 0041: 목표 유형 (기본 cadence)
   target_count?: number | null;       // 🚀 0041: count 유형의 목표 개수 (cadence 는 null)
   recruit_locked?: boolean;           // 🚀 0043: 누구나 방 개설자 수동 모집 잠금 (기간 50% 자동마감과 합쳐 isRecruiting 으로 판정)
+  recruit_cap_exempt?: boolean;       // 🚀 0064: 모집 캡 면제 (명사/조직 승격 시 부여) — isRecruiting 에서 기간 50% 자동마감 건너뜀
   recruit_warn_level?: number;        // 🚀 0043: 인원 임계 알림 단계 (0/50/100, 1회성)
   host_tier?: 'individual' | 'figure' | 'org'; // 🚀 0058: 주최 계층 (기본 individual, kind 와 직교)
   host_label?: string | null;         // 🚀 0058: 표시용 주최자명 (figure/org 일 때, 예 '유재석'·'환경부')

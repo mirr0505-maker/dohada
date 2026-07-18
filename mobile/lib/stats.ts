@@ -53,6 +53,7 @@ export function isRecruiting(
   challenge: {
     kind: string; start_date: string; end_date: string;
     recruit_locked?: boolean | null;
+    recruit_cap_exempt?: boolean | null;
     host_tier?: string | null;
   },
   nowMs: number = Date.now(),
@@ -63,6 +64,9 @@ export function isRecruiting(
   if (challenge.host_tier === 'org') return !challenge.recruit_locked;
   if (challenge.kind !== 'open') return true;
   if (challenge.recruit_locked) return false;
+  // 🚀 0064: 면제(recruit_cap_exempt) 방은 기간 50% 자동 마감을 받지 않는다(1,000명까지 자라야 하므로).
+  //   DB is_recruiting() open 갈래의 `c.recruit_cap_exempt or now() < recruit_close_at(...)` 와 미러.
+  if (challenge.recruit_cap_exempt) return true;
   return nowMs < recruitCloseAtMs(challenge.start_date, challenge.end_date);
 }
 

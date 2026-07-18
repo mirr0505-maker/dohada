@@ -59,3 +59,20 @@ test('조직 하다 — 기간이 한참 지나도 캡으로는 안 닫힌다', 
 test('조직 하다 — 수동 잠금은 org 라도 존중', () => {
   assert.equal(isRecruiting(OPEN({ host_tier: 'org', recruit_locked: true }), BEFORE_HALF), false);
 });
+
+// ─── 🚀 0064: 모집 캡 면제(recruit_cap_exempt) — DB is_recruiting() open 갈래 미러 ─────────
+// 면제받은 누구나 방(명사 승격 등)은 기간 50% 자동 마감을 건너뛴다.
+// 이 값이 클라 isRecruiting 에 반영되지 않으면 "DB 는 합류 허용인데 클라는 마감"으로 갈린다.
+test('누구나 방 — 캡 면제면 기간 50% 경과해도 모집 중', () => {
+  assert.equal(isRecruiting(OPEN({ recruit_cap_exempt: true }), AFTER_HALF), true);
+});
+
+// [불변] 면제 안 준 누구나 방은 0064 전과 동일하게 50% 후 마감 (기존 동작 유지 확인)
+test('누구나 방 — 캡 미면제는 기간 50% 경과 시 마감(불변)', () => {
+  assert.equal(isRecruiting(OPEN({ recruit_cap_exempt: false }), AFTER_HALF), false);
+});
+
+// 면제여도 개설자 수동 잠금은 존중 (캡이 아니라 방의 상태)
+test('누구나 방 — 캡 면제여도 수동 잠금은 존중', () => {
+  assert.equal(isRecruiting(OPEN({ recruit_cap_exempt: true, recruit_locked: true }), BEFORE_HALF), false);
+});
