@@ -200,4 +200,26 @@ create policy challenges_creator_update on public.challenges
 | 4 | closed org 하다에 캡 면제를 주나 | ✅ **org 는 캡 면제** (Step 3). 0043 의 "기간 50% 자동 마감" 은 *"서로를 목격하는 동료"* 를 지키려는 장치인데 **조직 하다는 애초에 광장**이라 전제가 다르다. `host_tier='org'` → `is_recruiting` 항상 true + `admin_set_recruit_exempt` 의 `kind='open'` 제한도 해제 |
 | 5 | 조직 검증 절차 | **미해결** — 사업자등록증 확인을 수동 체크리스트로만 둘지, `host_label` 변경 이력을 남길지 (Step 1-d) |
 
-**Step 4-a 매칭 기부 = 구조화 채택** (2026-07-17): `challenges` 에 1인당 금액 + 기부처 컬럼 → 앱이 *"지금까지 12명 완주 · 환경부가 120,000원을 ○○에 기부하기로 했어요"* 표시. 완주 수는 기존 판정 재사용. ⚠️ **약속의 주체가 조직임을 카피에 명시** — 앱의 보증이 아니다(표시광고법). 송금은 여전히 조직이 오프라인 직접(`gift_orders` 미사용).
+**Step 4-a 매칭 기부 = 구조화 채택** (2026-07-17): `challenges` 에 1인당 금액 + 기부처 컬럼 → 앱이 *"지금까지 12명 완주 · 환경부가 120,000원을 ○○에 기부하기로 했어요"* 표시. 완주 수는 기존 판정 재사용. ⚠️ **약속의 주체가 조직임을 카피에 명시** — 앱의 보증이 아니다(표시광고법). 송금은 여전히 조직이 오프라인 직접(`gift_orders` 미사용). — ✅ **구현 완료 (0075)**: `sponsor_amount_per_completer`·`sponsor_beneficiary` + `admin_set_sponsor_matching` RPC(org 전용·grant 없음) · `countCompleters`(host·포기 제외, goalStatus 위임) · 노출 = 방 현황 탭 + 초대 미리보기 · 카피 주어 "「host_label」에서" + "하다가 대신 전달하지 않아요" 각주.
+
+---
+
+## 8. 완료 현황 (2026-07-17)
+
+TO-BE 6항 중 6항 구현 완료 (전부 운영 적용 + OTA):
+
+| TO-BE | 구현 | 마이그레이션 |
+|---|---|---|
+| ① 조직 전용 계정 개설 | 코드 불필요 (런북 §5) | — |
+| ② 주최자 도전자 집계 제외 | `challenge_members.role` | 0069 |
+| ③ 배지 부여 + 지정 알림 | `host_assigned` kind | 0074 |
+| ④ 참여 지점 배지 노출 | 초대·내하다·합류 시트 | 0073 |
+| ⑤ org 내기 차단 | bet_tier null + orderPolicy | 0072 |
+| ⑥ 매칭 기부 표시 | sponsor 컬럼 2 + RPC | 0075 |
+
+**부수 보안 (RLS 컬럼 갭)**: 0068(users)·0070(challenges)·0071(UGC 6테이블) + hidden 클라 전송 제거. [메모리 `reference_rls-column-grant-gap`].
+
+**남은 것**:
+- **Step 1-d** 조직 검증 절차 (사업자등록증 확인·`host_label` 변경 이력) — 운영 정책, 코드 아님.
+- **기존 갭** 클라 `isRecruiting` 이 `recruit_cap_exempt` 미러 안 함 → 캡 면제받은 open 하다가 50% 후 "모집 마감" 오표시. 0064부터 존재. **첫 명사 하다 온보딩 시 표면화** → 그 전에 처리.
+- **Step 4-b** 상품 후원(완주자 기프티콘) — 경품류 규제 자문(⑤b 밖) + ⑤b 실돈 게이트 후. 설계만.
