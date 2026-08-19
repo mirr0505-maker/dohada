@@ -21,7 +21,7 @@ export function FellowReflections() {
   if (items.length === 0) return null;   // 🚀 오늘 동료 회고가 없으면 섹션 자체를 숨김
 
   return (
-    <View>
+    <View style={styles.wrap}>
       <Text style={styles.label}>동료들의 오늘 한 줄</Text>
       {items.map(r => {
         const name = r.nickname || '동료';   // 닉네임 임베드 null 폴백
@@ -49,6 +49,8 @@ export function FellowReflections() {
 }
 
 const styles = StyleSheet.create({
+  // 🚀 홈의 다른 섹션(제목 paddingHorizontal 20 · 카드 20)과 좌우 여백 일치 — 제목 좌측 치우침 해소
+  wrap: { marginHorizontal: 20 },
   label: {
     fontSize: fontSize.base,
     fontFamily: fontFamily.bold,

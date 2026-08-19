@@ -8,7 +8,8 @@
 //   1. 묶음 + 지연 — cheer_batch / log_like_batch 은 scheduled_for 가 1시간 미래.
 //      이 시간이 되면 같은 (user_id, kind, proof_id|log_id) 그룹을 한 건으로 합쳐 발송.
 //   2. 즉시 — chat / comment / log_comment 은 scheduled_for = now(). 즉시 처리.
-//   3. 조용한 시간 (22-6 KST) — 그 시간에 fall 한 알림은 아침 6시 정각 묶음으로 미룸.
+//   3. 조용한 시간 (22-6시, **받는 사람의 기준 시간대** users.timezone/0077) —
+//      그 시간에 fall 한 알림은 그 사람의 아침 6시로 미룬다. 해외 거주자도 현지 밤에만 조용하다.
 //   4. 일별 상한 — 사용자당 24h 내 5건. 초과는 다음날로 미룸.
 //      (P1-8 보정: 그룹화된 묶음은 N건이라도 발송 1건으로 카운트)
 //
@@ -31,7 +32,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const EPN_ENDPOINT = 'https://exp.host/--/api/v2/push/send';
-const KST_OFFSET_MIN = 9 * 60;
+const DEFAULT_TIMEZONE = 'Asia/Seoul';   // users.timezone 이 없거나 이상하면 이걸로 (0077 기본값과 동일)
+const QUIET_START_HOUR = 22;             // 이 시각부터
+const QUIET_END_HOUR = 6;                // 이 시각까지가 조용한 시간 (받는 사람 현지 기준)
 const DAILY_CAP = 20;   // 묶음 알림(응원·좋아요) 1일 푸시 천장 (2026-06-20: 5→20 상향)
 // 🚀 하루 상한은 "묶음(응원·좋아요)" 알림에만 적용한다.
 //   댓글·대화·인증·기록 등 즉시 사회적 알림은 상한 면제 → 낮에도 항상 즉시 푸시.
@@ -64,11 +67,9 @@ Deno.serve(async (req) => {
   if (acErr) console.error('[flush] autoclose notify failed', acErr);
 
   const nowUtc = new Date();
-  const nowKst = new Date(nowUtc.getTime() + KST_OFFSET_MIN * 60_000);
-  const kstHour = nowKst.getUTCHours();   // KST 시 (now+9 가 UTCHours 가 됨)
-  const isQuiet = kstHour >= 22 || kstHour < 6;
-  // 6시 정각엔 quiet 끝 묶음 발송 OK. 22시는 진입 시각.
-  // → quiet 인 동안에는 모든 알림을 아침 6시로 reschedule.
+  const nowMs = nowUtc.getTime();
+  // 조용시간은 전역이 아니라 **받는 사람마다** 다르다 — 아래에서 수신자 시간대로 판정한다.
+  // (구버전은 KST 22-6 을 전역으로 봐서, 런던 사용자는 현지 낮 알림이 통째로 보류됐다 밤에 몰려 왔다)
 
   // 1. scheduled_for <= now & sent_at IS NULL 가져옴
   const { data: pending, error: pErr } = await supabase
@@ -85,29 +86,50 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ processed: 0 }), { status: 200 });
   }
 
-  // 2. 조용시간이면 모두 다음 8시 KST 로 reschedule
-  if (isQuiet) {
-    const next6 = nextKst6AM(nowKst);
-    const next6Utc = new Date(next6.getTime() - KST_OFFSET_MIN * 60_000);
-    await supabase
-      .from('notification_queue')
-      .update({ scheduled_for: next6Utc.toISOString() })
-      .in('id', pending.map(p => p.id));
-    return new Response(JSON.stringify({ rescheduled: pending.length, reason: 'quiet_hours' }), { status: 200 });
+  // 2. 수신자별 기준 시간대(0077) 로드 → 지금 그 사람의 밤(22-6시)인 알림만 아침 6시로 미룬다
+  const allUserIds = [...new Set(pending.map(p => p.user_id))];
+  const { data: tzRows } = await supabase.from('users').select('id, timezone').in('id', allUserIds);
+  const tzByUser = new Map<string, string>();
+  for (const u of (tzRows ?? [])) tzByUser.set(u.id, u.timezone || DEFAULT_TIMEZONE);
+
+  const quietRows = [];
+  const awake = [];
+  for (const row of pending) {
+    const tz = tzByUser.get(row.user_id) ?? DEFAULT_TIMEZONE;
+    if (isQuietHour(nowMs, tz)) quietRows.push(row);
+    else awake.push(row);
+  }
+  // 깨어날 시각도 사람마다 다르다 → 같은 시각끼리 묶어 한 번씩 update
+  if (quietRows.length > 0) {
+    const byWakeUp = new Map<string, string[]>();
+    for (const row of quietRows) {
+      const tz = tzByUser.get(row.user_id) ?? DEFAULT_TIMEZONE;
+      const wakeUpIso = new Date(next6amUtcMs(nowMs, tz)).toISOString();
+      const ids = byWakeUp.get(wakeUpIso) ?? [];
+      ids.push(row.id);
+      byWakeUp.set(wakeUpIso, ids);
+    }
+    for (const [wakeUpIso, ids] of byWakeUp) {
+      await supabase.from('notification_queue').update({ scheduled_for: wakeUpIso }).in('id', ids);
+    }
+  }
+  if (awake.length === 0) {
+    return new Response(JSON.stringify({ rescheduled: quietRows.length, reason: 'quiet_hours' }), { status: 200 });
   }
 
   // 3. user 별 prefs / device_tokens / 일별 카운트 일괄 fetch
   //    🚀 P1-8: 카운팅을 "그룹 단위" 로 — cheer_batch/log_like_batch 같은 묶음은
   //    N row 라도 push 1건. 같은 (user_id, kind, proof_id|log_id) 가 같은 발송이므로
   //    distinct 집계로 보정.
-  const userIds = [...new Set(pending.map(p => p.user_id))];
+  const userIds = [...new Set(awake.map(p => p.user_id))];
   const [prefsRes, tokensRes, dailyRes] = await Promise.all([
     supabase.from('notification_prefs').select('*').in('user_id', userIds),
     supabase.from('device_tokens').select('*').in('user_id', userIds),
     supabase.from('notification_queue')
-      .select('user_id, kind, proof_id, log_id')
+      // 상한 창(하루)도 사람마다 다르다 → 가장 이른 하루 시작으로 넓게 받아 아래에서 사람별로 자른다
+      .select('user_id, kind, proof_id, log_id, sent_at')
       .in('user_id', userIds)
-      .gte('sent_at', startOfTodayUtcIso(nowKst))
+      .gte('sent_at', earliestLocalDayStartIso(nowMs, userIds, tzByUser))
       .not('sent_at', 'is', null),
   ]);
   const prefsByUser = new Map<string, any>();
@@ -125,6 +147,8 @@ Deno.serve(async (req) => {
   for (const row of (dailyRes.data ?? []) as any[]) {
     // 상한은 묶음 알림(응원·좋아요)만 소비 — 즉시 알림(댓글·대화·인증·기록)은 카운트 X
     if (!CAPPED_KINDS.has(row.kind)) continue;
+    // 그 사람의 "오늘"(현지 자정 이후)에 나간 것만 상한에 넣는다
+    if (Date.parse(row.sent_at) < startOfLocalDayUtcMs(nowMs, tzByUser.get(row.user_id) ?? DEFAULT_TIMEZONE)) continue;
     const groupKey = `${row.user_id}|${row.kind}|${row.proof_id ?? row.log_id ?? ''}`;
     if (seenBatchGroups.has(groupKey)) continue;   // 같은 묶음 그룹은 1회만
     seenBatchGroups.add(groupKey);
@@ -141,8 +165,8 @@ Deno.serve(async (req) => {
   }
 
   // 묶음 그룹: (user_id, kind, proof_id|log_id)
-  const grouped: Record<string, typeof pending[number][]> = {};
-  for (const row of pending) {
+  const grouped: Record<string, typeof awake[number][]> = {};
+  for (const row of awake) {
     const key = row.kind === 'cheer_batch' || row.kind === 'log_like_batch'
       ? `${row.user_id}|${row.kind}|${row.proof_id ?? row.log_id ?? ''}`
       : row.id;       // 즉시는 그룹 X (개별 처리)
@@ -223,7 +247,7 @@ Deno.serve(async (req) => {
   return new Response(JSON.stringify({
     processed: toMarkSent.length,
     sent: messages.length,
-    kst_hour: kstHour,
+    quiet_rescheduled: quietRows.length,
   }), { status: 200 });
 });
 
@@ -261,25 +285,64 @@ function composeMessage(kind: string, rows: any[]): { title: string; body: strin
   return { title: 'Do : 하다', body: head.preview ?? '' };
 }
 
-function nextKst6AM(nowKst: Date): Date {
-  // nowKst 가 22-24 또는 0-6 이면 다음 아침 6시 KST 반환
-  const k = new Date(nowKst.getTime());
-  k.setUTCMinutes(0, 0, 0);
-  if (k.getUTCHours() < 6) {
-    k.setUTCHours(6);
-  } else {
-    k.setUTCDate(k.getUTCDate() + 1);
-    k.setUTCHours(6);
+// ─── 시간대 계산 (0077) ─────
+// Deno 는 완전한 ICU 를 내장하므로 Intl 로 계산한다. 알 수 없는 시간대는 기본값으로 폴백.
+function localParts(ms: number, tz: string): { y: number; mo: number; d: number; h: number; mi: number } {
+  try {
+    const dtf = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz, hour12: false,
+      year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+    });
+    const p: Record<string, string> = {};
+    for (const part of dtf.formatToParts(new Date(ms))) p[part.type] = part.value;
+    // 분까지 읽는 이유: 인도(+5:30)처럼 30·45분 오프셋 시간대에서 시(hour)만 보면 오프셋이 어긋난다
+    return { y: +p.year, mo: +p.month, d: +p.day, h: (+p.hour) % 24, mi: +p.minute };   // 자정을 24 로 주는 엔진 대비
+  } catch {
+    if (tz === DEFAULT_TIMEZONE) throw new Error('invalid default timezone');
+    return localParts(ms, DEFAULT_TIMEZONE);
   }
-  return k;   // 이 값 자체는 UTC 시각이 아니라 'KST 를 UTC 처럼 다룬' 값
 }
 
-function startOfTodayUtcIso(nowKst: Date): string {
-  // KST 의 오늘 0시 = UTC -9h
-  const k = new Date(nowKst.getTime());
-  k.setUTCHours(0, 0, 0, 0);
-  const utc = new Date(k.getTime() - KST_OFFSET_MIN * 60_000);
-  return utc.toISOString();
+// 그 시간대의 벽시계 시각(y-mo-d h시)이 가리키는 UTC 시각(ms).
+// 오프셋은 시각에 따라 달라지므로(서머타임) 두 번 계산해 수렴시킨다.
+function zonedMs(y: number, mo: number, d: number, h: number, tz: string): number {
+  const naive = Date.UTC(y, mo - 1, d, h);
+  const offsetAt = (ms: number) => {
+    const p = localParts(ms, tz);
+    return Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi) - Math.floor(ms / 60_000) * 60_000;
+  };
+  const guess = naive - offsetAt(naive);
+  return naive - offsetAt(guess);
+}
+
+// 지금이 이 사람의 밤(22시~06시)인가
+function isQuietHour(nowMs: number, tz: string): boolean {
+  const h = localParts(nowMs, tz).h;
+  return h >= QUIET_START_HOUR || h < QUIET_END_HOUR;
+}
+
+// 이 사람 기준 다음 아침 6시의 UTC 시각(ms)
+function next6amUtcMs(nowMs: number, tz: string): number {
+  const { y, mo, d, h } = localParts(nowMs, tz);
+  if (h < QUIET_END_HOUR) return zonedMs(y, mo, d, QUIET_END_HOUR, tz);
+  const next = new Date(Date.UTC(y, mo - 1, d) + 86_400_000);   // 현지 날짜 +1일
+  return zonedMs(next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate(), QUIET_END_HOUR, tz);
+}
+
+// 이 사람 기준 오늘 0시의 UTC 시각(ms) — 일별 상한 창
+function startOfLocalDayUtcMs(nowMs: number, tz: string): number {
+  const { y, mo, d } = localParts(nowMs, tz);
+  return zonedMs(y, mo, d, 0, tz);
+}
+
+// 여러 수신자의 하루 시작 중 가장 이른 것 — 한 번의 쿼리로 넓게 받아오기 위한 하한
+function earliestLocalDayStartIso(nowMs: number, userIds: string[], tzByUser: Map<string, string>): string {
+  let earliest = startOfLocalDayUtcMs(nowMs, DEFAULT_TIMEZONE);
+  for (const uid of userIds) {
+    const ms = startOfLocalDayUtcMs(nowMs, tzByUser.get(uid) ?? DEFAULT_TIMEZONE);
+    if (ms < earliest) earliest = ms;
+  }
+  return new Date(earliest).toISOString();
 }
 
 function chunk<T>(arr: T[], n: number): T[][] {
