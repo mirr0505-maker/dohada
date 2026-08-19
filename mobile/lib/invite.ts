@@ -5,7 +5,7 @@
 //   로그인  → joinChallenge → /room/<id>
 import * as SecureStore from 'expo-secure-store';
 import { supabase } from './supabase';
-import { getKstTodayRange } from './format';
+import { getTodayRange } from './format';
 import { isRecruiting } from './stats';   // 🚀 0043: 누구나 방 모집 마감 시 신규 합류 차단
 
 const PENDING_KEY = 'pending_invite_id';
@@ -56,7 +56,7 @@ export async function joinChallenge(challengeId: string, userId: string): Promis
 
   // 🚀 종료(시간 경과) 방 신규 합류 차단 — 포기 방은 위 RPC 가 이미 예외로 막음.
   //    단, 이미 멤버라면 방(박제) 진입은 허용.
-  const isOver = getKstTodayRange().kstDateStr > ch.end_date;
+  const isOver = getTodayRange().dateStr > ch.end_date;
   if (isOver) {
     if (await isExistingMember(challengeId, userId)) return 'already_member';
     throw new Error('이미 종료된 하다예요.\n새로 합류할 수 없어요.');

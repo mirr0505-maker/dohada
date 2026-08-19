@@ -12,6 +12,8 @@ import { initSentry } from '@/lib/sentry';
 import { scheduleDailyReminder, cancelDailyReminder } from '@/lib/notifications';
 import { registerExpoPushToken, ensureNotificationPrefs } from '@/lib/push';
 import { useSession } from '@/lib/session';
+import { fetchMyTimezone } from '@/lib/db';
+import { setActiveTimezone } from '@/lib/timezone';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import * as SecureStore from 'expo-secure-store';
 
@@ -70,6 +72,9 @@ export default function RootLayout() {
     if (!uid || uid === 'dev') return;     // UI-only 더미 세션은 skip
     registerExpoPushToken(uid).catch(() => {});
     ensureNotificationPrefs(uid).catch(() => {});
+    // 🚀 하루 기준선(0077) — 내 기준 시간대를 앱 전역 판정에 반영.
+    //    못 읽으면 기본값(KST) 그대로 = 지금까지의 동작.
+    fetchMyTimezone(uid).then(setActiveTimezone).catch(() => {});
   }, [session?.user?.id]);
 
   // 🚀 앱이 활성화될 때 및 백그라운드 복귀 시 뱃지 초기화 및 알림 카드 클리어

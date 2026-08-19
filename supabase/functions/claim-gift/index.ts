@@ -39,10 +39,12 @@ function json(status: number, body: unknown): Response {
 // 나와의 내기 완주 판정 — DB(챌린지·합류일·도전자 인증)를 모아 순수 함수로 판정.
 // 도전자 = 내기 주문의 recipient(=sender 본인). proofs 도 그 user 의 것만 센다.
 async function selfBetOutcome(service: any, challengeId: string, userId: string) {
-  const [chRes, memRes, proofRes] = await Promise.all([
+  const [chRes, memRes, proofRes, userRes] = await Promise.all([
     service.from('challenges').select('start_date, end_date, frequency').eq('id', challengeId).maybeSingle(),
     service.from('challenge_members').select('joined_at').eq('challenge_id', challengeId).eq('user_id', userId).maybeSingle(),
-    service.from('proofs').select('created_at').eq('challenge_id', challengeId).eq('user_id', userId),
+    // 인증한 "날"은 저장 시점에 박힌 local_date(0077) — 도전자의 기준 시간대 기준
+    service.from('proofs').select('local_date').eq('challenge_id', challengeId).eq('user_id', userId),
+    service.from('users').select('timezone').eq('id', userId).maybeSingle(),
   ]);
   const ch = chRes.data;
   if (!ch) return 'in_progress';
@@ -51,7 +53,8 @@ async function selfBetOutcome(service: any, challengeId: string, userId: string)
     endDate: ch.end_date,
     frequency: ch.frequency ?? 'daily',
     joinedAt: memRes.data?.joined_at ?? null,
-    proofIso: (proofRes.data ?? []).map((r: { created_at: string }) => r.created_at),
+    proofDates: (proofRes.data ?? []).map((r: { local_date: string }) => r.local_date),
+    timezone: userRes.data?.timezone ?? 'Asia/Seoul',
   });
 }
 

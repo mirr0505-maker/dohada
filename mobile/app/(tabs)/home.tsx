@@ -43,7 +43,7 @@ import { todayGreeting } from '@/lib/notifications';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import type { CompletionStoryCard, OpenChallengeCard } from '@/lib/types';
-import { getChallengeDDay, getKstTodayRange, formatCheerCount, displayTitle } from '@/lib/format';
+import { getChallengeDDay, getTodayRange, formatCheerCount, displayTitle } from '@/lib/format';
 import { CategoryIcon } from '@/components/CategoryIcon';
 import { HostMark, HostAvatarRing } from '@/components/HostMark';
 import { HostBadge } from '@/components/HostBadge';
@@ -188,7 +188,7 @@ export default function HomeScreen() {
 
       setCompletions(recentDone);
       // 오늘 인증한 동료만 (KST 당일 범위 매칭)
-      const { startUtc, endUtc } = getKstTodayRange();
+      const { startUtc, endUtc } = getTodayRange();
       const dayStartMs = Date.parse(startUtc);
       const dayEndMs = Date.parse(endUtc);
       setTodayProofs(fellows.filter(p => {
@@ -223,7 +223,7 @@ export default function HomeScreen() {
   // 🚀 콜드스타트(도전 0개) = 빈 카드 스택 대신 살아있는 온램프 한 장으로 분기
   const isColdStart = totalCount === 0;
   // 🚀 P-⑤: 진행 중 vs 종료된 챌린지 분리 (KST 자정 기준).
-  const todayStr = getKstTodayRange().kstDateStr;
+  const todayStr = getTodayRange().dateStr;
   // 🚀 응원하기로만 들어간 cheered 방 = "내가 하는 하다"가 아니라 "내가 응원하는 하다".
   //   '오늘, 나의 하다'(myDoingChs)에서 빼고 아래 '오늘, 응원으로 힘주기'(cheeredRooms)에서만 노출
   //   → 두 섹션 중복 + 도전자/응원자 역할 혼선 제거.
@@ -238,7 +238,7 @@ export default function HomeScreen() {
 
   // 🚀 홈 노출 상한 — 참여 방이 많아도 홈 스크롤 폭증 방지 (전체는 내도전 탭에서)
   const HOME_ACTIVE_LIMIT = 5;
-  const kstTodayStr = getKstTodayRange().kstDateStr;
+  const kstTodayStr = getTodayRange().dateStr;
   // 🚀 0041: 목표 횟수형(count)은 일일 의무 없음 — '오늘 인증' 잔소리·정렬·배지에서 제외
   const isCountGoal = (c: MyChallengeDetail) => c.goal_type === 'count';
   const goalDone = (c: MyChallengeDetail) =>
@@ -259,7 +259,7 @@ export default function HomeScreen() {
   // 🚀 완주 리본 노출 규칙 ('하다 인연들의 하루' 피드):
   //   ① 내 완주 제외 — 내 완주는 '오늘, 나의 하다'·내 하다 탭에서 보임. 이 피드는 '하다 인연(타인)의 하루'.
   //   ② 완주 공유일 +1일까지만 — 오늘·어제 완주분만. 옛 완주가 며칠씩 박혀있던 문제 해소(오늘 KST 자정 −24h 기준).
-  const completionCutoffMs = Date.parse(getKstTodayRange().startUtc) - 24 * 60 * 60 * 1000;
+  const completionCutoffMs = Date.parse(getTodayRange().startUtc) - 24 * 60 * 60 * 1000;
   const visibleCompletions = completions.filter(
     c => c.user_id !== myUserId && Date.parse(c.created_at) >= completionCutoffMs,
   );

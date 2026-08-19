@@ -20,7 +20,7 @@ import { DailyRhythmCard } from '@/components/home/DailyRhythmCard';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import type { ChallengeWithCount } from '@/lib/types';
-import { getKstTodayRange, displayTitle } from '@/lib/format';
+import { getTodayRange, displayTitle } from '@/lib/format';
 
 export default function MyChallengesScreen() {
   const session = useSession();
@@ -90,7 +90,7 @@ export default function MyChallengesScreen() {
           const isCheererRoom = (c: ChallengeWithCount) => c.kind === 'cheered' && c.creator_id !== myUserId;
           const doing    = challenges.filter(c => !isCheererRoom(c));
           // 진행 중 vs 종료 분리 (KST 자정 기준)
-          const todayStr = getKstTodayRange().kstDateStr;
+          const todayStr = getTodayRange().dateStr;
           const active   = doing.filter(c => todayStr <= c.end_date);
           const finished = doing.filter(c => todayStr >  c.end_date);
           return (
@@ -250,7 +250,7 @@ function computeProgress(start: string, end: string) {
   const startDate = new Date(start + 'T00:00:00');
   const endDate = new Date(end + 'T00:00:00');
   // KST 기준 오늘 — UTC 기준이면 오전 9시까지 어제로 판정됨
-  const todayDate = new Date(getKstTodayRange().kstDateStr + 'T00:00:00');
+  const todayDate = new Date(getTodayRange().dateStr + 'T00:00:00');
   const totalDays = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / 86_400_000) + 1);
   const elapsed = Math.max(0, Math.round((todayDate.getTime() - startDate.getTime()) / 86_400_000));
   const dayN = Math.min(totalDays, elapsed + 1);

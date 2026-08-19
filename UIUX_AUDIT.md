@@ -333,7 +333,7 @@ room → FAB "📸 오늘 인증하기" → checkin/[id]
 - 엔진: `i18n-js` + `expo-localization`. 디바이스 언어 en이면 en, 그 외 ko 폴백([lib/i18n.ts](mobile/lib/i18n.ts)).
 - 사전 규모: [ko.ts](mobile/lib/locales/ko.ts)/[en.ts](mobile/lib/locales/en.ts) 각 **5 네임스페이스(common/error/login/home/room)만**. 대부분 키가 화면에서 미사용.
 - **실사용 = `t()` 호출 2회뿐**(ErrorState의 `error.title`·`common.retry`). 나머지 전 화면 **한국어 하드코딩**(51개 파일에 한글 리터럴). → 영어 디바이스로 켜도 거의 전부 한국어 노출.
-- 날짜/통화/시간대: KST 고정 로직(`getKstTodayRange` 등). 로케일 기반 포맷 없음. 통화는 mock 결제라 미적용.
+- 날짜/통화/시간대: 하루 경계는 **사용자별 기준 시간대**로 전환됨(0077 — `mobile/lib/timezone.ts` `getTodayRange`, 구 `getKstTodayRange`). 날짜 **표시**의 로케일 포맷은 여전히 없음(i18n Phase G). 통화는 mock 결제라 미적용.
 - **판정**: 글로벌 출시 관점에선 **사실상 한국어 단일 앱**. i18n은 인프라 골격만.
 
 ### 7.2 접근성 (a11y)

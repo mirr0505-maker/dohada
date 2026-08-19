@@ -16,7 +16,7 @@ import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { uploadProofImage } from '@/lib/upload';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { haptic } from '@/lib/haptics';
-import { getKstTodayRange } from '@/lib/format';
+import { getTodayRange } from '@/lib/format';
 import { streakMilestone } from '@/lib/stats';
 import type { ChallengeKind } from '@/lib/types';
 
@@ -44,7 +44,7 @@ export default function CheckinScreen() {
       .then(({ data }) => {
         if (!data) return;
         if (data.kind) setChallengeKind(data.kind as ChallengeKind);
-        if (data.end_date && getKstTodayRange().kstDateStr > data.end_date) {
+        if (data.end_date && getTodayRange().dateStr > data.end_date) {
           Alert.alert(
             '하다 종료',
             '이미 종료된 하다예요.\n남긴 인증은 하다 방 박제 탭에서 볼 수 있어요.',

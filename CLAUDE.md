@@ -258,6 +258,18 @@
 - **결정(2026-07-13)**: ① 리브랜드=UI만(코드 parang 유지) ② 댓글 익명 기본 ON·per-comment 토글 ③ 인라인(모달 X)·"댓글 N개" 탭 펼침 ④ 수정 없음 삭제만 ⑤ ripple은 reference+공명해요 둘 다 0일 때만.
 - **배포 (⚠️ 0063 migration 먼저, 운영 적용 완료)**: 리브랜드 OTA → 0063 적용 → 댓글·사진 OTA → 키보드·색상 픽스 OTA. 전부 preview·production 완료. 검증 tsc 0 + npm test 71/71.
 
+### 신규 코드 위치 (v2.29 — 하루 기준선(사용자별 시간대) + 사진 업로드 재시도, 0077, 2026-08-19)
+**하루 경계가 앱 전체에 KST 하드코딩이라 해외 거주·출장 사용자가 인증을 놓치던 버그.** 런던(BST)에서 KST 자정 = 현지 오후 4시 → 오후 4시 이후 인증이 "내일"로 저장 → 그날은 미인증 + 다음 날은 1일 1회 제약에 막힘 = **이틀이 하루로 뭉개짐**(연속 끊김·완주 일수 손실). 해외 거주 베타 사용자 피드백.
+- ⚠️ **유니크 인덱스 식은 다른 테이블(users)을 참조할 수 없다**(immutable 식만) → `proofs.local_date` 컬럼에 **저장 시점의 작성자 기준 날짜**를 트리거로 박고, 유니크 인덱스·연속 트리거를 그 컬럼으로 옮기는 게 이 설계의 핵심(0049 교훈의 연장).
+- DB [`0077_user_timezone.sql`](supabase/migrations/0077_user_timezone.sql): ① `users.timezone`(IANA, 기본 Asia/Seoul)+`timezone_updated_at` + `grant update (timezone)`(0068 컬럼 가드 유지) + 검증 트리거(알 수 없는 시간대 거부 · **변경 하루 1회** — 경계를 밀어 '놓친 하루' 되살리는 어뷰징 차단) ② `user_timezone(uuid)` SECURITY DEFINER 헬퍼 ③ `proofs.local_date` + `set_proof_local_date` 트리거(**이름 순서가 실행 순서** — goal_type→local_date→streak) + KST 백필(과거 재해석 금지) ④ `set_proof_streak`(0044)·`uniq_proofs_per_day`(0049) 를 local_date 기준으로 교체 ⑤ `is_within_challenge_period`(0028) 를 인증하는 사람의 시간대로 ⑥ `daily_notes.note_date` 기본값도 동일(안 바꾸면 해외 사용자가 자기 회고를 못 찾음)
+- 클라 [`timezone.ts`](mobile/lib/timezone.ts)(신규 · 단일 소스): 활성 시간대 모듈 상태(`setActiveTimezone`/`getActiveTimezone`) + `getTodayRange()`(구 `getKstTodayRange`, format.ts 는 재수출만) + `toLocalDateStr`·`getLocalHour` + `TIMEZONE_OPTIONS`. Intl 기반이되 **엔진이 timeZone 을 못 다루면 기기 오프셋 폴백**(Hermes 편차 대비). 부트스트랩 = [`_layout.tsx`](mobile/app/_layout.tsx) 세션 로드 시 `fetchMyTimezone`→`setActiveTimezone`
+- 판정 경로: [`stats.ts`](mobile/lib/stats.ts) 는 인증 날짜를 **`local_date` 우선**(`proofDateStr`)으로 묶는다 — 동료가 해외에 있어도 그 사람의 하루로 센다. streak 루프는 ms 가 아니라 **날짜 문자열로 하루 물러나기**(서머타임 23·25시간 날 겹침/건너뜀 방지, [`db.ts`](mobile/lib/db.ts) 도 동일)
+- UI: [`profile.tsx`](mobile/app/(tabs)/profile.tsx) "하루 기준선" 섹션 + `TimezoneEditModal`(목록 + 기기 시간대 상단 노출) + **기기와 다르면 "지금 계신 곳은 런던이에요" 배너**(자동 변경은 안 한다 — 잠깐의 시차 이동으로 경계가 밀리면 안 됨). [`DailyRhythmCard`](mobile/components/home/DailyRhythmCard.tsx) 아침/저녁 15시 경계도 기준 시간대
+- 결제(자동 테스트 의무): [`betOutcome.ts`](supabase/functions/_shared/payments/betOutcome.ts) 가 `proofDates`(=local_date)+`timezone` 을 받도록 교체(구 `proofIso`/`todayKst` 제거), [`claim-gift`](supabase/functions/claim-gift/index.ts) 가 local_date·users.timezone 조회. 테스트 = `self-bet-outcome`(런던 케이스 2건 추가) + [`timezone-day-boundary.test.ts`](__tests__/timezone-day-boundary.test.ts)(신규)
+- **2단계(미착수)**: 알림 조용시간 22~06시([`flush-notifications`](supabase/functions/flush-notifications/index.ts)) 가 아직 KST — 런던 사용자는 현지 낮 푸시가 보류됐다 밤에 몰려 온다. `recruitCloseAtMs`(모집 마감)는 방 단위 시각이라 KST 유지
+- **배포 (⚠️ migration 먼저)**: 0077 적용 → `claim-gift` EF 배포 → 클라 OTA. **순서 어기면 `local_date` 컬럼이 없어 홈·프로필 쿼리가 깨진다**(구 클라는 무영향)
+- **사진 업로드 재시도**(같이 배포): [`upload.ts`](mobile/lib/upload.ts) — presign(EF)·R2 PUT 이 네트워크 단계에서 실패하면 0.6s·1.5s 백오프로 최대 3회. 4xx(서버가 응답한 오류)는 재시도 안 함. 최종 실패는 영어 원문 대신 한국어 안내. 인증·기록·프로필·안내문·완주이야기가 이 함수를 공유
+
 ### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.
 - 인증 완료 Alert / 카톡 초대 / 생성 후 Alert / 챌린지방 헤더 부제 / FAB 라벨 — 모두 분류별 분기 완료

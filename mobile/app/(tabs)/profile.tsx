@@ -9,7 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-import { ArrowLeft, Pencil, Camera, Plus, Trophy, Flag, Coffee, Check, Wrench } from 'lucide-react-native';
+import { ArrowLeft, Pencil, Camera, Plus, Trophy, Flag, Coffee, Check, Wrench, Clock } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { ListRow } from '@/components/ListRow';
 import { CategoryIcon } from '@/components/CategoryIcon';
@@ -21,11 +21,15 @@ import {
   fetchMyProfile, updateMyNickname, updateMyAvatar,
   fetchMyInterests, addInterest, removeInterest, fetchCategoryTree,
   fetchMyChallenges, fetchMyFootprints, fetchIsAdmin,
+  fetchMyTimezone, updateMyTimezone,
   type MyInterest, type DbCategory, type MyFootprints,
 } from '@/lib/db';
 import type { ChallengeWithCount } from '@/lib/types';
 import { HostMark, HostAvatarRing } from '@/components/HostMark';
-import { getKstTodayRange } from '@/lib/format';
+import { getTodayRange } from '@/lib/format';
+import {
+  TIMEZONE_OPTIONS, DEFAULT_TIMEZONE, getDeviceTimezone, timezoneLabel, timezoneOffsetLabel,
+} from '@/lib/timezone';
 import { uploadProofImage } from '@/lib/upload';
 import { isGiftPilotEmail } from '@/lib/payments';
 
@@ -44,6 +48,9 @@ export default function ProfileScreen() {
   const [finishedChs, setFinishedChs] = useState<ChallengeWithCount[]>([]);
   const [footprints, setFootprints] = useState<MyFootprints | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [timezone, setTimezone] = useState<string>(DEFAULT_TIMEZONE);   // 🚀 0077 하루 기준선
+  const [editingTz, setEditingTz] = useState(false);
+  const deviceTz = getDeviceTimezone();
 
   useEffect(() => {
     if (session === null) router.replace('/login');
@@ -56,9 +63,10 @@ export default function ProfileScreen() {
     fetchCategoryTree().then(t => setCategories(t.categories)).catch(() => {});
     fetchMyFootprints(myUserId).then(setFootprints).catch(() => {});
     fetchIsAdmin().then(setIsAdmin).catch(() => setIsAdmin(false));
+    fetchMyTimezone(myUserId).then(setTimezone).catch(() => {});
     // 완주 보관함 — 종료된 하다만 (KST 자정 기준). 행의 개수 표시에 사용.
     fetchMyChallenges(myUserId).then(all => {
-      const today = getKstTodayRange().kstDateStr;
+      const today = getTodayRange().dateStr;
       setFinishedChs(all.filter(c => today > c.end_date));
     }).catch(() => {});
   }, [myUserId]);
@@ -206,6 +214,32 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* 🚀 하루 기준선 (0077) — 인증·연속·완주를 어느 시간대의 하루로 셀지.
+            해외 거주·출장 중이면 현지 자정 기준으로 바꿔야 저녁 인증이 그날로 기록된다. */}
+        <View style={styles.section}>
+          <Text style={styles.label}>하루 기준선</Text>
+          <View style={styles.setgroup}>
+            <ListRow
+              icon={Clock}
+              label={timezoneLabel(timezone)}
+              sub={`${timezoneOffsetLabel(timezone)} · 이 시간대의 자정에 하루가 바뀌어요`}
+              onPress={() => { haptic.tap(); setEditingTz(true); }}
+            />
+          </View>
+          {deviceTz !== timezone && (
+            <Pressable
+              style={styles.tzHint}
+              onPress={() => { haptic.tap(); setEditingTz(true); }}
+              accessibilityRole="button"
+            >
+              <Text style={styles.tzHintText}>
+                지금 계신 곳은 {timezoneLabel(deviceTz)}이에요 · 눌러서 바꾸기
+              </Text>
+            </Pressable>
+          )}
+          <Text style={styles.note}>인증·연속·완주를 이 시간대의 하루로 세요. 하루에 한 번 바꿀 수 있어요.</Text>
+        </View>
+
         {/* 🚀 운영자 콘솔 진입점 — is_admin 일 때만. 권한 강제는 서버(RPC), 여기선 노출 게이트만 */}
         {isAdmin && (
           <View style={styles.section}>
@@ -228,6 +262,15 @@ export default function ProfileScreen() {
         onSaved={(next) => { setNickname(next); setEditingNick(false); }}
       />
 
+      <TimezoneEditModal
+        visible={editingTz}
+        current={timezone}
+        deviceTz={deviceTz}
+        userId={myUserId}
+        onClose={() => setEditingTz(false)}
+        onSaved={(next) => { setTimezone(next); setEditingTz(false); }}
+      />
+
       <InterestEditModal
         visible={editingInterests}
         userId={myUserId}
@@ -237,6 +280,84 @@ export default function ProfileScreen() {
         onChanged={(next) => setInterests(next)}
       />
     </Screen>
+  );
+}
+
+// ─── 하루 기준선(시간대) 선택 모달 ───
+// 목록에 없는 시간대(기기가 알려준 곳)도 맨 위에 함께 보여준다 — 어디에 있든 고를 수 있게.
+function TimezoneEditModal({
+  visible, current, deviceTz, userId, onClose, onSaved,
+}: {
+  visible: boolean;
+  current: string;
+  deviceTz: string;
+  userId: string | undefined;
+  onClose: () => void;
+  onSaved: (tz: string) => void;
+}) {
+  const [saving, setSaving] = useState<string | null>(null);
+  const options = TIMEZONE_OPTIONS.some(o => o.tz === deviceTz)
+    ? TIMEZONE_OPTIONS
+    : [{ tz: deviceTz, label: timezoneLabel(deviceTz) }, ...TIMEZONE_OPTIONS];
+
+  const onSelect = async (tz: string) => {
+    if (!userId || saving) return;
+    if (tz === current) { onClose(); return; }
+    haptic.tap();
+    setSaving(tz);
+    try {
+      await updateMyTimezone(userId, tz);
+      haptic.success();
+      onSaved(tz);
+    } catch (e: any) {
+      // 하루 1회 변경 제한·알 수 없는 시간대는 서버(0077 트리거)가 한국어 메시지로 돌려준다
+      Alert.alert('바꾸지 못했어요', e?.message ?? String(e));
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <SafeAreaView style={styles.modalSafe} edges={['top', 'bottom']}>
+        <View style={styles.modalHeader}>
+          <Pressable onPress={onClose} hitSlop={12} disabled={!!saving}><Text style={styles.modalCancel}>닫기</Text></Pressable>
+          <Text style={styles.modalTitle}>하루 기준선</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <ScrollView contentContainerStyle={styles.modalBody}>
+          <Text style={styles.modalHint}>
+            고른 시간대의 자정에 하루가 바뀌어요. 해외에 있을 땐 현지로 맞춰야 저녁 인증이 그날로 기록돼요.
+          </Text>
+          <View style={styles.setgroup}>
+            {options.map((o, i) => (
+              <View key={o.tz}>
+                {i > 0 && <View style={styles.tzDivider} />}
+                <Pressable
+                  style={styles.tzRow}
+                  onPress={() => onSelect(o.tz)}
+                  disabled={!!saving}
+                  accessibilityRole="button"
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.tzRowLabel}>{o.label}</Text>
+                    <Text style={styles.tzRowSub}>
+                      {timezoneOffsetLabel(o.tz)}{o.tz === deviceTz ? ' · 지금 계신 곳' : ''}
+                    </Text>
+                  </View>
+                  {saving === o.tz
+                    ? <Text style={styles.tzRowSub}>바꾸는 중…</Text>
+                    : o.tz === current
+                      ? <Check size={18} color={colors.brand} strokeWidth={2.5} />
+                      : null}
+                </Pressable>
+              </View>
+            ))}
+          </View>
+          <Text style={styles.note}>기준선은 하루에 한 번만 바꿀 수 있어요.</Text>
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
   );
 }
 
@@ -445,6 +566,12 @@ const styles = StyleSheet.create({
   divider: { height: 0.5, backgroundColor: colors.lineSoft, marginHorizontal: 16 },
 
   // 모달 공통
+  tzHint: { marginTop: 8, paddingHorizontal: 2 },
+  tzHintText: { fontSize: fontSize.sm, color: colors.brand, fontFamily: fontFamily.medium, lineHeight: 20 },
+  tzRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
+  tzRowLabel: { fontSize: fontSize.md, color: colors.ink, fontFamily: fontFamily.medium },
+  tzRowSub: { fontSize: fontSize.xs, color: colors.faint, fontFamily: fontFamily.regular, marginTop: 2 },
+  tzDivider: { height: 1, backgroundColor: colors.line, marginLeft: 16 },
   modalSafe: { flex: 1, backgroundColor: colors.bg },
   modalHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

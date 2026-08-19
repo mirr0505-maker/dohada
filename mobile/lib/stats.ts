@@ -1,7 +1,7 @@
 // 🚀 챌린지 통계 — 진행률 / Streak / 완주 여부 계산
-// 날짜 판정은 모두 KST(Asia/Seoul) 기준 — UTC 기준이면 한국 사용자는 오전 9시까지 어제로 판정됨.
+// 날짜 판정은 모두 사용자의 기준 시간대(users.timezone, 0077) — 기본 KST, 해외 거주자는 현지 자정 기준.
 import type { DbChallenge, ProofWithRelations, ChallengeFrequency } from './types';
-import { getKstTodayRange } from './format';
+import { getTodayRange, toLocalDateStr } from './timezone';
 import { streakTier } from './tokens';
 
 // 🚀 연속 인증 마일스톤 (게시글 메달) — proofs.streak_count(연속 일수)가 이 값일 때만 메달 노출.
@@ -20,9 +20,11 @@ export function streakMilestone(streakCount?: number | null): { day: number; lab
   return { day: streakCount, label: STREAK_LABELS[i], color: streakTier[i] };
 }
 
-// ISO timestamp → KST 날짜 문자열 (YYYY-MM-DD). 인증을 "어느 날" 했는지 묶을 때 사용.
-function toKstDateStr(iso: string): string {
-  return new Date(new Date(iso).getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+// 인증을 "어느 날" 했는지 — 서버가 저장한 local_date(0077)를 우선한다.
+//   local_date = 작성자 기준 시간대의 날짜라, 동료가 해외에 있어도 그 사람의 하루로 묶인다.
+//   없으면(구 쿼리 경로) 내 기준 시간대로 환산한다.
+function proofDateStr(p: { local_date?: string; created_at: string }): string {
+  return p.local_date ?? toLocalDateStr(p.created_at);
 }
 
 // 🚀 frequency 별 목표 인증 횟수 계산 (P-① — 0007 frequency 컬럼 활용)
@@ -79,7 +81,7 @@ export function computeProgress(challenge: DbChallenge): {
   const start = new Date(challenge.start_date + 'T00:00:00');
   const end = new Date(challenge.end_date + 'T00:00:00');
   
-  const todayDate = new Date(getKstTodayRange().kstDateStr + 'T00:00:00');
+  const todayDate = new Date(getTodayRange().dateStr + 'T00:00:00');
 
   const totalDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1);
   const passedDays = Math.min(
@@ -97,18 +99,16 @@ export function computeStreak(myProofs: ProofWithRelations[]): number {
   if (myProofs.length === 0) return 0;
 
   // 인증한 날짜 (YYYY-MM-DD, KST) set
-  const dates = new Set(myProofs.map(p => toKstDateStr(p.created_at)));
+  const dates = new Set(myProofs.map(proofDateStr));
 
   let streak = 0;
-  let cursorMs = Date.now();
-  const dayMs = 86_400_000;
-  // 오늘 인증 안 했으면 어제부터 카운트
-  if (!dates.has(toKstDateStr(new Date(cursorMs).toISOString()))) {
-    cursorMs -= dayMs;
-  }
-  while (dates.has(toKstDateStr(new Date(cursorMs).toISOString()))) {
+  // 하루 물러나기는 날짜 문자열로 — ms 로 24h 씩 빼면 서머타임 전환일에 하루가 겹치거나 건너뛴다
+  const prevDay = (d: string) => new Date(Date.parse(d + 'T00:00:00Z') - 86_400_000).toISOString().slice(0, 10);
+  let cursor = toLocalDateStr(new Date().toISOString());
+  if (!dates.has(cursor)) cursor = prevDay(cursor);   // 오늘 인증 안 했으면 어제부터 카운트
+  while (dates.has(cursor)) {
     streak += 1;
-    cursorMs -= dayMs;
+    cursor = prevDay(cursor);
   }
   return streak;
 }
@@ -116,7 +116,7 @@ export function computeStreak(myProofs: ProofWithRelations[]): number {
 // 🚀 멤버별 목표 인증 수 — 시작 후 합류자는 "합류일~종료일" 구간 기준 비례 (v2.8 늦합류 완주)
 //    합류일이 시작일보다 빠르거나 없으면 챌린지 전체 기간 기준 (기존과 동일).
 export function memberTargetProofCount(challenge: DbChallenge, joinedAt?: string | null): number {
-  const joinedDate = joinedAt ? toKstDateStr(joinedAt) : null;
+  const joinedDate = joinedAt ? toLocalDateStr(joinedAt) : null;
   const effectiveStart = joinedDate && joinedDate > challenge.start_date
     ? joinedDate
     : challenge.start_date;
@@ -128,18 +128,18 @@ export function memberTargetProofCount(challenge: DbChallenge, joinedAt?: string
 
 // 인증한 고유 날짜 수 (KST) — 완주율 표시 등 (UTC slice 묶음 오류 방지)
 export function uniqueProofDays(proofs: ProofWithRelations[]): number {
-  return new Set(proofs.map(p => toKstDateStr(p.created_at))).size;
+  return new Set(proofs.map(proofDateStr)).size;
 }
 
 // 멤버별 경과일 — 늦합류자는 합류일부터 센다 (현황 탭 분모, 시작 전이면 0)
 export function memberPassedDays(challenge: DbChallenge, joinedAt?: string | null): number {
-  const joinedDate = joinedAt ? toKstDateStr(joinedAt) : null;
+  const joinedDate = joinedAt ? toLocalDateStr(joinedAt) : null;
   const effectiveStart = joinedDate && joinedDate > challenge.start_date
     ? joinedDate
     : challenge.start_date;
   const start = new Date(effectiveStart + 'T00:00:00');
   const end = new Date(challenge.end_date + 'T00:00:00');
-  const today = new Date(getKstTodayRange().kstDateStr + 'T00:00:00');
+  const today = new Date(getTodayRange().dateStr + 'T00:00:00');
   const cap = Math.min(end.getTime(), today.getTime());
   return Math.max(0, Math.round((cap - start.getTime()) / 86_400_000) + 1);
 }
@@ -160,7 +160,7 @@ export function goalStatus(
   // cadence (기존 로직): KST 고유 날짜수 ≥ frequency 목표, 종료일 이후에만 완주 판정
   const target = memberTargetProofCount(challenge, joinedAt);
   const current = uniqueProofDays(myProofs);
-  const ended = getKstTodayRange().kstDateStr >= challenge.end_date;
+  const ended = getTodayRange().dateStr >= challenge.end_date;
   return { current, target, isComplete: ended && current >= target };
 }
 
@@ -201,14 +201,14 @@ export function isFailed(
   myProofs: ProofWithRelations[],
   joinedAt?: string | null,
 ): boolean {
-  const today = getKstTodayRange().kstDateStr;
+  const today = getTodayRange().dateStr;
   if (today < challenge.end_date) return false;
   return !isCompleted(challenge, myProofs, joinedAt);
 }
 
 // 종료 여부: 진행 중인지 종료됐는지 (성공/실패 무관)
 export function isFinished(challenge: DbChallenge): boolean {
-  const today = getKstTodayRange().kstDateStr;
+  const today = getTodayRange().dateStr;
   return today > challenge.end_date;
 }
 
@@ -225,7 +225,7 @@ export function getFarewellState(challenge: DbChallenge): {
   if (challenge.kind === 'solo') return { finished: true, canWrite: false, farewellDaysLeft: 0 };
 
   // 종료 후 경과일 — 종료 다음날(= 종료일 24시 이후 첫날) = 1
-  const today = new Date(getKstTodayRange().kstDateStr + 'T00:00:00');
+  const today = new Date(getTodayRange().dateStr + 'T00:00:00');
   const end = new Date(challenge.end_date + 'T00:00:00');
   const daysAfterEnd = Math.round((today.getTime() - end.getTime()) / 86_400_000);
 

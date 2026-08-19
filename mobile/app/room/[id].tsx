@@ -51,7 +51,7 @@ import { StreakMedal } from '@/components/challenge/StreakMedal';
 import { HostMark, HostAvatarRing } from '@/components/HostMark';
 import * as SecureStore from 'expo-secure-store';
 import { joinChallenge } from '@/lib/invite';
-import { formatCheerCount, getKstTodayRange, displayTitle } from '@/lib/format';
+import { formatCheerCount, getTodayRange, displayTitle } from '@/lib/format';
 import type {
   DbChallenge, MemberWithToday, ProofWithRelations, ChallengeKind,
 } from '@/lib/types';
@@ -339,7 +339,7 @@ export default function ChallengeRoom() {
           : `"${challenge.title}" 하다에 함께해요!`;
 
         // 시작 전(모집 기간)이면 시작일을 초대글에 명시 — 합류자가 출발선을 알고 들어오게 (v2.8)
-        const kstTodayStr = getKstTodayRange().kstDateStr;
+        const kstTodayStr = getTodayRange().dateStr;
         const startLine = kstTodayStr < challenge.start_date
           ? `🗓️ ${challenge.start_date.replace(/-/g, '.')} 시작 — 그 전까지 함께할 동료를 모아요!\n\n`
           : '';
@@ -703,7 +703,7 @@ export default function ChallengeRoom() {
   );
   const daysLeft = progress ? Math.max(0, progress.totalDays - progress.passedDays) : 0;
   // 🚀 모집 기간 — 시작일 전이면 인증 대신 동료 모집 모드 (다함께·누구나 시작일 지정, v2.8)
-  const kstToday = getKstTodayRange().kstDateStr;
+  const kstToday = getTodayRange().dateStr;
   const notStarted = kstToday < challenge.start_date;
   const daysToStart = notStarted
     ? Math.max(1, Math.round((new Date(challenge.start_date + 'T00:00:00').getTime() - new Date(kstToday + 'T00:00:00').getTime()) / 86_400_000))

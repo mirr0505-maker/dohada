@@ -67,6 +67,7 @@ export type DbProof = {
   caption: string | null;
   created_at: string;
   streak_count?: number;   // 🚀 0044: 같은 챌린지 연속 인증 일수(이 인증 날 기준, 같은날 2번째+는 0). 마일스톤 메달용
+  local_date?: string;     // 🚀 0077: 인증한 날(작성자의 기준 시간대). 하루 1회 제약·연속·완주 판정의 근거
 };
 
 // 인증 응원 4가지 (0007 cheers.cheer_type 컬럼)

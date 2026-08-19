@@ -7,6 +7,7 @@ import { useFocusEffect } from 'expo-router';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { haptic } from '@/lib/haptics';
 import { fetchMyDailyNote, type DailyNote, type DailyNoteKind } from '@/lib/db';
+import { getLocalHour } from '@/lib/timezone';
 import { DailyNoteComposeSheet } from './DailyNoteComposeSheet';
 
 // kind별 카피 — 아침엔 앞을 보는 다짐, 저녁엔 돌아보는 회고 (particle 은 done 에 미리 포함)
@@ -20,9 +21,8 @@ const META: Record<DailyNoteKind, {
 };
 
 export function DailyRhythmCard({ userId }: { userId: string | undefined }) {
-  // KST 현재 시각(시) — format.ts 와 동일하게 UTC+9 후 getUTCHours (디바이스 TZ 무관)
-  const kstHour = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCHours();
-  const kind: DailyNoteKind = kstHour < 15 ? 'intention' : 'reflection';
+  // 내 기준 시간대(0077)의 현재 시각 — 하루 노트의 날짜도 같은 경계로 저장된다
+  const kind: DailyNoteKind = getLocalHour() < 15 ? 'intention' : 'reflection';
   const meta = META[kind];
 
   const [note, setNote] = useState<DailyNote | null>(null);

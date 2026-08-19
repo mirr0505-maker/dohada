@@ -1,7 +1,8 @@
 // 🚀 Supabase 자주 쓰는 쿼리 helpers
 // RLS 가 알아서 가드해주니까 여기선 단순 fetch/insert/delete.
 import { supabase } from './supabase';
-import { getKstTodayRange } from './format';
+import { getTodayRange } from './format';
+import { toLocalDateStr, setActiveTimezone, DEFAULT_TIMEZONE } from './timezone';
 import { isRecruiting, goalStatus, isFinished, countCompleters } from './stats';   // 🚀 0043: 모집 마감 판정 + 다짐 내역 완주 판정 + 0075 완주자 집계
 import type {
   ChallengeWithCount, ChallengeKind, ChallengeGoalType, ChallengeMemberRole, ChallengeFrequency, MemberWithToday, ProofWithRelations, DbChallenge,
@@ -104,7 +105,7 @@ export async function fetchMyChallenges(myUserId?: string): Promise<ChallengeWit
     .order('created_at', { ascending: false });
   if (error) throw error;
 
-  const { startUtc: todayStartUtc, endUtc: todayEndUtc } = getKstTodayRange();
+  const { startUtc: todayStartUtc, endUtc: todayEndUtc } = getTodayRange();
   const oneDayAgo = new Date(Date.now() - 86_400_000).toISOString();
 
   // 3. 오늘 본인의 인증 데이터 가져오기 (KST 기준)
@@ -123,14 +124,15 @@ export async function fetchMyChallenges(myUserId?: string): Promise<ChallengeWit
   // 4. 연속 인증 일수 계산용 데이터 가져오기 (내 모든 인증글)
   const { data: myAllProofs } = await supabase
     .from('proofs')
-    .select('challenge_id, created_at')
+    .select('challenge_id, created_at, local_date')
     .in('challenge_id', ids)
     .eq('user_id', myUserId)
     .order('created_at', { ascending: false });
   const proofsMap = new Map<string, string[]>();
   for (const p of (myAllProofs ?? []) as any[]) {
     const arr = proofsMap.get(p.challenge_id) ?? [];
-    arr.push(p.created_at);
+    // 인증한 "날"은 서버가 저장한 local_date(0077, 작성자 기준 시간대)를 그대로 쓴다
+    arr.push(p.local_date ?? toLocalDateStr(p.created_at));
     proofsMap.set(p.challenge_id, arr);
   }
 
@@ -171,22 +173,21 @@ export async function fetchMyChallenges(myUserId?: string): Promise<ChallengeWit
     hasNewLogSet.add(l.challenge_id);
   }
 
-  // 스트릭 일자 비교는 KST 기준 (UTC slice 는 오전 9시까지 어제로 판정되는 오차)
-  const KST_MS = 9 * 60 * 60 * 1000;
-  const kstDayOf = (ms: number) => new Date(ms + KST_MS).toISOString().slice(0, 10);
+  // 스트릭 일자 비교는 내 기준 시간대(0077) — UTC slice 는 오전 9시까지 어제로 판정되는 오차.
+  //   하루 물러나기는 ms 가 아니라 날짜 문자열로 — 서머타임 전환일(23·25시간)에 하루가 겹치거나 건너뛴다.
+  const todayLocal = toLocalDateStr(new Date().toISOString());
+  const prevDay = (d: string) => new Date(Date.parse(d + 'T00:00:00Z') - 86_400_000).toISOString().slice(0, 10);
 
   return (data ?? []).map((c: any) => {
     // Streak 계산
     const myDates = proofsMap.get(c.id) ?? [];
-    const datesSet = new Set(myDates.map(d => kstDayOf(new Date(d).getTime())));
+    const datesSet = new Set(myDates);   // 이미 날짜 문자열(local_date)
     let streak = 0;
-    let cursorMs = Date.now();
-    if (!datesSet.has(kstDayOf(cursorMs))) {
-      cursorMs -= 86_400_000;
-    }
-    while (datesSet.has(kstDayOf(cursorMs))) {
+    let cursor = todayLocal;
+    if (!datesSet.has(cursor)) cursor = prevDay(cursor);   // 오늘 인증 전이면 어제부터
+    while (datesSet.has(cursor)) {
       streak += 1;
-      cursorMs -= 86_400_000;
+      cursor = prevDay(cursor);
     }
 
     return {
@@ -344,7 +345,7 @@ export async function fetchMyChallengesWithDetails(myUserId: string): Promise<My
 
   const filtered = challenges as any[];
   const challengeIds = filtered.map(c => c.id);
-  const { startUtc: todayStartUtc, endUtc: todayEndUtc } = getKstTodayRange();
+  const { startUtc: todayStartUtc, endUtc: todayEndUtc } = getTodayRange();
 
   // 3. 오늘 인증한 멤버 수 (챌린지별) 및 본인의 오늘 인증 여부 판별 (KST 기준)
   const { data: todayProofs } = await supabase
@@ -1195,7 +1196,7 @@ export async function fetchRoomData(challengeId: string, myUserId: string) {
   if (resProofs.error) throw resProofs.error;
 
   // 오늘 인증 여부는 KST 기준 (UTC prefix 비교는 KST 00~09시에 어긋남)
-  const { startUtc, endUtc } = getKstTodayRange();
+  const { startUtc, endUtc } = getTodayRange();
   const todayStartMs = Date.parse(startUtc);
   const todayEndMs = Date.parse(endUtc);
   // 🚀 3b: 차단(양방향) user 인증 제외 (hidden 은 쿼리에서 이미 서버 필터)
@@ -1465,17 +1466,17 @@ export async function fetchMyFootprints(userId: string): Promise<MyFootprints> {
   // 2) 내 인증 — 최고 연속·받은 응원·챌린지별 완주 판정용 날짜를 한 번에
   const { data: proofs } = await supabase
     .from('proofs')
-    .select('challenge_id, created_at, streak_count, cheers(count)')
+    .select('challenge_id, created_at, local_date, streak_count, cheers(count)')
     .eq('user_id', userId);
 
   let bestStreak = 0;
   let cheersReceived = 0;
-  const proofsByCh = new Map<string, { created_at: string }[]>();
+  const proofsByCh = new Map<string, { created_at: string; local_date?: string }[]>();
   for (const p of (proofs ?? []) as any[]) {
     bestStreak = Math.max(bestStreak, p.streak_count ?? 0);
     cheersReceived += p.cheers?.[0]?.count ?? 0;
     const arr = proofsByCh.get(p.challenge_id) ?? [];
-    arr.push({ created_at: p.created_at });
+    arr.push({ created_at: p.created_at, local_date: p.local_date });   // 날짜 판정은 local_date(0077)
     proofsByCh.set(p.challenge_id, arr);
   }
 
@@ -1496,6 +1497,29 @@ export async function fetchMyFootprints(userId: string): Promise<MyFootprints> {
 export async function fetchMyNickname(userId: string): Promise<string> {
   const p = await fetchMyProfile(userId);
   return p.nickname;
+}
+
+// 🚀 하루 기준선 — 내 기준 시간대(0077). 인증 날짜·연속·완주 판정의 경계를 정한다.
+//   서버(proofs.local_date 트리거)와 화면 판정이 같은 경계를 쓰도록, 로그인 직후 읽어
+//   setActiveTimezone 으로 앱 전역에 반영한다.
+export async function fetchMyTimezone(userId: string): Promise<string> {
+  const { data, error } = await supabase
+    .from('users')
+    .select('timezone')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as any)?.timezone || DEFAULT_TIMEZONE;
+}
+
+// 변경은 하루 1회 (서버 트리거가 강제 — 경계를 밀어 '놓친 하루'를 되살리는 것 차단).
+export async function updateMyTimezone(userId: string, timezone: string): Promise<void> {
+  const { error } = await supabase
+    .from('users')
+    .update({ timezone })
+    .eq('id', userId);
+  if (error) throw error;
+  setActiveTimezone(timezone);
 }
 
 export async function updateMyNickname(userId: string, nickname: string): Promise<void> {
@@ -1932,13 +1956,13 @@ export async function fetchMyPledges(userId: string): Promise<MyPledgeChallenge[
 
   // 3. 내 인증(완주 판정 분자) + 4. 내 멤버십(합류일=늦합류 비례, 포기 여부)
   const [proofRes, memRes] = await Promise.all([
-    supabase.from('proofs').select('challenge_id, created_at').eq('user_id', userId).in('challenge_id', challengeIds),
+    supabase.from('proofs').select('challenge_id, created_at, local_date').eq('user_id', userId).in('challenge_id', challengeIds),
     supabase.from('challenge_members').select('challenge_id, joined_at, gave_up_at').eq('user_id', userId).in('challenge_id', challengeIds),
   ]);
-  const proofMap = new Map<string, { created_at: string }[]>();
+  const proofMap = new Map<string, { created_at: string; local_date?: string }[]>();
   for (const p of (proofRes.data ?? []) as any[]) {
     const arr = proofMap.get(p.challenge_id) ?? [];
-    arr.push({ created_at: p.created_at });
+    arr.push({ created_at: p.created_at, local_date: p.local_date });   // 날짜 판정은 local_date(0077)
     proofMap.set(p.challenge_id, arr);
   }
   const memMap = new Map<string, { joined_at: string | null; gave_up_at: string | null }>();
@@ -1946,7 +1970,7 @@ export async function fetchMyPledges(userId: string): Promise<MyPledgeChallenge[
     memMap.set(m.challenge_id, { joined_at: m.joined_at ?? null, gave_up_at: m.gave_up_at ?? null });
   }
 
-  const todayStr = getKstTodayRange().kstDateStr;
+  const todayStr = getTodayRange().dateStr;
   const result: MyPledgeChallenge[] = [];
   for (const cid of challengeIds) {
     const c = chMap.get(cid);
@@ -2105,13 +2129,13 @@ export async function fetchMyDailyNote(
   userId: string,
   kind: DailyNoteKind,
 ): Promise<DailyNote | null> {
-  const { kstDateStr } = getKstTodayRange();   // KST 오늘 "YYYY-MM-DD"
+  const { dateStr } = getTodayRange();   // 내 기준 시간대의 오늘 "YYYY-MM-DD"
   const { data, error } = await supabase
     .from('daily_notes')
     .select('id, user_id, challenge_id, kind, content, note_date, visibility, created_at')
     .eq('user_id', userId)
     .eq('kind', kind)
-    .eq('note_date', kstDateStr)
+    .eq('note_date', dateStr)
     .maybeSingle();
   if (error) throw error;
   return (data as DailyNote) ?? null;
@@ -2120,7 +2144,7 @@ export async function fetchMyDailyNote(
 // 🚀 동료들의 오늘(KST) 회고 — 목격받기 피드. RLS 가 가시성(fellow + 하다 공유) 보장.
 //   차단(양방향) 사용자는 제외 — 모든 동료 피드 공통 안전 규칙.
 export async function fetchFellowReflections(limit = 20): Promise<FellowReflection[]> {
-  const { kstDateStr } = getKstTodayRange();
+  const { dateStr } = getTodayRange();
   const { data, error } = await supabase
     .from('daily_notes')
     .select(`
@@ -2129,7 +2153,7 @@ export async function fetchFellowReflections(limit = 20): Promise<FellowReflecti
     `)
     .eq('kind', 'reflection')
     .eq('visibility', 'fellow')
-    .eq('note_date', kstDateStr)
+    .eq('note_date', dateStr)
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error) throw error;
