@@ -52,11 +52,14 @@ const KIND_BADGE: Record<string, { Icon: LucideIcon; label: string; color: strin
 // '내 관심' 필터 키 — categoryFilter 가 분류명이 아니라 이 값일 때, 내 정보에 등록한 관심 대분류만 노출
 const INTEREST_FILTER_KEY = '__my_interests__';
 
-// 🚀 광장 목록 노출 개수: 처음 3개만 보여주고 '더 보기'로 3개씩 펼친다
+// 🚀 광장 목록 노출 개수 — 처음은 네 목록 모두 3개만
 //   (광장은 무대 → 누구나 합류 → 구경 3단 구성 — 한 섹션이 길어지면 나머지가 묻힌다)
-//   무대(명사·조직) · 지금 합류할 수 있는 하다 · 하다 구경 네 목록이 같은 상수를 쓴다.
+//   펼치는 단위는 목적에 따라 다르다:
+//     하다 구경 = 10개씩 — 훑어보며 '참조'하는 라이브러리라 조금씩 펼치면 답답하다
+//     무대·지금 합류 = 3개씩 — 한 장씩 읽고 합류를 결정하는 목록이라 천천히
 const BROWSE_INITIAL_COUNT = 3;
-const BROWSE_STEP_COUNT = 3;
+const BROWSE_STEP_COUNT = 10;
+const STAGE_STEP_COUNT = 3;
 
 export default function DiscoverScreen() {
   const session = useSession();
@@ -303,7 +306,7 @@ export default function DiscoverScreen() {
                   {figureItems.length > figureVisibleCount && (
                     <Pressable
                       style={styles.moreBtn}
-                      onPress={() => { haptic.tap(); setFigureVisibleCount(v => v + BROWSE_STEP_COUNT); }}
+                      onPress={() => { haptic.tap(); setFigureVisibleCount(v => v + STAGE_STEP_COUNT); }}
                     >
                       <Text style={styles.moreBtnText}>더 보기 ({figureItems.length - figureVisibleCount}개 남음)</Text>
                     </Pressable>
@@ -329,7 +332,7 @@ export default function DiscoverScreen() {
                   {orgItems.length > orgVisibleCount && (
                     <Pressable
                       style={styles.moreBtn}
-                      onPress={() => { haptic.tap(); setOrgVisibleCount(v => v + BROWSE_STEP_COUNT); }}
+                      onPress={() => { haptic.tap(); setOrgVisibleCount(v => v + STAGE_STEP_COUNT); }}
                     >
                       <Text style={styles.moreBtnText}>더 보기 ({orgItems.length - orgVisibleCount}개 남음)</Text>
                     </Pressable>
@@ -355,7 +358,7 @@ export default function DiscoverScreen() {
                   {joinableItems.length > joinVisibleCount && (
                     <Pressable
                       style={styles.moreBtn}
-                      onPress={() => { haptic.tap(); setJoinVisibleCount(v => v + BROWSE_STEP_COUNT); }}
+                      onPress={() => { haptic.tap(); setJoinVisibleCount(v => v + STAGE_STEP_COUNT); }}
                     >
                       <Text style={styles.moreBtnText}>더 보기 ({joinableItems.length - joinVisibleCount}개 남음)</Text>
                     </Pressable>
