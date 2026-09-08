@@ -54,7 +54,7 @@ const INTEREST_FILTER_KEY = '__my_interests__';
 
 // 🚀 광장 목록 노출 개수: 처음 3개만 보여주고 '더 보기'로 3개씩 펼친다
 //   (광장은 무대 → 누구나 합류 → 구경 3단 구성 — 한 섹션이 길어지면 나머지가 묻힌다)
-//   '지금 합류할 수 있는 하다'와 '하다 구경'이 같은 상수를 쓴다.
+//   무대(명사·조직) · 지금 합류할 수 있는 하다 · 하다 구경 네 목록이 같은 상수를 쓴다.
 const BROWSE_INITIAL_COUNT = 3;
 const BROWSE_STEP_COUNT = 3;
 
@@ -79,6 +79,9 @@ export default function DiscoverScreen() {
   const [visibleCount, setVisibleCount] = useState(BROWSE_INITIAL_COUNT);
   // '지금 합류할 수 있는 하다'도 같은 방식 — 상한 없이 전부 나열되면 아래 하다 구경이 묻힌다
   const [joinVisibleCount, setJoinVisibleCount] = useState(BROWSE_INITIAL_COUNT);
+  // 무대도 명사·조직 각각 3개씩 — 무대가 늘어도 아래 두 섹션이 밀리지 않게
+  const [figureVisibleCount, setFigureVisibleCount] = useState(BROWSE_INITIAL_COUNT);
+  const [orgVisibleCount, setOrgVisibleCount] = useState(BROWSE_INITIAL_COUNT);
   // 사용자가 칩을 직접 만졌는지 — 만진 뒤로는 '내 관심' 기본값을 다시 씌우지 않는다
   const filterTouched = useRef(false);
 
@@ -293,9 +296,19 @@ export default function DiscoverScreen() {
               {/* ⭐ 명사의 하다 */}
               <Text style={styles.stageSubLabel}>⭐ 명사의 하다</Text>
               {figureItems.length > 0 ? (
-                figureItems.map(c => (
-                  <StageCard key={c.id} challenge={c} onPress={() => onStagePress(c)} />
-                ))
+                <>
+                  {figureItems.slice(0, figureVisibleCount).map(c => (
+                    <StageCard key={c.id} challenge={c} onPress={() => onStagePress(c)} />
+                  ))}
+                  {figureItems.length > figureVisibleCount && (
+                    <Pressable
+                      style={styles.moreBtn}
+                      onPress={() => { haptic.tap(); setFigureVisibleCount(v => v + BROWSE_STEP_COUNT); }}
+                    >
+                      <Text style={styles.moreBtnText}>더 보기 ({figureItems.length - figureVisibleCount}개 남음)</Text>
+                    </Pressable>
+                  )}
+                </>
               ) : (
                 <View style={styles.stageEmpty}>
                   <Text style={styles.stageEmptyTitle}>아직 열린 명사의 하다가 없어요</Text>
@@ -309,9 +322,19 @@ export default function DiscoverScreen() {
               {/* 🏛️ 조직의 하다 */}
               <Text style={styles.stageSubLabel}>🏛️ 조직의 하다</Text>
               {orgItems.length > 0 ? (
-                orgItems.map(c => (
-                  <StageCard key={c.id} challenge={c} onPress={() => onStagePress(c)} />
-                ))
+                <>
+                  {orgItems.slice(0, orgVisibleCount).map(c => (
+                    <StageCard key={c.id} challenge={c} onPress={() => onStagePress(c)} />
+                  ))}
+                  {orgItems.length > orgVisibleCount && (
+                    <Pressable
+                      style={styles.moreBtn}
+                      onPress={() => { haptic.tap(); setOrgVisibleCount(v => v + BROWSE_STEP_COUNT); }}
+                    >
+                      <Text style={styles.moreBtnText}>더 보기 ({orgItems.length - orgVisibleCount}개 남음)</Text>
+                    </Pressable>
+                  )}
+                </>
               ) : (
                 <View style={styles.stageEmpty}>
                   <Text style={styles.stageEmptyTitle}>아직 열린 조직의 하다가 없어요</Text>
