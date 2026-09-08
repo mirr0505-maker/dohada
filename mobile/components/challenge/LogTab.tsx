@@ -539,7 +539,7 @@ function LogComposer({
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView
         style={{ flex: 1, backgroundColor: colors.background }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={[styles.modalHeader, { paddingTop: insets.top + 12 }]}>
           <Pressable onPress={() => { reset(); onClose(); }} hitSlop={12}>

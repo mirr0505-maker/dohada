@@ -7,7 +7,8 @@ import { View, Text, StyleSheet, FlatList, Image, Pressable, Alert } from 'react
 import { router } from 'expo-router';
 import { Trophy, Flag, Camera, MessageCircle, Film, FileText, Mail, BookOpen, Shirt, PenLine, type LucideIcon } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
-import { computeProgress, isCompleted, isFinished } from '@/lib/stats';
+import { computeProgress, didFinishThrough, isSuccess, isFinished } from '@/lib/stats';
+import type { ChallengePause } from '@/lib/stats';   // 🚀 0078: 잠시 멈춤 구간
 import { displayTitle } from '@/lib/format';
 import { haptic } from '@/lib/haptics';
 import type { DbChallenge, ProofWithRelations } from '@/lib/types';
@@ -27,26 +28,33 @@ type Props = {
   totalLogs: number;
   myUserId: string | undefined;
   subjectJoinedAt?: string | null;   // 완주 판정 주체의 합류 시각 — 늦합류자 비례 완주 (v2.8)
-  isHost?: boolean;   // 🚀 0069: 조직 하다 주최자 — 도전자가 아니라 완주/실패 판정 대상이 아님
+  subjectPauses?: ChallengePause[];  // 🚀 0078: 판정 주체의 멈춤 구간 (없으면 종전 동작 = 멈춤 미반영)
+  subjectGaveUpAt?: string | null;   // 🚀 0078: 판정 주체의 포기 시각 — 포기하면 완주가 아니다
+  isHost?: boolean;   // 🚀 0069: 조직 하다 주최자 — 도전자가 아니라 완주/성공 판정 대상이 아님
 };
 
-export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs, myUserId, subjectJoinedAt = null, isHost = false }: Props) {
-  // 🚀 P-③: isFinished 만 보던 분기를 성공/실패로 세분화.
-  //   진행 중     → 박제 안내 placeholder
-  //   실패한 종료 → 인증 타임라인은 그대로 노출 (회고), "완주 이야기 공유" X + 격려 메시지
-  //   완주       → 박제 카드 + "완주 이야기 공유" 버튼
-  // 완주 판정·통계 주체 — cheered 방은 도전 주체가 개설자 1명 (응원자는 인증 의무 없음).
-  // 응원자 본인 인증 기준으로 판정하면 항상 "실패" 톤이 되므로 도전자(개설자) 기준 사용.
+export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs, myUserId, subjectJoinedAt = null, subjectPauses = [], subjectGaveUpAt = null, isHost = false }: Props) {
+  // 🚀 0078: 박제·"완주 이야기 공유" 자격은 **완주(끝까지 감, didFinishThrough)** 로 가른다.
+  //   100일 중 92일을 걸은 사람도 박제하고 이야기를 남길 수 있어야 한다 — 이번 변경의 핵심.
+  //   목표 임계 달성(성공, isSuccess)은 별도로 **표시만** 한다 (트로피/깃발·축하 문구).
+  //   진행 중       → 박제 안내 placeholder
+  //   완주 못한 종료 → 인증 타임라인은 그대로 노출 (회고) + 격려 메시지, 공유 버튼 X
+  //   완주          → 박제 카드 + "완주 이야기 공유" 버튼 (성공 여부와 무관)
+  // 판정·통계 주체 — cheered 방은 도전 주체가 개설자 1명 (응원자는 인증 의무 없음).
+  // 응원자 본인 인증 기준으로 판정하면 항상 미달 톤이 되므로 도전자(개설자) 기준 사용.
   const subjectUserId = challenge.kind === 'cheered' ? challenge.creator_id : myUserId;
   const subjectProofs = useMemo(
     () => proofs.filter(p => p.user_id === subjectUserId),
     [proofs, subjectUserId],
   );
   const finished  = isFinished(challenge);
-  const completed = isCompleted(challenge, subjectProofs, subjectJoinedAt);
+  // 완주 = 포기 X + 종료일 지남 + 인증 1회 이상 (count 유형은 조기 달성도 완주)
+  const finishedThrough = didFinishThrough(challenge, subjectProofs, subjectJoinedAt, subjectGaveUpAt);
+  // 성공 = 개설 시 정한 임계 달성 — 축하 톤·트로피 표시용 (박제 자격과 무관)
+  const succeeded = isSuccess(challenge, subjectProofs, subjectJoinedAt, subjectPauses);
   const progress  = useMemo(() => computeProgress(challenge), [challenge]);
 
-  if (!finished && !completed) {   // 🚀 0041: count 유형은 조기 완주 시에도 박제 노출 (종료 안 기다림)
+  if (!finished && !finishedThrough) {   // 🚀 0041: count 유형은 조기 달성 시에도 박제 노출 (종료 안 기다림)
     return (
       <FlatList
         data={[]}
@@ -102,7 +110,8 @@ export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs, myUserId
       contentContainerStyle={styles.archiveBody}
       ListHeaderComponent={
         <View style={styles.hero}>
-          {completed
+          {/* 트로피는 완주(끝까지 감) 기준 — 목표에 조금 못 닿아도 끝까지 간 여정은 트로피다 */}
+          {finishedThrough
             ? <Trophy size={64} color={colors.gold} strokeWidth={1.5} />
             : <Flag size={64} color={colors.sub} strokeWidth={1.5} />}
           <Text style={styles.heroTitle}>{displayTitle(challenge.title)}</Text>
@@ -116,8 +125,8 @@ export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs, myUserId
               </Text>
               <Text style={styles.statLabel}>
                 {challenge.goal_type === 'count'
-                  ? (completed ? '개 달성' : '개 목표')
-                  : (completed ? '일 완주' : '일 하다')}
+                  ? (succeeded ? '개 달성' : '개 목표')
+                  : (finishedThrough ? '일 완주' : '일 하다')}
               </Text>
             </View>
             <View style={styles.statItem}>
@@ -134,10 +143,13 @@ export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs, myUserId
             </View>
           </View>
 
-          {completed ? (
+          {finishedThrough ? (
             <>
+              {/* 끝까지 갔지만 목표 임계엔 못 닿은 경우 — 정직하게 밝히되 격려 톤 ('실패' 단어 금지) */}
               <Text style={styles.heroMessage}>
-                그냥, 하다.{'\n'}더 나은 나, 더 나은 세상.
+                {succeeded
+                  ? '그냥, 하다.\n더 나은 나, 더 나은 세상.'
+                  : '끝까지 걸었어요.\n목표엔 조금 못 닿았지만, 걸어온 길은 그대로 남아요.'}
               </Text>
               {/* 완주 이야기 작성은 도전 주체만 — cheered 방 응원자·조직 주최자(0069)는 축하 톤만 보고 작성 X */}
               {myUserId === subjectUserId && !isHost && (
@@ -165,7 +177,7 @@ export function ArchiveTab({ challenge, proofs, totalCheers, totalLogs, myUserId
               <Text style={styles.failDesc}>
                 {isHost
                   ? '주최한 하다가 마무리됐어요.\n동료들이 남긴 인증·기록은 그대로 박제됩니다.'
-                  : '완주 기준에 못 닿았지만, 시작한 것 자체가 한 걸음이에요.\n남긴 인증·기록은 그대로 박제됩니다.'}
+                  : '끝까지 가진 못했지만, 시작한 것 자체가 한 걸음이에요.\n남긴 인증·기록은 그대로 박제됩니다.'}
               </Text>
             </View>
           )}

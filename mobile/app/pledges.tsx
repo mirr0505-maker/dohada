@@ -1,5 +1,6 @@
-// 🚀 나의 다짐 내역 — 내가 건 무현금 다짐(0046)을 하다별 카드로, 상태 섹션(진행 중/완주/못 채운)으로 묶어 보기.
-//   완주 판정은 방 화면과 같은 단일 소스(stats.goalStatus, fetchMyPledges) 재사용.
+// 🚀 나의 다짐 내역 — 내가 건 무현금 다짐(0046)을 하다별 카드로, 상태 섹션(진행 중/성공/못 채운)으로 묶어 보기.
+//   다짐의 트리거는 "해내면/못 하면" = **성공(임계 달성)** 축이다 (0078 — 완주=끝까지 감 과 다른 축).
+//   판정은 방 화면과 같은 단일 소스(stats.goalStatus, fetchMyPledges) 재사용.
 //   이 화면은 '보기' 중심 — 지켰어요 토글은 카드 탭 → 그 방 현황 탭에서.
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, Pressable, SectionList, StyleSheet, ActivityIndicator } from 'react-native';
@@ -48,14 +49,14 @@ export default function PledgeHistoryScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  // 상태별 섹션 — 진행 중(곧 끝나는 순) / 완주(최근 순) / 못 채운(최근 순). 빈 섹션은 자동 제외.
+  // 상태별 섹션 — 진행 중(곧 끝나는 순) / 성공(최근 순) / 못 채운(최근 순). 빈 섹션은 자동 제외.
   const sections = useMemo(() => {
     const active    = rows.filter(r => r.status === 'active').sort((a, b) => a.daysLeft - b.daysLeft);
     const completed = rows.filter(r => r.status === 'completed').sort((a, b) => (a.endDate < b.endDate ? 1 : -1));
     const missed    = rows.filter(r => r.status === 'missed').sort((a, b) => (a.endDate < b.endDate ? 1 : -1));
     const out: { title: string; data: MyPledgeChallenge[] }[] = [];
     if (active.length)    out.push({ title: '진행 중', data: active });
-    if (completed.length) out.push({ title: '완주한 하다', data: completed });
+    if (completed.length) out.push({ title: '성공한 하다', data: completed });
     if (missed.length)    out.push({ title: '못 채운 하다', data: missed });
     return out;
   }, [rows]);
@@ -95,11 +96,11 @@ export default function PledgeHistoryScreen() {
                   </View>
                 ) : item.status === 'completed' ? (
                   <View style={[styles.statusBadge, styles.badgeDone]}>
-                    <Text style={[styles.statusBadgeText, styles.badgeDoneText]}>완주</Text>
+                    <Text style={[styles.statusBadgeText, styles.badgeDoneText]}>성공</Text>
                   </View>
                 ) : (
                   <View style={[styles.statusBadge, styles.badgeMissed]}>
-                    <Text style={[styles.statusBadgeText, styles.badgeMissedText]}>미완주</Text>
+                    <Text style={[styles.statusBadgeText, styles.badgeMissedText]}>미달</Text>
                   </View>
                 )}
               </View>
@@ -129,7 +130,7 @@ export default function PledgeHistoryScreen() {
                     </Text>
                     {st === 'not_triggered' && (
                       <Text style={styles.pledgeNote}>
-                        {pl.direction === 'lose' ? '완주했어요 — 안 지켜도 돼요' : '이번엔 못 채웠어요 — 다음 기회에'}
+                        {pl.direction === 'lose' ? '해냈어요 — 안 지켜도 돼요' : '이번엔 못 채웠어요 — 다음 기회에'}
                       </Text>
                     )}
                   </View>

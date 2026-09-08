@@ -20,20 +20,26 @@ export type NotificationPrefs = {
 //   proofId/logId 가 있으면 해당 카드로 스크롤 포커스, 댓글 알림은 댓글 시트까지 자동 오픈
 export function notificationRoute(
   kind: string | undefined,
-  challengeId: string,
+  challengeId: string | null,
   target?: { proofId?: string | null; logId?: string | null; giftOrderId?: string | null },
 ): string {
   // ☕ 응원 한잔 — 수령/상세 화면으로 직행 (주문 ID 없으면 방 인증 탭 폴백)
   if (kind === 'gift' || kind === 'gift_received' || kind === 'gift_donated' || kind === 'gift_refund') {
     if (target?.giftOrderId) return `/gift/${target.giftOrderId}`;
-    return `/room/${challengeId}?tab=proof`;
+    return challengeId ? `/room/${challengeId}?tab=proof` : '/(tabs)/home';
   }
+  // 🚀 0081: 하다에 매이지 않는 알림(운영자가 사람을 직접 승격한 경우 등)은 challengeId 가 없다.
+  //   아래 분기가 전부 `/room/${challengeId}` 를 만들어 /room/null 로 깨지므로 여기서 한 번에 막는다.
+  if (!challengeId) return '/(tabs)/home';
   if (kind === 'chat' || kind === 'creator_notice') return `/room/${challengeId}?tab=chat`;
   // 🚀 0043: 모집 임계 넛지·자동마감 안내 → 현황 탭 (개설자 모집 잠금 토글이 있는 곳)
   if (kind === 'recruit_milestone' || kind === 'recruit_autoclosed') return `/room/${challengeId}?tab=status`;
   // 🚀 0064: 유명인 승격 안내 → 승격을 만든 그 하다의 현황 탭
   // 🚀 0074: 무대 지정 안내 → 주최자 배지가 보이는 그 하다의 현황 탭
-  if (kind === 'host_promoted' || kind === 'host_assigned') return `/room/${challengeId}?tab=status`;
+  // 🚀 0081: 하다 없이(운영자 직접 지정) 승격되면 challengeId 가 없다 → 방 대신 홈으로 (/room/null 방지)
+  if (kind === 'host_promoted' || kind === 'host_assigned') {
+    return challengeId ? `/room/${challengeId}?tab=status` : '/(tabs)/home';
+  }
   if (kind === 'log' || kind === 'log_comment' || kind === 'log_like_batch') {
     if (!target?.logId) return `/room/${challengeId}?tab=log`;
     return `/room/${challengeId}?tab=log&logId=${target.logId}${kind === 'log_comment' ? '&comments=1' : ''}`;

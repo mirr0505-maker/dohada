@@ -1,11 +1,13 @@
 // 🚀 5탭 bottom navigation (탭바 재구성)
-// 탭: 홈 (피드) / 내도전 / 파장 / 기록 / 해냈어요
+// 탭: 홈 (피드) / 광장 / 파장 / 기록 / 해냈어요
+// IA 개편 2단계 — '내 하다' 탭을 내리고 그 자리에 '광장'(아직 인연이 아닌 하다).
+//   내 하다 라우트는 살아 있다 (홈·내 정보에서 push 진입).
 // 생성(+)은 하단 탭이 아닌 우하단 FAB 로 이동 — 눌러 /create 모달 트리거.
 // profile 탭 제거 — MY 는 우상단 아바타로 일원화 (AppHeader).
 import React, { useEffect, useState } from 'react';
 import { Tabs, router } from 'expo-router';
 import { View, Pressable, Platform } from 'react-native';
-import { House, Flag, Waves, Plus, Film, Trophy } from 'lucide-react-native';
+import { House, Compass, Waves, Plus, Film, Trophy } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { colors, fontFamily, fontSize, fontWeight, shadow } from '@/lib/tokens';
@@ -77,11 +79,11 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="my-challenges"
+        name="discover"
         options={{
-          title: '내 하다',
+          title: '광장',
           tabBarIcon: ({ color }) => (
-            <Flag size={TAB_ICON_SIZE} color={color} strokeWidth={1.8} />
+            <Compass size={TAB_ICON_SIZE} color={color} strokeWidth={1.8} />
           ),
         }}
       />
@@ -127,10 +129,10 @@ export default function TabsLayout() {
           tabPress: markDoneSeen,
         }}
       />
-      {/* create-tab / discover / profile 은 탭 X — 라우트는 직접 접근 가능 유지 */}
-      <Tabs.Screen name="create-tab" options={{ href: null }} />
-      <Tabs.Screen name="discover" options={{ href: null }} />
-      <Tabs.Screen name="profile"  options={{ href: null }} />
+      {/* create-tab / my-challenges / profile 은 탭 X — 라우트는 직접 접근 가능 유지 */}
+      <Tabs.Screen name="create-tab"    options={{ href: null }} />
+      <Tabs.Screen name="my-challenges" options={{ href: null }} />
+      <Tabs.Screen name="profile"       options={{ href: null }} />
     </Tabs>
 
       {/* 🚀 하다 만들기 FAB — 우하단 플로팅, 탭바 위로 뜬다 */}

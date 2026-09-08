@@ -2,8 +2,9 @@
 //
 // 사상 전환: v2.1~v2.4 "X 빼기" 일변도 → "버릴 건 망가진 방식, 지킬 건 욕구 자체"
 //   - 내 대시보드는 me-strip 1줄로 압축 (대시보드 X)
-//   - 본문은 도전 인연들의 하루 — 피드 카드 5종:
-//     🎉 완주 리본 · 📸 오늘의 인증 · 🙋 응원받기 · ✨ 관심 도전 · 🌍 누구나 합류
+//   - 본문은 도전 인연들의 하루 — 피드 카드 3종:
+//     🎉 완주 리본 · 📸 오늘의 인증 · 🙋 응원받기
+//     (IA 2단계: 🌍 누구나 합류 · 🔭 하다 구경은 광장 탭으로 이사 — 홈은 나와 내 동료의 오늘만)
 //   - 맨 아래 🌙 "오늘은 여기까지예요" 끝 마커 (무한 스크롤 차단)
 //
 // 도전 인연 정의 (베타 v2.5) = 현재 같은 챌린지의 멤버 (×횟수 누적은 Phase 2)
@@ -12,18 +13,17 @@ import {
   View, Text, Pressable, ScrollView, StyleSheet, RefreshControl, Image, Alert, Modal,
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { joinChallenge } from '@/lib/invite';
 import { Screen } from '@/components/Screen';
 import { AppHeader } from '@/components/AppHeader';
 import {
-  House, Telescope, ChevronRight, ChevronUp, ChevronDown, Camera, PenLine, Globe,
+  House, Telescope, ChevronUp, ChevronDown, Camera, PenLine, Globe,
   Sprout, Footprints, Heart, Moon, PartyPopper, Crown, Users, User, Handshake,
-  Target, Repeat, Check, type LucideIcon,
+  Target, Repeat, Check, Landmark, type LucideIcon,
 } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow, textStyle } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import {
-  fetchMyChallengesWithDetails, fetchOpenChallenges,
+  fetchMyChallengesWithDetails,
   fetchPublicCompletionStories, fetchFellowProofs, giveUpMembership,
   fetchChallengeIdsWithPledges,
   type MyChallengeDetail,
@@ -31,7 +31,7 @@ import {
 } from '@/lib/db';
 import { ErrorState } from '@/components/ErrorState';
 import { ChallengeCardSkeleton } from '@/components/Skeleton';
-import { OpenJoinPreviewSheet } from '@/components/home/OpenJoinPreviewSheet';
+import { DailyRhythmCard } from '@/components/home/DailyRhythmCard';
 import { PresenceLine } from '@/components/home/PresenceLine';
 import { FellowReflections } from '@/components/home/FellowReflections';
 import { WhatsNewModal } from '@/components/WhatsNewModal';
@@ -42,7 +42,7 @@ import { streakMilestone } from '@/lib/stats';
 import { todayGreeting } from '@/lib/notifications';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
-import type { CompletionStoryCard, OpenChallengeCard } from '@/lib/types';
+import type { CompletionStoryCard } from '@/lib/types';
 import { getChallengeDDay, getTodayRange, formatCheerCount, displayTitle } from '@/lib/format';
 import { CategoryIcon } from '@/components/CategoryIcon';
 import { HostMark, HostAvatarRing } from '@/components/HostMark';
@@ -64,15 +64,9 @@ export default function HomeScreen() {
   const [completions, setCompletions]       = useState<CompletionStoryCard[]>([]);
   const [todayProofs, setTodayProofs]       = useState<FellowProof[]>([]);
   const [viewer, setViewer]                 = useState<{ photos: string[]; index: number } | null>(null);   // 🚀 사진 전체보기 뷰어 (여러 장)
-  const [openChs, setOpenChs]               = useState<OpenChallengeCard[]>([]);
   const [loading, setLoading]               = useState(true);
   const [refreshing, setRefreshing]         = useState(false);
   const [error, setError]                   = useState<string | null>(null);
-  // 🚀 누구나 합류 — 합류 전 안내문 미리보기 시트 대상 (null = 닫힘)
-  const [previewCard, setPreviewCard]       = useState<OpenChallengeCard | null>(null);
-  const [joiningPreview, setJoiningPreview]  = useState(false);
-  // 🚀 콜드스타트 온램프 — '둘러보고 합류' 버튼이 합류 섹션으로 스크롤하도록 ref + 섹션 y 측정
-  const scrollRef = useRef<ScrollView>(null);
   // 💛 다짐 배지 — 내 방 중 다짐이 걸린 challenge_id 집합 (홈 '오늘 나의 하다' 카드)
   const [pledgeChIds, setPledgeChIds] = useState<Set<string>>(new Set());
 
@@ -82,74 +76,14 @@ export default function HomeScreen() {
   // 사용자가 alert "확인" 누르기 전 useFocusEffect 가 다시 load 를 트리거하는 경쟁 상황 방지.
   const abandonedAlertShownRef = useRef<Set<string>>(new Set());
 
-  const handleJoinChallenge = async (challengeId: string) => {
-    if (!myUserId) return;
-
-    // 🚀 더블 가드: 이미 가입된 챌린지인지 체크
-    const isAlreadyMember = myChs.some(c => c.id === challengeId);
-    if (isAlreadyMember) {
-      haptic.warning();
-      Alert.alert(
-        '참여 중인 하다',
-        '이미 참여 중인 하다입니다. 하다 방으로 이동하시겠습니까?',
-        [
-          { text: '취소', style: 'cancel' },
-          {
-            text: '이동',
-            onPress: () => {
-              haptic.tap();
-              router.push(`/room/${challengeId}` as any);
-            }
-          }
-        ]
-      );
-      return;
-    }
-
-    // 🚀 즉시 합류 Alert 대신 — 안내문 미리보기 시트를 열어 내용을 보고 결정하게 한다
-    const card = openChs.find(c => c.id === challengeId) ?? null;
-    if (card) {
-      haptic.tap();
-      setPreviewCard(card);
-      return;
-    }
-    // 카드 정보를 못 찾는 예외 케이스만 기존 즉시 합류 폴백
-    Alert.alert('하다 합류', '정말 개설자와 함께 하시겠습니까?', [
-      { text: '취소', style: 'cancel' },
-      { text: '확인', onPress: () => doJoin(challengeId) },
-    ]);
-  };
-
-  // 실제 합류 처리 — 미리보기 시트 확인 / 폴백 Alert 공용
-  const doJoin = async (challengeId: string) => {
-    if (!myUserId || joiningPreview) return;
-    try {
-      setJoiningPreview(true);
-      await joinChallenge(challengeId, myUserId);
-      haptic.success();
-      setPreviewCard(null);
-      Alert.alert('합류 완료', '하다에 성공적으로 합류했습니다!');
-      await load();
-    } catch (err: any) {
-      if (err?.message === 'adult_required') {
-        Alert.alert('성인 인증이 필요해요', '성인 전용 하다라 성인 본인인증을 마친 분만 합류할 수 있어요.\n본인인증을 먼저 진행해주세요.');
-      } else {
-        Alert.alert('합류 실패', err?.message ?? String(err));
-      }
-    } finally {
-      setJoiningPreview(false);
-    }
-  };
-
   const load = useCallback(async () => {
     if (!myUserId) return;
     try {
       setError(null);
-      const [mine, fellows, recentDone, opens] = await Promise.all([
+      const [mine, fellows, recentDone] = await Promise.all([
         fetchMyChallengesWithDetails(myUserId),
         fetchFellowProofs(myUserId, 100),   // 🚀 챌린지별 그룹+더보기 위해 넉넉히 (오늘분만 필터됨)
         fetchPublicCompletionStories({ limit: 5 }).catch(() => []),
-        fetchOpenChallenges(myUserId),
       ]);
       setMyChs(mine);
       
@@ -196,9 +130,6 @@ export default function HomeScreen() {
         return t >= dayStartMs && t < dayEndMs;
       }));   // 🚀 상한 slice 제거 — 챌린지별 묶고 그룹마다 인라인 더보기로 노출
       
-      // 🚀 클라이언트 단 더블 가드 필터링: 이미 가입하고 포기 안 한 내 챌린지 제외
-      const myActiveChIds = new Set(mine.filter(c => c.gave_up_at === null).map(c => c.id));
-      setOpenChs(opens.filter(c => !myActiveChIds.has(c.id)));
       // 💛 다짐 배지용 — 내 방 중 다짐 걸린 방 id (RLS로 내가 볼 수 있는 것만). 비핵심이라 실패 무시.
       fetchChallengeIdsWithPledges(mine.map(c => c.id)).then(setPledgeChIds).catch(() => {});
     } catch (e: any) {
@@ -238,6 +169,8 @@ export default function HomeScreen() {
 
   // 🚀 홈 노출 상한 — 참여 방이 많아도 홈 스크롤 폭증 방지 (전체는 내도전 탭에서)
   const HOME_ACTIVE_LIMIT = 5;
+  // 🚀 무대(명사·조직 하다) 노출 상한 — 개인 하다보다 적게 (내 하다가 주인공)
+  const HOME_STAGE_LIMIT = 3;
   const kstTodayStr = getTodayRange().dateStr;
   // 🚀 0041: 목표 횟수형(count)은 일일 의무 없음 — '오늘 인증' 잔소리·정렬·배지에서 제외
   const isCountGoal = (c: MyChallengeDetail) => c.goal_type === 'count';
@@ -252,9 +185,15 @@ export default function HomeScreen() {
     !(c.kind === 'cheered' && c.creator_id !== myUserId) &&
     c.start_date <= kstTodayStr;
 
-  const visibleActiveChs = [...activeChs]
+  // 🚀 특별 하다(무대) = 명사·조직이 연 하다. 개인 하다와 성격이 달라 홈에서 자리를 나눈다
+  const isStageCh = (c: MyChallengeDetail) => c.host_tier === 'figure' || c.host_tier === 'org';
+  const stageActiveChs    = activeChs.filter(isStageCh);
+  const personalActiveChs = activeChs.filter(c => !isStageCh(c));
+
+  const visiblePersonalChs = [...personalActiveChs]
     .sort((a, b) => Number(needsTodayCheck(b)) - Number(needsTodayCheck(a)))   // 오늘 할 일 우선
     .slice(0, HOME_ACTIVE_LIMIT);
+  const visibleStageChs = stageActiveChs.slice(0, HOME_STAGE_LIMIT);
 
   // 🚀 완주 리본 노출 규칙 ('하다 인연들의 하루' 피드):
   //   ① 내 완주 제외 — 내 완주는 '오늘, 나의 하다'·내 하다 탭에서 보임. 이 피드는 '하다 인연(타인)의 하루'.
@@ -268,8 +207,13 @@ export default function HomeScreen() {
   const uncheckedChs = activeChs.filter(needsTodayCheck);
 
   // 🚀 오늘 할 일 앵커 = 가장 시급한(종료 임박) 미인증 1개. 나머지 진행중은 아래 압축 리스트로.
-  const anchorCh = [...uncheckedChs].sort((a, b) => a.end_date.localeCompare(b.end_date))[0] ?? null;
-  const restActiveChs = visibleActiveChs.filter(c => c.id !== anchorCh?.id);
+  //   무대(명사·조직)는 앵커로 올리지 않는다 — 아래 '참여 중인 무대' 섹션이 그 자리를 맡는다.
+  const anchorCh = uncheckedChs.filter(c => !isStageCh(c))
+    .sort((a, b) => a.end_date.localeCompare(b.end_date))[0] ?? null;
+  // 🚀 개설/참여 2밴드 — 앵커로 올라간 하다는 밴드에서 뺀다
+  const bandChs        = visiblePersonalChs.filter(c => c.id !== anchorCh?.id);
+  const createdBandChs = bandChs.filter(c => c.creator_id === myUserId);
+  const joinedBandChs  = bandChs.filter(c => c.creator_id !== myUserId);
 
   // 🚀 오늘 동료 인증을 챌린지별로 묶음 — 새 인증이 옛 인증을 홈에서 밀어내던 문제 해소 (그룹 + 인라인 더보기)
   //    todayProofs 는 최신순 → Map 삽입 순서가 곧 그룹 최신순, 그룹 내부도 최신순
@@ -314,6 +258,168 @@ export default function HomeScreen() {
     setCheckinPickerOpen(true);
   };
 
+  // 🚀 진행 중 하다 카드 1장 — 개설/참여 밴드와 무대 섹션이 함께 쓴다
+  const renderActiveCard = (c: MyChallengeDetail) => {
+    const ddayText = getChallengeDDay(c.start_date, c.end_date);
+    let km = KIND_META[c.kind] ?? KIND_META.solo;
+    if (c.kind === 'cheered') {
+      km = c.creator_id === myUserId ? KIND_META.cheered_creator : KIND_META.cheered_participant;
+    }
+    // 🚀 cheered(응원받기) = 도전자 1명만 인증, 나머지는 응원 동료.
+    // 다함께처럼 '동료 N/N 완료'·'인증' 버튼을 보이면 안 됨 (정체성 분리).
+    const isCheeredParticipant = c.kind === 'cheered' && c.creator_id !== myUserId;
+    const isCheeredCreator     = c.kind === 'cheered' && c.creator_id === myUserId;
+    return (
+      <View key={c.id} style={styles.myChallengeCard}>
+        <Pressable
+          style={styles.myChallengeInfo}
+          onPress={() => { haptic.tap(); router.push(`/room/${c.id}` as any); }}
+        >
+          {/* 무대(명사·조직)만 주최자 표식 — 개인 하다는 individual 이라 어차피 아무것도 안 그린다 */}
+          {isStageCh(c) && <HostBadge hostTier={c.host_tier} hostLabel={c.host_label} />}
+          <Text style={styles.myChallengeTitle} numberOfLines={1}>{displayTitle(c.title)}</Text>
+          <View style={styles.myChallengeMetaRow}>
+            {/* 0. 새 활동 마커 — 최근 24시간 내 동료의 새 대화·새 기록 (내 하다 탭에서 이사) */}
+            {c.has_new_chat && (
+              <View style={[styles.alertPill, styles.alertChat]}>
+                <Text style={styles.alertChatText}>새 대화</Text>
+              </View>
+            )}
+            {c.has_new_log && (
+              <View style={[styles.alertPill, styles.alertLog]}>
+                <Text style={styles.alertLogText}>새 기록</Text>
+              </View>
+            )}
+            {/* 1. 개설/참여 역할 뱃지 */}
+            <View style={[
+              styles.metaBadge,
+              { backgroundColor: c.creator_id === myUserId ? colors.accent50 : colors.primary50 }
+            ]}>
+              {c.creator_id === myUserId
+                ? <Crown size={11} color={colors.accent700} strokeWidth={2} />
+                : <Users size={11} color={colors.primary500} strokeWidth={2} />}
+              <Text style={[
+                styles.metaBadgeText,
+                { color: c.creator_id === myUserId ? colors.accent700 : colors.primary500 }
+              ]}>
+                {c.creator_id === myUserId ? '개설' : '참여'}
+              </Text>
+            </View>
+
+            {/* 2. 기존 방 종류 뱃지 */}
+            <View style={[styles.metaBadge, { backgroundColor: km.bg }]}>
+              <km.Icon size={11} color={km.text} strokeWidth={2} />
+              <Text style={[styles.metaBadgeText, { color: km.text }]}>{km.label}</Text>
+            </View>
+            <View style={styles.metaBadge}>
+              <Text style={styles.metaBadgeText}>{ddayText}</Text>
+            </View>
+            {/* 💛 다짐 배지 — 이 방에 다짐 있으면. 탭 시 방 현황 탭으로(다짐 내용은 방에서) */}
+            {pledgeChIds.has(c.id) && (
+              <Pressable
+                style={[styles.metaBadge, { backgroundColor: colors.accent50 }]}
+                onPress={(e) => { e.stopPropagation(); haptic.tap(); router.push(`/room/${c.id}?tab=status` as any); }}
+                hitSlop={6}
+              >
+                <Heart size={11} color={colors.accent700} strokeWidth={2} />
+                <Text style={[styles.metaBadgeText, { color: colors.accent700 }]}>다짐</Text>
+              </Pressable>
+            )}
+            {isCountGoal(c) ? (
+              <View style={styles.metaBadge}>
+                <Target size={11} color={colors.primary500} strokeWidth={2} />
+                <Text style={styles.metaBadgeText}>진행 {c.my_proof_count}/{c.target_count ?? 0}</Text>
+              </View>
+            ) : isCheeredParticipant ? (
+              // 응원 동료 — 인증 진척이 아니라 '도전자 응원' 이 할 일
+              <View style={styles.metaBadge}>
+                <Heart size={11} color={colors.primary500} strokeWidth={2} />
+                <Text style={styles.metaBadgeText}>도전자 응원하기</Text>
+              </View>
+            ) : isCheeredCreator ? (
+              // 도전자 — 응원받는 무대. '동료 완료' 대신 받은 응원을 강조
+              <View style={styles.metaBadge}>
+                <Heart size={11} color={colors.primary500} strokeWidth={2} />
+                <Text style={styles.metaBadgeText}>
+                  {c.my_cheers_count > 0 ? `받은 응원 ${formatCheerCount(c.my_cheers_count)}개` : '응원 기다리는 중'}
+                </Text>
+              </View>
+            ) : c.my_role === 'host' ? (
+              // 🚀 0069: 조직 하다 주최자 — 방을 열었을 뿐 도전자가 아니다.
+              //   '동료 N/M 완료'는 같이 인증하는 사람의 시선이라 주최자에게 맞지 않는다.
+              <View style={styles.metaBadge}>
+                <Users size={11} color={colors.primary500} strokeWidth={2} />
+                <Text style={styles.metaBadgeText}>도전자 {formatCheerCount(c.member_count)}명</Text>
+              </View>
+            ) : c.kind !== 'solo' ? (
+              <View style={styles.metaBadge}>
+                <Users size={11} color={colors.primary500} strokeWidth={2} />
+                <Text style={styles.metaBadgeText}>동료 {c.today_check_count}/{c.member_count} 완료</Text>
+              </View>
+            ) : null}
+            {/* 🔥 연속일수 — 내 하다 탭의 큰 숫자를 배지 톤으로 보전.
+                연속 개념이 없는 곳(목표 횟수형·응원 동료·조직 주최자)엔 붙이지 않는다. */}
+            {!isCountGoal(c) && !isCheeredParticipant && c.my_role !== 'host' && (c.my_streak ?? 0) > 0 && (
+              <View style={styles.metaBadge}>
+                <Text style={styles.metaBadgeText}>{c.my_streak}일 연속</Text>
+              </View>
+            )}
+            {/* 🔁 0050: 내 하다가 '하다 구경'에서 따라하기로 참조된 횟수 (조용한 목격받기) */}
+            {(c.reference_count ?? 0) > 0 && (
+              <View style={styles.metaBadge}>
+                <Repeat size={11} color={colors.primary500} strokeWidth={2} />
+                <Text style={styles.metaBadgeText}>{formatCheerCount(c.reference_count ?? 0)}번 참조</Text>
+              </View>
+            )}
+          </View>
+        </Pressable>
+        {c.my_role === 'host' ? (
+          // 🚀 0069: 조직 하다 주최자 — 인증 주체가 아니라 '인증' 버튼을 띄우지 않는다.
+          //   (방 인증 탭에도 FAB 이 없다. 여기서만 권하면 눌러도 할 수 없는 일을 시키는 셈)
+          <View style={styles.quickCheckedBadge}>
+            <Landmark size={14} color={colors.primary500} strokeWidth={2} />
+            <Text style={styles.quickCheckedText}>주최 중</Text>
+          </View>
+        ) : isCheeredParticipant ? (
+          // 응원 동료는 인증하지 않음 — '인증' 대신 '응원' (방에서 응원)
+          <Pressable
+            style={[styles.quickCheckinBtn, styles.quickCheerBtn]}
+            onPress={() => { haptic.tap(); router.push(`/room/${c.id}` as any); }}
+          >
+            <Heart size={14} color={colors.surface} strokeWidth={2} />
+            <Text style={styles.quickCheckinBtnText}>응원</Text>
+          </Pressable>
+        ) : isCountGoal(c) ? (
+          goalDone(c) ? (
+            <View style={styles.quickCheckedBadge}>
+              <Check size={14} color={colors.done} strokeWidth={2.4} />
+              <Text style={styles.quickCheckedText}>달성</Text>
+            </View>
+          ) : (
+            <Pressable
+              style={styles.quickCheckinBtn}
+              onPress={() => { haptic.tap(); router.push(`/room/${c.id}` as any); }}
+            >
+              <Text style={styles.quickCheckinBtnText}>인증 추가</Text>
+            </Pressable>
+          )
+        ) : c.is_today_checked ? (
+          <View style={styles.quickCheckedBadge}>
+            <Check size={14} color={colors.done} strokeWidth={2.4} />
+            <Text style={styles.quickCheckedText}>완료</Text>
+          </View>
+        ) : (
+          <Pressable
+            style={styles.quickCheckinBtn}
+            onPress={() => { haptic.tap(); router.push(`/room/${c.id}` as any); }}
+          >
+            <Text style={styles.quickCheckinBtnText}>인증</Text>
+          </Pressable>
+        )}
+      </View>
+    );
+  };
+
   return (
     <Screen backgroundColor={colors.bg}>
       <AppHeader />
@@ -354,32 +460,23 @@ export default function HomeScreen() {
         <ErrorState message={error} onRetry={() => { setLoading(true); load(); }} />
       ) : (
         <ScrollView
-          ref={scrollRef}
           contentContainerStyle={styles.scroll}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
           }
           showsVerticalScrollIndicator={false}
         >
-          {/* 🔭 하다 구경 — 최상단 얇은 바 1곳으로 통일 (DESIGN_GUIDE §12) */}
-          <Pressable
-            style={styles.peekBar}
-            onPress={() => { haptic.tap(); router.push('/discover' as any); }}
-            accessibilityRole="button"
-            accessibilityLabel="하다 구경 — 남들은 무슨 하다 하나"
-          >
-            <Telescope size={18} color={colors.brand} strokeWidth={2} />
-            <Text style={styles.peekBarText}>남들 하다, 구경</Text>
-            <ChevronRight size={18} color={colors.brand} strokeWidth={2} />
-          </Pressable>
-
           {/* 🚀 W2 지금 함께 — 최근 30분 활동 동료 앰비언트 라인 (0명이면 스스로 숨김) */}
           <PresenceLine />
 
+          {/* 🚀 W2 하루 리듬 — 아침 다짐·저녁 회고. '오늘' 축이라 홈이 제자리.
+              내가 하는 하다가 0개면 숨긴다 (쓸 맥락이 없음). */}
+          {myDoingChs.length > 0 && <DailyRhythmCard userId={myUserId} />}
+
           {isColdStart ? (
-            /* 🚀 콜드스타트(도전 0개): 빈 카드 스택 → 살아있는 온램프 한 장 + 합류 우선 + 접힌 힌트 */
+            /* 🚀 콜드스타트(도전 0개): 빈 카드 스택 → 살아있는 온램프 한 장 + 접힌 힌트 */
             <>
-              {/* 온램프 카드 — ① 첫 걸음(선언) ② 둘러보고 합류 */}
+              {/* 온램프 카드 — ① 첫 걸음(선언) ② 광장에서 함께할 하다 찾기(합류는 광장이 담당) */}
               <View style={styles.onrampCard}>
                 <Text style={styles.onrampTitle}>오늘, 첫 걸음을 떼어볼까요?</Text>
                 <Text style={styles.onrampSub}>선언하면 지인들이 응원으로 함께해요.</Text>
@@ -395,26 +492,8 @@ export default function HomeScreen() {
                   onPress={() => { haptic.tap(); router.push('/discover' as any); }}
                 >
                   <Telescope size={15} color={colors.accent700} strokeWidth={1.8} />
-                  <Text style={styles.onrampSecondaryText}>하다 구경 — 이런 것도 하는구나</Text>
+                  <Text style={styles.onrampSecondaryText}>광장에서 함께할 하다 찾기</Text>
                 </Pressable>
-              </View>
-
-              {/* 함께 합류하기 — 신규에게 '즉시 동료가 생기는' 길 (선언·구경과 균형, 제거 안 함) */}
-              <View>
-                <Text style={styles.sectionLabel}>함께 합류하기 (누구나 합류)</Text>
-                {openChs.length > 0 ? (
-                  openChs.slice(0, 5).map(c => (
-                    <JoinCard key={c.id} challenge={c} onJoin={handleJoinChallenge} />
-                  ))
-                ) : (
-                  <View style={styles.emptyOpenCard}>
-                    <Globe size={40} color={colors.faint} strokeWidth={1.5} />
-                    <Text style={styles.emptyOpenTitle}>현재 합류 가능한 공개 하다가 없어요</Text>
-                    <Text style={styles.emptyOpenDesc}>
-                      직접 새로운 공개 하다를 개설하여 첫 번째 동료들을 모집해 볼까요?
-                    </Text>
-                  </View>
-                )}
               </View>
 
               {/* 오늘, 하다 인연들의 하루 — 실데이터(완주·동료 인증)가 있으면 그대로 노출 (절대 숨기지 않음) */}
@@ -472,140 +551,33 @@ export default function HomeScreen() {
             <View style={styles.myChallengeList}>
               {anchorCh ? (
                 <TodayAnchor challenge={anchorCh} todayStr={todayStr} />
-              ) : (
+              ) : uncheckedChs.length === 0 ? (
                 <View style={styles.allDoneCard}>
                   <Text style={styles.allDoneTitle}>오늘 할 일을 다 했어요</Text>
                   <Text style={styles.allDoneSub}>내일 또, 한 걸음.</Text>
                 </View>
+              ) : null /* 개인 하다는 다 했지만 무대가 남은 경우 — '다 했어요'는 거짓말이라 아래 무대 섹션에 맡긴다 */}
+              {createdBandChs.length > 0 && (
+                <>
+                  <Text style={styles.bandLabel}>내가 연 하다</Text>
+                  {createdBandChs.map(renderActiveCard)}
+                </>
               )}
-              {restActiveChs.map(c => {
-                const ddayText = getChallengeDDay(c.start_date, c.end_date);
-                let km = KIND_META[c.kind] ?? KIND_META.solo;
-                if (c.kind === 'cheered') {
-                  km = c.creator_id === myUserId ? KIND_META.cheered_creator : KIND_META.cheered_participant;
-                }
-                // 🚀 cheered(응원받기) = 도전자 1명만 인증, 나머지는 응원 동료.
-                // 다함께처럼 '동료 N/N 완료'·'인증' 버튼을 보이면 안 됨 (정체성 분리).
-                const isCheeredParticipant = c.kind === 'cheered' && c.creator_id !== myUserId;
-                const isCheeredCreator     = c.kind === 'cheered' && c.creator_id === myUserId;
-                return (
-                  <View key={c.id} style={styles.myChallengeCard}>
-                    <Pressable
-                      style={styles.myChallengeInfo}
-                      onPress={() => { haptic.tap(); router.push(`/room/${c.id}` as any); }}
-                    >
-                      <Text style={styles.myChallengeTitle} numberOfLines={1}>{displayTitle(c.title)}</Text>
-                      <View style={styles.myChallengeMetaRow}>
-                        {/* 1. 개설/참여 역할 뱃지 */}
-                        <View style={[
-                          styles.metaBadge,
-                          { backgroundColor: c.creator_id === myUserId ? colors.accent50 : colors.primary50 }
-                        ]}>
-                          {c.creator_id === myUserId
-                            ? <Crown size={11} color={colors.accent700} strokeWidth={2} />
-                            : <Users size={11} color={colors.primary500} strokeWidth={2} />}
-                          <Text style={[
-                            styles.metaBadgeText,
-                            { color: c.creator_id === myUserId ? colors.accent700 : colors.primary500 }
-                          ]}>
-                            {c.creator_id === myUserId ? '개설' : '참여'}
-                          </Text>
-                        </View>
-
-                        {/* 2. 기존 방 종류 뱃지 */}
-                        <View style={[styles.metaBadge, { backgroundColor: km.bg }]}>
-                          <km.Icon size={11} color={km.text} strokeWidth={2} />
-                          <Text style={[styles.metaBadgeText, { color: km.text }]}>{km.label}</Text>
-                        </View>
-                        <View style={styles.metaBadge}>
-                          <Text style={styles.metaBadgeText}>{ddayText}</Text>
-                        </View>
-                        {/* 💛 다짐 배지 — 이 방에 다짐 있으면. 탭 시 방 현황 탭으로(다짐 내용은 방에서) */}
-                        {pledgeChIds.has(c.id) && (
-                          <Pressable
-                            style={[styles.metaBadge, { backgroundColor: colors.accent50 }]}
-                            onPress={(e) => { e.stopPropagation(); haptic.tap(); router.push(`/room/${c.id}?tab=status` as any); }}
-                            hitSlop={6}
-                          >
-                            <Heart size={11} color={colors.accent700} strokeWidth={2} />
-                            <Text style={[styles.metaBadgeText, { color: colors.accent700 }]}>다짐</Text>
-                          </Pressable>
-                        )}
-                        {isCountGoal(c) ? (
-                          <View style={styles.metaBadge}>
-                            <Target size={11} color={colors.primary500} strokeWidth={2} />
-                            <Text style={styles.metaBadgeText}>진행 {c.my_proof_count}/{c.target_count ?? 0}</Text>
-                          </View>
-                        ) : isCheeredParticipant ? (
-                          // 응원 동료 — 인증 진척이 아니라 '도전자 응원' 이 할 일
-                          <View style={styles.metaBadge}>
-                            <Heart size={11} color={colors.primary500} strokeWidth={2} />
-                            <Text style={styles.metaBadgeText}>도전자 응원하기</Text>
-                          </View>
-                        ) : isCheeredCreator ? (
-                          // 도전자 — 응원받는 무대. '동료 완료' 대신 받은 응원을 강조
-                          <View style={styles.metaBadge}>
-                            <Heart size={11} color={colors.primary500} strokeWidth={2} />
-                            <Text style={styles.metaBadgeText}>
-                              {c.my_cheers_count > 0 ? `받은 응원 ${formatCheerCount(c.my_cheers_count)}개` : '응원 기다리는 중'}
-                            </Text>
-                          </View>
-                        ) : c.kind !== 'solo' ? (
-                          <View style={styles.metaBadge}>
-                            <Users size={11} color={colors.primary500} strokeWidth={2} />
-                            <Text style={styles.metaBadgeText}>동료 {c.today_check_count}/{c.member_count} 완료</Text>
-                          </View>
-                        ) : null}
-                        {/* 🔁 0050: 내 하다가 '하다 구경'에서 따라하기로 참조된 횟수 (조용한 목격받기) */}
-                        {(c.reference_count ?? 0) > 0 && (
-                          <View style={styles.metaBadge}>
-                            <Repeat size={11} color={colors.primary500} strokeWidth={2} />
-                            <Text style={styles.metaBadgeText}>{formatCheerCount(c.reference_count ?? 0)}번 참조</Text>
-                          </View>
-                        )}
-                      </View>
-                    </Pressable>
-                    {isCheeredParticipant ? (
-                      // 응원 동료는 인증하지 않음 — '인증' 대신 '응원' (방에서 응원)
-                      <Pressable
-                        style={[styles.quickCheckinBtn, styles.quickCheerBtn]}
-                        onPress={() => { haptic.tap(); router.push(`/room/${c.id}` as any); }}
-                      >
-                        <Heart size={14} color={colors.surface} strokeWidth={2} />
-                        <Text style={styles.quickCheckinBtnText}>응원</Text>
-                      </Pressable>
-                    ) : isCountGoal(c) ? (
-                      goalDone(c) ? (
-                        <View style={styles.quickCheckedBadge}>
-                          <Check size={14} color={colors.done} strokeWidth={2.4} />
-                          <Text style={styles.quickCheckedText}>달성</Text>
-                        </View>
-                      ) : (
-                        <Pressable
-                          style={styles.quickCheckinBtn}
-                          onPress={() => { haptic.tap(); router.push(`/room/${c.id}` as any); }}
-                        >
-                          <Text style={styles.quickCheckinBtnText}>인증 추가</Text>
-                        </Pressable>
-                      )
-                    ) : c.is_today_checked ? (
-                      <View style={styles.quickCheckedBadge}>
-                        <Check size={14} color={colors.done} strokeWidth={2.4} />
-                        <Text style={styles.quickCheckedText}>완료</Text>
-                      </View>
-                    ) : (
-                      <Pressable
-                        style={styles.quickCheckinBtn}
-                        onPress={() => { haptic.tap(); router.push(`/room/${c.id}` as any); }}
-                      >
-                        <Text style={styles.quickCheckinBtnText}>인증</Text>
-                      </Pressable>
-                    )}
-                  </View>
-                );
-              })}
+              {joinedBandChs.length > 0 && (
+                <>
+                  <Text style={styles.bandLabel}>참여 중인 하다</Text>
+                  {joinedBandChs.map(renderActiveCard)}
+                </>
+              )}
+              {/* 🚀 무대 = 명사·조직이 연 하다. 개인 하다와 섞이지 않게 따로 모은다 */}
+              {visibleStageChs.length > 0 && (
+                <>
+                  <Text style={styles.bandLabel}>🏛️ 참여 중인 무대</Text>
+                  {visibleStageChs.map(renderActiveCard)}
+                </>
+              )}
               {/* 상한 초과분은 내도전 탭으로 — 홈 스크롤 폭증 방지 */}
-              {activeChs.length > HOME_ACTIVE_LIMIT && (
+              {activeChs.length > visiblePersonalChs.length + visibleStageChs.length && (
                 <Pressable
                   style={styles.moreLink}
                   onPress={() => { haptic.tap(); router.push('/(tabs)/my-challenges' as any); }}
@@ -658,7 +630,7 @@ export default function HomeScreen() {
               <Footprints size={40} color={colors.faint} strokeWidth={1.5} />
               <Text style={styles.emptyFellowTitle}>아직 오늘 올라온 동료들의 인증이 없어요</Text>
               <Text style={styles.emptyFellowDesc}>
-                혼자보다 함께할 때 완주 확률이 3배 높아집니다. 내 하다에 친구나 동료를 초대해 보거나, 아래 '누구나 합류'에서 함께 달릴 첫 하다 인연을 만들어보세요!
+                혼자보다 함께할 때 완주 확률이 3배 높아집니다. 내 하다에 친구나 동료를 초대해 보거나, 광장에서 함께 달릴 첫 하다 인연을 만들어보세요!
               </Text>
             </View>
           )}
@@ -680,24 +652,7 @@ export default function HomeScreen() {
             </View>
           )}
 
-          {/* [구조 3] 함께 합류하기 섹션 */}
-          <Text style={styles.sectionLabel}>함께 합류하기 (누구나 합류)</Text>
-          {openChs.length > 0 ? (
-            openChs.slice(0, 5).map(c => (
-              <JoinCard key={c.id} challenge={c} onJoin={handleJoinChallenge} />
-            ))
-          ) : (
-            /* 빈 상태 카드 — 공개 챌린지 없음 */
-            <View style={styles.emptyOpenCard}>
-              <Globe size={40} color={colors.faint} strokeWidth={1.5} />
-              <Text style={styles.emptyOpenTitle}>현재 합류 가능한 공개 하다가 없어요</Text>
-              <Text style={styles.emptyOpenDesc}>
-                직접 새로운 공개 하다를 개설하여 첫 번째 동료들을 모집해 볼까요?
-              </Text>
-            </View>
-          )}
-
-          {/* 관심 분야 추천은 '하다 구경'(최상단 바)으로 통합 — 홈 별도 섹션·하단 진입점 제거 (DESIGN_GUIDE §12) */}
+          {/* 누구나 합류·하다 구경은 광장 탭으로 이사 — 홈은 나와 내 동료의 오늘만 (IA 2단계) */}
 
           {/* 🌙 끝 마커 — 무한 스크롤 의도적 차단 */}
           <View style={styles.endMarker}>
@@ -753,14 +708,6 @@ export default function HomeScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-
-      {/* 🌍 누구나 합류 — 안내문 미리보기 후 합류 결정 */}
-      <OpenJoinPreviewSheet
-        challenge={previewCard}
-        joining={joiningPreview}
-        onClose={() => setPreviewCard(null)}
-        onConfirm={() => { if (previewCard) doJoin(previewCard.id); }}
-      />
     </Screen>
   );
 }
@@ -935,44 +882,6 @@ function CheeredCard({ challenge }: { challenge: MyChallengeDetail }) {
   );
 }
 
-// ─── 카드 5: 🌍 누구나 합류 ────────────────────────────────
-function JoinCard({ challenge, onJoin }: { challenge: OpenChallengeCard; onJoin: (id: string) => void }) {
-  return (
-    <Pressable
-      style={styles.card}
-      onPress={() => { haptic.tap(); router.push(`/room/${challenge.id}` as any); }}
-    >
-      <View style={styles.cardHead}>
-        <View style={styles.cardKindEmoji}>
-          <CategoryIcon slug={categorySlugByName[challenge.category?.name ?? '']} size={22} color={colors.done} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.who} numberOfLines={1}>{displayTitle(challenge.title)}</Text>
-          <Text style={styles.sub}>
-            누구나 합류 · 함께 {challenge.member_count}명
-          </Text>
-        </View>
-      </View>
-      {/* 🚀 0058: 명사·조직이 연 하다면 주최자 신뢰 표식 (일반 하다는 미노출) */}
-      <HostBadge hostTier={challenge.host_tier} hostLabel={challenge.host_label} />
-
-      {challenge.description && (
-        <Text style={styles.caption} numberOfLines={2}>"{challenge.description}"</Text>
-      )}
-      <Pressable
-        style={styles.joinBtn}
-        onPress={(e) => {
-          e.stopPropagation(); // 카드 전체 클릭 이벤트 전파 차단
-          haptic.tap();
-          onJoin(challenge.id);
-        }}
-      >
-        <Text style={styles.joinBtnText}>함께 합류하기</Text>
-      </Pressable>
-    </Pressable>
-  );
-}
-
 function relTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   if (diff < 60_000) return '방금';
@@ -1004,18 +913,6 @@ const styles = StyleSheet.create({
   greetTitle: { fontSize: fontSize.base, color: colors.ink, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
   greetBody: { fontSize: fontSize.sm, color: colors.faint, fontFamily: fontFamily.regular, marginTop: 4, lineHeight: 20 },
   greetClose: { fontSize: 16, color: colors.faint2, fontFamily: fontFamily.bold },
-
-  // 🔭 하다 구경 — 최상단 얇은 바
-  peekBar: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    marginHorizontal: 20, marginTop: 12, marginBottom: 8,
-    paddingVertical: 13, paddingHorizontal: 16,
-    backgroundColor: colors.brandTint,
-    borderRadius: radius.pill,
-    borderWidth: 1, borderColor: colors.brand,
-    ...shadow.sm,
-  },
-  peekBarText: { flex: 1, fontSize: fontSize.base, color: colors.brandInk, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
 
   // 로고 서명 (홈 맨 아래, 헤더에서 뺀 로고의 정착지) — 앱 아이콘 로고
   homeSign: { alignItems: 'center', marginTop: 28 },
@@ -1118,6 +1015,12 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },
+  // 새 활동 마커 (내 하다 탭 alertPill 과 같은 결)
+  alertPill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.pill },
+  alertChat: { backgroundColor: colors.brandTint },
+  alertChatText: { fontSize: 10, color: colors.brandInk, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
+  alertLog: { backgroundColor: colors.tintSage },
+  alertLogText: { fontSize: 10, color: colors.doneInk, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
   quickCheckinBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1162,6 +1065,13 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
     letterSpacing: -0.3,
   },
+  // 🚀 '오늘, 나의 하다' 안쪽 밴드 라벨 (개설/참여/무대) — 섹션 라벨보다 한 단 낮은 위계
+  bandLabel: {
+    paddingHorizontal: 4, paddingTop: 8, paddingBottom: 2,
+    fontSize: fontSize.sm, color: colors.sub,
+    fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
+    letterSpacing: -0.2,
+  },
   sectionSubLabel: {
     fontSize: fontSize.sm, color: colors.primary500,
     fontFamily: fontFamily.regular, fontWeight: fontWeight.regular,
@@ -1188,34 +1098,6 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
   },
   emptyFellowDesc: {
-    fontSize: fontSize.xs,
-    color: colors.primary500,
-    fontFamily: fontFamily.regular,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-
-  // 누구나 합류 빈 상태 카드
-  emptyOpenCard: {
-    marginHorizontal: 16,
-    marginBottom: 14,
-    backgroundColor: '#F0FBF5',
-    borderRadius: radius.xl,
-    paddingVertical: 24,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    gap: 6,
-    borderWidth: 1,
-    borderColor: '#D2F3E2',
-    borderStyle: 'dashed',
-  },
-  emptyOpenTitle: {
-    fontSize: fontSize.base,
-    color: colors.primary,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-  },
-  emptyOpenDesc: {
     fontSize: fontSize.xs,
     color: colors.primary500,
     fontFamily: fontFamily.regular,
@@ -1438,18 +1320,6 @@ const styles = StyleSheet.create({
   },
   cheerBtnText: {
     color: colors.surface, fontSize: fontSize.sm,
-    fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
-  },
-  joinBtn: {
-    marginTop: 4,
-    paddingVertical: 12,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1.5, borderColor: colors.accent,
-    alignItems: 'center',
-  },
-  joinBtnText: {
-    color: colors.accent700, fontSize: fontSize.sm,
     fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
   },
 

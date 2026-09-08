@@ -1,5 +1,6 @@
 // 🚀 하루 리듬 작성 시트 — 아침 다짐 / 저녁 회고 한 줄 입력.
-//   저녁 회고는 fellow 고정, 아침 다짐만 공개(fellow)/사적(private) 토글. 검수는 createDailyNote 내부 포함.
+//   아침 다짐 = 내 하다 안에서 나만 보는 기록이라 선택 없이 바로 저장(private 고정).
+//   저녁 회고 = 홈에서 동료가 목격하는 글이라 공개(기본)/나만 보기 선택. 검수는 createDailyNote 내부 포함.
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, Pressable, Modal, StyleSheet, TextInput, ActivityIndicator, Alert,
@@ -39,7 +40,8 @@ export function DailyNoteComposeSheet({
     if (!userId || busy || !text.trim()) return;
     setBusy(true);
     try {
-      await createDailyNote({ userId, kind, content: text, visibility: kind === 'intention' ? visibility : 'fellow' });
+      // 다짐은 나만 보는 기록(private 고정), 회고만 사용자가 고른 공개 범위를 따른다
+      await createDailyNote({ userId, kind, content: text, visibility: kind === 'reflection' ? visibility : 'private' });
       haptic.success();
       onSaved();
       onClose();
@@ -52,7 +54,13 @@ export function DailyNoteComposeSheet({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {/* 안드로이드는 'height' 라야 키보드가 시트를 덮지 않는다 — Modal 은 별도 윈도우라
+          매니페스트 adjustResize 가 안 먹고, edgeToEdgeEnabled=true 라 시스템 리사이즈도 없음
+          (CommentsSheet 와 동일 패턴). undefined 면 회피 자체가 꺼져 갤럭시에서 입력칸이 가려졌다. */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <Pressable style={styles.backdrop} onPress={onClose}>
           <Pressable style={styles.sheet} onPress={() => {}}>
             <Text style={styles.title}>{label}</Text>
@@ -69,13 +77,15 @@ export function DailyNoteComposeSheet({
             />
             <Text style={styles.counter}>{text.length}/200</Text>
 
-            {kind === 'intention' && (
+            {kind === 'intention' ? (
+              <Text style={styles.privateHint}>나만 볼 수 있어요 · 내 하다에만 남아요</Text>
+            ) : (
               <View style={styles.visRow}>
                 <Pressable
                   style={[styles.visChip, visibility === 'fellow' && styles.visChipOn]}
                   onPress={() => { haptic.tap(); setVisibility('fellow'); }}
                 >
-                  <Text style={[styles.visChipText, visibility === 'fellow' && styles.visChipTextOn]}>동료에게 공개</Text>
+                  <Text style={[styles.visChipText, visibility === 'fellow' && styles.visChipTextOn]}>홈에 공개</Text>
                 </Pressable>
                 <Pressable
                   style={[styles.visChip, visibility === 'private' && styles.visChipOn]}
@@ -139,6 +149,11 @@ const styles = StyleSheet.create({
     color: colors.faint,
     fontFamily: fontFamily.regular,
     textAlign: 'right',
+  },
+  privateHint: {
+    fontSize: fontSize.xs,
+    color: colors.faint,
+    fontFamily: fontFamily.regular,
   },
   visRow: { flexDirection: 'row', gap: 8 },
   visChip: {

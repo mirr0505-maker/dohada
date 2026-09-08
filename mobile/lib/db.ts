@@ -3,7 +3,8 @@
 import { supabase } from './supabase';
 import { getTodayRange } from './format';
 import { toLocalDateStr, setActiveTimezone, DEFAULT_TIMEZONE } from './timezone';
-import { isRecruiting, goalStatus, isFinished, countCompleters } from './stats';   // 🚀 0043: 모집 마감 판정 + 다짐 내역 완주 판정 + 0075 완주자 집계
+import { isRecruiting, goalStatus, isFinished, countSuccessfulMembers } from './stats';   // 🚀 0043: 모집 마감 판정 + 다짐 내역 성공 판정 + 0075 성공자 집계
+import type { ChallengePause, MemberPause } from './stats';   // 🚀 0078: 잠시 멈춤 구간
 import type {
   ChallengeWithCount, ChallengeKind, ChallengeGoalType, ChallengeMemberRole, ChallengeFrequency, MemberWithToday, ProofWithRelations, DbChallenge,
   CommentWithAuthor, CheerType,
@@ -364,27 +365,78 @@ export async function fetchMyChallengesWithDetails(myUserId: string): Promise<My
   }
 
   // 4. 본인 인증에 받은 응원 합계 (cheered 카드의 "응원 N개 받았어요")
+  //    같은 쿼리로 연속 인증 일수(홈 카드 'N일 연속' 배지)용 날짜도 함께 받는다.
   const { data: myProofs } = await supabase
     .from('proofs')
-    .select('challenge_id, cheers(count)')
+    .select('challenge_id, created_at, local_date, cheers(count)')
     .in('challenge_id', challengeIds)
     .eq('user_id', myUserId);
   const myCheersMap = new Map<string, number>();
   const myProofCountMap = new Map<string, number>();   // 🚀 0041: 내 총 인증 수 (count 유형 진행도)
+  const myProofDatesMap = new Map<string, Set<string>>();   // 챌린지별 내가 인증한 '날' 집합
   for (const p of (myProofs ?? []) as any[]) {
     const cheers = p.cheers?.[0]?.count ?? 0;
     myCheersMap.set(p.challenge_id, (myCheersMap.get(p.challenge_id) ?? 0) + cheers);
     myProofCountMap.set(p.challenge_id, (myProofCountMap.get(p.challenge_id) ?? 0) + 1);
+    const dates = myProofDatesMap.get(p.challenge_id) ?? new Set<string>();
+    // 인증한 "날"은 서버가 저장한 local_date(0077, 작성자 기준 시간대)를 그대로 쓴다
+    dates.add(p.local_date ?? toLocalDateStr(p.created_at));
+    myProofDatesMap.set(p.challenge_id, dates);
   }
+
+  // 연속 인증 일수 — fetchMyChallenges 와 같은 규칙.
+  //   하루 물러나기는 ms 가 아니라 날짜 문자열로 (서머타임 전환일에 하루가 겹치거나 건너뛴다).
+  const todayLocal = toLocalDateStr(new Date().toISOString());
+  const prevDay = (d: string) => new Date(Date.parse(d + 'T00:00:00Z') - 86_400_000).toISOString().slice(0, 10);
+  const myStreak = (challengeId: string): number => {
+    const dates = myProofDatesMap.get(challengeId);
+    if (!dates) return 0;
+    let streak = 0;
+    let cursor = todayLocal;
+    if (!dates.has(cursor)) cursor = prevDay(cursor);   // 오늘 인증 전이면 어제부터
+    while (dates.has(cursor)) {
+      streak += 1;
+      cursor = prevDay(cursor);
+    }
+    return streak;
+  };
 
   // 5. 멤버 top 5 (가입 순 — 시간의 흐름 톤)
   //    + 🚀 0069: 방별 주최자(role='host') 수 — '동료 N/M 완료' 분모에서 빼려면 주최자 수를 알아야 한다.
-  const { data: members } = await supabase
-    .from('challenge_members')
-    .select('challenge_id, joined_at, role, users(id, nickname, avatar_url)')
-    .in('challenge_id', challengeIds)
-    .is('gave_up_at', null)
-    .order('joined_at', { ascending: true });
+  //    + 최근 24시간 내 타인의 새 대화·새 기록 (홈 카드 '새 대화'·'새 기록' 마커).
+  //      홈은 가장 자주 여는 화면이라 세 쿼리를 직렬로 늘리지 않고 한 배치로 묶는다.
+  const oneDayAgo = new Date(Date.now() - 86_400_000).toISOString();
+  const [resMembers, resNewChats, resNewLogs] = await Promise.all([
+    supabase
+      .from('challenge_members')
+      .select('challenge_id, joined_at, role, users(id, nickname, avatar_url)')
+      .in('challenge_id', challengeIds)
+      .is('gave_up_at', null)
+      .order('joined_at', { ascending: true }),
+    supabase
+      .from('chat_messages')
+      .select('challenge_id')
+      .in('challenge_id', challengeIds)
+      .neq('user_id', myUserId)
+      .gte('created_at', oneDayAgo),
+    supabase
+      .from('logs')
+      .select('challenge_id')
+      .in('challenge_id', challengeIds)
+      .neq('user_id', myUserId)
+      .gte('created_at', oneDayAgo),
+  ]);
+  const members = resMembers.data;
+
+  const hasNewChatSet = new Set<string>();
+  for (const c of (resNewChats.data ?? []) as any[]) {
+    hasNewChatSet.add(c.challenge_id);
+  }
+  const hasNewLogSet = new Set<string>();
+  for (const l of (resNewLogs.data ?? []) as any[]) {
+    hasNewLogSet.add(l.challenge_id);
+  }
+
   const topMembersMap = new Map<string, MyChallengeDetail['top_members']>();
   const hostCountMap = new Map<string, number>();
   for (const m of (members ?? []) as any[]) {
@@ -420,8 +472,12 @@ export async function fetchMyChallengesWithDetails(myUserId: string): Promise<My
     goal_type: (c.goal_type ?? 'cadence') as ChallengeGoalType,
     target_count: c.target_count ?? null,
     my_proof_count: myProofCountMap.get(c.id) ?? 0,
+    my_streak: myStreak(c.id),   // 홈 카드 'N일 연속' 배지
     reference_count: c.reference_count ?? 0,   // 🚀 0050: 따라하기 참조 횟수
     my_role: myRoleMap.get(c.id) ?? 'member',   // 🚀 0069
+    // 솔로 방은 나 혼자라 '새 대화·새 기록' 개념이 없다 (fetchMyChallenges 와 동일 규칙)
+    has_new_chat: c.kind !== 'solo' && hasNewChatSet.has(c.id),
+    has_new_log: c.kind !== 'solo' && hasNewLogSet.has(c.id),
     gave_up_at: c.gave_up_at ?? null,
   }));
 }
@@ -505,39 +561,72 @@ export async function fetchOpenChallenges(myUserId: string | undefined): Promise
       })
     : rawList;
 
-  return filteredList.map((c: any) => {
-    const votes: { user_id: string; vote_type: ChallengeVoteType }[] = c.challenge_votes ?? [];
-    const votesByType: ChallengeVoteCounts = { creative: 0, hard: 0, touching: 0, fresh: 0 };
-    const myVotes: ChallengeVoteType[] = [];
-    for (const v of votes) {
-      const t = v.vote_type as ChallengeVoteType;
-      votesByType[t] = (votesByType[t] ?? 0) + 1;
-      if (v.user_id === myUserId) myVotes.push(t);
-    }
-    const activeMembers = (c.challenge_members ?? []).filter((m: any) => m.gave_up_at === null);
-    return {
-      id: c.id,
-      creator_id: c.creator_id,
-      title: c.title,
-      description: c.description,
-      intro_image_url: c.intro_image_url ?? null,
-      kind: 'open' as ChallengeKind,
-      start_date: c.start_date,
-      end_date: c.end_date,
-      created_at: c.created_at,
-      member_count: activeMembers.length,
-      creator: { nickname: c.creator?.nickname ?? '도전자' },
-      category: c.category
-        ? { emoji: c.category.emoji, name: c.category.name, is_impact: !!c.category.is_impact }
-        : null,
-      subcategory: c.subcategory ? { name: c.subcategory.name } : null,
-      votes_by_type: votesByType,
-      my_votes: myVotes,
-      host_tier: c.host_tier ?? 'individual',  // 🚀 0058: 주최 계층 (값 없으면 individual 폴백)
-      host_label: c.host_label ?? null,         // 🚀 0058: 주최자명 (figure/org 만 채워짐)
-      gave_up_at: c.gave_up_at ?? null,
-    };
-  });
+  return filteredList.map((c: any) => mapOpenChallengeCard(c, myUserId));
+}
+
+// open 챌린지 행 → 카드 매퍼 (둘러보기·무대 공용)
+function mapOpenChallengeCard(c: any, myUserId: string | undefined): OpenChallengeCard {
+  const votes: { user_id: string; vote_type: ChallengeVoteType }[] = c.challenge_votes ?? [];
+  const votesByType: ChallengeVoteCounts = { creative: 0, hard: 0, touching: 0, fresh: 0 };
+  const myVotes: ChallengeVoteType[] = [];
+  for (const v of votes) {
+    const t = v.vote_type as ChallengeVoteType;
+    votesByType[t] = (votesByType[t] ?? 0) + 1;
+    if (v.user_id === myUserId) myVotes.push(t);
+  }
+  const activeMembers = (c.challenge_members ?? []).filter((m: any) => m.gave_up_at === null);
+  return {
+    id: c.id,
+    creator_id: c.creator_id,
+    title: c.title,
+    description: c.description,
+    intro_image_url: c.intro_image_url ?? null,
+    kind: 'open' as ChallengeKind,
+    start_date: c.start_date,
+    end_date: c.end_date,
+    created_at: c.created_at,
+    member_count: activeMembers.length,
+    creator: { nickname: c.creator?.nickname ?? '도전자' },
+    category: c.category
+      ? { emoji: c.category.emoji, name: c.category.name, is_impact: !!c.category.is_impact }
+      : null,
+    subcategory: c.subcategory ? { name: c.subcategory.name } : null,
+    votes_by_type: votesByType,
+    my_votes: myVotes,
+    host_tier: c.host_tier ?? 'individual',  // 🚀 0058: 주최 계층 (값 없으면 individual 폴백)
+    host_label: c.host_label ?? null,         // 🚀 0058: 주최자명 (figure/org 만 채워짐)
+    gave_up_at: c.gave_up_at ?? null,
+  } as OpenChallengeCard;
+}
+
+// ─── 광장 '무대' — 명사·조직이 연 하다 ──────────────────
+// 무대 = kind='open' + host_tier in (figure, org). kind='open' 조건은 필수 —
+// challenges 의 비멤버 SELECT 가 open 에만 열려 있어(0003) 다른 kind 는 애초에 못 읽는다.
+// 둘러보기와 달리 ① 이미 참여 중인 하다도 남기고 ② 모집 마감 여부로도 거르지 않는다.
+//   무대는 "이런 무대가 있다"를 보여주는 상설 섹션이라 내가 참여 중이어도 사라지면 안 된다.
+// 정렬은 최신순 고정 — 참여자 수·인기순 줄세우기 금지 (수칙 2).
+export async function fetchStageChallenges(myUserId?: string): Promise<OpenChallengeCard[]> {
+  const { data, error } = await supabase
+    .from('challenges')
+    .select(`
+      *,
+      challenge_members(user_id, gave_up_at),
+      creator:creator_id(nickname),
+      category:category_id(emoji, name, is_impact),
+      subcategory:subcategory_id(name),
+      challenge_votes(user_id, vote_type)
+    `)
+    .eq('kind', 'open')
+    .in('host_tier', ['figure', 'org'])
+    .is('gave_up_at', null)
+    // 🚀 끝난 무대는 광장에 두지 않는다 — 광장은 '지금 만날 수 있는 하다'다.
+    //   종료일 당일까지는 남긴다(그날 24시까지 운영). 날짜는 사용자의 기준 시간대(0077).
+    .gte('end_date', getTodayRange().dateStr)
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (error) throw error;
+
+  return (data ?? []).map((c: any) => mapOpenChallengeCard(c, myUserId));
 }
 
 // 둘러보기 카드의 4가지 평가 토글
@@ -1169,7 +1258,7 @@ export async function setRecruitLock(challengeId: string, locked: boolean): Prom
 }
 
 export async function fetchRoomData(challengeId: string, myUserId: string) {
-  const [resChallenge, resMembers, resProofs, resLogCount] = await Promise.all([
+  const [resChallenge, resMembers, resProofs, resLogCount, resPauses] = await Promise.all([
     supabase.from('challenges').select('*').eq('id', challengeId).single(),
     supabase
       .from('challenge_members')
@@ -1188,6 +1277,12 @@ export async function fetchRoomData(challengeId: string, myUserId: string) {
     supabase
       .from('logs')
       .select('id', { count: 'exact', head: true })
+      .eq('challenge_id', challengeId),
+    // 🚀 0078: 잠시 멈춤 이력 — 이 방 전원치를 읽는다.
+    //   현황 탭이 **동료의 분모**를 그리려면 남의 구간도 필요하다 (RLS challenge_pauses_select = 같은 방 열람자).
+    supabase
+      .from('challenge_pauses')
+      .select('challenge_id, user_id, start_date, end_date')
       .eq('challenge_id', challengeId),
   ]);
 
@@ -1212,6 +1307,13 @@ export async function fetchRoomData(challengeId: string, myUserId: string) {
   const activeMembers = (resMembers.data ?? []).filter((m: any) => m.gave_up_at === null && m.role !== 'host');
   const memberCount = activeMembers.length;
 
+  // 🚀 0078: 멈춤 구간 — 실패(구 DB·권한)하면 빈 배열 = 멈춤 미반영(종전 동작)으로 조용히 폴백
+  const pauses: MemberPause[] = resPauses.error
+    ? []
+    : ((resPauses.data ?? []) as any[]).map(p => ({
+        user_id: p.user_id, start_date: p.start_date, end_date: p.end_date,
+      }));
+
   // 🚀 오늘 인증한 활성 멤버 수도 프로필 가시성과 분리해 센다.
   // 비멤버는 members(프로필 보이는 멤버)가 깎여 numerator 가 낮게 보이므로,
   // 활성 멤버 user_id 집합 × proofs(open 방은 비멤버도 열람 가능)로 직접 카운트 (KST 오늘 범위).
@@ -1227,11 +1329,13 @@ export async function fetchRoomData(challengeId: string, myUserId: string) {
 
   // 🚀 0075: 완주 매칭 기부 표시용 완주자 수 — memberCount 와 같은 이유로 프로필 가시성과 분리해 센다
   //   (members 는 users 조인이 RLS 로 null 인 비멤버에게 깎여, 그 값으로 세면 조직의 기부액이 실제보다 적게 공개된다).
-  //   판정·주최자 제외는 stats.countCompleters 단일 소스.
-  const completerCount = countCompleters(
+  //   판정·주최자 제외는 stats.countSuccessfulMembers 단일 소스.
+  //   ⚠️ 0078: 여기 숫자는 조직이 실제로 낼 기부 금액의 근거다 — 멈춤 인정일을 반드시 함께 넘긴다.
+  const completerCount = countSuccessfulMembers(
     resChallenge.data as DbChallenge,
     (resMembers.data ?? []) as any,
     proofsRaw as any,
+    pauses,
   );
 
   const members: MemberWithToday[] = (resMembers.data ?? [])
@@ -1283,6 +1387,7 @@ export async function fetchRoomData(challengeId: string, myUserId: string) {
     todayCheckedCount,
     completerCount,
     proofs,
+    pauses,
     totalLogs: resLogCount.count ?? 0,
   };
 }
@@ -1310,6 +1415,7 @@ export async function createChallenge(args: {
   betDonationMode?: string;         // 🚀 0040: 다인 내기 기부 모드 (기본 commitment)
   goalType?: 'cadence' | 'count';   // 🚀 0041: 목표 유형 (기본 cadence)
   targetCount?: number | null;      // 🚀 0041: count 유형의 목표 개수
+  successThreshold?: number;        // 🚀 0078: 성공 임계(%) 90/95/100 (기본 100). 개설 시 고정 — 이후 변경 불가
 }): Promise<DbChallenge> {
   const start = args.startDate ? new Date(args.startDate) : new Date();
   const end = new Date(start);
@@ -1330,6 +1436,7 @@ export async function createChallenge(args: {
     p_bet_donation_mode: args.betDonationMode ?? 'commitment',
     p_goal_type:       args.goalType       ?? 'cadence',
     p_target_count:    args.targetCount    ?? null,
+    p_success_threshold: args.successThreshold ?? 100,
   });
 
   if (error) throw error;
@@ -1338,16 +1445,29 @@ export async function createChallenge(args: {
 }
 
 // ─── 잠시 멈춤 / 재개 (room) ────────────────────────────
+// 🚀 0078: paused_until(날짜 하나) 갱신에 더해 challenge_pauses 에 **구간 행**을 남긴다.
+//   paused_until 은 재개 시 null 로 지워져 "총 며칠 멈췄나"를 알 수 없다 → 목표에서 빼줄 근거가 안 된다.
+//   구간 행은 지우지 않는다(내기 정산 금액의 근거 — DB 에 DELETE 정책 자체가 없다).
 export async function pauseMembership(args: {
   challengeId: string;
   userId: string;
-  untilDate: string;   // YYYY-MM-DD
+  untilDate: string;   // YYYY-MM-DD (끝날 포함 — 그날까지 멈춤)
 }): Promise<void> {
   const { error } = await supabase
     .from('challenge_members')
     .update({ paused_until: args.untilDate })
     .match({ challenge_id: args.challengeId, user_id: args.userId });
   if (error) throw error;
+
+  // 멈춤 구간 = 오늘(내 기준 시간대) ~ untilDate.
+  // ⚠️ 날짜는 반드시 기준 시간대(0077)로 — toISOString().slice(0,10) 은 UTC라 아침에 하루 밀린다.
+  const { error: pauseErr } = await supabase.from('challenge_pauses').insert({
+    challenge_id: args.challengeId,
+    user_id: args.userId,
+    start_date: getTodayRange().dateStr,
+    end_date: args.untilDate,
+  });
+  if (pauseErr) throw pauseErr;
 }
 
 export async function resumeMembership(args: {
@@ -1359,6 +1479,25 @@ export async function resumeMembership(args: {
     .update({ paused_until: null })
     .match({ challenge_id: args.challengeId, user_id: args.userId });
   if (error) throw error;
+
+  // 진행 중인 멈춤 구간을 **어제까지**로 줄인다 (end_date 는 끝날 포함이라, 오늘 재개하면 어제가 마지막 멈춤일).
+  // 해당 행이 없으면(구 데이터·이미 끝난 구간) 조용히 넘어간다 — 재개 자체를 막을 이유는 없다.
+  const today = getTodayRange().dateStr;
+  // 하루 물러나기는 UTC 자정 기준 날짜 산술 (stats.ts 와 같은 방식) — 문자열 달력 계산이라 시간대·서머타임 영향 없음
+  const yesterday = new Date(Date.parse(today + 'T00:00:00Z') - 86_400_000).toISOString().slice(0, 10);
+  const { data: ongoing } = await supabase
+    .from('challenge_pauses')
+    .select('id, start_date')
+    .eq('challenge_id', args.challengeId)
+    .eq('user_id', args.userId)
+    .gte('end_date', today)
+    .order('start_date', { ascending: false })
+    .limit(1);
+  const row = ongoing?.[0] as { id: string; start_date: string } | undefined;
+  if (!row) return;
+  // 시작일보다 앞당길 수는 없다 (DB CHECK end_date >= start_date) — 당일 재개면 하루짜리 구간으로 남긴다.
+  const newEnd = yesterday < row.start_date ? row.start_date : yesterday;
+  await supabase.from('challenge_pauses').update({ end_date: newEnd }).eq('id', row.id);
 }
 
 // 도전 포기 (soft delete) — 본인 화면 hide, 데이터는 보존 (Phase 2 박제 재활용)
@@ -1450,7 +1589,9 @@ export async function fetchMyProfile(userId: string): Promise<MyProfile> {
 // 🚀 나의 발자취 (프로필 v2) — 완주 수·최고 연속·받은 응원.
 // 마이그레이션 없이 클라에서 정확 집계: 완주 판정은 검증된 stats.goalStatus 단일 소스 재사용
 // (KST·빈도·늦합류 비례·count 조기완주 동일 규칙). 비교/줄세우기 아닌 '내 여정' 자축용.
-export type MyFootprints = { completed: number; bestStreak: number; cheersReceived: number };
+// ⚠️ completed(성공: 임계 달성)와 finished(끝남: 종료일이 지남)는 서로 다른 축이다 — 섞지 말 것.
+//   completed = goalStatus().isSuccess, finished = 오늘 > end_date (완주·미달 무관).
+export type MyFootprints = { completed: number; bestStreak: number; cheersReceived: number; finished: number };
 
 export async function fetchMyFootprints(userId: string): Promise<MyFootprints> {
   // 1) 내 활성 멤버십(포기 제외) + 합류일 — 완주 판정의 늦합류 비례에 필요
@@ -1480,17 +1621,35 @@ export async function fetchMyFootprints(userId: string): Promise<MyFootprints> {
     proofsByCh.set(p.challenge_id, arr);
   }
 
-  // 3) 완주 수 — 챌린지 파라미터로 goalStatus 판정 (count 조기완주 / cadence 종료 후)
+  // 3) 성공 수 — 챌린지 파라미터로 goalStatus 판정 (count 조기달성 / cadence 종료 후)
+  //    🚀 0078: 내 멈춤 구간도 함께 읽어 넘긴다 — 안 넘기면 방 화면 판정과 숫자가 어긋난다.
   let completed = 0;
+  let finished = 0;   // 축A: 종료일이 지난 하다 수 (프로필 '끝낸 하다' 행)
+  const todayStr = getTodayRange().dateStr;
   if (chIds.length > 0) {
-    const { data: chs } = await supabase.from('challenges').select('*').in('id', chIds);
+    const [{ data: chs }, { data: pauseRows }] = await Promise.all([
+      supabase.from('challenges').select('*').in('id', chIds),
+      supabase
+        .from('challenge_pauses')
+        .select('challenge_id, start_date, end_date')
+        .eq('user_id', userId)
+        .in('challenge_id', chIds),
+    ]);
+    const pausesByCh = new Map<string, ChallengePause[]>();
+    for (const p of (pauseRows ?? []) as any[]) {
+      const arr = pausesByCh.get(p.challenge_id) ?? [];
+      arr.push({ start_date: p.start_date, end_date: p.end_date });
+      pausesByCh.set(p.challenge_id, arr);
+    }
     for (const c of (chs ?? []) as DbChallenge[]) {
       const myProofs = (proofsByCh.get(c.id) ?? []) as unknown as ProofWithRelations[];
-      if (goalStatus(c, myProofs, joinedMap.get(c.id) ?? null).isComplete) completed++;
+      const myPauses = pausesByCh.get(c.id) ?? [];
+      if (goalStatus(c, myProofs, joinedMap.get(c.id) ?? null, myPauses).isSuccess) completed++;
+      if (todayStr > c.end_date) finished++;
     }
   }
 
-  return { completed, bestStreak, cheersReceived };
+  return { completed, bestStreak, cheersReceived, finished };
 }
 
 // 후방 호환 — profile.tsx 가 닉네임만 받던 시절 잔재
@@ -1909,9 +2068,9 @@ export async function deletePledge(pledgeId: string): Promise<void> {
   if (error) throw error;
 }
 
-// 🚀 내 다짐 내역 (내정보 → 💛 다짐 내역) — 하다별로 묶고 상태(진행중/완주/못채운)까지 산출.
-//   완주 판정은 방 화면과 같은 단일 소스(stats.goalStatus) 재사용 — KST·frequency·늦합류 비례 일관.
-export type MyPledgeStatus = 'active' | 'completed' | 'missed';   // 진행 중 / 완주 / 못 채운(미완주·포기)
+// 🚀 내 다짐 내역 (내정보 → 💛 다짐 내역) — 하다별로 묶고 상태(진행중/성공/못채운)까지 산출.
+//   성공 판정은 방 화면과 같은 단일 소스(stats.goalStatus) 재사용 — 기준 시간대·frequency·늦합류 비례·멈춤·임계 일관.
+export type MyPledgeStatus = 'active' | 'completed' | 'missed';   // 진행 중 / 성공 / 못 채운(미달·포기)
 export interface MyPledgeChallenge {
   challengeId: string;
   title: string;
@@ -1945,20 +2104,27 @@ export async function fetchMyPledges(userId: string): Promise<MyPledgeChallenge[
   if (!pledges.length) return [];
   const challengeIds = Array.from(new Set(pledges.map(p => p.challenge_id)));
 
-  // 2. 해당 하다 정보 (완주 판정용 컬럼 포함)
+  // 2. 해당 하다 정보 (성공 판정용 컬럼 포함 — 0078 성공 임계 success_threshold 포함)
   const { data: chRows, error: cErr } = await supabase
     .from('challenges')
-    .select('id, title, kind, goal_type, frequency, target_count, start_date, end_date, created_at, gave_up_at')
+    .select('id, title, kind, goal_type, frequency, target_count, start_date, end_date, created_at, gave_up_at, success_threshold')
     .in('id', challengeIds);
   if (cErr) throw cErr;
   const chMap = new Map<string, any>();
   for (const c of (chRows ?? []) as any[]) chMap.set(c.id, c);
 
-  // 3. 내 인증(완주 판정 분자) + 4. 내 멤버십(합류일=늦합류 비례, 포기 여부)
-  const [proofRes, memRes] = await Promise.all([
+  // 3. 내 인증(성공 판정 분자) + 4. 내 멤버십(합류일=늦합류 비례, 포기 여부) + 5. 내 멈춤 구간(0078)
+  const [proofRes, memRes, pauseRes] = await Promise.all([
     supabase.from('proofs').select('challenge_id, created_at, local_date').eq('user_id', userId).in('challenge_id', challengeIds),
     supabase.from('challenge_members').select('challenge_id, joined_at, gave_up_at').eq('user_id', userId).in('challenge_id', challengeIds),
+    supabase.from('challenge_pauses').select('challenge_id, start_date, end_date').eq('user_id', userId).in('challenge_id', challengeIds),
   ]);
+  const pauseMap = new Map<string, ChallengePause[]>();
+  for (const p of (pauseRes.data ?? []) as any[]) {
+    const arr = pauseMap.get(p.challenge_id) ?? [];
+    arr.push({ start_date: p.start_date, end_date: p.end_date });
+    pauseMap.set(p.challenge_id, arr);
+  }
   const proofMap = new Map<string, { created_at: string; local_date?: string }[]>();
   for (const p of (proofRes.data ?? []) as any[]) {
     const arr = proofMap.get(p.challenge_id) ?? [];
@@ -1988,11 +2154,13 @@ export async function fetchMyPledges(userId: string): Promise<MyPledgeChallenge[
       goal_type: (c.goal_type ?? 'cadence') as ChallengeGoalType,
       target_count: c.target_count ?? null,
       gave_up_at: c.gave_up_at ?? null,
+      success_threshold: c.success_threshold ?? 100,   // 🚀 0078: 성공 임계(%) — 없으면 100(종전 판정)
     };
-    const { isComplete } = goalStatus(ch, myProofs as any, joinedAt);
+    // 다짐의 트리거는 "해내면/못 하면" = **성공(임계 달성)** 축이다 (완주=끝까지 감 과 다름)
+    const { isSuccess: succeeded } = goalStatus(ch, myProofs as any, joinedAt, pauseMap.get(cid) ?? []);
     const finished = isFinished(ch);
-    // count 유형은 종료 전에도 조기 완주 인정(goalStatus) → isComplete 우선. 포기/종료 미달은 못 채운.
-    const status: MyPledgeStatus = isComplete ? 'completed' : (gaveUp || finished) ? 'missed' : 'active';
+    // count 유형은 종료 전에도 조기 달성 인정(goalStatus) → succeeded 우선. 포기/종료 미달은 못 채운.
+    const status: MyPledgeStatus = succeeded ? 'completed' : (gaveUp || finished) ? 'missed' : 'active';
 
     const end = new Date(c.end_date + 'T00:00:00');
     const today = new Date(todayStr + 'T00:00:00');
@@ -2003,7 +2171,7 @@ export async function fetchMyPledges(userId: string): Promise<MyPledgeChallenge[
       direction: p.direction,
       content: p.content,
       fulfilled: p.fulfilled,
-      // 지킬 차례: 해내면(win)=완주 시 / 못 하면(lose)=못 채운 시. 진행 중이면 아직 아님.
+      // 지킬 차례: 해내면(win)=성공 시 / 못 하면(lose)=못 채운 시. 진행 중이면 아직 아님.
       isDue: status === 'completed' ? p.direction === 'win'
         : status === 'missed' ? p.direction === 'lose'
         : false,
@@ -2344,6 +2512,36 @@ export async function adminReviewPromotion(challengeId: string, approve: boolean
   const { error } = await supabase.rpc('admin_review_promotion', {
     p_challenge_id: challengeId,
     p_approve: approve,
+  });
+  if (error) throw error;
+}
+
+// 🚀 0081: 사람 티어 직접 지정 — 운영팀이 섭외한 사람은 심사 큐(0067)를 거치지 않는다.
+//   큐는 "자라난 사람"(누적 1,000명)용이고, 이건 "섭외한 사람"용. 두 경로는 서로 독립.
+export type AdminUserSearchResult = {
+  id: string;
+  nickname: string;
+  email: string | null;       // 동명이인 구분용 — 운영자 콘솔 밖으로 내보내지 않는다 (PII)
+  host_tier: string;          // individual | figure | org
+  early_tier: string | null;  // 0066 창립 멤버 (표시만)
+  created_at: string;
+};
+
+// 사람 검색 (닉네임·이메일, ≤30). 권한 강제는 서버(RPC 의 is_admin).
+export async function adminSearchUsers(q: string): Promise<AdminUserSearchResult[]> {
+  const { data, error } = await supabase.rpc('admin_search_users', { p_q: q });
+  if (error) throw error;
+  return (data ?? []) as AdminUserSearchResult[];
+}
+
+// users.host_tier 직접 지정 (individual/figure/org). 되돌릴 수 없는 성격 — 호출부에서 확인 1단계.
+export async function adminSetUserHostTier(
+  userId: string,
+  tier: 'individual' | 'figure' | 'org',
+): Promise<void> {
+  const { error } = await supabase.rpc('admin_set_user_host_tier', {
+    p_user_id: userId,
+    p_tier: tier,
   });
   if (error) throw error;
 }

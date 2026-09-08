@@ -1,14 +1,13 @@
 // 🚀 내 하다 (리디자인 v2) — 참여 중인 모든 하다 목록 (내 작업 공간 입구)
 // 진행 카드 = 연속일수 큰 숫자 + 상태 tag + 두꺼운 진행바. 응원하는/끝낸/지난 밴드 분리.
-// 하다 구경 진입점은 홈 최상단 1곳으로 통일(§12) — 여기 하단 진입점 제거.
+// IA 2단계: 탭에서 내려오고 라우트만 남는다 — 홈 '모두 보기'·내 정보 '끝낸 하다'에서 push 로 진입(자체 뒤로가기).
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, Pressable, FlatList, StyleSheet, RefreshControl,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { Sprout, Flag } from 'lucide-react-native';
+import { Sprout, ArrowLeft } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
-import { AppHeader } from '@/components/AppHeader';
 import { StatusBadge } from '@/components/StatusBadge';
 import { HostBadge } from '@/components/HostBadge';
 import { colors, fontFamily, fontSize, fontWeight, radius, textStyle, shadow } from '@/lib/tokens';
@@ -16,7 +15,6 @@ import { useSession } from '@/lib/session';
 import { fetchMyChallenges, fetchMyGivenUpChallenges, type GivenUpChallenge } from '@/lib/db';
 import { ErrorState } from '@/components/ErrorState';
 import { ChallengeCardSkeleton } from '@/components/Skeleton';
-import { DailyRhythmCard } from '@/components/home/DailyRhythmCard';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
 import type { ChallengeWithCount } from '@/lib/types';
@@ -60,18 +58,34 @@ export default function MyChallengesScreen() {
     load();
   }, [load]);
 
+  // 🚀 하다 상태 분류 — 두 축을 여기 한 곳에서만 판정한다(헤더 개수와 목록이 갈리지 않게).
+  //   축A(상태): 진행 중 / 끝남 — 완주 여부(축B)는 여기서 따지지 않는다.
+  //   내가 하는 하다(나홀로·다함께·누구나·응원받기 개설자)만 — 응원하기로 들어간 cheered 방은 제외.
+  //   응원방은 홈 '오늘, 응원으로 힘주기'와 완전 중복이라 내 하다 탭에선 들어냄 (응원자≠도전자, v2.17 정체성).
+  const isCheererRoom = (c: ChallengeWithCount) => c.kind === 'cheered' && c.creator_id !== myUserId;
+  const doing    = challenges.filter(c => !isCheererRoom(c));
+  const todayStr = getTodayRange().dateStr;
+  const active   = doing.filter(c => todayStr <= c.end_date);
+  const finished = doing.filter(c => todayStr >  c.end_date);
+
   return (
     <Screen backgroundColor={colors.bg}>
-      <AppHeader />
+      {/* 탭이 아니라 push 라우트(홈 '모두 보기'·내 정보 '끝낸 하다') — 뒤로가기가 없으면 막다른 화면이 된다 */}
+      <View style={styles.nav}>
+        <Pressable onPress={() => { haptic.tap(); router.back(); }} hitSlop={10} accessibilityLabel="뒤로">
+          <ArrowLeft size={23} color={colors.ink} strokeWidth={1.8} />
+        </Pressable>
+        <Text style={styles.navTitle}>내 하다</Text>
+      </View>
+
+      {/* 제목은 위 nav 가 맡는다 — 여기선 상태 한 줄만 (제목 중복 방지) */}
       <View style={styles.subHeader}>
-        <View style={styles.titleRow}>
-          <Flag size={22} color={colors.sub} strokeWidth={1.8} />
-          <Text style={styles.subTitle}>내 하다</Text>
-        </View>
         <Text style={styles.subDesc}>
-          {challenges.length === 0
-            ? '아직 하다가 없어요. 하단 ⊕ 로 시작해볼까요?'
-            : `함께 가고 있는 하다 ${challenges.length}개`}
+          {active.length > 0
+            ? `함께 가고 있는 하다 ${active.length}개`
+            : challenges.length === 0
+              ? '아직 하다가 없어요. 하단 ⊕ 로 시작해볼까요?'
+              : '지금 가고 있는 하다는 없어요.'}
         </Text>
       </View>
 
@@ -84,92 +98,71 @@ export default function MyChallengesScreen() {
       ) : error ? (
         <ErrorState message={error} onRetry={() => { setLoading(true); load(); }} />
       ) : (
-        (() => {
-          // 내가 하는 하다(나홀로·다함께·누구나·응원받기 개설자)만 노출 — 응원하기로 들어간 cheered 방은 제외.
-          //   응원방은 홈 '오늘, 응원으로 힘주기'와 완전 중복이라 내 하다 탭에선 들어냄 (응원자≠도전자, v2.17 정체성).
-          const isCheererRoom = (c: ChallengeWithCount) => c.kind === 'cheered' && c.creator_id !== myUserId;
-          const doing    = challenges.filter(c => !isCheererRoom(c));
-          // 진행 중 vs 종료 분리 (KST 자정 기준)
-          const todayStr = getTodayRange().dateStr;
-          const active   = doing.filter(c => todayStr <= c.end_date);
-          const finished = doing.filter(c => todayStr >  c.end_date);
-          return (
-            <FlatList
-              data={active}
-              keyExtractor={c => c.id}
-              contentContainerStyle={styles.list}
-              refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />
-              }
-              renderItem={({ item }) => <Card challenge={item} myUserId={myUserId} />}
-              // 🚀 W2 하루 리듬 — 아침 다짐·저녁 회고 (홈에서 이동: 개인적 다짐 = 내 하다 맥락).
-              //   제목 바로 밑 + list paddingHorizontal 20 으로 아래 카드와 너비 일치. 내 하다 0개면 숨김.
-              //   다짐(따뜻한 틴트) 아래 얇은 구분선으로 '하단 내 하다' 목록과 시각적으로 분리.
-              ListHeaderComponent={doing.length > 0 ? (
-                <View>
-                  <DailyRhythmCard userId={myUserId} />
-                  <View style={styles.rhythmDivider} />
+        <FlatList
+          data={active}
+          keyExtractor={c => c.id}
+          contentContainerStyle={styles.list}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />
+          }
+          renderItem={({ item }) => <Card challenge={item} myUserId={myUserId} />}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Sprout size={48} color={colors.faint} strokeWidth={1.5} />
+              <Text style={styles.emptyText}>
+                참여 중인 하다가 없어요.{'\n'}하단 + 로 첫 하다를 만들어볼까요?
+              </Text>
+            </View>
+          }
+          ListFooterComponent={
+            <>
+              {finished.length > 0 && (
+                <View style={styles.band}>
+                  <Text style={styles.bandTitle}>끝낸 하다</Text>
+                  {finished.map(item => (
+                    <Card key={item.id} challenge={item} myUserId={myUserId} finished />
+                  ))}
                 </View>
-              ) : null}
-              ListEmptyComponent={
-                <View style={styles.empty}>
-                  <Sprout size={48} color={colors.faint} strokeWidth={1.5} />
-                  <Text style={styles.emptyText}>
-                    참여 중인 하다가 없어요.{'\n'}하단 + 로 첫 하다를 만들어볼까요?
-                  </Text>
-                </View>
-              }
-              ListFooterComponent={
-                <>
-                  {finished.length > 0 && (
-                    <View style={styles.band}>
-                      <Text style={styles.bandTitle}>끝낸 하다</Text>
-                      {finished.map(item => (
-                        <Card key={item.id} challenge={item} myUserId={myUserId} finished />
-                      ))}
-                    </View>
-                  )}
+              )}
 
-                  {/* 🕊️ 조용한 보관함 — 포기한 하다 (기본 접힘 / 열람은 읽기 전용) */}
-                  {gaveUpChs.length > 0 && (
-                    <View style={[styles.band, { gap: 10 }]}>
-                      <Pressable
-                        onPress={() => { haptic.tap(); setGaveUpOpen(o => !o); }}
-                        hitSlop={6}
-                        accessibilityRole="button"
-                        accessibilityLabel={`지난 하다 ${gaveUpChs.length}개 ${gaveUpOpen ? '접기' : '펼치기'}`}
-                      >
-                        <Text style={styles.gaveUpToggle}>
-                          지난 하다 {gaveUpChs.length}개 {gaveUpOpen ? '접기 ▲' : '보기 ▼'}
+              {/* 🕊️ 조용한 보관함 — 포기한 하다 (기본 접힘 / 열람은 읽기 전용) */}
+              {gaveUpChs.length > 0 && (
+                <View style={[styles.band, { gap: 10 }]}>
+                  <Pressable
+                    onPress={() => { haptic.tap(); setGaveUpOpen(o => !o); }}
+                    hitSlop={6}
+                    accessibilityRole="button"
+                    accessibilityLabel={`지난 하다 ${gaveUpChs.length}개 ${gaveUpOpen ? '접기' : '펼치기'}`}
+                  >
+                    <Text style={styles.gaveUpToggle}>
+                      지난 하다 {gaveUpChs.length}개 {gaveUpOpen ? '접기 ▲' : '보기 ▼'}
+                    </Text>
+                  </Pressable>
+                  {gaveUpOpen && gaveUpChs.map(item => (
+                    <Pressable
+                      key={item.id}
+                      style={styles.gaveUpCard}
+                      onPress={() => { haptic.tap(); router.push(`/room/${item.id}` as any); }}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.gaveUpTitle} numberOfLines={1}>{displayTitle(item.title)}</Text>
+                        <Text style={styles.gaveUpMeta}>
+                          {item.start_date.replace(/-/g, '.')} ~ {item.end_date.replace(/-/g, '.')} · 열람만 가능
                         </Text>
-                      </Pressable>
-                      {gaveUpOpen && gaveUpChs.map(item => (
-                        <Pressable
-                          key={item.id}
-                          style={styles.gaveUpCard}
-                          onPress={() => { haptic.tap(); router.push(`/room/${item.id}` as any); }}
-                        >
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.gaveUpTitle} numberOfLines={1}>{displayTitle(item.title)}</Text>
-                            <Text style={styles.gaveUpMeta}>
-                              {item.start_date.replace(/-/g, '.')} ~ {item.end_date.replace(/-/g, '.')} · 열람만 가능
-                            </Text>
-                          </View>
-                          <Text style={styles.gaveUpArrow}>→</Text>
-                        </Pressable>
-                      ))}
-                      {gaveUpOpen && (
-                        <Text style={styles.gaveUpHint}>
-                          남긴 인증과 기록은 그대로 보존돼 있어요. 방에서 "다시 시작하기"로 이어갈 수 있어요.
-                        </Text>
-                      )}
-                    </View>
+                      </View>
+                      <Text style={styles.gaveUpArrow}>→</Text>
+                    </Pressable>
+                  ))}
+                  {gaveUpOpen && (
+                    <Text style={styles.gaveUpHint}>
+                      남긴 인증과 기록은 그대로 보존돼 있어요. 방에서 "다시 시작하기"로 이어갈 수 있어요.
+                    </Text>
                   )}
-                </>
-              }
-            />
-          );
-        })()
+                </View>
+              )}
+            </>
+          }
+        />
       )}
     </Screen>
   );
@@ -260,13 +253,19 @@ function computeProgress(start: string, end: string) {
 }
 
 const styles = StyleSheet.create({
+  // 상세 nav (push 라우트) — 프로필·다짐 내역과 같은 결
+  nav: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 14, paddingHorizontal: 16,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 0.5, borderBottomColor: colors.line,
+  },
+  navTitle: { flex: 1, fontSize: 17, color: colors.ink, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
+
   subHeader: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  subTitle: { ...textStyle.greeting, color: colors.ink, letterSpacing: -0.5 },
   subDesc: { fontSize: fontSize.sm, color: colors.faint, fontFamily: fontFamily.regular, marginTop: 4 },
 
   list: { paddingHorizontal: 20, paddingBottom: 24, gap: 12, flexGrow: 1 },
-  rhythmDivider: { height: 1, backgroundColor: colors.lineSoft, marginTop: 16 },
   band: { marginTop: 28, gap: 12 },
   bandTitle: { ...textStyle.section, color: colors.sub, paddingHorizontal: 2 },
 

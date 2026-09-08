@@ -5,7 +5,7 @@ import React, { useEffect } from 'react';
 import {
   View, Text, Pressable, Modal, StyleSheet, ScrollView, Image, ActivityIndicator, Keyboard,
 } from 'react-native';
-import { Globe, Crown, Users, Calendar } from 'lucide-react-native';
+import { Globe, Crown, Users, Calendar, Target } from 'lucide-react-native';
 import { CategoryIcon } from '@/components/CategoryIcon';
 import { HostBadge } from '@/components/HostBadge';
 import { categorySlugByName } from '@/lib/icons';
@@ -76,6 +76,14 @@ export function OpenJoinPreviewSheet({ challenge, joining, onClose, onConfirm }:
                       {challenge.start_date.slice(5)} ~ {challenge.end_date.slice(5)} ({getChallengeDDay(challenge.start_date, challenge.end_date)})
                     </Text>
                   </View>
+                  {/* 🚀 0078: 성공 기준 — 내가 90%짜리에 들어가는지 100%짜리에 들어가는지 모르고 합류하면 안 된다.
+                      100%는 기본값이라 굳이 알리지 않는다 (대다수 하다가 그렇다). */}
+                  {challenge.success_threshold && challenge.success_threshold < 100 ? (
+                    <View style={styles.metaRow}>
+                      <Target size={14} color={colors.sub} strokeWidth={1.8} />
+                      <Text style={styles.metaText}>성공 기준: 목표의 {challenge.success_threshold}% 달성</Text>
+                    </View>
+                  ) : null}
                 </View>
 
                 {/* 🎯 다인 내기 걸린 방 — 합류 전 고지 (성인 인증 필요) */}

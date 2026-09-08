@@ -49,8 +49,10 @@ export default function CompleteScreen() {
             setProvedDays(myProofs.length);
             setTargetDays(data.challenge.target_count ?? 0);
           } else {
+            // 🚀 0078: 멈춤 인정일을 넘겨야 목표(분모)가 방 화면·판정과 같아진다 (안 넘기면 옛 분모로 완주율이 틀어짐)
+            const myPauses = data.pauses.filter(p => p.user_id === session.user.id);
             setProvedDays(uniqueProofDays(myProofs));
-            setTargetDays(memberTargetProofCount(data.challenge, myJoinedAt));
+            setTargetDays(memberTargetProofCount(data.challenge, myJoinedAt, myPauses));
           }
           haptic.success();
           // 정산 대기 내기 확인 — 내기 노출 시에만 (fetchMyBet 은 RLS 로 본인 주문만). 베타엔 미노출

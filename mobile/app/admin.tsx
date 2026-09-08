@@ -9,6 +9,7 @@ import { colors, fontFamily, fontSize, fontWeight } from '@/lib/tokens';
 import { fetchIsAdmin } from '@/lib/db';
 import { ReportQueue } from '@/components/admin/ReportQueue';
 import { PromotionQueue } from '@/components/admin/PromotionQueue';
+import { UserTierAssign } from '@/components/admin/UserTierAssign';
 import { HostTierAssign } from '@/components/admin/HostTierAssign';
 import { HiddenRestore } from '@/components/admin/HiddenRestore';
 
@@ -42,6 +43,10 @@ export default function AdminScreen() {
 
           <Text style={styles.section}>승격 심사</Text>
           <PromotionQueue />
+
+          {/* 사람 티어는 두 경로 — 자라난 사람은 위 심사 큐, 섭외한 사람은 여기서 직접 지정 */}
+          <Text style={styles.section}>사람 티어 지정</Text>
+          <UserTierAssign />
 
           <Text style={styles.section}>명사·조직 지정</Text>
           <HostTierAssign />

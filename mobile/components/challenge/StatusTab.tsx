@@ -4,7 +4,8 @@ import React, { useMemo } from 'react';
 import { View, Text, FlatList, StyleSheet, Image, Pressable } from 'react-native';
 import { User, Heart, Globe, Handshake, Calendar, Lock, Users, BarChart3, Check, Flame, Landmark, HeartHandshake, type LucideIcon } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
-import { computeStreak, memberPassedDays, isRecruiting, recruitCloseAtMs } from '@/lib/stats';
+import { computeStreak, goalStatus, memberPassedDays, isRecruiting, recruitCloseAtMs } from '@/lib/stats';
+import type { MemberPause } from '@/lib/stats';   // 🚀 0078: 잠시 멈춤 구간 (멤버별)
 import { displayTitle, formatWon } from '@/lib/format';
 import { HostBadge } from '@/components/HostBadge';
 import { HostMark, HostAvatarRing } from '@/components/HostMark';
@@ -33,13 +34,14 @@ type Props = {
   members: MemberWithToday[];
   proofs: ProofWithRelations[];
   myUserId: string | undefined;
+  pauses?: MemberPause[];    // 🚀 0078: 이 방의 멈춤 구간 전체 — 멤버별 분모에서 멈춘 만큼 빼준다 (없으면 종전 동작)
   completerCount?: number;   // 🚀 0075: 이 하다의 완주자 수 (완주 매칭 기부 약정이 있을 때만 표시) — db.ts 가 계산
   betSlot?: React.ReactNode;   // 🎯 나와의 내기 카드 (도전자 본인에게만, 부모가 구성) — 없으면 미노출
   pledgeSlot?: React.ReactNode;   // 💛 다짐 카드 (무현금 사회적 스테이크, 멤버 본인 — 부모가 구성)
   onRecruitLock?: (locked: boolean) => void;   // 🚀 0043: 개설자 모집 잠금/해제 (누구나 방 전용)
 };
 
-export function StatusTab({ challenge, members, proofs, myUserId, completerCount = 0, betSlot, pledgeSlot, onRecruitLock }: Props) {
+export function StatusTab({ challenge, members, proofs, myUserId, pauses = [], completerCount = 0, betSlot, pledgeSlot, onRecruitLock }: Props) {
 
   // 🚀 0043: 누구나 방 모집 상태 — 모집 중 / 수동 잠금 / 기간 50% 자동 마감.
   // "모집 마감" 은 신규 합류만 막음(종료 아님). 잠금 토글은 개설자 본인만, 다시 열기는 50% 경과 전까지만.
@@ -51,8 +53,10 @@ export function StatusTab({ challenge, members, proofs, myUserId, completerCount
   // 🚀 0074: 조직 하다는 캡(기간 50% 자동 마감) 면제 → 잠금을 언제든 다시 열 수 있다(DB set_recruit_lock 과 동일 기준).
   const canReopen = beforeMidpoint || challenge.host_tier === 'org';
 
-  // 멤버별 통계 (인증한 고유 날짜 수 / 본인 진행일수)
-  // 분모는 합류일 기준 — 시작 후 합류한 동료도 자기 출발선으로 공정하게 계산 (v2.8)
+  // 멤버별 통계 (인증 / 목표)
+  // 🚀 0078: 분자·분모를 stats.goalStatus 단일 소스에 맡긴다 —
+  //   합류일 기준 비례(v2.8) + **그 멤버의 멈춤 인정일** + 성공 임계(success_threshold)가 한 번에 반영된다.
+  //   count 유형도 같은 함수가 분자(총 인증 수)·분모(목표 개수×임계)를 낸다.
   const rows = useMemo(() => {
     const isCount = challenge.goal_type === 'count';
     const isCheered = challenge.kind === 'cheered';
@@ -63,21 +67,25 @@ export function StatusTab({ challenge, members, proofs, myUserId, completerCount
       // 🚀 0069: 조직 하다 주최자 — 방을 열었을 뿐 도전자가 아님. 응원자와 같은 이유로 인증률에서 분리.
       const isHost = m.role === 'host';
       const myProofs = proofs.filter(p => p.user_id === m.id);
-      const uniqDays = new Set(myProofs.map(p => p.created_at.slice(0, 10))).size;
+      const myPauses = pauses.filter(p => p.user_id === m.id);
       const streak = computeStreak(myProofs);
       const todayChecked = m.today_checked;
+      // 분자 = 인정 인증 수 (goalStatus 단일 소스 — local_date 기준 + 멈춤일 제외)
+      const { current } = goalStatus(challenge, myProofs, m.joined_at, myPauses);
       if (isCount) {
-        // 🚀 0041: count 유형 — 분자=총 인증 수, 분모=target_count(고정), 늦합류 비례 없음
+        // 🚀 0041: count 유형 — 분모는 목표 개수(고정). 일일 의무가 없어 '경과일' 개념이 없다.
         const target = challenge.target_count ?? 0;
-        const current = myProofs.length;
         const rate = Math.min(100, Math.round((current / Math.max(1, target)) * 100));
         return { member: m, isCheerer, isHost, isCount: true, uniqDays: current, myDays: target, rate, streak, todayChecked };
       }
-      const myDays = memberPassedDays(challenge, m.joined_at);
-      const rate = Math.min(100, Math.round((uniqDays / Math.max(1, myDays)) * 100));
-      return { member: m, isCheerer, isHost, isCount: false, uniqDays, myDays, rate, streak, todayChecked };
+      // 🚀 분모 = '지금까지 지나간 날'(멈춤 인정일 제외). 전체 목표가 아니다 —
+      //   전체를 분모로 두면 100일 하다 15일째에 모두가 15% 로 보여 방이 죽어 보인다(비교 압박·조용한 SNS).
+      //   성공 임계는 종료 시 성공 판정에서만 쓰고, 진행바는 '얼마나 지키고 있나'를 뜻한다.
+      const myDays = memberPassedDays(challenge, m.joined_at, myPauses);
+      const rate = Math.min(100, Math.round((current / Math.max(1, myDays)) * 100));
+      return { member: m, isCheerer, isHost, isCount: false, uniqDays: current, myDays, rate, streak, todayChecked };
     });
-  }, [members, proofs, challenge]);
+  }, [members, proofs, pauses, challenge]);
 
   // 시간의 흐름 정렬 — 가입 순 (members 가 이미 joined_at asc).
   // 본인만 맨 위로 옮김. 인증률 desc 정렬 X (비교 압박 회피, v3.5 조용한 SNS).

@@ -9,8 +9,9 @@
 //   결과는 0033 트리거가 보낸 사람에게 피드백 알림 ("받았어요 ☕ / 기부로 돌렸어요 💚")
 //
 // 나와의 내기(order_type='bet') 정산 (PHASE2 2.1-3):
-//   받기(본전)는 서버가 완주를 확인했을 때만 허용 — 실패자가 본전을 회수하는 백도어 차단.
-//   기부는 언제나 허용 ("실패를 인정하고 기부" + 완주자의 "기부로 돌리기" 둘 다).
+//   받기(본전)는 서버가 **성공(임계 달성, 0078)** 을 확인했을 때만 허용 — 목표 미달자의 본전 회수 백도어 차단.
+//   ⚠️ 성공 ≠ 완주 — 끝까지 갔다는 사실(완주)만으로는 본전을 회수할 수 없다.
+//   기부는 언제나 허용 ("실패를 인정하고 기부" + 성공자의 "기부로 돌리기" 둘 다).
 
 // @ts-nocheck — Deno 글로벌
 
@@ -36,15 +37,19 @@ function json(status: number, body: unknown): Response {
   });
 }
 
-// 나와의 내기 완주 판정 — DB(챌린지·합류일·도전자 인증)를 모아 순수 함수로 판정.
-// 도전자 = 내기 주문의 recipient(=sender 본인). proofs 도 그 user 의 것만 센다.
+// 나와의 내기 성공 판정 — DB(챌린지·합류일·도전자 인증·멈춤 이력)를 모아 순수 함수로 판정.
+// 도전자 = 내기 주문의 recipient(=sender 본인). proofs·멈춤도 그 user 의 것만 센다.
+//   ⚠️ 성공 ≠ 완주 — 본전 회수(receive)는 임계를 채운 성공에만 허용한다(끝까지 갔다는 사실만으로는 불가).
+//   ⚠️ 임계(success_threshold)는 개설 시 고정된 값을 그대로 읽는다 — 여기서 재계산·덮어쓰기 금지(정산 조작 방지).
 async function selfBetOutcome(service: any, challengeId: string, userId: string) {
-  const [chRes, memRes, proofRes, userRes] = await Promise.all([
-    service.from('challenges').select('start_date, end_date, frequency').eq('id', challengeId).maybeSingle(),
+  const [chRes, memRes, proofRes, userRes, pauseRes] = await Promise.all([
+    service.from('challenges').select('start_date, end_date, frequency, success_threshold').eq('id', challengeId).maybeSingle(),
     service.from('challenge_members').select('joined_at').eq('challenge_id', challengeId).eq('user_id', userId).maybeSingle(),
     // 인증한 "날"은 저장 시점에 박힌 local_date(0077) — 도전자의 기준 시간대 기준
     service.from('proofs').select('local_date').eq('challenge_id', challengeId).eq('user_id', userId),
     service.from('users').select('timezone').eq('id', userId).maybeSingle(),
+    // 🚀 0078 잠시 멈춤 이력 — 멈춘 만큼 목표에서 빼준다 (상한은 순수 함수가 적용)
+    service.from('challenge_pauses').select('start_date, end_date').eq('challenge_id', challengeId).eq('user_id', userId),
   ]);
   const ch = chRes.data;
   if (!ch) return 'in_progress';
@@ -55,6 +60,10 @@ async function selfBetOutcome(service: any, challengeId: string, userId: string)
     joinedAt: memRes.data?.joined_at ?? null,
     proofDates: (proofRes.data ?? []).map((r: { local_date: string }) => r.local_date),
     timezone: userRes.data?.timezone ?? 'Asia/Seoul',
+    successThreshold: ch.success_threshold ?? 100,
+    pauses: (pauseRes.data ?? []).map((r: { start_date: string; end_date: string }) => ({
+      startDate: r.start_date, endDate: r.end_date,
+    })),
   });
 }
 

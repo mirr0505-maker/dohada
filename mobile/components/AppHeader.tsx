@@ -195,7 +195,7 @@ export function AppHeader() {
                     key={n.id}
                     style={styles.newsRow}
                     onPress={() => {
-                      if (!n.challenge_id) return;
+                      // 하다 없는 알림(운영자 직접 승격 등)도 눌리게 — notificationRoute 가 홈으로 폴백한다
                       haptic.tap();
                       setModalVisible(false);
                       // 행 탭 → 해당 인증/기록 카드로 스크롤 포커스, 댓글 알림은 댓글 시트까지 자동 오픈, 한잔은 수령 화면

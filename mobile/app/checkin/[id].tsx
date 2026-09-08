@@ -248,7 +248,7 @@ export default function CheckinScreen() {
           viewfinder(flex:1)가 키보드만큼 줄고 캡션·인증 버튼이 키보드 위로 올라온다. */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12} disabled={submitting} style={styles.close}>

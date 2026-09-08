@@ -36,8 +36,16 @@ test('개인(individual)로 명시된 누구나 방 — 캡 그대로 적용', (
   assert.equal(isRecruiting(OPEN({ host_tier: 'individual' }), AFTER_HALF), false);
 });
 
-test('명사(figure) 하다 — 캡 면제 아님 (면제는 org 뿐)', () => {
-  assert.equal(isRecruiting(OPEN({ host_tier: 'figure' }), AFTER_HALF), false);
+// ─── 🚀 0082: 명사(figure) 무대도 캡 면제 ──────────────────────────────
+// 0074 시점엔 면제가 org 뿐이었다(이 테스트는 그 경계를 기록했다). 광장 탭이 생기면서
+// 명사 무대가 카드로는 떠 있는데 기간 50% 뒤엔 합류가 막히는 모순이 드러나 범위를 넓혔다.
+// org 와 달리 **open 일 때만** 면제한다 — 명사 개인의 사적인 방까지 풀어줄 이유는 없다.
+test('명사(figure) 무대 — 기간 50% 경과해도 계속 모집 중 (0082 캡 면제)', () => {
+  assert.equal(isRecruiting(OPEN({ host_tier: 'figure' }), AFTER_HALF), true);
+});
+
+test('명사(figure) 무대 — 면제는 캡뿐, 수동 잠금은 존중', () => {
+  assert.equal(isRecruiting(OPEN({ host_tier: 'figure', recruit_locked: true }), BEFORE_HALF), false);
 });
 
 // ─── 🚀 0074: 조직(org) = 광장 → 캡 면제 ────────────────────────────────

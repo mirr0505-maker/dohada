@@ -46,7 +46,8 @@ import { InviteLetterModal } from '@/components/challenge/InviteLetterModal';
 import { ImpactModal } from '@/components/challenge/ImpactModal';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
-import { computeProgress, computeStreak, isCompleted, isFailed, isFinished, getFarewellState, isRecruiting, streakMilestone } from '@/lib/stats';
+import { computeProgress, computeStreak, isSuccess, isShortOfGoal, didFinishThrough, isFinished, getFarewellState, isRecruiting, streakMilestone, memberTargetProofCount, PAUSE_CREDIT_RATIO } from '@/lib/stats';
+import type { MemberPause } from '@/lib/stats';   // 🚀 0078: 잠시 멈춤 구간 (멤버별)
 import { StreakMedal } from '@/components/challenge/StreakMedal';
 import { HostMark, HostAvatarRing } from '@/components/HostMark';
 import * as SecureStore from 'expo-secure-store';
@@ -92,6 +93,8 @@ export default function ChallengeRoom() {
   // 🚀 0075: 완주자 수 — 조직이 완주 매칭 기부를 약정한 하다의 현황 탭에서만 쓴다 (위와 같은 이유로 db 에서 계산)
   const [completerCount, setCompleterCount] = useState(0);
   const [proofs, setProofs] = useState<ProofWithRelations[]>([]);
+  // 🚀 0078: 이 방의 잠시 멈춤 구간 전체 — 멈춘 만큼 목표에서 빼주려면 판정 함수에 넘겨야 한다
+  const [pauses, setPauses] = useState<MemberPause[]>([]);
   const [totalLogs, setTotalLogs] = useState(0);   // 박제 통계·ImpactModal 용 기록 수
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -163,6 +166,7 @@ export default function ChallengeRoom() {
       setTodayCheckedCount(data.todayCheckedCount);
       setCompleterCount(data.completerCount);
       setProofs(data.proofs);
+      setPauses(data.pauses);
       setTotalLogs(data.totalLogs);
       // 받은 한잔은 부가 정보 — 실패해도 방 로딩을 막지 않음
       fetchMyReceivedGifts(id, myUserId).then(setReceivedGifts).catch(() => {});
@@ -466,6 +470,20 @@ export default function ChallengeRoom() {
     const subjectId = challenge?.kind === 'cheered' ? challenge.creator_id : myUserId;
     return members.find(m => m.id === subjectId)?.joined_at ?? null;
   }, [challenge, members, myUserId]);
+  // 🚀 0078: 판정 주체의 멈춤 구간 — 본인 판정엔 내 것, cheered 방 배지·내기엔 도전자(개설자) 것
+  const myPauses = useMemo(
+    () => pauses.filter(p => p.user_id === myUserId),
+    [pauses, myUserId],
+  );
+  const subjectPauses = useMemo(() => {
+    const subjectId = challenge?.kind === 'cheered' ? challenge.creator_id : myUserId;
+    return pauses.filter(p => p.user_id === subjectId);
+  }, [pauses, challenge, myUserId]);
+  // 완주(끝까지 감) 판정 주체의 포기 시각 — 포기하면 완주가 아니다
+  const subjectGaveUpAt = useMemo(() => {
+    const subjectId = challenge?.kind === 'cheered' ? challenge.creator_id : myUserId;
+    return members.find(m => m.id === subjectId)?.gave_up_at ?? null;
+  }, [challenge, members, myUserId]);
   const progress = useMemo(
     () => (challenge ? computeProgress(challenge) : null),
     [challenge],
@@ -479,8 +497,7 @@ export default function ChallengeRoom() {
   // 잠시 멈춤 상태 (오늘이 paused_until 이전)
   const isPaused = useMemo(() => {
     if (!me?.paused_until) return false;
-    const today = new Date().toISOString().slice(0, 10);
-    return today <= me.paused_until;
+    return getTodayRange().dateStr <= me.paused_until;   // 기준 시간대(0077) 날짜 — UTC 문자열은 아침에 하루 어긋남
   }, [me]);
 
   // 완주 자동 감지 → complete 화면으로 디바이스당 1회 redirect.
@@ -488,7 +505,7 @@ export default function ChallengeRoom() {
   const completeCheckRunningRef = useRef(false);   // 비동기 검사 중 deps 변동 시 중복 redirect 방지
   useEffect(() => {
     if (!challenge || !myUserId || completeRedirected) return;
-    if (!isCompleted(challenge, myProofs, me?.joined_at)) return;
+    if (!isSuccess(challenge, myProofs, me?.joined_at, myPauses)) return;
     if (completeCheckRunningRef.current) return;
     completeCheckRunningRef.current = true;
 
@@ -510,7 +527,7 @@ export default function ChallengeRoom() {
         setCompleteRedirected(true);
       }
     })();
-  }, [challenge, myProofs, completeRedirected, myUserId, me]);
+  }, [challenge, myProofs, myPauses, completeRedirected, myUserId, me]);
 
   // ─── 잠시 멈춤 / 재개 / 도전 포기 ─────────────────────
   const onTogglePause = useCallback(() => {
@@ -554,12 +571,17 @@ export default function ChallengeRoom() {
     );
 
     function doPause(days: number) {
-      const until = new Date();
-      until.setDate(until.getDate() + days);
+      // 멈춤 마지막 날 = 오늘(기준 시간대) + days. 종전 동작 그대로 두되 기준일만 로컬로 바꾼다.
+      // ⚠️ new Date().toISOString().slice(0,10) 은 UTC라 아침(KST 00~09시)엔 어제가 나와
+      //    멈춤이 하루 일찍 끝나던 버그 → 0077 기준선(getTodayRange)으로 교체.
+      //    아래 slice 는 UTC 자정 기준 **날짜 산술**이라 안전 (stats.ts 와 같은 방식).
+      const todayStr = getTodayRange().dateStr;
+      const untilDate = new Date(Date.parse(todayStr + 'T00:00:00Z') + days * 86_400_000)
+        .toISOString().slice(0, 10);
       pauseMembership({
         challengeId: challenge!.id,
         userId: myUserId!,
-        untilDate: until.toISOString().slice(0, 10),
+        untilDate,
       })
         .then(() => { haptic.success(); load(); })
         .catch(e => Alert.alert('멈춤 실패', e?.message ?? String(e)));
@@ -709,6 +731,12 @@ export default function ChallengeRoom() {
     ? Math.max(1, Math.round((new Date(challenge.start_date + 'T00:00:00').getTime() - new Date(kstToday + 'T00:00:00').getTime()) / 86_400_000))
     : 0;
 
+  // 🚀 0078: 멈춤으로 **실제 목표에서 빠진 인증 수** — 판정과 같은 함수의 차이로 구해 표시가 판정과 어긋나지 않게 한다.
+  //   상한(PAUSE_CREDIT_RATIO)에 걸리면 쉰 날수보다 적게 나온다 → 그때는 "면제"라고 단정하지 않는다.
+  const pauseCreditedCount =
+    memberTargetProofCount(challenge, me?.joined_at, [])
+    - memberTargetProofCount(challenge, me?.joined_at, myPauses);
+
   // 🚀 cheered(응원받기) = 도전자(개설자) 1명만 인증 — 인포바 분모를 전원이 아닌 도전자 1명 기준으로.
   // 응원자는 인증 주체가 아니므로 분모에 포함하면 다함께처럼 '인증 1/2' 로 보여 정체성이 무너짐.
   const cheeredCreatorCheckedToday = challenge.kind === 'cheered'
@@ -722,8 +750,9 @@ export default function ChallengeRoom() {
   const hasGroupBet = (challenge.kind === 'closed' || challenge.kind === 'open') && !!challenge.bet_tier;
   const isBetSubject = isSelfBetRoom ? isCreator : hasGroupBet;   // self=개설자 / group=활성 멤버 누구나
   const canPlaceBet = betVisible && isBetSubject && isMember && !iGaveUp && !finished && !myBet;
-  // 정산 표시용 완주 판정 — badgeProofs/subjectJoinedAt 가 self=개설자/group=본인으로 이미 매핑됨
-  const challengerCompleted = isCompleted(challenge, badgeProofs, subjectJoinedAt);
+  // 정산 표시용 **성공(임계 달성)** 판정 — badgeProofs/subjectJoinedAt 가 self=개설자/group=본인으로 이미 매핑됨.
+  //   ⚠️ 완주(끝까지 감)가 아니라 성공이다 — 내기 본전 회수 기준은 서버(claim-gift)와 같은 성공 축.
+  const challengerCompleted = isSuccess(challenge, badgeProofs, subjectJoinedAt, subjectPauses);
   // 🚀 0041: 목표 횟수형(count)은 베타에서 내기 비활성 — betOutcome 미지원(응원만)
   const showBetCard = betVisible && isBetSubject && isMember && challenge.goal_type !== 'count' && (myBet !== null || canPlaceBet);
   const onSettleBet = async (action: 'receive' | 'donate' | 'refund') => {
@@ -795,8 +824,9 @@ export default function ChallengeRoom() {
   const isPledgeSubject = isSelfBetRoom ? isCreator : isMember;
   const myPledges = allPledges.filter(p => p.user_id === myUserId);
   const fellowPledges = allPledges.filter(p => p.user_id !== myUserId);
-  const myCompletedForPledge = isCompleted(challenge, myProofs, me?.joined_at);
-  const myFailedForPledge = isFailed(challenge, myProofs, me?.joined_at);
+  // 다짐의 트리거는 "해내면/못 하면" = 성공(임계 달성) 축
+  const myCompletedForPledge = isSuccess(challenge, myProofs, me?.joined_at, myPauses);
+  const myFailedForPledge = isShortOfGoal(challenge, myProofs, me?.joined_at, myPauses);
   const usedPledgeDirections = myPledges.map(p => p.direction);
   const canManagePledge = isPledgeSubject && isMember && !iGaveUp;
   const canAddPledge = canManagePledge && !finished && usedPledgeDirections.length < 2;
@@ -917,8 +947,9 @@ export default function ChallengeRoom() {
         </Pressable>
         <View style={{ flex: 1, marginHorizontal: 8 }}>
           <View style={styles.headerTitleRow}>
-            {/* 🚀 완주 / 종료 배지 (P-② 재진입 허용 후 시각 표지) — cheered 는 도전자 기준 */}
-            {isCompleted(challenge, badgeProofs, subjectJoinedAt)
+            {/* 🚀 완주 / 종료 배지 (P-② 재진입 허용 후 시각 표지) — cheered 는 도전자 기준.
+                🚀 0078: 임계 달성(성공)이 아니라 **완주(끝까지 감)** 기준 — 92일 걸은 사람도 트로피를 단다. */}
+            {didFinishThrough(challenge, badgeProofs, subjectJoinedAt, subjectGaveUpAt)
               ? <Trophy size={16} color={colors.gold} strokeWidth={2} style={{ marginRight: 4 }} />
               : isFinished(challenge)
                 ? <Flag size={16} color={colors.sub} strokeWidth={2} style={{ marginRight: 4 }} />
@@ -1176,6 +1207,7 @@ export default function ChallengeRoom() {
           members={members}
           proofs={proofs}
           myUserId={myUserId}
+          pauses={pauses}
           completerCount={completerCount}
           betSlot={betSlot}
           pledgeSlot={pledgeSlot}
@@ -1190,6 +1222,8 @@ export default function ChallengeRoom() {
           totalLogs={totalLogs}
           myUserId={myUserId}
           subjectJoinedAt={subjectJoinedAt}
+          subjectPauses={subjectPauses}
+          subjectGaveUpAt={subjectGaveUpAt}
           isHost={iAmHost}
         />
       )}
@@ -1285,10 +1319,18 @@ export default function ChallengeRoom() {
           );
         }
         if (isPaused) {
+          // 🚀 0078: 이제 멈춘 만큼 목표가 실제로 줄어든다. 다만 인정 상한이 있어 초과분은 못 한 날로 남는다
+          //   → 상한에 걸렸을 땐 "면제"라고 단정하지 않고 남는 몫이 있음을 밝힌다.
+          const capPercent = Math.round(PAUSE_CREDIT_RATIO * 100);
+          const pausedNotice = challenge.goal_type === 'count'
+            ? `${me?.paused_until} 까지 쉬어요.\n목표 횟수형이라 원래 매일 인증할 의무는 없어요 — 기간 안에 채우면 돼요.`
+            : pauseCreditedCount > 0
+              ? `${me?.paused_until} 까지 쉬어요.\n지금까지 목표에서 ${pauseCreditedCount}일이 빠졌어요.\n인정되는 멈춤은 하다 기간의 ${capPercent}%까지라, 더 쉰 날은 못 한 날로 남아요.\n그래도 끝까지 함께하면 완주는 그대로예요.`
+              : `${me?.paused_until} 까지 쉬어요.\n인정되는 멈춤은 하다 기간의 ${capPercent}%까지예요.\n이미 상한을 다 써서 이번에 쉬는 날은 목표에서 빠지지 않지만, 끝까지 함께하면 완주는 그대로예요.`;
           return (
             <Pressable
               style={[styles.fab, styles.fabPaused]}
-              onPress={() => Alert.alert('잠시 멈춤 중', `${me?.paused_until} 까지 인증 의무가 면제예요.`)}
+              onPress={() => Alert.alert('잠시 멈춤 중', pausedNotice)}
             >
               <Text style={styles.fabLabel}>⏸ 잠시 멈춤 중</Text>
             </Pressable>
@@ -1296,7 +1338,7 @@ export default function ChallengeRoom() {
         }
         // 🚀 0041: 목표 횟수형 — 일일 의무 없음(매일 "완료" 표시 X). 다 채우면 박제 안내, 아니면 인증 추가(하루 다회 OK).
         if (challenge.goal_type === 'count') {
-          if (isCompleted(challenge, myProofs, me?.joined_at)) {
+          if (isSuccess(challenge, myProofs, me?.joined_at, myPauses)) {
             return (
               <Pressable style={[styles.fab, styles.fabDone]} onPress={() => { haptic.tap(); setActiveTab('archive'); }}>
                 <Trophy size={18} color={colors.surface} strokeWidth={2} />

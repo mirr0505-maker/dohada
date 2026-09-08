@@ -1,15 +1,15 @@
 // 🚀 내 프로필 — 헤더 아바타 탭 진입 (리디자인 v2)
-// 아바타+닉네임 + 관심 분야 + 나의 발자취(완주/최고연속/받은응원) + 완주보관함·다짐·한잔 내역.
+// 아바타+닉네임 + 관심 분야 + 나의 발자취(완주/최고연속/받은응원) + 끝낸 하다·다짐·한잔 내역.
 // 알림·계정·로그아웃·계정삭제·로드맵은 설정(app/settings.tsx)으로 이전됨.
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, Pressable, StyleSheet, Alert, ScrollView,
   Modal, TextInput, KeyboardAvoidingView, Platform, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import { router } from 'expo-router';
-import { ArrowLeft, Pencil, Camera, Plus, Trophy, Flag, Coffee, Check, Wrench, Clock } from 'lucide-react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { ArrowLeft, Pencil, Camera, Plus, Archive, Flag, Coffee, Check, Wrench, Clock } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { ListRow } from '@/components/ListRow';
 import { CategoryIcon } from '@/components/CategoryIcon';
@@ -20,13 +20,11 @@ import { haptic } from '@/lib/haptics';
 import {
   fetchMyProfile, updateMyNickname, updateMyAvatar,
   fetchMyInterests, addInterest, removeInterest, fetchCategoryTree,
-  fetchMyChallenges, fetchMyFootprints, fetchIsAdmin,
+  fetchMyFootprints, fetchIsAdmin,
   fetchMyTimezone, updateMyTimezone,
   type MyInterest, type DbCategory, type MyFootprints,
 } from '@/lib/db';
-import type { ChallengeWithCount } from '@/lib/types';
 import { HostMark, HostAvatarRing } from '@/components/HostMark';
-import { getTodayRange } from '@/lib/format';
 import {
   TIMEZONE_OPTIONS, DEFAULT_TIMEZONE, getDeviceTimezone, timezoneLabel, timezoneOffsetLabel,
 } from '@/lib/timezone';
@@ -45,12 +43,21 @@ export default function ProfileScreen() {
   const [interests, setInterests] = useState<MyInterest[]>([]);
   const [categories, setCategories] = useState<DbCategory[]>([]);
   const [editingInterests, setEditingInterests] = useState(false);
-  const [finishedChs, setFinishedChs] = useState<ChallengeWithCount[]>([]);
   const [footprints, setFootprints] = useState<MyFootprints | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [timezone, setTimezone] = useState<string>(DEFAULT_TIMEZONE);   // 🚀 0077 하루 기준선
   const [editingTz, setEditingTz] = useState(false);
   const deviceTz = getDeviceTimezone();
+
+  // 🚀 광장 '관심 정하기' 진입 — ?interests=1 이면 관심 편집 모달을 바로 연다
+  // (파라미터가 남아 있어도 모달을 닫은 뒤 다시 열리지 않게 ref 로 1회만)
+  const { interests: interestsParam } = useLocalSearchParams<{ interests?: string }>();
+  const interestsAutoOpened = useRef(false);
+  useEffect(() => {
+    if (!interestsParam || interestsAutoOpened.current) return;
+    interestsAutoOpened.current = true;
+    setEditingInterests(true);
+  }, [interestsParam]);
 
   useEffect(() => {
     if (session === null) router.replace('/login');
@@ -64,11 +71,8 @@ export default function ProfileScreen() {
     fetchMyFootprints(myUserId).then(setFootprints).catch(() => {});
     fetchIsAdmin().then(setIsAdmin).catch(() => setIsAdmin(false));
     fetchMyTimezone(myUserId).then(setTimezone).catch(() => {});
-    // 완주 보관함 — 종료된 하다만 (KST 자정 기준). 행의 개수 표시에 사용.
-    fetchMyChallenges(myUserId).then(all => {
-      const today = getTodayRange().dateStr;
-      setFinishedChs(all.filter(c => today > c.end_date));
-    }).catch(() => {});
+    // 끝낸 하다 개수는 fetchMyFootprints 가 함께 준다(finished) — 목록을 또 부르지 않는다.
+    // 완주(성공) 수와는 다른 축: finished = 종료일이 지난 하다, completed = 임계 달성.
   }, [myUserId]);
 
   // 보관함에서 아바타 사진 선택 → R2 업로드 → DB → state
@@ -185,13 +189,13 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* 내역 — 완주 보관함 · 다짐 · 한잔 (좌측정렬 ListRow) */}
+        {/* 내역 — 끝낸 하다 · 다짐 · 한잔 (좌측정렬 ListRow) */}
         <View style={styles.section}>
           <View style={styles.setgroup}>
             <ListRow
-              icon={Trophy}
-              label="완주 보관함"
-              rightText={finishedChs.length > 0 ? `${finishedChs.length}개` : undefined}
+              icon={Archive}
+              label="끝낸 하다"
+              rightText={(footprints?.finished ?? 0) > 0 ? `${footprints?.finished}개` : undefined}
               onPress={() => { haptic.tap(); router.push('/(tabs)/my-challenges' as any); }}
             />
             <Divider />
@@ -472,7 +476,7 @@ function NicknameEditModal({
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={styles.modalSafe} edges={['top', 'bottom']}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <View style={styles.modalHeader}>
             <Pressable onPress={onClose} hitSlop={12} disabled={saving}><Text style={styles.modalCancel}>취소</Text></Pressable>
             <Text style={styles.modalTitle}>닉네임</Text>

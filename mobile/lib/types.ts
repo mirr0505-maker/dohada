@@ -46,6 +46,7 @@ export type DbChallenge = {
   intro_image_url?: string | null;    // 🚀 0037: 안내문 이미지 (보관함, 합류 전 미리보기·방 현황에 노출)
   bet_tier?: string | null;           // 🚀 0040: 다인 내기 티어 (다함께·누구나, null=내기 없음)
   bet_donation_mode?: string | null;  // 🚀 0040: 다인 내기 기부 모드 (commitment/pledge/always)
+  success_threshold?: number;         // 🚀 0078: 성공으로 인정할 달성률(%) 90/95/100, 기본 100. 개설 시 고정. 완주(끝까지 감)와 별개
   goal_type?: ChallengeGoalType;      // 🚀 0041: 목표 유형 (기본 cadence)
   target_count?: number | null;       // 🚀 0041: count 유형의 목표 개수 (cadence 는 null)
   recruit_locked?: boolean;           // 🚀 0043: 누구나 방 개설자 수동 모집 잠금 (기간 50% 자동마감과 합쳐 isRecruiting 으로 판정)

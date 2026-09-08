@@ -30,6 +30,7 @@ import { uploadProofImage } from '@/lib/upload';
 import {
   isBetVisible, BET_TIERS, BET_DONATION_MODES, type BetTier, type BetDonationMode,
 } from '@/lib/payments';
+import { targetProofCount, PAUSE_CREDIT_RATIO } from '@/lib/stats';
 import type { ChallengeKind } from '@/lib/types';
 
 const TOTAL_STEPS = 5;
@@ -58,6 +59,10 @@ const FREQUENCIES: { value: CreateChallengeFrequency; label: string; desc: strin
   { value: 'weekly3', label: '주 3회 이상',  desc: '유연하게',           Icon: CalendarDays },
   { value: 'weekly1', label: '주 1회',       desc: '긴 호흡으로',        Icon: Calendar },
 ];
+
+// 🚀 0078: 성공 기준(%) — 개설자가 "어디까지 채우면 성공"인지 정한다. 셋 다 동등한 선택이다.
+//   기본 100 (기존 하다와 동일). 완주(끝까지 감)는 별개 축이라 기준에 못 닿아도 박제는 남는다.
+const SUCCESS_THRESHOLDS = [100, 95, 90] as const;
 
 const PROOF_TYPES = [
   { value: 'photo',      label: '사진 인증',     desc: '카메라로 직접 촬영',             Icon: Camera, enabled: true },
@@ -123,6 +128,8 @@ export default function CreateChallenge() {
   const [targetCount, setTargetCount] = useState<number>(
     (parseIntParam(targetCountParam) ?? 0) >= 1 ? parseIntParam(targetCountParam)! : 10,
   );
+  // 🚀 0078: 성공 기준(%) — 기본 100. 개설 후에는 바꿀 수 없다 (서버가 컬럼 수정을 막는다)
+  const [successThreshold, setSuccessThreshold] = useState<number>(100);
   // bet 은 'none' 고정.
 
   const [submitting, setSubmitting] = useState(false);
@@ -151,6 +158,14 @@ export default function CreateChallenge() {
     if (step === 5) return true;                                       // 인증 방식 (기본 photo)
     return false;
   }, [step, title, categoryId, durationDays, frequency, goalType, targetCount, kind, submitting]);
+
+  // 🚀 0078: 성공 기준(%)에서 실제로 채워야 하는 인증 수 — 판정(stats.goalStatus)과 같은 식으로 계산한다.
+  //   %를 사용자가 암산하게 두지 않기 위해 선택지·안내문 양쪽이 이 값을 쓴다.
+  const successTargetFor = useCallback((threshold: number) => (
+    goalType === 'count'
+      ? Math.ceil(targetCount * threshold / 100)
+      : Math.ceil(targetProofCount(durationDays, frequency) * threshold / 100)
+  ), [goalType, targetCount, durationDays, frequency]);
 
   const onPrev = () => {
     haptic.tap();
@@ -207,6 +222,7 @@ export default function CreateChallenge() {
         frequency,
         goalType,                                            // 🚀 0041: 목표 유형
         targetCount: goalType === 'count' ? targetCount : null,
+        successThreshold,                                    // 🚀 0078: 성공 임계(%) — 개설 시 고정
         startDate, // 🚀 신규 추가
         introImageUrl, // 🚀 0037: 안내문 이미지
         // 🚀 0040: 다인 내기 — 다함께·누구나에서만. 서버도 kind 로 한 번 더 강제
@@ -229,7 +245,7 @@ export default function CreateChallenge() {
     } finally {
       setSubmitting(false);
     }
-  }, [session, title, kind, durationDays, categoryId, subcategoryId, frequency, goalType, targetCount, proofType, startDate, description, introImageUri]);
+  }, [session, title, kind, durationDays, categoryId, subcategoryId, frequency, goalType, targetCount, successThreshold, proofType, startDate, description, introImageUri]);
 
   const stepMeta = STEP_META[step];
 
@@ -264,7 +280,7 @@ export default function CreateChallenge() {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
       >
         <ScrollView contentContainerStyle={styles.scroll}>
@@ -322,6 +338,43 @@ export default function CreateChallenge() {
                 targetCount={targetCount}
                 setTargetCount={setTargetCount}
               />
+              {/* 🚀 0078: 성공 기준 — "어디까지 채우면 성공인가"를 개설자가 정한다.
+                  1일 하다는 어느 기준이든 1회라 고를 게 없어 숨긴다. */}
+              {!(goalType === 'cadence' && durationDays === 1) && (
+                <>
+                  <Text style={[styles.subSectionTitle, { marginTop: 16 }]}>어디까지 채우면 성공일까요?</Text>
+                  <SuccessThresholdPicker
+                    value={successThreshold}
+                    setValue={setSuccessThreshold}
+                    targetFor={successTargetFor}
+                    unit={goalType === 'count' ? '개' : '일'}
+                  />
+                </>
+              )}
+              {/* 🚀 성공 기준 명시 — "주 3회"가 며칠 인증인지, 기준이 몇 번인지 알려주지 않으면
+                  끝났을 때 판정을 납득할 수 없다. 계산은 성공 판정과 같은 단일 소스(stats). */}
+              {goalType === 'cadence' ? (durationDays > 0 && (
+                <Text style={styles.smallNote}>
+                  {durationDays}일 · {durationDays === 1 ? '당일' : (FREQUENCIES.find(f => f.value === frequency)?.label ?? '매일')} · 성공 기준 {successThreshold}% →{' '}
+                  <Text style={styles.noteStrong}>{successTargetFor(successThreshold)}일</Text> 인증하면 성공이에요.
+                  성공 기준은 만든 뒤에는 바꿀 수 없어요.
+                </Text>
+              )) : targetCount >= 1 && (
+                <Text style={styles.smallNote}>
+                  목표 {targetCount}개 · 성공 기준 {successThreshold}% →{' '}
+                  <Text style={styles.noteStrong}>{successTargetFor(successThreshold)}개</Text> 인증하면 성공이에요.
+                  성공 기준은 만든 뒤에는 바꿀 수 없어요.
+                </Text>
+              )}
+              {/* 🚀 0078: 잠시 멈춤 안내 — 못 하는 날이 생겨도 선택지가 '포기'뿐이 아니라는 걸 개설 시점에 알린다.
+                  인정 상한(PAUSE_CREDIT_RATIO)을 넘긴 날은 못 한 날로 세어진다는 것도 흐리지 않는다. */}
+              <Text style={[styles.smallNote, { marginTop: 8 }]}>
+                출장·병원처럼 도저히 못 하는 날은 방에서 '잠시 멈춤'을 누르면 그 기간이 목표에서 빠져요.
+                전체 기간의 {Math.round(PAUSE_CREDIT_RATIO * 100)}%까지 인정되고, 넘긴 날은 못 한 날로 세어져요.
+              </Text>
+              <Text style={[styles.smallNote, { marginTop: 8 }]}>
+                <Text style={styles.noteStrong}>끝까지만 가면</Text> 기준에 닿지 못해도 박제와 해냈어요는 그대로 남아요.
+              </Text>
             </View>
           )}
           {step === 5 && (
@@ -716,7 +769,35 @@ function TargetCountField({
           </Pressable>
         ))}
       </View>
-      <Text style={styles.smallNote}>기간 안에 이 개수만큼 인증하면 완주예요. 하루에 여러 개도 OK · 다 채우면 즉시 완주!</Text>
+      <Text style={styles.smallNote}>기간 안에 채우면 돼요. 하루에 여러 개도 OK · 다 채우면 그날로 끝!</Text>
+    </View>
+  );
+}
+
+// 🚀 0078: 성공 기준(%) 선택 — 셋 다 동등한 선택. %를 암산하지 않게 실제 인증 수를 함께 보여준다.
+function SuccessThresholdPicker({
+  value, setValue, targetFor, unit,
+}: {
+  value: number;
+  setValue: (n: number) => void;
+  targetFor: (threshold: number) => number;
+  unit: string;
+}) {
+  return (
+    <View style={styles.thresholdRow}>
+      {SUCCESS_THRESHOLDS.map(t => {
+        const active = value === t;
+        return (
+          <Pressable
+            key={t}
+            style={[styles.thresholdChip, active && styles.thresholdChipActive]}
+            onPress={() => { haptic.tap(); setValue(t); }}
+          >
+            <Text style={[styles.thresholdPercent, active && styles.thresholdPercentActive]}>{t}%</Text>
+            <Text style={[styles.thresholdCount, active && styles.thresholdCountActive]}>{targetFor(t)}{unit}</Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -1363,6 +1444,40 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   specialCardTitle: { color: colors.sub },
+  noteStrong: { fontFamily: fontFamily.bold, fontWeight: fontWeight.bold, color: colors.brandInk },
+
+  // 🚀 0078: 성공 기준 칩 — 좁은 폭(갤S9 360dp) 대비로 높이를 픽셀로 박지 않고 minHeight,
+  //   안드로이드 폰트 패딩 때문에 글자가 잘리지 않게 includeFontPadding:false
+  thresholdRow: { flexDirection: 'row', gap: 8 },
+  thresholdChip: {
+    flex: 1,
+    minHeight: 62,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.primary100,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  thresholdChipActive: { borderColor: colors.accent, backgroundColor: colors.accent50 },
+  thresholdPercent: {
+    fontSize: fontSize.base,
+    color: colors.primary,
+    fontFamily: fontFamily.bold,
+    fontWeight: fontWeight.bold,
+    includeFontPadding: false,
+  },
+  thresholdPercentActive: { color: colors.accent700 },
+  thresholdCount: {
+    fontSize: fontSize.xs,
+    color: colors.primary500,
+    fontFamily: fontFamily.medium,
+    includeFontPadding: false,
+  },
+  thresholdCountActive: { color: colors.accent },
   smallNote: {
     fontSize: fontSize.xs,
     color: colors.primary500,

@@ -1,9 +1,12 @@
-// 🚀 하다 구경 (익명 발상 라이브러리, 0050 · 리디자인 v2) — "남들은 무슨 하다 하나?"
-//   개설자·참여자 신원을 지운 익명 카드. 제목·내용·인증방식·타입·4평가·참조수만 정형화 노출.
-//   목적 = 탐색이 아니라 '참조' (살펴보고 → 평가하고 → 따라하기). 카드 탭으로 방에 들어가지 않음(익명 보존).
-import React, { useCallback, useMemo, useState } from 'react';
+// 🚀 광장 (IA 개편 2단계) — "아직 인연이 아닌 하다"를 모아 보는 탭.
+//   ① 🏛️ 무대 (명사·조직이 연 하다, 상설) ② 🌍 지금 합류할 수 있는 하다 (누구나)
+//   ③ 🔭 하다 구경 (익명 발상 라이브러리, 0050) — 개설자·참여자 신원을 지운 익명 카드.
+//      제목·내용·인증방식·타입·4평가·참조수만 정형화 노출. 목적 = 탐색이 아니라 '참조'
+//      (살펴보고 → 평가하고 → 따라하기). 카드 탭으로 방에 들어가지 않음(익명 보존).
+//   세 섹션 모두 최신순 고정 — 참여자 수·인기 정렬 금지(비교/줄세우기 금지).
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
-  View, Text, Pressable, FlatList, StyleSheet, RefreshControl, Alert, ScrollView, Image,
+  View, Text, Pressable, FlatList, StyleSheet, RefreshControl, Alert, ScrollView, Image, Linking,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Telescope, User, Handshake, Globe, Heart, type LucideIcon } from 'lucide-react-native';
@@ -11,16 +14,24 @@ import { Screen } from '@/components/Screen';
 import { AppHeader } from '@/components/AppHeader';
 import { EvalBox } from '@/components/EvalBox';
 import { CategoryIcon } from '@/components/CategoryIcon';
+import { HostBadge } from '@/components/HostBadge';
+import { OpenJoinPreviewSheet } from '@/components/home/OpenJoinPreviewSheet';
 import { ChallengeCardSkeleton } from '@/components/Skeleton';
 import { ErrorState } from '@/components/ErrorState';
 import { colors, fontFamily, fontSize, fontWeight, radius, textStyle, shadow } from '@/lib/tokens';
 import { categorySlugByName } from '@/lib/icons';
 import { useSession } from '@/lib/session';
-import { fetchBrowseChallenges, toggleChallengeVote, fetchMyInterests } from '@/lib/db';
+import {
+  fetchBrowseChallenges, toggleChallengeVote, fetchMyInterests,
+  fetchOpenChallenges, fetchStageChallenges,
+} from '@/lib/db';
+import { joinChallenge } from '@/lib/invite';
+import { isRecruiting } from '@/lib/stats';   // 🚀 무대 카드의 모집 마감 표시
+import { SUPPORT_EMAIL } from '@/lib/support';
 import { formatCheerCount, displayTitle } from '@/lib/format';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
-import type { BrowseChallengeCard, ChallengeVoteType } from '@/lib/types';
+import type { BrowseChallengeCard, ChallengeVoteType, OpenChallengeCard } from '@/lib/types';
 
 // 4가지 평가 — 이모지 예외 4종 (수칙 #8: 각 의미 독립 보존)
 const VOTE_OPTIONS: { type: ChallengeVoteType; emoji: string; label: string }[] = [
@@ -41,10 +52,22 @@ const KIND_BADGE: Record<string, { Icon: LucideIcon; label: string; color: strin
 // '내 관심' 필터 키 — categoryFilter 가 분류명이 아니라 이 값일 때, 내 정보에 등록한 관심 대분류만 노출
 const INTEREST_FILTER_KEY = '__my_interests__';
 
+// 🚀 광장 목록 노출 개수: 처음 3개만 보여주고 '더 보기'로 3개씩 펼친다
+//   (광장은 무대 → 누구나 합류 → 구경 3단 구성 — 한 섹션이 길어지면 나머지가 묻힌다)
+//   '지금 합류할 수 있는 하다'와 '하다 구경'이 같은 상수를 쓴다.
+const BROWSE_INITIAL_COUNT = 3;
+const BROWSE_STEP_COUNT = 3;
+
 export default function DiscoverScreen() {
   const session = useSession();
   const myUserId = session?.user?.id;
   const [items, setItems] = useState<BrowseChallengeCard[]>([]);
+  // 🏛️ 무대 — 명사·조직이 연 하다 (최신순). 🌍 누구나 합류 — 지금 합류 가능한 하다 (최신순)
+  const [stageItems, setStageItems] = useState<OpenChallengeCard[]>([]);
+  const [openItems, setOpenItems] = useState<OpenChallengeCard[]>([]);
+  // 합류 전 안내문 미리보기 시트 대상 (null = 닫힘) — 무대·누구나 공용
+  const [previewCard, setPreviewCard] = useState<OpenChallengeCard | null>(null);
+  const [joining, setJoining] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +75,12 @@ export default function DiscoverScreen() {
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   // 내 정보(프로필)에 등록한 관심 대분류 id 집합 — '내 관심' 필터용
   const [myInterestIds, setMyInterestIds] = useState<Set<number>>(new Set());
+  // 하다 구경에서 지금 보여줄 개수 — '더 보기'로만 늘어난다
+  const [visibleCount, setVisibleCount] = useState(BROWSE_INITIAL_COUNT);
+  // '지금 합류할 수 있는 하다'도 같은 방식 — 상한 없이 전부 나열되면 아래 하다 구경이 묻힌다
+  const [joinVisibleCount, setJoinVisibleCount] = useState(BROWSE_INITIAL_COUNT);
+  // 사용자가 칩을 직접 만졌는지 — 만진 뒤로는 '내 관심' 기본값을 다시 씌우지 않는다
+  const filterTouched = useRef(false);
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -67,6 +96,30 @@ export default function DiscoverScreen() {
     return categoryFilter ? items.filter(c => c.category?.name === categoryFilter) : items;
   }, [items, categoryFilter, myInterestIds]);
 
+  // 지금 화면에 그릴 만큼만 잘라낸다 (전체 개수는 '더 보기' 판단에 filteredItems 로 유지)
+  const visibleItems = useMemo(
+    () => filteredItems.slice(0, visibleCount),
+    [filteredItems, visibleCount],
+  );
+
+  // 🚀 필터 변경 — 칩 3종(전체/내 관심/분류)이 공유. 필터가 바뀌면 노출 개수도 처음 3개로 되돌린다
+  const changeFilter = useCallback((next: string | null) => {
+    haptic.tap();
+    filterTouched.current = true;
+    setCategoryFilter(next);
+    setVisibleCount(BROWSE_INITIAL_COUNT);
+  }, []);
+
+  // 🚀 무대 2종 — ⭐명사 / 🏛️조직. 한쪽이 0개여도 자리를 지켜 "여기 열립니다"를 보여준다(상설)
+  const figureItems = useMemo(() => stageItems.filter(c => c.host_tier === 'figure'), [stageItems]);
+  const orgItems    = useMemo(() => stageItems.filter(c => c.host_tier === 'org'), [stageItems]);
+
+  // 무대에 이미 올라온 하다는 '누구나 합류' 섹션에서 중복 제거
+  const joinableItems = useMemo(() => {
+    const stageIds = new Set(stageItems.map(c => c.id));
+    return openItems.filter(c => !stageIds.has(c.id));
+  }, [openItems, stageItems]);
+
   React.useEffect(() => {
     if (session === null) router.replace('/login');
   }, [session]);
@@ -74,13 +127,25 @@ export default function DiscoverScreen() {
   const load = useCallback(async () => {
     try {
       setError(null);
-      // 하다 구경 목록 + 내 관심 대분류를 함께 로드 ('내 관심' 칩 필터용)
-      const [data, interests] = await Promise.all([
+      // 세 섹션 + 내 관심 대분류를 병렬 로드 ('내 관심' 칩 필터용)
+      // 무대·누구나 조회가 실패해도 하다 구경 목록은 막지 않는다 (개별 빈 배열 폴백)
+      const [data, interests, stage, open] = await Promise.all([
         fetchBrowseChallenges(),
         myUserId ? fetchMyInterests(myUserId).catch(() => []) : Promise.resolve([]),
+        fetchStageChallenges(myUserId).catch(() => []),
+        fetchOpenChallenges(myUserId).catch(() => []),
       ]);
       setItems(data);
-      setMyInterestIds(new Set(interests.map(i => i.category_id)));
+      const interestIds = new Set(interests.map(i => i.category_id));
+      setMyInterestIds(interestIds);
+      // 🚀 기본 필터 = '내 관심' (등록한 관심이 있을 때만).
+      //   ⚠️ "첫 load 때 1회만" 으로 두면 안 된다 — 세션 복원 전에 load 가 먼저 돌면 myUserId 가
+      //   없어 관심이 0개로 오고, 그 한 번으로 기본값 적용 기회가 영영 사라진다(전체로 고정).
+      //   그래서 '사용자가 칩을 직접 만지기 전까지' 로 둔다 — 관심이 실제로 들어온 load 에서
+      //   뒤늦게라도 적용되고, 사용자가 고른 칩은 여전히 덮어쓰지 않는다.
+      if (!filterTouched.current && interestIds.size > 0) setCategoryFilter(INTEREST_FILTER_KEY);
+      setStageItems(stage);
+      setOpenItems(open);
     } catch (e: any) {
       reportError(e, { where: 'discover/fetchBrowseChallenges' });
       setError(e?.message ?? '하다 구경을 불러오지 못했어요.');
@@ -93,6 +158,58 @@ export default function DiscoverScreen() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const onRefresh = useCallback(() => { setRefreshing(true); load(); }, [load]);
+
+  // 무대·누구나 카드 탭 — 바로 합류시키지 않고 안내문 미리보기 시트를 연다 (홈과 동일 동선)
+  const openPreview = useCallback((c: OpenChallengeCard) => { haptic.tap(); setPreviewCard(c); }, []);
+
+  const doJoin = useCallback(async () => {
+    if (!myUserId || !previewCard || joining) return;
+    try {
+      setJoining(true);
+      await joinChallenge(previewCard.id, myUserId);
+      haptic.success();
+      setPreviewCard(null);
+      Alert.alert('합류 완료', '하다에 성공적으로 합류했습니다!');
+      await load();
+    } catch (err: any) {
+      if (err?.message === 'adult_required') {
+        Alert.alert('성인 인증이 필요해요', '성인 전용 하다라 성인 본인인증을 마친 분만 합류할 수 있어요.\n본인인증을 먼저 진행해주세요.');
+      } else {
+        Alert.alert('합류 실패', err?.message ?? String(err));
+      }
+    } finally {
+      setJoining(false);
+    }
+  }, [myUserId, previewCard, joining, load]);
+
+  // 무대 빈 상태 — 조직·명사 하다 제안 (운영팀 메일. 주소는 support.ts 단일 상수)
+  const onProposeStage = useCallback(() => {
+    haptic.tap();
+    const subject = '[Do:하다] 우리 조직 하다 제안';
+    const body = '안녕하세요, 운영팀.\n우리 조직(모임)의 하다를 무대에 열고 싶어요.\n\n· 조직(모임) 이름:\n· 열고 싶은 하다:\n· 담당자 연락처:\n';
+    Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`)
+      .catch(() => Alert.alert('제안하기', `메일 앱을 열 수 없어요. ${SUPPORT_EMAIL} 로 보내주세요.`));
+  }, []);
+
+  // 🚀 명사 무대 제안 — 조직 제안과 같은 결(운영팀 메일). "이런 분을 보고 싶다"는 수요 신호를 받는 자리
+  const onProposeFigure = useCallback(() => {
+    haptic.tap();
+    const subject = '[Do:하다] 보고 싶은 명사 하다 제안';
+    const body = '안녕하세요, 운영팀.\n이런 분의 하다를 무대에서 보고 싶어요.\n\n· 보고 싶은 분:\n· 함께하고 싶은 하다:\n';
+    Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`)
+      .catch(() => Alert.alert('제안하기', `메일 앱을 열 수 없어요. ${SUPPORT_EMAIL} 로 보내주세요.`));
+  }, []);
+
+  // 🚀 무대 카드 탭 — 모집이 닫힌 무대는 미리보기로 보내지 않는다. 합류 버튼까지 갔다가 거부당하는
+  //   막다른 길이 된다(방 비멤버 FAB(v2.12)와 같은 '회색 비활성 + 안내' 결). 명사·조직 무대가 공유.
+  const onStagePress = useCallback((c: OpenChallengeCard) => {
+    if (!isRecruiting(c)) {
+      haptic.warning();
+      Alert.alert('모집 마감', '지금은 새로 합류할 수 없는 무대예요. 다음 무대를 기다려주세요.');
+      return;
+    }
+    openPreview(c);
+  }, [openPreview]);
 
   const onVote = useCallback(async (challengeId: string, voteType: ChallengeVoteType) => {
     if (!myUserId) return;
@@ -146,58 +263,9 @@ export default function DiscoverScreen() {
     <Screen backgroundColor={colors.bg}>
       <AppHeader />
       <View style={styles.subHeader}>
-        <Text style={styles.subTitle}>하다 구경</Text>
+        <Text style={styles.subTitle}>광장</Text>
+        <Text style={styles.subCaption}>아직 만나지 못한 하다</Text>
       </View>
-
-      {/* 안내 — 탐색이 아니라 '참조' 톤 */}
-      <View style={styles.curationInfo}>
-        <Telescope size={18} color={colors.brandInk} strokeWidth={1.8} />
-        <Text style={styles.curationText}>
-          남들은 무슨 하다 하나 — <Text style={styles.curationStrong}>살펴보고 따라해 보세요</Text>
-        </Text>
-      </View>
-
-      {/* 카테고리 필터 칩 — 전체 / 내 관심 / 목록에 있는 분류만 */}
-      {!loading && !error && (categories.length > 1 || (myInterestIds.size > 0 && items.length > 0)) && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filterRow}
-          contentContainerStyle={styles.filterRowInner}
-        >
-          <Pressable
-            style={[styles.filterChip, !categoryFilter && styles.filterChipActive]}
-            onPress={() => { haptic.tap(); setCategoryFilter(null); }}
-          >
-            <Text style={[styles.filterChipText, !categoryFilter && styles.filterChipTextActive]}>전체</Text>
-          </Pressable>
-          {/* 내 관심 — '전체' 다음, 기존 칩과 동일한 텍스트 버튼 (등록한 관심이 있을 때만) */}
-          {myInterestIds.size > 0 && (
-            <Pressable
-              style={[styles.filterChip, categoryFilter === INTEREST_FILTER_KEY && styles.filterChipActive]}
-              onPress={() => {
-                haptic.tap();
-                setCategoryFilter(categoryFilter === INTEREST_FILTER_KEY ? null : INTEREST_FILTER_KEY);
-              }}
-            >
-              <Text style={[styles.filterChipText, categoryFilter === INTEREST_FILTER_KEY && styles.filterChipTextActive]}>내 관심</Text>
-            </Pressable>
-          )}
-          {categories.map(name => {
-            const active = categoryFilter === name;
-            return (
-              <Pressable
-                key={name}
-                style={[styles.filterChip, active && styles.filterChipActive]}
-                onPress={() => { haptic.tap(); setCategoryFilter(active ? null : name); }}
-              >
-                <CategoryIcon slug={categorySlugByName[name]} size={14} color={active ? colors.brandInk : colors.sub} />
-                <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>{name}</Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      )}
 
       {loading ? (
         <View style={styles.list}>
@@ -209,15 +277,150 @@ export default function DiscoverScreen() {
         <ErrorState message={error} onRetry={() => { setLoading(true); load(); }} />
       ) : (
         <FlatList
-          data={filteredItems}
+          data={visibleItems}
           keyExtractor={c => c.id}
           contentContainerStyle={styles.list}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />
           }
+          // 무대 · 누구나 합류 두 섹션은 헤더로 얹는다 (ScrollView 중첩 없이 리스트 가상화 유지)
+          ListHeaderComponent={
+            <View>
+              {/* ① 🏛️ 무대 — 명사·조직이 연 하다. 명사/조직 각 자리는 0개여도 지킨다(상설) */}
+              <Text style={styles.sectionLabel}>🏛️ 무대</Text>
+              <Text style={styles.sectionHint}>명사와 조직이 여는 하다</Text>
+
+              {/* ⭐ 명사의 하다 */}
+              <Text style={styles.stageSubLabel}>⭐ 명사의 하다</Text>
+              {figureItems.length > 0 ? (
+                figureItems.map(c => (
+                  <StageCard key={c.id} challenge={c} onPress={() => onStagePress(c)} />
+                ))
+              ) : (
+                <View style={styles.stageEmpty}>
+                  <Text style={styles.stageEmptyTitle}>아직 열린 명사의 하다가 없어요</Text>
+                  <Text style={styles.stageEmptyText}>명사가 여는 하다가 여기 열립니다</Text>
+                  <Pressable style={styles.proposeBtn} onPress={onProposeFigure}>
+                    <Text style={styles.proposeBtnText}>보고 싶은 명사 제안하기</Text>
+                  </Pressable>
+                </View>
+              )}
+
+              {/* 🏛️ 조직의 하다 */}
+              <Text style={styles.stageSubLabel}>🏛️ 조직의 하다</Text>
+              {orgItems.length > 0 ? (
+                orgItems.map(c => (
+                  <StageCard key={c.id} challenge={c} onPress={() => onStagePress(c)} />
+                ))
+              ) : (
+                <View style={styles.stageEmpty}>
+                  <Text style={styles.stageEmptyTitle}>아직 열린 조직의 하다가 없어요</Text>
+                  <Text style={styles.stageEmptyText}>조직과 모임이 여는 하다가 여기 열립니다</Text>
+                  <Pressable style={styles.proposeBtn} onPress={onProposeStage}>
+                    <Text style={styles.proposeBtnText}>우리 조직 하다 제안하기</Text>
+                  </Pressable>
+                </View>
+              )}
+
+              {/* ② 🌍 지금 합류할 수 있는 하다 (누구나) */}
+              <Text style={[styles.sectionLabel, styles.sectionGap]}>🌍 지금 합류할 수 있는 하다</Text>
+              {joinableItems.length > 0 ? (
+                <>
+                  {joinableItems.slice(0, joinVisibleCount).map(c => (
+                    <JoinCard key={c.id} challenge={c} onJoin={() => openPreview(c)} />
+                  ))}
+                  {joinableItems.length > joinVisibleCount && (
+                    <Pressable
+                      style={styles.moreBtn}
+                      onPress={() => { haptic.tap(); setJoinVisibleCount(v => v + BROWSE_STEP_COUNT); }}
+                    >
+                      <Text style={styles.moreBtnText}>더 보기 ({joinableItems.length - joinVisibleCount}개 남음)</Text>
+                    </Pressable>
+                  )}
+                </>
+              ) : (
+                <Text style={styles.sectionEmptyText}>지금 합류할 수 있는 하다가 없어요. 곧 새 하다가 열려요.</Text>
+              )}
+
+              {/* ③ 🔭 하다 구경 — 익명 발상 라이브러리 (기존 목록·칩·4평가·따라하기 유지) */}
+              <Text style={[styles.sectionLabel, styles.sectionGap]}>🔭 하다 구경</Text>
+
+              {/* 안내 — 탐색이 아니라 '참조' 톤 */}
+              <View style={styles.curationInfo}>
+                <Telescope size={18} color={colors.brandInk} strokeWidth={1.8} />
+                <Text style={styles.curationText}>
+                  남들은 무슨 하다 하나 — <Text style={styles.curationStrong}>살펴보고 따라해 보세요</Text>
+                </Text>
+              </View>
+
+              {/* 🚀 관심 미등록 안내 — 목록을 대체하지 않는다(아래에 전체 최신 하다가 그대로 보인다) */}
+              {myInterestIds.size === 0 && (
+                <View style={styles.interestNudge}>
+                  <Text style={styles.interestNudgeTitle}>관심 분류를 정해보세요</Text>
+                  <Text style={styles.interestNudgeText}>내 관심 분야의 하다를 먼저 보여드려요.</Text>
+                  <Pressable
+                    style={styles.interestNudgeBtn}
+                    onPress={() => { haptic.tap(); router.push('/(tabs)/profile?interests=1' as any); }}
+                  >
+                    <Text style={styles.interestNudgeBtnText}>관심 정하기</Text>
+                  </Pressable>
+                </View>
+              )}
+
+              {/* 카테고리 필터 칩 — 전체 / 내 관심 / 목록에 있는 분류만 */}
+              {(categories.length > 1 || (myInterestIds.size > 0 && items.length > 0)) && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.filterRow}
+                  contentContainerStyle={styles.filterRowInner}
+                >
+                  <Pressable
+                    style={[styles.filterChip, !categoryFilter && styles.filterChipActive]}
+                    onPress={() => changeFilter(null)}
+                  >
+                    <Text style={[styles.filterChipText, !categoryFilter && styles.filterChipTextActive]}>전체</Text>
+                  </Pressable>
+                  {/* 내 관심 — '전체' 다음, 기존 칩과 동일한 텍스트 버튼 (등록한 관심이 있을 때만) */}
+                  {myInterestIds.size > 0 && (
+                    <Pressable
+                      style={[styles.filterChip, categoryFilter === INTEREST_FILTER_KEY && styles.filterChipActive]}
+                      onPress={() => changeFilter(categoryFilter === INTEREST_FILTER_KEY ? null : INTEREST_FILTER_KEY)}
+                    >
+                      <Text style={[styles.filterChipText, categoryFilter === INTEREST_FILTER_KEY && styles.filterChipTextActive]}>내 관심</Text>
+                    </Pressable>
+                  )}
+                  {categories.map(name => {
+                    const active = categoryFilter === name;
+                    return (
+                      <Pressable
+                        key={name}
+                        style={[styles.filterChip, active && styles.filterChipActive]}
+                        onPress={() => changeFilter(active ? null : name)}
+                      >
+                        <CategoryIcon slug={categorySlugByName[name]} size={14} color={active ? colors.brandInk : colors.sub} />
+                        <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>{name}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              )}
+            </View>
+          }
           renderItem={({ item }) => (
             <BrowseCard challenge={item} onVote={(t) => onVote(item.id, t)} onCopy={() => onCopy(item)} />
           )}
+          // 남은 하다는 '더 보기'로만 펼친다 (다 펼치면 조건이 거짓이 되어 버튼이 저절로 사라짐)
+          ListFooterComponent={
+            filteredItems.length > visibleCount ? (
+              <Pressable
+                style={styles.moreBtn}
+                onPress={() => { haptic.tap(); setVisibleCount(v => v + BROWSE_STEP_COUNT); }}
+              >
+                <Text style={styles.moreBtnText}>더 보기 ({filteredItems.length - visibleCount}개 남음)</Text>
+              </Pressable>
+            ) : null
+          }
           ListEmptyComponent={
             <View style={styles.empty}>
               <Telescope size={48} color={colors.faint} strokeWidth={1.5} />
@@ -228,11 +431,79 @@ export default function DiscoverScreen() {
                   ? `${categoryFilter} 분류의 하다가 아직 없어요.`
                   : '아직 살펴볼 하다가 없어요.'}
               </Text>
+              {/* 필터 때문에 0개면 막다른 길이라 탈출구를 준다 (정말 하나도 없으면 띄우지 않음) */}
+              {categoryFilter && (
+                <Pressable style={styles.moreBtn} onPress={() => changeFilter(null)}>
+                  <Text style={styles.moreBtnText}>전체 보기</Text>
+                </Pressable>
+              )}
             </View>
           }
         />
       )}
+
+      {/* 무대·누구나 합류 공용 — 안내문 미리보기 후 합류 결정 */}
+      <OpenJoinPreviewSheet
+        challenge={previewCard}
+        joining={joining}
+        onClose={() => setPreviewCard(null)}
+        onConfirm={doJoin}
+      />
     </Screen>
+  );
+}
+
+// ─── 🏛️ 무대 카드 — 명사·조직이 연 하다 (신원 공개가 전제인 별개 데이터) ───
+function StageCard({ challenge, onPress }: { challenge: OpenChallengeCard; onPress: () => void }) {
+  return (
+    <Pressable style={[styles.card, styles.headerCard]} onPress={onPress}>
+      <HostBadge hostTier={challenge.host_tier} hostLabel={challenge.host_label} />
+      <Text style={styles.cardTitle} numberOfLines={2}>{displayTitle(challenge.title)}</Text>
+      {challenge.description ? (
+        <Text style={styles.cardDesc} numberOfLines={2}>{challenge.description}</Text>
+      ) : null}
+      <Text style={styles.metaText}>
+        {challenge.category ? `${challenge.category.name} · ` : ''}함께 {formatCheerCount(challenge.member_count)}명
+      </Text>
+      {/* 🚀 모집이 닫힌 무대는 정직하게 밝힌다 — 개설자가 손수 잠갔거나 기간이 지난 경우.
+          '종료'가 아니라 '모집 마감'이다: 기존 멤버의 인증·기록·대화는 그대로 이어진다. */}
+      {!isRecruiting(challenge) && (
+        <View style={styles.stageClosedChip}>
+          <Text style={styles.stageClosedText}>모집 마감</Text>
+        </View>
+      )}
+    </Pressable>
+  );
+}
+
+// ─── 🌍 누구나 합류 카드 ───
+function JoinCard({ challenge, onJoin }: { challenge: OpenChallengeCard; onJoin: () => void }) {
+  return (
+    <Pressable style={[styles.card, styles.headerCard]} onPress={onJoin}>
+      <View style={styles.cardHeader}>
+        <View style={[styles.typeBadge, { backgroundColor: colors.done }]}>
+          <Globe size={12} color={colors.onBrand} strokeWidth={2.2} />
+          <Text style={styles.typeBadgeText}>누구나</Text>
+        </View>
+        {challenge.category && (
+          <View style={styles.categoryRow}>
+            <CategoryIcon slug={categorySlugByName[challenge.category.name]} size={13} color={colors.sub} />
+            <Text style={styles.categoryText} numberOfLines={1}>{challenge.category.name}</Text>
+          </View>
+        )}
+      </View>
+      <Text style={styles.cardTitle} numberOfLines={2}>{displayTitle(challenge.title)}</Text>
+      {challenge.description ? (
+        <Text style={styles.cardDesc} numberOfLines={2}>{challenge.description}</Text>
+      ) : null}
+      <Text style={styles.metaText}>함께 {formatCheerCount(challenge.member_count)}명</Text>
+      <View style={styles.cardFooter}>
+        <View style={{ flex: 1 }} />
+        <Pressable style={styles.copyBtn} onPress={onJoin} hitSlop={4}>
+          <Text style={styles.copyBtnText}>함께 합류하기</Text>
+        </Pressable>
+      </View>
+    </Pressable>
   );
 }
 
@@ -325,19 +596,102 @@ function methodText(c: BrowseChallengeCard): string {
 const styles = StyleSheet.create({
   subHeader: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
   subTitle: { ...textStyle.greeting, color: colors.ink, letterSpacing: -0.3 },
+  subCaption: { fontSize: fontSize.sm, color: colors.faint, fontFamily: fontFamily.regular, marginTop: 3 },
+
+  // 섹션 (무대 / 누구나 합류 / 하다 구경) — 리스트 헤더 안이라 좌우 여백은 list 가 담당
+  sectionLabel: { fontSize: fontSize.lg, color: colors.ink, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
+  sectionHint: { fontSize: fontSize.xs, color: colors.faint, fontFamily: fontFamily.regular, marginTop: 2, marginBottom: 10 },
+  sectionGap: { marginTop: 28, marginBottom: 10 },
+  sectionEmptyText: {
+    fontSize: fontSize.sm, color: colors.faint, fontFamily: fontFamily.regular,
+    lineHeight: 20, paddingVertical: 8,
+  },
+  headerCard: { marginBottom: 12 },
+  stageClosedChip: {
+    alignSelf: 'flex-start', marginTop: 8,
+    paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: radius.pill, backgroundColor: colors.primary50,
+  },
+  stageClosedText: {
+    fontSize: fontSize.xs, color: colors.primary500,
+    fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
+    includeFontPadding: false,
+  },
+
+  // 무대 하위 라벨 (⭐명사 / 🏛️조직) — 섹션 라벨보다 한 단 낮은 위계
+  stageSubLabel: {
+    marginTop: 16, marginBottom: 8,
+    fontSize: fontSize.sm, color: colors.sub,
+    fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
+    includeFontPadding: false,
+  },
+
+  // 무대 빈 상태 — 0개여도 숨기지 않고 "여기 열립니다"를 보여준다 (상설 자리)
+  stageEmpty: {
+    alignItems: 'center', gap: 8,
+    paddingHorizontal: 20, paddingVertical: 24,
+    borderRadius: radius.xl, borderWidth: 1, borderColor: colors.tintSageLine,
+    backgroundColor: colors.tintSage,
+  },
+  stageEmptyTitle: { fontSize: fontSize.base, color: colors.ink, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
+  stageEmptyText: { fontSize: fontSize.sm, color: colors.sub, fontFamily: fontFamily.regular, textAlign: 'center', lineHeight: 20 },
+  proposeBtn: {
+    marginTop: 6, minHeight: 40, justifyContent: 'center',
+    paddingHorizontal: 18, paddingVertical: 10,
+    borderRadius: radius.pill, backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.done,
+  },
+  proposeBtnText: {
+    fontSize: fontSize.sm, includeFontPadding: false,
+    color: colors.doneInk, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
+  },
 
   curationInfo: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    marginHorizontal: 20, marginBottom: 12,
+    marginBottom: 12,
     paddingHorizontal: 14, paddingVertical: 10,
     backgroundColor: colors.brandTint, borderRadius: radius.md,
   },
   curationText: { flex: 1, fontSize: fontSize.sm, color: colors.sub, fontFamily: fontFamily.regular },
   curationStrong: { color: colors.brandInk, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
 
+  // 관심 미등록 안내 — 무대 빈 상태(초록)와 구분되게 하다 구경 톤(브랜드)
+  interestNudge: {
+    alignItems: 'center', gap: 6,
+    marginBottom: 12,
+    paddingHorizontal: 20, paddingVertical: 18,
+    borderRadius: radius.xl, borderWidth: 1, borderColor: colors.brandTint,
+    backgroundColor: colors.brandTint,
+  },
+  interestNudgeTitle: { fontSize: fontSize.base, color: colors.ink, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
+  interestNudgeText: { fontSize: fontSize.sm, color: colors.sub, fontFamily: fontFamily.regular, textAlign: 'center', lineHeight: 20 },
+  interestNudgeBtn: {
+    marginTop: 6, minHeight: 40, justifyContent: 'center',
+    paddingHorizontal: 18, paddingVertical: 10,
+    borderRadius: radius.pill, backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.brand,
+  },
+  interestNudgeBtnText: {
+    fontSize: fontSize.sm, includeFontPadding: false,
+    color: colors.brandInk, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
+  },
+
+  // 더 보기 / 전체 보기 — 가운데 정렬 pill (하다 구경 목록 하단·빈 상태 공용)
+  moreBtn: {
+    alignSelf: 'center', minHeight: 44, justifyContent: 'center',
+    marginTop: 4,
+    paddingHorizontal: 22, paddingVertical: 12,
+    borderRadius: radius.pill, backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.brand,
+  },
+  moreBtnText: {
+    fontSize: fontSize.sm, includeFontPadding: false,
+    color: colors.brandInk, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
+  },
+
   // 칩 높이를 lineHeight+height 로 결정화 (이모지·기기 무관, 갤S9 잘림 방지)
   filterRow: { flexGrow: 0, minHeight: 48, marginBottom: 8 },
-  filterRowInner: { paddingHorizontal: 20, gap: 8, alignItems: 'center' },
+  filterRowInner: { gap: 8, alignItems: 'center' },
   filterChip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 14, paddingVertical: 8,
