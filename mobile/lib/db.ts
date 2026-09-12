@@ -205,6 +205,8 @@ export async function fetchMyChallenges(myUserId?: string): Promise<ChallengeWit
       is_today_checked: myTodayProofSet.has(c.id),
       my_streak: streak,
       my_role: myRoleMap.get(c.id) ?? 'member',   // 🚀 0069
+      host_tier: (c.host_tier ?? 'individual') as ChallengeWithCount['host_tier'],   // 🚀 0058: 내 하다 목록 HostBadge 근거
+      host_label: c.host_label ?? null,
       has_new_chat: c.kind !== 'solo' && hasNewChatSet.has(c.id),
       has_new_log: c.kind !== 'solo' && hasNewLogSet.has(c.id),
       goal_type: (c.goal_type ?? 'cadence') as ChallengeGoalType,   // 🚀 0041
@@ -475,6 +477,9 @@ export async function fetchMyChallengesWithDetails(myUserId: string): Promise<My
     my_streak: myStreak(c.id),   // 홈 카드 'N일 연속' 배지
     reference_count: c.reference_count ?? 0,   // 🚀 0050: 따라하기 참조 횟수
     my_role: myRoleMap.get(c.id) ?? 'member',   // 🚀 0069
+    // 🚀 0058: 무대 표식 — 홈이 무대(명사·조직)를 개인 하다와 가르는 근거. select('*')로 받아놓고 안 옮겨 홈 분리가 죽어 있었다
+    host_tier: (c.host_tier ?? 'individual') as MyChallengeDetail['host_tier'],
+    host_label: c.host_label ?? null,
     // 솔로 방은 나 혼자라 '새 대화·새 기록' 개념이 없다 (fetchMyChallenges 와 동일 규칙)
     has_new_chat: c.kind !== 'solo' && hasNewChatSet.has(c.id),
     has_new_log: c.kind !== 'solo' && hasNewLogSet.has(c.id),
