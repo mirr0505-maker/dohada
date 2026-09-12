@@ -194,6 +194,9 @@ export default function HomeScreen() {
     .sort((a, b) => Number(needsTodayCheck(b)) - Number(needsTodayCheck(a)))   // 오늘 할 일 우선
     .slice(0, HOME_ACTIVE_LIMIT);
   const visibleStageChs = stageActiveChs.slice(0, HOME_STAGE_LIMIT);
+  // 🚀 0069: 조직 하다 주최자(my_role='host')의 무대는 '참여 중'이 아니라 '내가 주최하는' 자리 — 개설/참여 밴드와 같은 구분
+  const hostedStageChs = visibleStageChs.filter(c => c.my_role === 'host');
+  const joinedStageChs = visibleStageChs.filter(c => c.my_role !== 'host');
 
   // 🚀 완주 리본 노출 규칙 ('하다 인연들의 하루' 피드):
   //   ① 내 완주 제외 — 내 완주는 '오늘, 나의 하다'·내 하다 탭에서 보임. 이 피드는 '하다 인연(타인)의 하루'.
@@ -295,14 +298,16 @@ export default function HomeScreen() {
               styles.metaBadge,
               { backgroundColor: c.creator_id === myUserId ? colors.accent50 : colors.primary50 }
             ]}>
-              {c.creator_id === myUserId
-                ? <Crown size={11} color={colors.accent700} strokeWidth={2} />
-                : <Users size={11} color={colors.primary500} strokeWidth={2} />}
+              {c.my_role === 'host'
+                ? <Landmark size={11} color={colors.accent700} strokeWidth={2} />
+                : c.creator_id === myUserId
+                  ? <Crown size={11} color={colors.accent700} strokeWidth={2} />
+                  : <Users size={11} color={colors.primary500} strokeWidth={2} />}
               <Text style={[
                 styles.metaBadgeText,
                 { color: c.creator_id === myUserId ? colors.accent700 : colors.primary500 }
               ]}>
-                {c.creator_id === myUserId ? '개설' : '참여'}
+                {c.my_role === 'host' ? '주최' : c.creator_id === myUserId ? '개설' : '참여'}
               </Text>
             </View>
 
@@ -569,11 +574,17 @@ export default function HomeScreen() {
                   {joinedBandChs.map(renderActiveCard)}
                 </>
               )}
-              {/* 🚀 무대 = 명사·조직이 연 하다. 개인 하다와 섞이지 않게 따로 모은다 */}
-              {visibleStageChs.length > 0 && (
+              {/* 🚀 무대 = 명사·조직이 연 하다. 개인 하다와 섞이지 않게 따로 모은다 — 주최/참여도 가른다 */}
+              {hostedStageChs.length > 0 && (
+                <>
+                  <Text style={styles.bandLabel}>🏛️ 내가 주최하는 무대</Text>
+                  {hostedStageChs.map(renderActiveCard)}
+                </>
+              )}
+              {joinedStageChs.length > 0 && (
                 <>
                   <Text style={styles.bandLabel}>🏛️ 참여 중인 무대</Text>
-                  {visibleStageChs.map(renderActiveCard)}
+                  {joinedStageChs.map(renderActiveCard)}
                 </>
               )}
               {/* 상한 초과분은 내도전 탭으로 — 홈 스크롤 폭증 방지 */}

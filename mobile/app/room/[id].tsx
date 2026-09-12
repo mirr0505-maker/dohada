@@ -19,7 +19,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { ProofCardSkeleton } from '@/components/Skeleton';
 import {
   MessageCircle, Camera, Film, BarChart3, Trophy, ArrowLeft, Flag, Flame,
-  HeartHandshake, Heart, Coffee, Lock, Globe, RotateCcw, PenLine, Calendar,
+  HeartHandshake, Heart, Coffee, Lock, Globe, RotateCcw, PenLine, Calendar, Landmark,
   Check, Play, Pause, Gift, type LucideIcon,
 } from 'lucide-react-native';
 import { CommentsSheet } from '@/components/CommentsSheet';
@@ -1113,6 +1113,15 @@ export default function ChallengeRoom() {
                   </Text>
                 </View>
               )}
+              {/* 🚀 0069: 조직 하다 주최자 시선 — 인증 FAB 이 없는 이유를 빈 화면 대신 말로 알린다(응원자 배너와 같은 결) */}
+              {iAmHost && (
+                <View style={styles.cheerRoleBanner}>
+                  <Landmark size={15} color={colors.gold} strokeWidth={1.8} />
+                  <Text style={styles.cheerRoleBannerText}>
+                    내가 주최하는 하다예요 · 인증은 참여자의 몫, 공지·후기는 기록 탭에서
+                  </Text>
+                </View>
+              )}
               {orphanUnclaimedGift ? (
                 <Pressable
                   style={styles.giftArrivedBanner}
@@ -1168,7 +1177,9 @@ export default function ChallengeRoom() {
               <Text style={styles.emptyText}>
                 {isCheeredCheerOnly
                   ? `아직 ${creatorNickname}님의 인증이 없어요.\n곧 올라올 거예요`
-                  : '아직 인증이 없어요.\n오늘 어떤 한 걸음을 남기셨어요?'}
+                  : iAmHost
+                    ? '아직 참여자의 인증이 없어요.\n첫 인증이 올라오면 여기에 모여요'
+                    : '아직 인증이 없어요.\n오늘 어떤 한 걸음을 남기셨어요?'}
               </Text>
             </View>
           }
