@@ -145,6 +145,7 @@ export type OpenChallengeCard = ChallengeWithCount & {
   subcategory: { name: string } | null;
   votes_by_type: ChallengeVoteCounts;
   my_votes: ChallengeVoteType[];
+  is_joined: boolean;   // 🚀 무대 카드 CTA 분기용 — 내 활성 멤버 행이 있으면 true (개설자 포함)
 };
 
 // 🚀 하다 구경 (익명 발상 라이브러리, 0050) 카드 — browse_challenges RPC 반환.

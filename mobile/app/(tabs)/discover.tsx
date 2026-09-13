@@ -209,6 +209,12 @@ export default function DiscoverScreen() {
   // 🚀 무대 카드 탭 — 모집이 닫힌 무대는 미리보기로 보내지 않는다. 합류 버튼까지 갔다가 거부당하는
   //   막다른 길이 된다(방 비멤버 FAB(v2.12)와 같은 '회색 비활성 + 안내' 결). 명사·조직 무대가 공유.
   const onStagePress = useCallback((c: OpenChallengeCard) => {
+    // 무대는 누구나 목록과 달리 이미 참여 중(개설자 포함)에도 노출된다 — 미리보기→합류로 보내면 중복 합류 막다른 길이라 방으로 직행.
+    if (c.is_joined) {
+      haptic.tap();
+      router.push(`/room/${c.id}` as any);
+      return;
+    }
     if (!isRecruiting(c)) {
       haptic.warning();
       Alert.alert('모집 마감', '지금은 새로 합류할 수 없는 무대예요. 다음 무대를 기다려주세요.');
@@ -260,7 +266,8 @@ export default function DiscoverScreen() {
         frequency: c.frequency,
         ...(c.category_id != null ? { categoryId: String(c.category_id) } : {}),
         ...(c.target_count != null ? { targetCount: String(c.target_count) } : {}),
-        ...(c.description ? { desc: c.description } : {}),
+        // 안내문(description)은 일부러 넘기지 않는다 — 통째로 복제되면 원본(특히 조직·명사 무대)과
+        // 구분이 안 되는 '가짜 공식 하다'가 광장에 생긴다(2026-09-14 실제 발생). 안내문은 본인이 새로 쓴다.
       },
     });
   }, []);
@@ -498,6 +505,22 @@ function StageCard({ challenge, onPress }: { challenge: OpenChallengeCard; onPre
           <Text style={styles.stageClosedText}>모집 마감</Text>
         </View>
       )}
+      {/* 🚀 하단 CTA 3상태 — 참여 중(회색 → 방으로) / 모집 중(주황 합류) / 모집 마감(버튼 없음, 위 칩만) */}
+      {challenge.is_joined ? (
+        <View style={styles.cardFooter}>
+          <View style={{ flex: 1 }} />
+          <Pressable style={[styles.copyBtn, styles.copyBtnJoined]} onPress={onPress} hitSlop={4}>
+            <Text style={[styles.copyBtnText, styles.copyBtnJoinedText]}>참여 중</Text>
+          </Pressable>
+        </View>
+      ) : isRecruiting(challenge) ? (
+        <View style={styles.cardFooter}>
+          <View style={{ flex: 1 }} />
+          <Pressable style={styles.copyBtn} onPress={onPress} hitSlop={4}>
+            <Text style={styles.copyBtnText}>함께 합류하기</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -761,6 +784,8 @@ const styles = StyleSheet.create({
   refText: { flex: 1, fontSize: fontSize.xs, color: colors.faint, fontFamily: fontFamily.medium, fontWeight: fontWeight.medium },
   copyBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: radius.pill, backgroundColor: colors.brand },
   copyBtnText: { fontSize: fontSize.sm, color: colors.onBrand, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
+  copyBtnJoined: { backgroundColor: colors.primary100 },   // 참여 중 = 회색 (행동 아닌 상태 표시)
+  copyBtnJoinedText: { color: colors.sub },
 
   empty: { flex: 1, paddingVertical: 80, alignItems: 'center', justifyContent: 'center', gap: 16 },
   emptyText: { fontSize: fontSize.base, color: colors.faint, fontFamily: fontFamily.regular, textAlign: 'center', lineHeight: 22 },

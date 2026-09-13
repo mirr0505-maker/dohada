@@ -598,6 +598,7 @@ function mapOpenChallengeCard(c: any, myUserId: string | undefined): OpenChallen
     subcategory: c.subcategory ? { name: c.subcategory.name } : null,
     votes_by_type: votesByType,
     my_votes: myVotes,
+    is_joined: !!myUserId && activeMembers.some((m: any) => m.user_id === myUserId),
     host_tier: c.host_tier ?? 'individual',  // 🚀 0058: 주최 계층 (값 없으면 individual 폴백)
     host_label: c.host_label ?? null,         // 🚀 0058: 주최자명 (figure/org 만 채워짐)
     gave_up_at: c.gave_up_at ?? null,

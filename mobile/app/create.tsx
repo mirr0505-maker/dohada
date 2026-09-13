@@ -82,14 +82,14 @@ const ROOM_TYPES: { value: ChallengeKind; label: string; desc: string; Icon: Luc
 export default function CreateChallenge() {
   const session = useSession();
   const [step, setStep] = useState(1);
-  // 🚀 프리필 — ① 포기한 방 "다시 시작하기"(?title=) ② 하다 구경 "따라하기"(?ref= + 제목·분류·기간유형·빈도·내용)
+  // 🚀 프리필 — ① 포기한 방 "다시 시작하기"(?title=) ② 하다 구경 "따라하기"(?ref= + 제목·분류·기간유형·빈도 — 안내문은 복제 안 함)
   const {
     title: titleParam, kind: kindParam, ref: refParam,
     categoryId: categoryIdParam, goalType: goalTypeParam,
-    frequency: frequencyParam, targetCount: targetCountParam, desc: descParam,
+    frequency: frequencyParam, targetCount: targetCountParam,
   } = useLocalSearchParams<{
     title?: string; kind?: string; ref?: string; categoryId?: string;
-    goalType?: string; frequency?: string; targetCount?: string; desc?: string;
+    goalType?: string; frequency?: string; targetCount?: string;
   }>();
   // 숫자 파라미터 안전 파싱 (NaN 방지)
   const parseIntParam = (v?: string): number | null => {
@@ -117,7 +117,7 @@ export default function CreateChallenge() {
   );
   const [startDate, setStartDate] = useState<string>(toLocalDateStr(new Date())); // 🚀 당일 챌린지용 시작일 (로컬 기준 — 타임존 밀림 방지)
   // 🚀 안내문 (나홀로 제외) — 합류 전 미리보기·방 현황에 노출. 텍스트 + 보관함 이미지(선택)
-  const [description, setDescription] = useState(typeof descParam === 'string' ? descParam : '');
+  const [description, setDescription] = useState('');
   const [introImageUri, setIntroImageUri] = useState<string | null>(null);
   // 🚀 다인 내기 (다함께·누구나, 파일럿) — 개설 시 티어+모드 고정. null = 내기 없음
   const [betTier, setBetTier] = useState<BetTier | null>(null);
