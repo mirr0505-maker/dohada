@@ -5,7 +5,7 @@ import React, { useCallback, useState } from 'react';
 import {
   View, Text, Pressable, FlatList, StyleSheet, RefreshControl,
 } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Sprout, ArrowLeft } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -23,6 +23,8 @@ import { getTodayRange, displayTitle } from '@/lib/format';
 export default function MyChallengesScreen() {
   const session = useSession();
   const myUserId = session?.user?.id;
+  // 숨긴 탭이라 router.back() 은 탭 기본 동작(첫 탭=홈)으로 감 → 내 정보에서 왔으면 내 정보로 돌려보낸다
+  const { from } = useLocalSearchParams<{ from?: string }>();
   const [challenges, setChallenges] = useState<ChallengeWithCount[]>([]);
   const [gaveUpChs, setGaveUpChs] = useState<GivenUpChallenge[]>([]);   // 🚀 조용한 보관함 (v2.8)
   const [gaveUpOpen, setGaveUpOpen] = useState(false);                  // 기본 접힘 — 포기를 들이밀지 않기
@@ -72,7 +74,11 @@ export default function MyChallengesScreen() {
     <Screen backgroundColor={colors.bg}>
       {/* 탭이 아니라 push 라우트(홈 '모두 보기'·내 정보 '끝낸 하다') — 뒤로가기가 없으면 막다른 화면이 된다 */}
       <View style={styles.nav}>
-        <Pressable onPress={() => { haptic.tap(); router.back(); }} hitSlop={10} accessibilityLabel="뒤로">
+        <Pressable
+          onPress={() => { haptic.tap(); from === 'profile' ? router.navigate('/(tabs)/profile' as any) : router.back(); }}
+          hitSlop={10}
+          accessibilityLabel="뒤로"
+        >
           <ArrowLeft size={23} color={colors.ink} strokeWidth={1.8} />
         </Pressable>
         <Text style={styles.navTitle}>내 하다</Text>

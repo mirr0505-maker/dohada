@@ -196,7 +196,7 @@ export default function ProfileScreen() {
               icon={Archive}
               label="끝낸 하다"
               rightText={(footprints?.finished ?? 0) > 0 ? `${footprints?.finished}개` : undefined}
-              onPress={() => { haptic.tap(); router.push('/(tabs)/my-challenges' as any); }}
+              onPress={() => { haptic.tap(); router.push('/(tabs)/my-challenges?from=profile' as any); }}
             />
             <Divider />
             <ListRow
