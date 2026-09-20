@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5">
+<title>Do : 하다 — 비교 없이, 오늘도 한 걸음</title>
+<meta name="description" content="'하다'를 선언하고, 매일 인증하고, 동료의 응원을 받는 자아실현 SNS. 친구 신청도, 큰 숫자 비교도, 알림 폭격도 없어요. iOS · Android 베타.">
+<meta name="theme-color" content="#FF6B35">
+
+<!-- Open Graph -->
+<meta property="og:title" content="Do : 하다 — 비교 없이, 오늘도 한 걸음">
+<meta property="og:description" content="'하다'를 선언하고, 매일 인증하고, 동료의 응원을 받는 자아실현 SNS. iOS · Android 베타.">
+<meta property="og:image" content="https://mirr0505-maker.github.io/dohada/icon.png">
+<meta property="og:type" content="website">
+
+<!-- Pretendard Font (guide.html 과 동일 — 유일한 외부 의존) -->
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css" />
+
+<style>
+  /* ── Reset & Base ───────────────────────────────── */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; scroll-padding-top: 64px; }
+  body {
+    font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+                 "Noto Sans KR", "Helvetica Neue", Arial, sans-serif;
+    color: #1A1A1A;
+    background: #FFFFFF;
+    line-height: 1.6;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+    padding-top: 56px; /* 고정 nav 높이 */
+  }
+  a { color: inherit; text-decoration: none; }
+  img { max-width: 100%; display: block; }
+  button { font: inherit; cursor: pointer; }
+
+  /* ── Tokens (index.html 과 동일 — 신규 팔레트 없음) ── */
+  :root {
+    --accent: #FF6B35;
+    --accent-700: #C44A1C;
+    --accent-50: #FFF4ED;
+    --accent-100: #FFE4D6;
+    --primary: #1A1A1A;
+    --primary-500: #6B6B6B;
+    --primary-300: #9C9C9C;
+    --primary-100: #E8E8E8;
+    --primary-50: #F5F5F5;
+    --success: #4CAF50;
+    --success-50: #E8F5E9;
+    --bg: #FFFFFF;
+    --bg-soft: #FAFAFA;
+  }
+
+  /* ── Layout ─────────────────────────────────────── */
+  .container { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+  .narrow { max-width: 720px; margin-left: auto; margin-right: auto; }
+  section { padding: 72px 0; }
+  @media (max-width: 480px) {
+    section { padding: 48px 0; }
+    .container { padding: 0 20px; }
+  }
+
+  /* ── Nav (고정) ──────────────────────────────────── */
+  .topnav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    height: 56px;
+    background: rgba(255,255,255,0.92);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--primary-100);
+  }
+  .topnav .container {
+    height: 100%;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .brand {
+    display: inline-flex; align-items: baseline; gap: 2px;
+    font-size: 17px; font-weight: 800; color: var(--primary); letter-spacing: -0.4px;
+    white-space: nowrap;
+  }
+  .brand .colon { color: var(--accent); }
+  .nav-links { display: flex; align-items: center; gap: 18px; font-size: 14px; font-weight: 600; color: var(--primary-500); }
+  .nav-links a:hover { color: var(--primary); }
+  .lang { display: inline-flex; border: 1px solid var(--primary-100); border-radius: 999px; overflow: hidden; }
+  .lang button {
+    background: white; border: 0; padding: 5px 10px;
+    font-size: 12px; font-weight: 700; color: var(--primary-500);
+  }
+  .lang button.active { background: var(--primary); color: white; }
+  @media (max-width: 560px) {
+    .nav-links { gap: 12px; font-size: 13px; }
+    .topnav .container { padding: 0 14px; gap: 8px; }
+    .lang button { padding: 5px 8px; }
+  }
+
+  /* ── Hero ───────────────────────────────────────── */
+  .hero {
+    background: linear-gradient(180deg, var(--accent-50) 0%, #FFFFFF 100%);
+    padding: 72px 0 64px;
+  }
+  .hero .container {
+    display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 48px; align-items: center;
+  }
+  .hero-mark {
+    color: var(--accent);
+    margin-bottom: 20px;
+    display: inline-flex; align-items: center; gap: 10px;
+    user-select: none;
+    --ring-size: 40px; --paren-size: 44px; --border-w: 4px; --dot-size: 10px;
+  }
+  .hero-mark .paren { display: inline-block; font-size: var(--paren-size); font-weight: 700; line-height: 1; animation: cheer 2.4s ease-in-out infinite; }
+  .hero-mark .ring {
+    display: inline-flex; width: var(--ring-size); height: var(--ring-size);
+    border-radius: 50%; border: var(--border-w) solid var(--accent);
+    align-items: center; justify-content: center;
+  }
+  .hero-mark .ring .dot { width: var(--dot-size); height: var(--dot-size); border-radius: 50%; background: var(--accent); }
+  .hero-mark .paren.l { transform-origin: right center; --shift: -5px; }
+  .hero-mark .paren.r { transform-origin: left center;  --shift:  5px; }
+  @keyframes cheer { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(var(--shift)); } }
+  @media (prefers-reduced-motion: reduce) { .hero-mark .paren { animation: none; } }
+  .hero-tag {
+    display: inline-block; padding: 6px 14px;
+    background: var(--accent); color: white; border-radius: 999px;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.4px; margin-bottom: 24px;
+  }
+  .hero h1 { font-size: 42px; font-weight: 800; line-height: 1.22; color: var(--primary); letter-spacing: -0.9px; margin-bottom: 18px; }
+  .hero h1 .accent { color: var(--accent); }
+  .hero p.lead { font-size: 17px; color: var(--primary-500); max-width: 480px; margin: 0 0 32px; line-height: 1.7; }
+  .cta-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .cta {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 15px 26px; background: var(--accent); color: white !important;
+    border-radius: 999px; font-size: 16px; font-weight: 700;
+    box-shadow: 0 10px 30px rgba(255, 107, 53, 0.32);
+    transition: transform 0.15s, box-shadow 0.15s; border: 0;
+  }
+  .cta:hover { transform: translateY(-2px); box-shadow: 0 14px 36px rgba(255, 107, 53, 0.42); }
+  .cta:active { transform: translateY(0); }
+  .cta.ghost { background: white; color: var(--primary) !important; border: 1px solid var(--primary-100); box-shadow: none; }
+  .cta.ghost:hover { border-color: var(--primary-300); }
+  .cta-note { font-size: 13px; color: var(--primary-500); margin-top: 14px; }
+  .hero-shot { display: flex; justify-content: center; }
+  @media (max-width: 860px) {
+    .hero { padding: 48px 0 56px; text-align: center; }
+    .hero .container { grid-template-columns: 1fr; gap: 36px; }
+    .hero p.lead { margin: 0 auto 28px; }
+    .cta-row { justify-content: center; }
+    .hero h1 { font-size: 32px; letter-spacing: -0.6px; }
+    .hero p.lead { font-size: 15px; }
+  }
+
+  /* ── 스크린샷 (img 실패 시 폰 프레임 자리표시자로 교체) ── */
+  .shot {
+    width: 100%; max-width: 300px;
+    border-radius: 28px; border: 6px solid var(--primary);
+    box-shadow: 0 24px 60px rgba(26, 26, 26, 0.18);
+    background: var(--primary-50);
+  }
+  .shot-placeholder {
+    width: 100%; max-width: 300px; aspect-ratio: 9 / 19;
+    border-radius: 28px; border: 6px solid var(--primary-100);
+    background: var(--primary-50);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+    color: var(--primary-300); font-size: 13px; font-weight: 600; text-align: center; padding: 20px;
+  }
+  .shot-placeholder .notch { width: 80px; height: 8px; border-radius: 999px; background: var(--primary-100); margin-bottom: 12px; }
+  .shot-placeholder small { font-size: 11px; font-weight: 400; color: var(--primary-300); }
+
+  /* ── Section Common ─────────────────────────────── */
+  .label { display: inline-block; font-size: 12px; font-weight: 700; color: var(--accent-700); letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 12px; }
+  h2 { font-size: 28px; font-weight: 800; line-height: 1.3; color: var(--primary); letter-spacing: -0.5px; margin-bottom: 16px; }
+  h2 .accent { color: var(--accent); }
+  .section-lead { font-size: 16px; color: var(--primary-500); line-height: 1.7; margin-bottom: 32px; }
+  .sub-block { margin-top: 64px; }
+  @media (max-width: 480px) { h2 { font-size: 24px; } .sub-block { margin-top: 48px; } }
+
+  /* ── #why: Diagnosis ────────────────────────────── */
+  .why { background: var(--bg-soft); }
+  .diag p { font-size: 15px; color: var(--primary); line-height: 1.75; margin-bottom: 16px; }
+  .diag .quiet { color: var(--primary-500); }
+
+  /* ── #why: Three Questions ──────────────────────── */
+  .q-list { display: flex; flex-direction: column; gap: 14px; }
+  .q-item {
+    background: white; border: 1px solid var(--primary-100); border-radius: 16px;
+    padding: 20px 22px 20px 66px; position: relative;
+  }
+  .q-num {
+    position: absolute; left: 22px; top: 20px; width: 28px; height: 28px; border-radius: 50%;
+    background: var(--accent); color: white; font-size: 13px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .q-text { font-size: 15px; color: var(--primary); line-height: 1.65; }
+  .q-text .strong { font-weight: 700; }
+  .q-text .answer { display: block; color: var(--primary-500); margin-top: 4px; font-size: 14px; }
+
+  /* ── #why: Maslow Table ─────────────────────────── */
+  .maslow-grid {
+    display: grid; grid-template-columns: 1fr 1.4fr 1.4fr; gap: 1px;
+    background: var(--primary-100); border-radius: 16px; overflow: hidden;
+    border: 1px solid var(--primary-100); font-size: 13.5px;
+  }
+  .maslow-grid > div { background: white; padding: 14px; }
+  .maslow-grid .head { background: var(--primary-50); font-weight: 700; color: var(--primary-500); text-align: center; font-size: 12px; letter-spacing: 0.4px; }
+  .maslow-grid .stage { font-weight: 700; color: var(--primary); }
+  .maslow-grid .dohada { color: var(--accent-700); font-weight: 600; }
+  .maslow-grid .star { background: var(--accent-50); }
+  .maslow-quote { margin-top: 32px; padding: 28px 24px; background: white; border-radius: 16px; text-align: center; line-height: 1.9; border: 1px solid var(--primary-100); }
+  .maslow-quote .line { color: var(--primary); font-weight: 700; font-size: 18px; letter-spacing: -0.3px; }
+  .maslow-quote small { color: var(--primary-500); font-size: 13px; font-weight: 400; letter-spacing: 0; }
+  .maslow-quote .focus { color: var(--accent-700); font-size: 19px; }
+  @media (max-width: 480px) {
+    .maslow-quote .line { font-size: 16px; }
+    .maslow-quote .focus { font-size: 17px; }
+    .maslow-grid { font-size: 12.5px; }
+    .maslow-grid > div { padding: 11px 10px; }
+  }
+
+  /* ── #why: 7 Promises ───────────────────────────── */
+  .promises { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .promise-card { background: white; border: 1px solid var(--primary-100); border-radius: 16px; padding: 22px; }
+  .promise-card.wide { grid-column: 1 / -1; }
+  .promise-card .num { font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 1.2px; margin-bottom: 6px; }
+  .promise-card h3 { font-size: 17px; font-weight: 700; color: var(--primary); margin-bottom: 12px; letter-spacing: -0.2px; }
+  .promise-row { position: relative; padding-left: 34px; font-size: 14.5px; color: var(--primary); margin-bottom: 8px; line-height: 1.6; }
+  .promise-row.bad { color: var(--primary-500); }
+  .promise-row .icon { position: absolute; left: 0; top: 0; width: 24px; font-size: 14px; text-align: center; line-height: 1.6; }
+  .promise-row.bad .icon { color: #D85A4A; }
+  .promise-row.good .icon { color: var(--success); }
+  .promise-card .extra { margin-top: 8px; padding-top: 12px; border-top: 1px dashed var(--primary-100); font-size: 13px; color: var(--primary-500); line-height: 1.6; }
+  .promise-card .intro { font-size: 13.5px; color: var(--primary-500); line-height: 1.6; margin-bottom: 12px; }
+  @media (max-width: 720px) { .promises { grid-template-columns: 1fr; } }
+
+  /* ── #features 6칸 ──────────────────────────────── */
+  .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .feature {
+    background: white; border: 1px solid var(--primary-100); border-radius: 16px; padding: 24px 22px;
+  }
+  .feature .f-num { font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 1.2px; margin-bottom: 10px; }
+  .feature h3 { font-size: 17px; font-weight: 700; color: var(--primary); margin-bottom: 8px; letter-spacing: -0.2px; }
+  .feature p { font-size: 14px; color: var(--primary-500); line-height: 1.65; }
+  .feature-shots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 48px; justify-items: center; }
+  .feature-shots figure { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; }
+  .feature-shots figcaption { font-size: 13px; font-weight: 600; color: var(--primary-500); }
+  @media (max-width: 860px) { .feature-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 560px) { .feature-grid, .feature-shots { grid-template-columns: 1fr; } }
+
+  /* ── #stage ─────────────────────────────────────── */
+  .stage { background: var(--bg-soft); }
+  .stage-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .stage-card { background: white; border: 1px solid var(--primary-100); border-radius: 16px; padding: 24px 22px; }
+  .stage-card h3 { font-size: 18px; font-weight: 700; color: var(--primary); margin-bottom: 8px; }
+  .stage-card p { font-size: 14px; color: var(--primary-500); line-height: 1.65; }
+  .stage-card .example { margin-top: 14px; padding: 12px 14px; background: var(--accent-50); border-radius: 12px; font-size: 13.5px; color: var(--accent-700); font-weight: 600; }
+  .stage-notes { background: white; border-left: 4px solid var(--accent); border-radius: 0 12px 12px 0; padding: 20px 24px; margin-bottom: 28px; }
+  .stage-notes p { font-size: 14.5px; color: var(--primary); line-height: 1.7; margin-bottom: 8px; }
+  .stage-notes p:last-child { margin-bottom: 0; }
+  .stage-notes strong { color: var(--accent-700); }
+  @media (max-width: 720px) { .stage-grid { grid-template-columns: 1fr; } }
+
+  /* ── #download ──────────────────────────────────── */
+  .dl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .dl-card { background: white; border: 1px solid var(--primary-100); border-radius: 16px; padding: 24px 22px; }
+  .dl-card h3 { font-size: 18px; font-weight: 700; color: var(--primary); margin-bottom: 14px; }
+  .steps { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+  .step { position: relative; padding-left: 34px; font-size: 14px; color: var(--primary); line-height: 1.6; }
+  .step .n {
+    position: absolute; left: 0; top: 2px; width: 24px; height: 24px; border-radius: 50%;
+    background: var(--accent); color: white; font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step small { display: block; color: var(--primary-500); font-size: 12.5px; margin-top: 2px; }
+  .btn-block { display: flex; flex-direction: column; gap: 10px; }
+  .btn-block .cta { width: 100%; font-size: 15px; padding: 14px 20px; }
+  .btn-block .cta.ghost { color: var(--primary) !important; }
+  .dl-callout { margin-top: 16px; padding: 14px 16px; background: var(--accent-50); border-radius: 12px; font-size: 13px; color: var(--accent-700); line-height: 1.6; }
+  .dl-aux { display: flex; flex-wrap: wrap; gap: 10px 22px; margin-top: 24px; font-size: 14px; font-weight: 600; color: var(--primary-500); }
+  .dl-aux a { text-decoration: underline; text-underline-offset: 3px; }
+  .dl-aux a:hover { color: var(--primary); }
+  @media (max-width: 720px) { .dl-grid { grid-template-columns: 1fr; } }
+
+  /* PC 방문자 QR — 화면 폭 900px 이상에서만 노출 (PC 설치 가능처럼 쓰지 않는다) */
+  .qr-block { display: none; }
+  @media (min-width: 900px) {
+    .qr-block {
+      display: flex; align-items: center; gap: 24px;
+      margin-top: 28px; padding: 22px 24px;
+      background: white; border: 1px dashed var(--primary-300); border-radius: 16px;
+    }
+    .qr-block img, .qr-placeholder { width: 120px; height: 120px; flex: 0 0 120px; border-radius: 12px; }
+    .qr-placeholder { border: 1px dashed var(--primary-300); background: var(--primary-50); display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--primary-300); text-align: center; padding: 8px; }
+    .qr-block h4 { font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 6px; }
+    .qr-block p { font-size: 14px; color: var(--primary-500); line-height: 1.6; }
+  }
+
+  /* 정식 출시용 스토어 버튼 블록 (hidden 상태 유지) */
+  .store-row { display: flex; flex-wrap: wrap; gap: 12px; }
+  .store-row .cta { min-width: 200px; }
+
+  /* ── Footer ─────────────────────────────────────── */
+  footer { background: var(--primary); color: #999; padding: 40px 0; font-size: 13px; line-height: 1.7; }
+  footer .container { display: flex; flex-direction: column; gap: 14px; align-items: center; text-align: center; }
+  footer .slogan { color: var(--accent); font-weight: 700; font-size: 14px; letter-spacing: -0.2px; }
+  footer .links { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 20px; color: #CCC; font-weight: 600; }
+  footer .links a:hover { color: white; }
+  footer .copy { color: #666; }
+</style>
+</head>
+
+<body id="top">
+
+<!-- ────────────────────────────────────────────── -->
+<!-- NAV (고정)                                     -->
+<!-- ────────────────────────────────────────────── -->
+<nav class="topnav" aria-label="주 메뉴">
+  <div class="container">
+    <a class="brand" href="#top" aria-label="Do : 하다 홈">Do<span class="colon">:</span>하다</a>
+    <div class="nav-links">
+      <a href="#top" data-i18n="navHome">홈</a>
+      <a href="#why" data-i18n="navWhy">왜</a>
+      <a href="#features" data-i18n="navFeatures">기능</a>
+      <a href="#stage" data-i18n="navStage">무대</a>
+      <a href="#download" data-i18n="navDownload">받기</a>
+    </div>
+    <div class="lang" role="group" aria-label="언어">
+      <button type="button" data-lang="ko" class="active" onclick="setLang('ko')">KO</button>
+      <button type="button" data-lang="en" onclick="setLang('en')">EN</button>
+    </div>
+  </div>
+</nav>
+
+<!-- ────────────────────────────────────────────── -->
+<!-- HERO                                          -->
+<!-- ────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="container">
+    <div>
+      <div class="hero-mark" aria-label="Do : 하다 — 응원 마크">
+        <span class="paren l">(</span><span class="ring"><span class="dot"></span></span><span class="paren r">)</span>
+      </div>
+      <div><span class="hero-tag" data-i18n="heroTag">베타 진행 중 · iOS &amp; Android</span></div>
+      <h1 data-i18n="heroTitle">비교에 지친 SNS와 작별,<br>오늘도 한 걸음<br><span class="accent">나아가는 곳.</span></h1>
+      <p class="lead" data-i18n="heroLead">'하다'를 선언하고, 매일 인증하고,<br>동료의 응원을 받는 — 자아실현 SNS.</p>
+      <div class="cta-row">
+        <a class="cta" href="#download" data-i18n="heroCtaGet">앱 받기</a>
+        <a class="cta ghost" href="#why" data-i18n="heroCtaWhy">먼저 알아보기</a>
+      </div>
+      <p class="cta-note" data-i18n="heroNote">iOS TestFlight · Android 비공개 테스트로 설치해요.</p>
+    </div>
+    <div class="hero-shot">
+      <img class="shot" src="screenshots/home.png" alt="Do : 하다 홈 화면" onerror="shotFallback(this)">
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────── -->
+<!-- #why — 기존 index.html 원고 재활용             -->
+<!-- (기존 SNS 진단 → 세 가지 질문 → 매슬로우 → 7가지 약속) -->
+<!-- ────────────────────────────────────────────── -->
+<section class="why" id="why">
+  <div class="container">
+
+    <!-- 기존 SNS 진단 -->
+    <div class="narrow diag">
+      <div class="label" data-i18n="whyLabel">왜 지금</div>
+      <h2 data-i18n="whyTitle">기존 SNS가<br>변화해야 하는 시점에 와 있어요.</h2>
+      <p data-i18n="diag1">인스타그램은 광고판이 되었고, 페이스북은 젊은이의 기피 공간이 되었고, 카카오톡은 업무 도구가 되었어요. "친구의 일상" 은 알고리즘 깊은 곳에 묻혔고, 우리가 보는 것은 인플루언서의 협찬, 광고, 그리고 끝없이 스크롤되는 비교의 대상이죠.</p>
+      <p class="quiet" data-i18n="diag2">MZ세대는 이미 이 흐름을 거부하고 있어요. 카톡 업데이트를 거부하는 것, 인스타 스토리를 닫는 것, 친구 추가를 망설이는 것 — 단순한 트렌드가 아니라 <strong style="color:var(--primary);">디지털 시대에 살아남기 위한 자기보호</strong>예요.</p>
+      <p data-i18n="diag3">그리고 학생 폰 중독, 가족 폭력. 어린 학생들이 핸드폰을 놓지 못해 부모와 싸우고 폭력적으로 변한다는 뉴스. 가장 큰 원인 중 하나가 SNS 예요. 비교, 박탈, 무한 스크롤, 도파민 알림, 자랑 경쟁 — 사춘기의 약한 자아가 견디기엔 너무 가혹한 환경.</p>
+      <p data-i18n="diag4">우리는 그 반대로 만들어요.</p>
+    </div>
+
+    <!-- 세 가지 질문 -->
+    <div class="narrow sub-block">
+      <div class="label" data-i18n="qLabel">Do : 하다가 답하는</div>
+      <h2 data-i18n="qTitle">세 가지 질문</h2>
+      <div class="q-list">
+        <div class="q-item">
+          <div class="q-num">1</div>
+          <div class="q-text" data-i18n="q1"><span class="strong">"비교 없이 응원받을 수 있을까?"</span><span class="answer">→ 하다 방 안의 동료만 보임 · 큰 숫자 없음 · 4가지 응원</span></div>
+        </div>
+        <div class="q-item">
+          <div class="q-num">2</div>
+          <div class="q-text" data-i18n="q2"><span class="strong">"친구 신청 없이 동료를 만날 수 있을까?"</span><span class="answer">→ 같은 하다를 하는 사람 자동 모임 · 신청·수락 X</span></div>
+        </div>
+        <div class="q-item">
+          <div class="q-num">3</div>
+          <div class="q-text" data-i18n="q3"><span class="strong">"내가 더 나아지면서, 세상도 함께 나아질 수 있을까?"</span><span class="answer">→ 사회공헌 카테고리 (환경/기부/봉사) — "더 나은 나, 더 나은 세상"</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 매슬로우 5단계 -->
+    <div class="narrow sub-block">
+      <div class="label" data-i18n="maslowLabel">매슬로우 5단계</div>
+      <h2 data-i18n="maslowTitle">다른 SNS는 3단계에서<br>멈춰요. 우리는 <span class="accent">5단계</span>로.</h2>
+      <p class="section-lead" data-i18n="maslowLead">대부분의 SNS 는 매슬로우 피라미드의 <strong style="color:var(--primary);">3단계 (소속/애정)</strong> 에서 멈춰요. 친구를 만들고 좋아요를 받고 댓글로 연결되지만, 그 한계는 명확해요 — <strong style="color:var(--primary);">비교, 박탈감, 피상적 연결</strong>.</p>
+
+      <div class="maslow-grid">
+        <div class="head" data-i18n="mHead1">단계 · 욕구</div>
+        <div class="head" data-i18n="mHead2">기존 SNS</div>
+        <div class="head" data-i18n="mHead3">Do : 하다</div>
+
+        <div class="stage" data-i18n="m1s">1 생리적</div>
+        <div data-i18n="m1o">없음</div>
+        <div class="dohada" data-i18n="m1d">건강 하다<br>(수면 · 식사 · 운동)</div>
+
+        <div class="stage" data-i18n="m2s">2 안전</div>
+        <div data-i18n="m2o">없음</div>
+        <div class="dohada" data-i18n="m2d">금연 · 금주 · 재테크</div>
+
+        <div class="stage" data-i18n="m3s">3 소속·애정</div>
+        <div data-i18n="m3o">친구·좋아요<br>(피상적)</div>
+        <div class="dohada" data-i18n="m3d">하다 동료<br>(목적 기반 · 신청 X)</div>
+
+        <div class="stage" data-i18n="m4s">4 존중·인정</div>
+        <div data-i18n="m4o">좋아요 수<br>(비교 압박)</div>
+        <div class="dohada" data-i18n="m4d">4가지 응원·평가<br>작은 동료 단위</div>
+
+        <div class="stage star" data-i18n="m5s">5 자아실현</div>
+        <div class="star" data-i18n="m5o">거의 없음 ★</div>
+        <div class="star dohada" data-i18n="m5d">100일 완주 · 박제<br>"더 나은 나"</div>
+      </div>
+
+      <div class="maslow-quote" data-i18n="maslowQuote"><span class="line">인스타: "내가 얼마나 예쁜지 보세요"</span><br><small>(3단계 — 피상적 인정)</small><br><span class="line">카톡: "친구야 잘 지내?"</span><br><small>(3단계 — 피상적 소속)</small><br><span class="line focus">Do : 하다 : "오늘도 한 걸음, 더 나아졌어요"</span><br><small>(5단계 — 자아실현)</small></div>
+    </div>
+
+    <!-- 7가지 약속 -->
+    <div class="sub-block">
+      <div class="narrow">
+        <div class="label" data-i18n="pLabel">차세대 SNS의</div>
+        <h2 data-i18n="pTitle">7가지 약속</h2>
+        <p class="section-lead" data-i18n="pLead">기존 SNS 와 무엇이 다른지, 정확히 풀어 적어요.</p>
+      </div>
+
+      <div class="promises">
+
+        <div class="promise-card">
+          <div class="num">01</div>
+          <h3 data-i18n="p1Title">비교 압박 X</h3>
+          <div class="promise-row bad"><span class="icon">✕</span> <span data-i18n="p1r1">좋아요·평가의 큰 숫자 노출</span></div>
+          <div class="promise-row good"><span class="icon">✓</span> <span data-i18n="p1r2">0–99 만 그대로, <strong>100+ 는 "99+"</strong>로 통일</span></div>
+          <div class="promise-row bad"><span class="icon">✕</span> <span data-i18n="p1r3">멤버별 인증률 순위</span></div>
+          <div class="promise-row good"><span class="icon">✓</span> <span data-i18n="p1r4"><strong>가입 순 정렬</strong> + 본인 위 (시간의 흐름 톤)</span></div>
+        </div>
+
+        <div class="promise-card">
+          <div class="num">02</div>
+          <h3 data-i18n="p2Title">친구 신청 X</h3>
+          <div class="promise-row bad"><span class="icon">✕</span> <span data-i18n="p2r1">친구 / 팔로우 / 친구 추가 단어 자체 안 씀</span></div>
+          <div class="promise-row good"><span class="icon">✓</span> <span data-i18n="p2r2">하다 참여로 <strong>자동 동료 발생</strong> — "하다 인연"</span></div>
+          <div class="promise-row good"><span class="icon">✓</span> <span data-i18n="p2r3"><strong>강제성 없는 초대</strong> — 초대장을 받았을 때 강제 자동 가입 대신 하다 상세 카드를 보고 참여(수락) 여부를 직접 결정</span></div>
+        </div>
+
+        <div class="promise-card wide">
+          <div class="num">03</div>
+          <h3 data-i18n="p3Title">조용한 알림 — 가장 본질적 차별</h3>
+          <div class="intro" data-i18n="p3Intro">학생들이 핸드폰 못 놓는 가장 큰 메커니즘이 <strong style="color:var(--accent-700);">실시간 알림 도파민 루프</strong>예요. 우리는 알림을 제공하되 <strong style="color:var(--accent-700);">4원칙</strong>으로 묶어요.</div>
+          <div class="promise-row good"><span class="icon">①</span> <span data-i18n="p3r1"><strong>묶음</strong> — 응원·좋아요는 1시간 단위로 묶어 "지난 1시간 동료 3명이 응원했어요" 한 건</span></div>
+          <div class="promise-row good"><span class="icon">②</span> <span data-i18n="p3r2"><strong>즉시는 대화만</strong> — 채팅·댓글만 즉시, 단 무음 + 진동</span></div>
+          <div class="promise-row good"><span class="icon">③</span> <span data-i18n="p3r3"><strong>조용한 시간</strong> — 밤 10시 ~ 아침 6시 자동 보류</span></div>
+          <div class="promise-row good"><span class="icon">④</span> <span data-i18n="p3r4"><strong>일별 상한</strong> — 응원·좋아요 묶음 하루 최대 20건 (대화·댓글 등 즉시 알림은 면제)</span></div>
+          <div class="promise-row good"><span class="icon">✓</span> <span data-i18n="p3r5"><strong>조용한 이탈 보장</strong> — 포기하거나 응원을 그만둘 때 개설자에게 알람이 가지 않는 '조용히 원칙' 준수</span></div>
+        </div>
+
+        <div class="promise-card">
+          <div class="num">04</div>
+          <h3 data-i18n="p4Title">끝이 있는 하다</h3>
+          <div class="promise-row bad"><span class="icon">✕</span> <span data-i18n="p4r1">무한 스크롤 / 무한 피드</span></div>
+          <div class="promise-row good"><span class="icon">✓</span> <span data-i18n="p4r2"><strong>기간 3 / 7 / 30 / 100 / 180 / 365일 · 당일</strong> 하다</span></div>
+          <div class="promise-row good"><span class="icon">✓</span> <span data-i18n="p4r3">매일 1번 인증 후엔 라벨이 "오늘 인증 완료 · 내일 또 만나요"</span></div>
+        </div>
+
+        <div class="promise-card">
+          <div class="num">05</div>
+          <h3 data-i18n="p5Title">작은 동료 단위</h3>
+          <div class="promise-row bad"><span class="icon">✕</span> <span data-i18n="p5r1">"12,847 명이 함께 하는 중" 식 거대한 숫자</span></div>
+          <div class="promise-row good"><span class="icon">✓</span> <span data-i18n="p5r2">"내 동료 5명 중 3명 ✓"</span></div>
+          <div class="promise-row good"><span class="icon">✓</span> <span data-i18n="p5r3">하다 방은 평균 <strong>3–5명 친밀 단위</strong>가 기본</span></div>
+        </div>
+
+        <div class="promise-card">
+          <div class="num">06</div>
+          <h3 data-i18n="p6Title">의미 있는 평가 4가지</h3>
+          <div class="promise-row bad"><span class="icon">✕</span> <span data-i18n="p6r1">좋아요 1차원 도파민</span></div>
+          <div class="promise-row good"><span class="icon">✓</span> <span data-i18n="p6r2">두 가지 평가 시스템 (의미 분리):</span></div>
+          <div class="extra" data-i18n="p6Extra">· <strong>인증 응원</strong> (방 안): 🔥 / 👏 / 💪 / ❤️ <small>(감정 표현)</small><br>· <strong>하다 평가</strong> (하다 구경): ✨ 기발 / 😱 대단 / 🥹 뭉클 / 💫 새로움 <small>(의미 평가)</small></div>
+        </div>
+
+        <div class="promise-card">
+          <div class="num">07</div>
+          <h3 data-i18n="p7Title">더 나은 세상</h3>
+          <div class="promise-row good"><span class="icon">✓</span> <span data-i18n="p7r1"><strong>사회공헌 카테고리</strong> (환경 · 기부 · 봉사 · 공익)</span></div>
+          <div class="promise-row good"><span class="icon">✓</span> <span data-i18n="p7r2">내가 나아질수록 세상도 함께 나아짐 — 슬로건의 실제 구현</span></div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────── -->
+<!-- #features — 6칸                               -->
+<!-- ────────────────────────────────────────────── -->
+<section id="features">
+  <div class="container">
+    <div class="narrow">
+      <div class="label" data-i18n="fLabel">기능</div>
+      <h2 data-i18n="fTitle">선언하고, 인증하고,<br>동료와 함께 <span class="accent">끝까지.</span></h2>
+      <p class="section-lead" data-i18n="fLead">앱이 실제로 하는 일을 여섯 가지로 짧게 적어요.</p>
+    </div>
+
+    <div class="feature-grid">
+      <div class="feature">
+        <div class="f-num">01</div>
+        <h3 data-i18n="f1Title">하다 만들기</h3>
+        <p data-i18n="f1Desc">제목·분류·방 종류·기간·인증 방식, 5단계로 끝. 나홀로 / 응원받기 / 다함께 / 누구나 네 가지 방과, 기간형·목표 횟수형 목표.</p>
+      </div>
+      <div class="feature">
+        <div class="f-num">02</div>
+        <h3 data-i18n="f2Title">인증 · 기록</h3>
+        <p data-i18n="f2Desc">하루 한 번 사진 인증(카메라·앱 스크린샷 모두 OK, 최대 3장). 3·7·21일… 연속 마일스톤엔 메달이 붙고, 긴 이야기는 기록으로 남겨요.</p>
+      </div>
+      <div class="feature">
+        <div class="f-num">03</div>
+        <h3 data-i18n="f3Title">응원 · 목격</h3>
+        <p data-i18n="f3Desc">동료의 인증에 🔥 👏 💪 ❤️ 네 가지 응원과 댓글. 같은 방 동료만 보이고, 큰 숫자 대신 "동료 5명 중 3명 ✓"로 서로의 여정을 지켜봐요.</p>
+      </div>
+      <div class="feature">
+        <div class="f-num">04</div>
+        <h3 data-i18n="f4Title">박제 (완주)</h3>
+        <p data-i18n="f4Desc">끝까지 간 하다는 박제로 영구 보존돼요. 완주 이야기를 '해냈어요'에 나누면, 읽은 사람이 "용기 받았어요"로 되돌려 줘요.</p>
+      </div>
+      <div class="feature">
+        <div class="f-num">05</div>
+        <h3 data-i18n="f5Title">공명</h3>
+        <p data-i18n="f5Desc">인증·기록을 익명으로도 나눌 수 있는 피드. 좋아요·랭킹 없이 "공명해요"와 "나도 할래요"(따라하기)만 — 움직인 사람 수가 은은히 남아요.</p>
+      </div>
+      <div class="feature">
+        <div class="f-num">06</div>
+        <h3 data-i18n="f6Title">조용한 알림</h3>
+        <p data-i18n="f6Desc">응원은 1시간 단위로 묶고, 즉시 알림은 대화·댓글뿐. 밤 10시~아침 6시는 보류, 하루 상한까지 — 그만둘 때도 조용히.</p>
+      </div>
+    </div>
+
+    <div class="feature-shots">
+      <figure>
+        <img class="shot" src="screenshots/room-proof.png" alt="하다 방 인증 탭" onerror="shotFallback(this)">
+        <figcaption data-i18n="shotRoom">하다 방 · 인증</figcaption>
+      </figure>
+      <figure>
+        <img class="shot" src="screenshots/plaza.png" alt="광장" onerror="shotFallback(this)">
+        <figcaption data-i18n="shotPlaza">광장 · 무대와 구경</figcaption>
+      </figure>
+      <figure>
+        <img class="shot" src="screenshots/archive.png" alt="박제" onerror="shotFallback(this)">
+        <figcaption data-i18n="shotArchive">박제 · 완주</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────── -->
+<!-- #stage — 조직 하다 제안 창구                   -->
+<!-- ────────────────────────────────────────────── -->
+<section class="stage" id="stage">
+  <div class="container">
+    <div class="narrow">
+      <div class="label" data-i18n="sLabel">무대</div>
+      <h2 data-i18n="sTitle">⭐ 명사의 하다 · 🏛️ 공식 하다<br>이런 무대가 열립니다</h2>
+      <p class="section-lead" data-i18n="sLead">광장 맨 위에는 상설 자리가 둘 있어요. 개인 하다와 섞이지 않고, 누구나 합류할 수 있는 무대예요.</p>
+    </div>
+
+    <div class="stage-grid">
+      <div class="stage-card">
+        <h3 data-i18n="sFigureTitle">⭐ 명사의 하다</h3>
+        <p data-i18n="sFigureDesc">함께 걷고 싶은 사람이 여는 하다. 그 사람의 여정을 같은 방에서 목격하고, 응원하고, 나도 한 걸음 걸어요.</p>
+      </div>
+      <div class="stage-card">
+        <h3 data-i18n="sOrgTitle">🏛️ 공식 하다</h3>
+        <p data-i18n="sOrgDesc">조직·모임·브랜드가 여는 하다. 구성원과 고객이 한 방에서 같은 목표를 향해 인증해요.</p>
+        <div class="example" data-i18n="sOrgExample">첫 무대 예시 — 「매일 8천보 걷기」 (운영팀)</div>
+      </div>
+    </div>
+
+    <div class="stage-notes">
+      <p data-i18n="sNote1">① <strong>셀프서비스 등록은 없어요.</strong> 제안을 보내 주시면 운영팀이 검토한 뒤 무대로 지정해요. 사칭을 막는 유일한 방어선이라 예외를 두지 않아요.</p>
+      <p data-i18n="sNote2">② <strong>조직 명의 계정으로 가입해 주세요.</strong> 하다의 개설자는 나중에 바꿀 수 없어서, 담당자 개인 계정으로 열면 담당자가 바뀔 때 하다를 옮길 수 없어요. 조직 계정이 공식으로 지정되면 그 계정이 여는 「누구나」 하다는 자동으로 무대에 올라요.</p>
+    </div>
+
+    <a class="cta" id="stage-propose" href="#" data-i18n="sCta">우리 조직 하다 제안하기</a>
+    <p class="cta-note" data-i18n="sCtaNote">메일 앱이 열려요 · 조직(모임) 이름 · 열고 싶은 하다 · 담당자 연락처를 적어 보내 주세요.</p>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────── -->
+<!-- #download — 베타 3단계                         -->
+<!-- ────────────────────────────────────────────── -->
+<section id="download">
+  <div class="container">
+    <div class="narrow">
+      <div class="label" data-i18n="dLabel">받기</div>
+      <h2 data-i18n="dTitle">지금은 <span class="accent">베타</span>예요.</h2>
+      <p class="section-lead" data-i18n="dLead">스토어 검색으로는 아직 안 나와요. iOS 는 TestFlight, Android 는 구글 그룹 가입 뒤 Play 비공개 테스트로 설치해요.</p>
+    </div>
+
+    <!-- 베타 블록 — 정식 출시 시 hidden 으로 바꾸고 #download-store 의 hidden 을 지운다 -->
+    <div id="download-beta">
+      <div class="dl-grid">
+
+        <div class="dl-card">
+          <h3 data-i18n="dIosTitle">iPhone (iOS)</h3>
+          <div class="steps">
+            <div class="step"><span class="n">1</span><span data-i18n="dIos1"><strong>Safari</strong>로 아래 버튼을 열어요.</span></div>
+            <div class="step"><span class="n">2</span><span data-i18n="dIos2"><strong>TestFlight</strong> 앱이 없다면 App Store 에서 먼저 설치해요.<small>Apple 공식 무료 베타테스트 앱이에요.</small></span></div>
+            <div class="step"><span class="n">3</span><span data-i18n="dIos3">다시 버튼을 열어 <strong>수락(Accept)</strong> → <strong>설치(Install)</strong>.</span></div>
+          </div>
+          <div class="btn-block">
+            <a class="cta" href="https://testflight.apple.com/join/jXrf3QpW" target="_blank" rel="noopener" data-i18n="dIosBtn">TestFlight 로 설치하기</a>
+          </div>
+        </div>
+
+        <div class="dl-card">
+          <h3 data-i18n="dAndTitle">Android</h3>
+          <div class="steps">
+            <div class="step"><span class="n">1</span><span data-i18n="dAnd1">먼저 <strong>테스터 그룹에 가입</strong>해요.<small>앱을 설치할 폰의 Google Play 에 로그인된 그 Google 계정으로. 가입은 자동 승인이에요.</small></span></div>
+            <div class="step"><span class="n">2</span><span data-i18n="dAnd2">그다음 <strong>앱 설치하기</strong> → <strong>테스터 되기</strong> → <strong>Google Play 에서 다운로드</strong>.<small>정식 Play 스토어 경로라 "출처 불명" 경고가 없어요.</small></span></div>
+          </div>
+          <div class="btn-block">
+            <a class="cta ghost" href="https://groups.google.com/g/dohada-testers" target="_blank" rel="noopener" data-i18n="dAndBtn1">① 테스터 그룹 가입하기</a>
+            <a class="cta" href="https://play.google.com/apps/testing/app.dohada.beta" target="_blank" rel="noopener" data-i18n="dAndBtn2">② 앱 설치하기</a>
+          </div>
+          <div class="dl-callout" data-i18n="dAndCallout">순서가 중요해요. 그룹 가입 없이 ②를 열면 "앱을 사용할 수 없음"만 보여요. 가입 직후엔 반영까지 몇 분~한두 시간 걸릴 수 있으니 잠시 후 ②를 다시 열어 주세요.</div>
+        </div>
+
+      </div>
+
+      <div class="dl-aux">
+        <a href="guide.html" data-i18n="dGuideLink">자세한 설치 가이드 →</a>
+        <a href="https://docs.google.com/forms/d/e/1FAIpQLSfxhYWjC1hp0zb922LzGYeF0SgGY__1kuPb_OEToyZf9W87Qg/viewform" target="_blank" rel="noopener" data-i18n="dFormLink">테스터 등록(구글폼)</a>
+      </div>
+
+      <!-- PC 방문자 — 폰으로 넘기는 QR (900px 이상에서만 표시) -->
+      <div class="qr-block">
+        <!-- TODO: qr.png 생성 (이 페이지 #download 주소를 담은 QR) -->
+        <img src="qr.png" alt="설치 페이지 QR" onerror="qrFallback(this)">
+        <div>
+          <h4 data-i18n="qrTitle">PC 에서 보고 계신가요?</h4>
+          <p data-i18n="qrDesc">Do : 하다는 iPhone · Android 앱이에요. PC 에는 설치되지 않아요. 폰 카메라로 QR 을 찍어 이 페이지를 폰에서 열어 주세요.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 정식 출시 시: 위 #download-beta 에 hidden 을 붙이고 이 블록의 hidden 을 지운다 -->
+    <div id="download-store" hidden>
+      <div class="store-row">
+        <!-- TODO: 정식 출시 후 App Store 링크 -->
+        <a class="cta" href="#" data-i18n="storeIos">App Store 에서 받기</a>
+        <!-- TODO: 정식 출시 후 Google Play 링크 -->
+        <a class="cta" href="#" data-i18n="storeAnd">Google Play 에서 받기</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────── -->
+<!-- FOOTER                                        -->
+<!-- ────────────────────────────────────────────── -->
+<footer>
+  <div class="container">
+    <div class="slogan" data-i18n="footSlogan">도전, 그냥 하다.</div>
+    <div data-i18n="footSub">더 나은 나, 더 나은 세상.</div>
+    <div class="links">
+      <!-- TODO: 이용약관 페이지(terms.html)가 아직 없어 숨김. 생기면 hidden 제거 -->
+      <a href="#" hidden data-i18n="footTerms">이용약관</a>
+      <a href="privacy.html" data-i18n="footPrivacy">개인정보처리방침</a>
+      <a href="delete-account.html" data-i18n="footDelete">계정 삭제</a>
+      <a href="mailto:mirr0505@gmail.com" data-i18n="footContact">문의</a>
+    </div>
+    <div class="copy">© 2026 Do : 하다 — Beta</div>
+  </div>
+</footer>
+
+<script>
+  // 🚀 i18n: data-i18n 속성을 가진 요소의 innerHTML 을 I18N[lang][속성값] 으로 교체.
+  //   - HTML 안의 한국어가 곧 ko 원본(자바스크립트 없이도 렌더). I18N.ko 는 같은 문장을 키로 보관.
+  //   - en 에 키가 없으면 ko 로 폴백 → EN 을 눌러도 빈 칸이 생기지 않는다.
+  //   - 문자열은 이 파일 안의 상수라 innerHTML 사용이 안전(외부 입력 없음).
+  const I18N = {
+    ko: {
+      navHome: '홈', navWhy: '왜', navFeatures: '기능', navStage: '무대', navDownload: '받기',
+
+      heroTag: '베타 진행 중 · iOS &amp; Android',
+      heroTitle: '비교에 지친 SNS와 작별,<br>오늘도 한 걸음<br><span class="accent">나아가는 곳.</span>',
+      heroLead: "'하다'를 선언하고, 매일 인증하고,<br>동료의 응원을 받는 — 자아실현 SNS.",
+      heroCtaGet: '앱 받기', heroCtaWhy: '먼저 알아보기',
+      heroNote: 'iOS TestFlight · Android 비공개 테스트로 설치해요.',
+
+      whyLabel: '왜 지금',
+      whyTitle: '기존 SNS가<br>변화해야 하는 시점에 와 있어요.',
+      diag1: '인스타그램은 광고판이 되었고, 페이스북은 젊은이의 기피 공간이 되었고, 카카오톡은 업무 도구가 되었어요. "친구의 일상" 은 알고리즘 깊은 곳에 묻혔고, 우리가 보는 것은 인플루언서의 협찬, 광고, 그리고 끝없이 스크롤되는 비교의 대상이죠.',
+      diag2: 'MZ세대는 이미 이 흐름을 거부하고 있어요. 카톡 업데이트를 거부하는 것, 인스타 스토리를 닫는 것, 친구 추가를 망설이는 것 — 단순한 트렌드가 아니라 <strong style="color:var(--primary);">디지털 시대에 살아남기 위한 자기보호</strong>예요.',
+      diag3: '그리고 학생 폰 중독, 가족 폭력. 어린 학생들이 핸드폰을 놓지 못해 부모와 싸우고 폭력적으로 변한다는 뉴스. 가장 큰 원인 중 하나가 SNS 예요. 비교, 박탈, 무한 스크롤, 도파민 알림, 자랑 경쟁 — 사춘기의 약한 자아가 견디기엔 너무 가혹한 환경.',
+      diag4: '우리는 그 반대로 만들어요.',
+
+      qLabel: 'Do : 하다가 답하는', qTitle: '세 가지 질문',
+      q1: '<span class="strong">"비교 없이 응원받을 수 있을까?"</span><span class="answer">→ 하다 방 안의 동료만 보임 · 큰 숫자 없음 · 4가지 응원</span>',
+      q2: '<span class="strong">"친구 신청 없이 동료를 만날 수 있을까?"</span><span class="answer">→ 같은 하다를 하는 사람 자동 모임 · 신청·수락 X</span>',
+      q3: '<span class="strong">"내가 더 나아지면서, 세상도 함께 나아질 수 있을까?"</span><span class="answer">→ 사회공헌 카테고리 (환경/기부/봉사) — "더 나은 나, 더 나은 세상"</span>',
+
+      maslowLabel: '매슬로우 5단계',
+      maslowTitle: '다른 SNS는 3단계에서<br>멈춰요. 우리는 <span class="accent">5단계</span>로.',
+      maslowLead: '대부분의 SNS 는 매슬로우 피라미드의 <strong style="color:var(--primary);">3단계 (소속/애정)</strong> 에서 멈춰요. 친구를 만들고 좋아요를 받고 댓글로 연결되지만, 그 한계는 명확해요 — <strong style="color:var(--primary);">비교, 박탈감, 피상적 연결</strong>.',
+      mHead1: '단계 · 욕구', mHead2: '기존 SNS', mHead3: 'Do : 하다',
+      m1s: '1 생리적', m1o: '없음', m1d: '건강 하다<br>(수면 · 식사 · 운동)',
+      m2s: '2 안전', m2o: '없음', m2d: '금연 · 금주 · 재테크',
+      m3s: '3 소속·애정', m3o: '친구·좋아요<br>(피상적)', m3d: '하다 동료<br>(목적 기반 · 신청 X)',
+      m4s: '4 존중·인정', m4o: '좋아요 수<br>(비교 압박)', m4d: '4가지 응원·평가<br>작은 동료 단위',
+      m5s: '5 자아실현', m5o: '거의 없음 ★', m5d: '100일 완주 · 박제<br>"더 나은 나"',
+      maslowQuote: '<span class="line">인스타: "내가 얼마나 예쁜지 보세요"</span><br><small>(3단계 — 피상적 인정)</small><br><span class="line">카톡: "친구야 잘 지내?"</span><br><small>(3단계 — 피상적 소속)</small><br><span class="line focus">Do : 하다 : "오늘도 한 걸음, 더 나아졌어요"</span><br><small>(5단계 — 자아실현)</small>',
+
+      pLabel: '차세대 SNS의', pTitle: '7가지 약속', pLead: '기존 SNS 와 무엇이 다른지, 정확히 풀어 적어요.',
+      p1Title: '비교 압박 X',
+      p1r1: '좋아요·평가의 큰 숫자 노출',
+      p1r2: '0–99 만 그대로, <strong>100+ 는 "99+"</strong>로 통일',
+      p1r3: '멤버별 인증률 순위',
+      p1r4: '<strong>가입 순 정렬</strong> + 본인 위 (시간의 흐름 톤)',
+      p2Title: '친구 신청 X',
+      p2r1: '친구 / 팔로우 / 친구 추가 단어 자체 안 씀',
+      p2r2: '하다 참여로 <strong>자동 동료 발생</strong> — "하다 인연"',
+      p2r3: '<strong>강제성 없는 초대</strong> — 초대장을 받았을 때 강제 자동 가입 대신 하다 상세 카드를 보고 참여(수락) 여부를 직접 결정',
+      p3Title: '조용한 알림 — 가장 본질적 차별',
+      p3Intro: '학생들이 핸드폰 못 놓는 가장 큰 메커니즘이 <strong style="color:var(--accent-700);">실시간 알림 도파민 루프</strong>예요. 우리는 알림을 제공하되 <strong style="color:var(--accent-700);">4원칙</strong>으로 묶어요.',
+      p3r1: '<strong>묶음</strong> — 응원·좋아요는 1시간 단위로 묶어 "지난 1시간 동료 3명이 응원했어요" 한 건',
+      p3r2: '<strong>즉시는 대화만</strong> — 채팅·댓글만 즉시, 단 무음 + 진동',
+      p3r3: '<strong>조용한 시간</strong> — 밤 10시 ~ 아침 6시 자동 보류',
+      p3r4: '<strong>일별 상한</strong> — 응원·좋아요 묶음 하루 최대 20건 (대화·댓글 등 즉시 알림은 면제)',
+      p3r5: "<strong>조용한 이탈 보장</strong> — 포기하거나 응원을 그만둘 때 개설자에게 알람이 가지 않는 '조용히 원칙' 준수",
+      p4Title: '끝이 있는 하다',
+      p4r1: '무한 스크롤 / 무한 피드',
+      p4r2: '<strong>기간 3 / 7 / 30 / 100 / 180 / 365일 · 당일</strong> 하다',
+      p4r3: '매일 1번 인증 후엔 라벨이 "오늘 인증 완료 · 내일 또 만나요"',
+      p5Title: '작은 동료 단위',
+      p5r1: '"12,847 명이 함께 하는 중" 식 거대한 숫자',
+      p5r2: '"내 동료 5명 중 3명 ✓"',
+      p5r3: '하다 방은 평균 <strong>3–5명 친밀 단위</strong>가 기본',
+      p6Title: '의미 있는 평가 4가지',
+      p6r1: '좋아요 1차원 도파민',
+      p6r2: '두 가지 평가 시스템 (의미 분리):',
+      p6Extra: '· <strong>인증 응원</strong> (방 안): 🔥 / 👏 / 💪 / ❤️ <small>(감정 표현)</small><br>· <strong>하다 평가</strong> (하다 구경): ✨ 기발 / 😱 대단 / 🥹 뭉클 / 💫 새로움 <small>(의미 평가)</small>',
+      p7Title: '더 나은 세상',
+      p7r1: '<strong>사회공헌 카테고리</strong> (환경 · 기부 · 봉사 · 공익)',
+      p7r2: '내가 나아질수록 세상도 함께 나아짐 — 슬로건의 실제 구현',
+
+      fLabel: '기능',
+      fTitle: '선언하고, 인증하고,<br>동료와 함께 <span class="accent">끝까지.</span>',
+      fLead: '앱이 실제로 하는 일을 여섯 가지로 짧게 적어요.',
+      f1Title: '하다 만들기',
+      f1Desc: '제목·분류·방 종류·기간·인증 방식, 5단계로 끝. 나홀로 / 응원받기 / 다함께 / 누구나 네 가지 방과, 기간형·목표 횟수형 목표.',
+      f2Title: '인증 · 기록',
+      f2Desc: '하루 한 번 사진 인증(카메라·앱 스크린샷 모두 OK, 최대 3장). 3·7·21일… 연속 마일스톤엔 메달이 붙고, 긴 이야기는 기록으로 남겨요.',
+      f3Title: '응원 · 목격',
+      f3Desc: '동료의 인증에 🔥 👏 💪 ❤️ 네 가지 응원과 댓글. 같은 방 동료만 보이고, 큰 숫자 대신 "동료 5명 중 3명 ✓"로 서로의 여정을 지켜봐요.',
+      f4Title: '박제 (완주)',
+      f4Desc: "끝까지 간 하다는 박제로 영구 보존돼요. 완주 이야기를 '해냈어요'에 나누면, 읽은 사람이 \"용기 받았어요\"로 되돌려 줘요.",
+      f5Title: '공명',
+      f5Desc: '인증·기록을 익명으로도 나눌 수 있는 피드. 좋아요·랭킹 없이 "공명해요"와 "나도 할래요"(따라하기)만 — 움직인 사람 수가 은은히 남아요.',
+      f6Title: '조용한 알림',
+      f6Desc: '응원은 1시간 단위로 묶고, 즉시 알림은 대화·댓글뿐. 밤 10시~아침 6시는 보류, 하루 상한까지 — 그만둘 때도 조용히.',
+      shotRoom: '하다 방 · 인증', shotPlaza: '광장 · 무대와 구경', shotArchive: '박제 · 완주',
+
+      sLabel: '무대',
+      sTitle: '⭐ 명사의 하다 · 🏛️ 공식 하다<br>이런 무대가 열립니다',
+      sLead: '광장 맨 위에는 상설 자리가 둘 있어요. 개인 하다와 섞이지 않고, 누구나 합류할 수 있는 무대예요.',
+      sFigureTitle: '⭐ 명사의 하다',
+      sFigureDesc: '함께 걷고 싶은 사람이 여는 하다. 그 사람의 여정을 같은 방에서 목격하고, 응원하고, 나도 한 걸음 걸어요.',
+      sOrgTitle: '🏛️ 공식 하다',
+      sOrgDesc: '조직·모임·브랜드가 여는 하다. 구성원과 고객이 한 방에서 같은 목표를 향해 인증해요.',
+      sOrgExample: '첫 무대 예시 — 「매일 8천보 걷기」 (운영팀)',
+      sNote1: '① <strong>셀프서비스 등록은 없어요.</strong> 제안을 보내 주시면 운영팀이 검토한 뒤 무대로 지정해요. 사칭을 막는 유일한 방어선이라 예외를 두지 않아요.',
+      sNote2: '② <strong>조직 명의 계정으로 가입해 주세요.</strong> 하다의 개설자는 나중에 바꿀 수 없어서, 담당자 개인 계정으로 열면 담당자가 바뀔 때 하다를 옮길 수 없어요. 조직 계정이 공식으로 지정되면 그 계정이 여는 「누구나」 하다는 자동으로 무대에 올라요.',
+      sCta: '우리 조직 하다 제안하기',
+      sCtaNote: '메일 앱이 열려요 · 조직(모임) 이름 · 열고 싶은 하다 · 담당자 연락처를 적어 보내 주세요.',
+
+      dLabel: '받기',
+      dTitle: '지금은 <span class="accent">베타</span>예요.',
+      dLead: '스토어 검색으로는 아직 안 나와요. iOS 는 TestFlight, Android 는 구글 그룹 가입 뒤 Play 비공개 테스트로 설치해요.',
+      dIosTitle: 'iPhone (iOS)',
+      dIos1: '<strong>Safari</strong>로 아래 버튼을 열어요.',
+      dIos2: '<strong>TestFlight</strong> 앱이 없다면 App Store 에서 먼저 설치해요.<small>Apple 공식 무료 베타테스트 앱이에요.</small>',
+      dIos3: '다시 버튼을 열어 <strong>수락(Accept)</strong> → <strong>설치(Install)</strong>.',
+      dIosBtn: 'TestFlight 로 설치하기',
+      dAndTitle: 'Android',
+      dAnd1: '먼저 <strong>테스터 그룹에 가입</strong>해요.<small>앱을 설치할 폰의 Google Play 에 로그인된 그 Google 계정으로. 가입은 자동 승인이에요.</small>',
+      dAnd2: '그다음 <strong>앱 설치하기</strong> → <strong>테스터 되기</strong> → <strong>Google Play 에서 다운로드</strong>.<small>정식 Play 스토어 경로라 "출처 불명" 경고가 없어요.</small>',
+      dAndBtn1: '① 테스터 그룹 가입하기',
+      dAndBtn2: '② 앱 설치하기',
+      dAndCallout: '순서가 중요해요. 그룹 가입 없이 ②를 열면 "앱을 사용할 수 없음"만 보여요. 가입 직후엔 반영까지 몇 분~한두 시간 걸릴 수 있으니 잠시 후 ②를 다시 열어 주세요.',
+      dGuideLink: '자세한 설치 가이드 →',
+      dFormLink: '테스터 등록(구글폼)',
+      qrTitle: 'PC 에서 보고 계신가요?',
+      qrDesc: 'Do : 하다는 iPhone · Android 앱이에요. PC 에는 설치되지 않아요. 폰 카메라로 QR 을 찍어 이 페이지를 폰에서 열어 주세요.',
+      storeIos: 'App Store 에서 받기', storeAnd: 'Google Play 에서 받기',
+
+      footSlogan: '도전, 그냥 하다.', footSub: '더 나은 나, 더 나은 세상.',
+      footTerms: '이용약관', footPrivacy: '개인정보처리방침', footDelete: '계정 삭제', footContact: '문의'
+    },
+    // TODO: 영어 번역. 키가 없으면 ko 로 폴백된다.
+    en: {}
+  };
+
+  const LANG_KEY = 'dohada_lang';
+
+  function setLang(lang) {
+    if (!I18N[lang]) lang = 'ko';
+    const dict = I18N[lang];
+    document.querySelectorAll('[data-i18n]').forEach((el) => {
+      const key = el.dataset.i18n;
+      const str = dict[key] != null ? dict[key] : I18N.ko[key]; // en 미번역 → ko 폴백
+      if (str != null) el.innerHTML = str;
+    });
+    document.querySelectorAll('.lang button').forEach((b) => b.classList.toggle('active', b.dataset.lang === lang));
+    document.documentElement.lang = lang;
+    try { localStorage.setItem(LANG_KEY, lang); } catch (e) { /* 사생활 보호 모드 등 — 저장 실패해도 화면은 정상 */ }
+  }
+
+  // 🚀 스크린샷 자리표시자: 이미지 파일이 아직 없으면 폰 프레임 모양 div 로 교체 (파일이 들어오면 자동으로 살아난다)
+  function shotFallback(img) {
+    const ph = document.createElement('div');
+    ph.className = 'shot-placeholder';
+    ph.setAttribute('role', 'img');
+    ph.setAttribute('aria-label', img.alt || '스크린샷');
+    ph.innerHTML = '<span class="notch"></span><span>스크린샷 준비 중</span><small>' + (img.alt || '') + '</small>';
+    img.replaceWith(ph);
+  }
+
+  // QR 이미지가 없으면 점선 상자로 (PC 방문자에게만 보이는 블록)
+  function qrFallback(img) {
+    const ph = document.createElement('div');
+    ph.className = 'qr-placeholder';
+    ph.textContent = 'QR 준비 중';
+    img.replaceWith(ph);
+  }
+
+  // 🚀 조직 하다 제안 — 앱 광장 탭의 mailto 와 같은 수집 항목(조직(모임) 이름 · 열고 싶은 하다 · 담당자 연락처)
+  (function setupProposeMail() {
+    const SUPPORT_EMAIL = 'mirr0505@gmail.com'; // = mobile/lib/support.ts SUPPORT_EMAIL
+    const subject = '[Do:하다] 우리 조직 하다 제안';
+    const body = '안녕하세요, 운영팀.\n우리 조직(모임)의 하다를 무대에 열고 싶어요.\n\n· 조직(모임) 이름:\n· 열고 싶은 하다:\n· 담당자 연락처:\n';
+    document.getElementById('stage-propose').href =
+      'mailto:' + SUPPORT_EMAIL + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+  })();
+
+  // 저장된 언어 복원 (없으면 ko)
+  (function restoreLang() {
+    let saved = 'ko';
+    try { saved = localStorage.getItem(LANG_KEY) || 'ko'; } catch (e) { /* 무시 */ }
+    if (saved !== 'ko') setLang(saved);
+  })();
+</script>
+
+</body>
+</html>

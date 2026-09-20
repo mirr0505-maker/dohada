@@ -296,6 +296,13 @@
 - **무대 카드 CTA 3상태** ([`discover.tsx`](mobile/app/(tabs)/discover.tsx) `StageCard`·`onStagePress`): 무대 목록(`fetchStageChallenges`)은 누구나 목록과 달리 **참여 중·개설자에게도 노출**(상설 자리)이라, 카드 탭→미리보기→합류가 중복 합류 막다른 길이었음. `OpenChallengeCard.is_joined`([`types.ts`](mobile/lib/types.ts) · `mapOpenChallengeCard` 가 이미 받은 `challenge_members` 로 계산, 쿼리 무변경) 로 분기 — 참여 중=회색 "참여 중"(→`/room/[id]`) / 모집 중=주황 "함께 합류하기"(→미리보기) / 모집 마감=버튼 없음(기존 칩). 무대→누구나 중복 제거(id)는 이미 있었음 — 스크린샷의 "중복"은 아래 따라하기 복제본이었음.
 - **따라하기 = 안내문 비복제** ([`discover.tsx`](mobile/app/(tabs)/discover.tsx) `onCopy` 에서 `desc` 제거 + [`create.tsx`](mobile/app/create.tsx) `descParam` 삭제): 조직 무대를 따라한 복사본이 제목·안내문까지 같아 광장에 "가짜 공식 하다"로 보였고(실제 발생, 개설자 본인도 새 하다인 줄 몰라 복사본에 인증), 안내문은 본인이 새로 쓰게 한다. 제목·분류·기간유형·빈도 프리필은 유지. 공명 "나도 할래요"(`/create?ref=` 만 전달)는 원래 안내문을 안 넘겼음
 
+### 신규 코드 위치 (v2.36 — 실기기 확인 후 픽스 2건 + 웹 소개 사이트 골격, 2026-09-20)
+**v2.30~v2.35 실기기 5스텝 확인 완료(홈 밴드·광장 3단·내 하다 뒤로가기·무대 CTA·따라하기 비복제). 픽스 2건은 순수 JS → OTA(preview·production ✓). 검증 tsc 0.**
+- **내 하다 뒤로가기** ([`my-challenges.tsx`](mobile/app/(tabs)/my-challenges.tsx)·[`profile.tsx`](mobile/app/(tabs)/profile.tsx)): 내 정보→끝낸 하다→← 가 홈으로 튐. ⚠️ **숨긴 탭(`href:null`)은 push 처럼 보여도 탭 내비게이터 안**이라 `router.back()` 이 스택 pop 이 아니라 탭 기본 동작(`firstRoute`=홈)을 탄다. 수정 = 내 정보에서 `?from=profile` 전달 → ← 가 `router.navigate('/(tabs)/profile')`. 탭 전체 `backBehavior` 는 안 건드림(안드로이드 하드웨어 뒤로가기=홈 관례 유지). ※ 같은 구조로 **다른 탭→아바타→내 정보→←** 도 홈으로 감 — 보고 없어 범위 밖
+- **무대 카드 CTA 4상태** ([`discover.tsx`](mobile/app/(tabs)/discover.tsx) `StageCard isHost`): v2.35 의 3상태가 개설자에게 "참여 중"을 보여 정직하지 않았음 → **주최 중**(`creator_id === myUserId`, 홈 `🏛 주최 중` 배지와 같은 톤 primary50/primary500 + Landmark) / 참여 중 / 함께 합류하기 / 모집 마감. 쿼리 무변경
+- **광장 "지금 합류" 0개는 정상**(2026-09-20 SQL 확인): 타인 개설 open 방 5개 전부 기간 50% 경과 자동 마감. 베타 운영 메모 — 새 테스터가 볼 합류 카드가 없으니 누구나 방 1~2개 신규 개설 권장(코드 문제 아님)
+- **웹 소개 사이트 골격** ([`docs/index-next.html`](docs/index-next.html), SoT=[`WEB_PLAN.md`](docs/WEB_PLAN.md)): 체크리스트 1~6 완료(자리표시자). 기존 `index.html` 무수정·미교체. 남은 것 = 스크린샷 4장(`docs/screenshots/{home,room-proof,plaza,archive}.png` 넣으면 자동 활성) · `qr.png` · 브라우저 렌더 확인 · `terms.html`(없어 hidden) · 7항목 교체·8항목 guide.html 중복 정리(결정: 별도 페이지+링크)
+
 ### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.
 - 인증 완료 Alert / 카톡 초대 / 생성 후 Alert / 챌린지방 헤더 부제 / FAB 라벨 — 모두 분류별 분기 완료
