@@ -9,7 +9,7 @@ import {
   View, Text, Pressable, FlatList, StyleSheet, RefreshControl, Alert, ScrollView, Image, Linking,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { Telescope, User, Handshake, Globe, Heart, type LucideIcon } from 'lucide-react-native';
+import { Telescope, User, Handshake, Globe, Heart, Landmark, type LucideIcon } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { AppHeader } from '@/components/AppHeader';
 import { EvalBox } from '@/components/EvalBox';
@@ -308,7 +308,7 @@ export default function DiscoverScreen() {
               {figureItems.length > 0 ? (
                 <>
                   {figureItems.slice(0, figureVisibleCount).map(c => (
-                    <StageCard key={c.id} challenge={c} onPress={() => onStagePress(c)} />
+                    <StageCard key={c.id} challenge={c} isHost={c.creator_id === myUserId} onPress={() => onStagePress(c)} />
                   ))}
                   {figureItems.length > figureVisibleCount && (
                     <Pressable
@@ -334,7 +334,7 @@ export default function DiscoverScreen() {
               {orgItems.length > 0 ? (
                 <>
                   {orgItems.slice(0, orgVisibleCount).map(c => (
-                    <StageCard key={c.id} challenge={c} onPress={() => onStagePress(c)} />
+                    <StageCard key={c.id} challenge={c} isHost={c.creator_id === myUserId} onPress={() => onStagePress(c)} />
                   ))}
                   {orgItems.length > orgVisibleCount && (
                     <Pressable
@@ -487,7 +487,7 @@ export default function DiscoverScreen() {
 }
 
 // ─── 🏛️ 무대 카드 — 명사·조직이 연 하다 (신원 공개가 전제인 별개 데이터) ───
-function StageCard({ challenge, onPress }: { challenge: OpenChallengeCard; onPress: () => void }) {
+function StageCard({ challenge, isHost, onPress }: { challenge: OpenChallengeCard; isHost: boolean; onPress: () => void }) {
   return (
     <Pressable style={[styles.card, styles.headerCard]} onPress={onPress}>
       <HostBadge hostTier={challenge.host_tier} hostLabel={challenge.host_label} />
@@ -505,8 +505,16 @@ function StageCard({ challenge, onPress }: { challenge: OpenChallengeCard; onPre
           <Text style={styles.stageClosedText}>모집 마감</Text>
         </View>
       )}
-      {/* 🚀 하단 CTA 3상태 — 참여 중(회색 → 방으로) / 모집 중(주황 합류) / 모집 마감(버튼 없음, 위 칩만) */}
-      {challenge.is_joined ? (
+      {/* 🚀 하단 CTA 4상태 — 주최 중(개설자, 홈 배지와 같은 톤) / 참여 중(회색 → 방으로) / 모집 중(주황 합류) / 모집 마감(버튼 없음, 위 칩만) */}
+      {isHost ? (
+        <View style={styles.cardFooter}>
+          <View style={{ flex: 1 }} />
+          <Pressable style={[styles.copyBtn, styles.copyBtnHost]} onPress={onPress} hitSlop={4}>
+            <Landmark size={14} color={colors.primary500} strokeWidth={2} />
+            <Text style={[styles.copyBtnText, styles.copyBtnHostText]}>주최 중</Text>
+          </Pressable>
+        </View>
+      ) : challenge.is_joined ? (
         <View style={styles.cardFooter}>
           <View style={{ flex: 1 }} />
           <Pressable style={[styles.copyBtn, styles.copyBtnJoined]} onPress={onPress} hitSlop={4}>
@@ -786,6 +794,8 @@ const styles = StyleSheet.create({
   copyBtnText: { fontSize: fontSize.sm, color: colors.onBrand, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
   copyBtnJoined: { backgroundColor: colors.primary100 },   // 참여 중 = 회색 (행동 아닌 상태 표시)
   copyBtnJoinedText: { color: colors.sub },
+  copyBtnHost: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.primary50 },   // 주최 중 = 홈 '주최 중' 배지와 동일 톤
+  copyBtnHostText: { color: colors.primary500 },
 
   empty: { flex: 1, paddingVertical: 80, alignItems: 'center', justifyContent: 'center', gap: 16 },
   emptyText: { fontSize: fontSize.base, color: colors.faint, fontFamily: fontFamily.regular, textAlign: 'center', lineHeight: 22 },
