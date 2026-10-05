@@ -303,6 +303,16 @@
 - **광장 "지금 합류" 0개는 정상**(2026-09-20 SQL 확인): 타인 개설 open 방 5개 전부 기간 50% 경과 자동 마감. 베타 운영 메모 — 새 테스터가 볼 합류 카드가 없으니 누구나 방 1~2개 신규 개설 권장(코드 문제 아님)
 - **웹 소개 사이트 골격** ([`docs/index-next.html`](docs/index-next.html), SoT=[`WEB_PLAN.md`](docs/WEB_PLAN.md)): 체크리스트 1~6 완료(자리표시자). 기존 `index.html` 무수정·미교체. 남은 것 = 스크린샷 4장(`docs/screenshots/{home,room-proof,plaza,archive}.png` 넣으면 자동 활성) · `qr.png` · 브라우저 렌더 확인 · `terms.html`(없어 hidden) · 7항목 교체·8항목 guide.html 중복 정리(결정: 별도 페이지+링크)
 
+### 신규 코드 위치 (v2.37 — 공명→**울림** 리브랜드 + 웹 소개 사이트 본문, 2026-10-05)
+**전부 순수 JS/HTML(마이그레이션·EF 무변경) → 앱 OTA(preview·production) + 웹 커밋. 검증 tsc 0 + npm test 135/135.**
+- **"공명" → "울림" (UI 카피만)**: `공명(共鳴)`은 물리 용어(resonance)라 한자 뜻을 모르면 와닿지 않고 "공명하다"를 일상에서 쓰는 20대가 드물다 — 일상어 **"울림"**으로. 코드 식별자 `parang`·DB·RPC·주석은 그대로(= 파장→공명 때와 같은 리브랜드 원칙, v2.28). 바꾼 자리 = 탭명([`_layout.tsx`](mobile/app/(tabs)/_layout.tsx)) · 화면 제목·빈 상태·푸터([`parang.tsx`](mobile/app/(tabs)/parang.tsx)) · 반응 버튼 **"공명해요"→"마음 울림"**·ripple 라인([`PostCard.tsx`](mobile/components/parang/PostCard.tsx)) · 댓글 빈 상태/placeholder([`ParangComments.tsx`](mobile/components/parang/ParangComments.tsx)) · 작성 토글 "울림에 나누기"([`checkin/[id].tsx`](mobile/app/checkin/[id].tsx)·[`LogTab.tsx`](mobile/components/challenge/LogTab.tsx)) + 웹 랜딩. **완주이야기의 "용기 받았어요"는 별개 기능이라 유지**(둘 다 울림이 되면 기능이 섞인다). 버튼이 명사형인 이유 = 카운트 병기(`마음 울림 3`) + 좁은 폭(갤S9)에서 "나도 할래요"와 한 줄 유지 — "마음이 울렸어요"(7자)는 줄바꿈 위험으로 보류
+- **웹 소개 사이트 ([`docs/index-next.html`](docs/index-next.html), SoT=[`WEB_PLAN.md`](docs/WEB_PLAN.md))**: 자리표시자 → 본문 완성. 기존 `index.html` 은 아직 **무수정·미교체**(결정 ①)
+  - 실기기 스크린샷 8장([`docs/screenshots/`](docs/screenshots/)) — 폭 640 리사이즈(8MB→2MB). hero=홈 / 기능=만들기·인증·울림·현황·박제 / 세상=광장 / 받기=시작 화면
+  - **두 축 분리**: 슬로건 "더 나은 나, 더 나은 세상" 중 **'세상'이 선언만 되고 메커니즘이 없던 문제** — `#stage` 가 사실상 조직 유치 안내문이었다. 라벨 "무대"→**"더 나은 세상"**, 제목 "한 사람의 한 걸음이 만 명의 한 걸음이 될 때". **울림(움직인 사람 수)을 기능 6칸에서 섹션 앞으로 끌어올림**. 운영 규정(셀프서비스 없음·조직 명의 계정)은 지우지 않고 제안 CTA 직전으로 축소 — 사칭 방어선이라 삭제 불가지만 서사 한가운데 둘 문구도 아니다
+  - ⚠️ **명사 카드에 실명 금지** — 섭외·동의 전 실명은 허위 연관·성명권 문제. "20년을 조용히 후원해 온 사람" 식 익명 묘사로 쓰고, 실제 섭외 후 교체
+  - 공유 썸네일: og:image = **1200×630 배너**([`docs/og-banner.png`](docs/og-banner.png), .NET Graphics 로 생성) + og:title "더 나은 나, 더 나은 세상". 기존엔 앱 아이콘 1장이라 카톡 공유 시 눈에 안 띄었음
+  - 남은 것 = `qr.png` · 브라우저 렌더 확인 · `terms.html`(없어 footer 링크 hidden) · `index.html` 교체(체크리스트 7) · `guide.html` 중복 정리(결정: 별도 페이지+링크)
+
 ### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.
 - 인증 완료 Alert / 카톡 초대 / 생성 후 Alert / 챌린지방 헤더 부제 / FAB 라벨 — 모두 분류별 분기 완료
