@@ -118,21 +118,43 @@ React Native 네이티브 앱이고 SecureStore·image-picker·notifications 의
 
 ---
 
-## 7. 착수 체크리스트 (새 세션용)
+## 7. 착수 체크리스트 — ✅ 전부 완료 (2026-10-05)
 
-1. [ ] 스크린샷 4~6장 확보 여부 확인 → 없으면 자리표시자로 진행
-2. [ ] [`index.html`](index.html) 에서 재활용할 원고 추출 (7가지 약속 · 세 가지 질문 · 매슬로우)
-3. [ ] 새 파일 작성 — 단일 HTML, 인라인 CSS, 빌드 도구 없음, `data-i18n` 구조
-4. [ ] `#download` 는 베타 3단계(TestFlight / 구글그룹 → Play) + 정식 전환 가능 구조
-5. [ ] `#stage` 조직 제안 창구 — §4 의 제약(셀프서비스 금지·조직 계정 전제) 반영
-6. [ ] PC 방문자 QR
-7. [ ] 검증 후 `index.html` 교체 · GitHub Pages 반영 확인
-8. [ ] `guide.html` 과의 중복 정리 (흡수할지 링크로 남길지)
+1. [x] 스크린샷 — **실기기 8장** 확보 ([`screenshots/`](screenshots/), 폭 640 리사이즈 8MB→2MB)
+2. [x] 기존 원고 재활용 — 기존 SNS 진단 · 세 가지 질문 · 매슬로우 · 7가지 약속 그대로 이식
+3. [x] 단일 HTML · 인라인 CSS · 빌드 도구 없음 · `data-i18n` 145키 (EN 은 KO 폴백)
+4. [x] `#download` 베타 3단계 + 정식 전환 가능 구조(`#download-store` hidden)
+5. [x] `#stage` → **"더 나은 세상"** 서사 섹션으로 전환 + 조직 제안 창구(§4 제약 반영)
+6. [x] PC 방문자 QR ([`qr.png`](qr.png), 폭 900px 이상에서만 노출 · `#download` 로 착지)
+7. [x] `index.html` 교체 · GitHub Pages 반영 확인
+8. [x] `guide.html` 은 별도 페이지로 유지 + 양방향 링크
+
+**계획에 없던 추가분**: [`terms.html`](terms.html) 신설(footer 링크가 죽어 있었음) · [`og-banner.png`](og-banner.png) 1200×630 공유 썸네일
 
 ---
 
-## 8. 열린 질문
+## 8. 열린 질문 — 전부 결정됨 (2026-10-05)
 
-- `index.html` 을 교체할 때 **베타 모집 구글폼**은 어디로? (유지 / 제거 / #download 안으로)
-- `guide.html` 을 흡수할지, 별도 페이지로 남기고 링크만 걸지
-- 도메인 — GitHub Pages 기본 주소 유지 vs 커스텀 도메인 (개인사업자 등록과 연동될 수 있음)
+| 질문 | 결정 |
+|---|---|
+| 베타 모집 구글폼 | `#download` 안에 **보조 링크로 유지** ("테스터 등록(구글폼)") |
+| `guide.html` 흡수 여부 | **별도 페이지 유지** + 상호 링크 (중복 최소화) |
+| 도메인 | **GitHub Pages 기본 주소 유지.** 커스텀 도메인 연결하지 않음 |
+
+---
+
+## 9. 트랙 종료 (2026-10-05)
+
+> **이 문서의 트랙은 여기서 끝난다.** 제품 소개 **웹페이지는 개인사업자 홈페이지
+> `doinno.co.kr` 에서 별도로 제작**하기로 결정했고, GitHub Pages 의
+> [`index.html`](index.html) 은 **현재 수준에서 멈춘다.**
+
+- GitHub Pages(`https://mirr0505-maker.github.io/dohada/`)는 **그대로 운영**한다 —
+  베타 테스터에게 이미 안내된 주소이고, 앱 안의 법적 링크(약관·개인정보·계정삭제)가
+  이 주소를 가리킨다. **내리면 앱 심사·탈퇴 안내가 깨진다.**
+- 따라서 앞으로 손댈 곳은 **법적 문서(`terms.html`·`privacy.html`)의 내용 변경뿐**이다.
+  소개 페이지의 디자인·카피 개선은 `doinno.co.kr` 쪽에서 한다.
+- `doinno.co.kr` 에서 원고·이미지가 필요하면 이 폴더에서 그대로 가져다 쓸 수 있다
+  (전부 상대경로 · 외부 의존은 Pretendard 웹폰트 하나).
+  옮길 때 `index.html` 의 절대 URL 3곳(`og:image`·`og:url`·`canonical`)과 QR 은
+  새 주소로 바꿔야 한다.
