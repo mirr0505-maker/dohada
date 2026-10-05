@@ -8,9 +8,11 @@
 <meta name="theme-color" content="#FF6B35">
 
 <!-- Open Graph -->
-<meta property="og:title" content="Do : 하다 — 비교 없이, 오늘도 한 걸음">
-<meta property="og:description" content="'하다'를 선언하고, 매일 인증하고, 동료의 응원을 받는 자아실현 SNS. iOS · Android 베타.">
-<meta property="og:image" content="https://mirr0505-maker.github.io/dohada/icon.png">
+<meta property="og:title" content="더 나은 나, 더 나은 세상 — Do : 하다">
+<meta property="og:description" content="매일의 한 걸음으로 나를 바꾸고, 그 걸음이 번져 세상을 바꾸는 곳. 비교도, 친구 신청도, 알림 폭격도 없어요. iOS · Android 베타.">
+<meta property="og:image" content="https://mirr0505-maker.github.io/dohada/og-banner.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 <meta property="og:type" content="website">
 
 <!-- Pretendard Font (guide.html 과 동일 — 유일한 외부 의존) -->
@@ -262,6 +264,20 @@
   .stage-shot, .dl-shot { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 28px; }
   .stage-shot figcaption, .dl-shot figcaption { font-size: 13px; font-weight: 600; color: var(--primary-500); }
 
+  /* ── #stage: 공명(선한 영향력) 블록 ──────────────── */
+  .ripple { display: grid; grid-template-columns: 1.3fr 1fr; gap: 32px; align-items: center; margin-bottom: 56px; }
+  .ripple-text h3 { font-size: 22px; font-weight: 700; color: var(--primary); margin-bottom: 16px; letter-spacing: -0.3px; }
+  .ripple-text p { font-size: 15.5px; color: var(--primary-500); line-height: 1.8; margin-bottom: 12px; }
+  .ripple-text strong { color: var(--accent-700); }
+  .ripple-point { padding-top: 4px; font-weight: 600; color: var(--primary) !important; }
+  .ripple-shot { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .ripple-shot figcaption { font-size: 13px; font-weight: 600; color: var(--primary-500); }
+  @media (max-width: 720px) { .ripple { grid-template-columns: 1fr; gap: 24px; } }
+
+  .stage-notes.small { padding: 16px 20px; }
+  .stage-notes.small p { font-size: 13px; color: var(--primary-500); line-height: 1.65; }
+  .stage-notes .notes-head { font-size: 12px; font-weight: 700; color: var(--accent-700); letter-spacing: 0.4px; margin-bottom: 10px; }
+
   /* ── #download ──────────────────────────────────── */
   .dl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .dl-card { background: white; border: 1px solid var(--primary-100); border-radius: 16px; padding: 24px 22px; }
@@ -323,7 +339,7 @@
       <a href="#top" data-i18n="navHome">홈</a>
       <a href="#why" data-i18n="navWhy">왜</a>
       <a href="#features" data-i18n="navFeatures">기능</a>
-      <a href="#stage" data-i18n="navStage">무대</a>
+      <a href="#stage" data-i18n="navStage">세상</a>
       <a href="#download" data-i18n="navDownload">받기</a>
     </div>
     <div class="lang" role="group" aria-label="언어">
@@ -343,7 +359,7 @@
         <span class="paren l">(</span><span class="ring"><span class="dot"></span></span><span class="paren r">)</span>
       </div>
       <div><span class="hero-tag" data-i18n="heroTag">베타 진행 중 · iOS &amp; Android</span></div>
-      <h1 data-i18n="heroTitle">비교에 지친 SNS와 작별,<br>오늘도 한 걸음<br><span class="accent">나아가는 곳.</span></h1>
+      <h1 data-i18n="heroTitle">오늘 한 걸음이 나를 바꾸고,<br><span class="accent">누군가의 첫 걸음</span>이 됩니다.</h1>
       <p class="lead" data-i18n="heroLead">'하다'를 선언하고, 매일 인증하고,<br>동료의 응원을 받는 — 자아실현 SNS.</p>
       <div class="cta-row">
         <a class="cta" href="#download" data-i18n="heroCtaGet">앱 받기</a>
@@ -539,7 +555,7 @@
       <div class="feature">
         <div class="f-num">05</div>
         <h3 data-i18n="f5Title">공명</h3>
-        <p data-i18n="f5Desc">인증·기록을 익명으로도 나눌 수 있는 피드. 좋아요·랭킹 없이 "공명해요"와 "나도 할래요"(따라하기)만 — 움직인 사람 수가 은은히 남아요.</p>
+        <p data-i18n="f5Desc">내 걸음을 익명으로도 나눌 수 있는 피드. 좋아요도 랭킹도 없고, 남는 건 그 걸음을 보고 움직인 사람 수예요.</p>
       </div>
       <div class="feature">
         <div class="f-num">06</div>
@@ -558,10 +574,6 @@
         <figcaption data-i18n="shotRoom">하다 방 · 인증과 응원</figcaption>
       </figure>
       <figure>
-        <img class="shot" src="screenshots/parang.png" alt="공명 피드" loading="lazy" onerror="shotFallback(this)">
-        <figcaption data-i18n="shotParang">공명 · 번져가는 한 걸음</figcaption>
-      </figure>
-      <figure>
         <img class="shot" src="screenshots/status.png" alt="하다 방 현황 탭" loading="lazy" onerror="shotFallback(this)">
         <figcaption data-i18n="shotStatus">현황 · 안내문과 다짐</figcaption>
       </figure>
@@ -574,24 +586,43 @@
 </section>
 
 <!-- ────────────────────────────────────────────── -->
-<!-- #stage — 조직 하다 제안 창구                   -->
+<!-- #stage — 더 나은 세상 (선한 영향력) + 조직 하다 제안 창구 -->
 <!-- ────────────────────────────────────────────── -->
 <section class="stage" id="stage">
   <div class="container">
     <div class="narrow">
-      <div class="label" data-i18n="sLabel">무대</div>
-      <h2 data-i18n="sTitle">⭐ 명사의 하다 · 🏛️ 공식 하다<br>이런 무대가 열립니다</h2>
-      <p class="section-lead" data-i18n="sLead">광장 맨 위에는 상설 자리가 둘 있어요. 개인 하다와 섞이지 않고, 누구나 합류할 수 있는 무대예요.</p>
+      <div class="label" data-i18n="sLabel">더 나은 세상</div>
+      <h2 data-i18n="sTitle">한 사람의 한 걸음이<br><span class="accent">만 명의 한 걸음</span>이 될 때</h2>
+      <p class="section-lead" data-i18n="sLead">혼자 걸으면 나를 바꾸고, 그 걸음이 보이면 다음 사람이 걷기 시작해요. 더 나은 나는 하루하루의 행동이 쌓여 만들어지고, 더 나은 세상은 그 걸음이 번져서 만들어져요.</p>
+    </div>
+
+    <!-- 공명 — 선한 영향력이 측정되는 방식 (기능 목록에서 끌어올림) -->
+    <div class="ripple">
+      <div class="ripple-text">
+        <h3 data-i18n="sRippleTitle">그래서 남는 건, 움직인 사람 수예요</h3>
+        <p data-i18n="sRipple1">공명은 내 걸음을 — 원하면 익명으로 — 나누는 피드예요. 좋아요도, 팔로워 수도, 순위표도 없어요.</p>
+        <p data-i18n="sRipple2">대신 그 걸음을 보고 <strong>"나도 할래요"</strong>를 누른 사람이 같은 하다를 시작하고, 원래 걸음에는 <strong>"🔁 N번 참조"</strong>가 조용히 남아요. 자랑이 아니라 초대가 되는 거예요.</p>
+        <p class="ripple-point" data-i18n="sRipple3">여기서는 얼마나 많이 가졌는지가 아니라, <strong>얼마나 많은 사람을 움직였는지</strong>가 남아요.</p>
+      </div>
+      <figure class="ripple-shot">
+        <img class="shot" src="screenshots/parang.png" alt="공명 피드" loading="lazy" onerror="shotFallback(this)">
+        <figcaption data-i18n="shotParang">공명 · 번져가는 한 걸음</figcaption>
+      </figure>
+    </div>
+
+    <div class="narrow sub-block">
+      <h2 data-i18n="sStageTitle">그 걸음을 가장 멀리 보내는 두 자리</h2>
+      <p class="section-lead" data-i18n="sStageLead">광장 맨 위에는 상설 자리가 둘 있어요. 개인 하다와 섞이지 않고, 누구나 합류할 수 있는 무대예요.</p>
     </div>
 
     <div class="stage-grid">
       <div class="stage-card">
         <h3 data-i18n="sFigureTitle">⭐ 명사의 하다</h3>
-        <p data-i18n="sFigureDesc">함께 걷고 싶은 사람이 여는 하다. 그 사람의 여정을 같은 방에서 목격하고, 응원하고, 나도 한 걸음 걸어요.</p>
+        <p data-i18n="sFigureDesc">이미 선한 영향력으로 걸어온 분들이 있어요. 20년을 조용히 후원해 온 사람, 기부 마라톤을 달리는 사람, 매일 동네 쓰레기를 줍는 사람. 그 걸음을 혼자 걷지 않고 무대에서 열면, 수천 명이 같은 날 같은 걸음을 걸어요. 응원은 그분께 가고, 바뀐 세상은 모두에게 남아요.</p>
       </div>
       <div class="stage-card">
         <h3 data-i18n="sOrgTitle">🏛️ 공식 하다</h3>
-        <p data-i18n="sOrgDesc">조직·모임·브랜드가 여는 하다. 구성원과 고객이 한 방에서 같은 목표를 향해 인증해요.</p>
+        <p data-i18n="sOrgDesc">조직·모임·브랜드가 여는 하다. 환경·기부·봉사처럼 혼자서는 꺼내기 어려운 일을 한 방에서 함께 인증해요. 한 사람이 못 하던 일을, 천 명이 하루씩 나눠 들면 되니까요.</p>
         <div class="example" data-i18n="sOrgExample">첫 무대 예시 — 「매일 8천보 걷기」 (운영팀)</div>
       </div>
     </div>
@@ -601,7 +632,8 @@
       <figcaption data-i18n="shotPlaza">광장 · 무대는 비어 있어도 자리를 지켜요</figcaption>
     </figure>
 
-    <div class="stage-notes">
+    <div class="stage-notes small">
+      <p class="notes-head" data-i18n="sNoteHead">제안 전에 알아 두실 것</p>
       <p data-i18n="sNote1">① <strong>셀프서비스 등록은 없어요.</strong> 제안을 보내 주시면 운영팀이 검토한 뒤 무대로 지정해요. 사칭을 막는 유일한 방어선이라 예외를 두지 않아요.</p>
       <p data-i18n="sNote2">② <strong>조직 명의 계정으로 가입해 주세요.</strong> 하다의 개설자는 나중에 바꿀 수 없어서, 담당자 개인 계정으로 열면 담당자가 바뀔 때 하다를 옮길 수 없어요. 조직 계정이 공식으로 지정되면 그 계정이 여는 「누구나」 하다는 자동으로 무대에 올라요.</p>
     </div>
@@ -711,10 +743,10 @@
   //   - 문자열은 이 파일 안의 상수라 innerHTML 사용이 안전(외부 입력 없음).
   const I18N = {
     ko: {
-      navHome: '홈', navWhy: '왜', navFeatures: '기능', navStage: '무대', navDownload: '받기',
+      navHome: '홈', navWhy: '왜', navFeatures: '기능', navStage: '세상', navDownload: '받기',
 
       heroTag: '베타 진행 중 · iOS &amp; Android',
-      heroTitle: '비교에 지친 SNS와 작별,<br>오늘도 한 걸음<br><span class="accent">나아가는 곳.</span>',
+      heroTitle: '오늘 한 걸음이 나를 바꾸고,<br><span class="accent">누군가의 첫 걸음</span>이 됩니다.',
       heroLead: "'하다'를 선언하고, 매일 인증하고,<br>동료의 응원을 받는 — 자아실현 SNS.",
       heroCtaGet: '앱 받기', heroCtaWhy: '먼저 알아보기',
       heroNote: 'iOS TestFlight · Android 비공개 테스트로 설치해요.',
@@ -787,20 +819,27 @@
       f4Title: '박제 (완주)',
       f4Desc: "끝까지 간 하다는 박제로 영구 보존돼요. 완주 이야기를 '해냈어요'에 나누면, 읽은 사람이 \"용기 받았어요\"로 되돌려 줘요.",
       f5Title: '공명',
-      f5Desc: '인증·기록을 익명으로도 나눌 수 있는 피드. 좋아요·랭킹 없이 "공명해요"와 "나도 할래요"(따라하기)만 — 움직인 사람 수가 은은히 남아요.',
+      f5Desc: '내 걸음을 익명으로도 나눌 수 있는 피드. 좋아요도 랭킹도 없고, 남는 건 그 걸음을 보고 움직인 사람 수예요.',
       f6Title: '조용한 알림',
       f6Desc: '응원은 1시간 단위로 묶고, 즉시 알림은 대화·댓글뿐. 밤 10시~아침 6시는 보류, 하루 상한까지 — 그만둘 때도 조용히.',
       shotCreate: '하다 만들기 · 5단계', shotRoom: '하다 방 · 인증과 응원', shotParang: '공명 · 번져가는 한 걸음',
       shotStatus: '현황 · 안내문과 다짐', shotArchive: '박제 · 완주',
       shotPlaza: '광장 · 무대는 비어 있어도 자리를 지켜요', shotLogin: '설치하면 이 화면으로 시작해요',
 
-      sLabel: '무대',
-      sTitle: '⭐ 명사의 하다 · 🏛️ 공식 하다<br>이런 무대가 열립니다',
-      sLead: '광장 맨 위에는 상설 자리가 둘 있어요. 개인 하다와 섞이지 않고, 누구나 합류할 수 있는 무대예요.',
+      sLabel: '더 나은 세상',
+      sTitle: '한 사람의 한 걸음이<br><span class="accent">만 명의 한 걸음</span>이 될 때',
+      sLead: '혼자 걸으면 나를 바꾸고, 그 걸음이 보이면 다음 사람이 걷기 시작해요. 더 나은 나는 하루하루의 행동이 쌓여 만들어지고, 더 나은 세상은 그 걸음이 번져서 만들어져요.',
+      sRippleTitle: '그래서 남는 건, 움직인 사람 수예요',
+      sRipple1: '공명은 내 걸음을 — 원하면 익명으로 — 나누는 피드예요. 좋아요도, 팔로워 수도, 순위표도 없어요.',
+      sRipple2: '대신 그 걸음을 보고 <strong>"나도 할래요"</strong>를 누른 사람이 같은 하다를 시작하고, 원래 걸음에는 <strong>"🔁 N번 참조"</strong>가 조용히 남아요. 자랑이 아니라 초대가 되는 거예요.',
+      sRipple3: '여기서는 얼마나 많이 가졌는지가 아니라, <strong>얼마나 많은 사람을 움직였는지</strong>가 남아요.',
+      sStageTitle: '그 걸음을 가장 멀리 보내는 두 자리',
+      sStageLead: '광장 맨 위에는 상설 자리가 둘 있어요. 개인 하다와 섞이지 않고, 누구나 합류할 수 있는 무대예요.',
+      sNoteHead: '제안 전에 알아 두실 것',
       sFigureTitle: '⭐ 명사의 하다',
-      sFigureDesc: '함께 걷고 싶은 사람이 여는 하다. 그 사람의 여정을 같은 방에서 목격하고, 응원하고, 나도 한 걸음 걸어요.',
+      sFigureDesc: '이미 선한 영향력으로 걸어온 분들이 있어요. 20년을 조용히 후원해 온 사람, 기부 마라톤을 달리는 사람, 매일 동네 쓰레기를 줍는 사람. 그 걸음을 혼자 걷지 않고 무대에서 열면, 수천 명이 같은 날 같은 걸음을 걸어요. 응원은 그분께 가고, 바뀐 세상은 모두에게 남아요.',
       sOrgTitle: '🏛️ 공식 하다',
-      sOrgDesc: '조직·모임·브랜드가 여는 하다. 구성원과 고객이 한 방에서 같은 목표를 향해 인증해요.',
+      sOrgDesc: '조직·모임·브랜드가 여는 하다. 환경·기부·봉사처럼 혼자서는 꺼내기 어려운 일을 한 방에서 함께 인증해요. 한 사람이 못 하던 일을, 천 명이 하루씩 나눠 들면 되니까요.',
       sOrgExample: '첫 무대 예시 — 「매일 8천보 걷기」 (운영팀)',
       sNote1: '① <strong>셀프서비스 등록은 없어요.</strong> 제안을 보내 주시면 운영팀이 검토한 뒤 무대로 지정해요. 사칭을 막는 유일한 방어선이라 예외를 두지 않아요.',
       sNote2: '② <strong>조직 명의 계정으로 가입해 주세요.</strong> 하다의 개설자는 나중에 바꿀 수 없어서, 담당자 개인 계정으로 열면 담당자가 바뀔 때 하다를 옮길 수 없어요. 조직 계정이 공식으로 지정되면 그 계정이 여는 「누구나」 하다는 자동으로 무대에 올라요.',
