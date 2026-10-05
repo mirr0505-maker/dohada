@@ -65,6 +65,9 @@
   }
 
   /* ── Nav (고정) ──────────────────────────────────── */
+  /* 앵커(#download 등)로 점프할 때 고정 nav 아래로 제목이 숨지 않게 */
+  section[id] { scroll-margin-top: 72px; }
+
   .topnav {
     position: fixed; top: 0; left: 0; right: 0; z-index: 100;
     height: 56px;
@@ -370,7 +373,7 @@
       <p class="cta-note" data-i18n="heroNote">iOS TestFlight · Android 비공개 테스트로 설치해요.</p>
     </div>
     <div class="hero-shot">
-      <img class="shot" src="screenshots/home.png" alt="Do : 하다 홈 화면" onerror="shotFallback(this)">
+      <img class="shot" width="640" height="1385" src="screenshots/home.png" alt="Do : 하다 홈 화면" onerror="shotFallback(this)">
     </div>
   </div>
 </section>
@@ -568,19 +571,19 @@
 
     <div class="feature-shots">
       <figure>
-        <img class="shot" src="screenshots/create.png" alt="하다 만들기 마법사" loading="lazy" onerror="shotFallback(this)">
+        <img class="shot" width="640" height="1385" src="screenshots/create.png" alt="하다 만들기 마법사" loading="lazy" onerror="shotFallback(this)">
         <figcaption data-i18n="shotCreate">하다 만들기 · 5단계</figcaption>
       </figure>
       <figure>
-        <img class="shot" src="screenshots/room-proof.png" alt="하다 방 인증 탭" loading="lazy" onerror="shotFallback(this)">
+        <img class="shot" width="640" height="1385" src="screenshots/room-proof.png" alt="하다 방 인증 탭" loading="lazy" onerror="shotFallback(this)">
         <figcaption data-i18n="shotRoom">하다 방 · 인증과 응원</figcaption>
       </figure>
       <figure>
-        <img class="shot" src="screenshots/status.png" alt="하다 방 현황 탭" loading="lazy" onerror="shotFallback(this)">
+        <img class="shot" width="640" height="1385" src="screenshots/status.png" alt="하다 방 현황 탭" loading="lazy" onerror="shotFallback(this)">
         <figcaption data-i18n="shotStatus">현황 · 안내문과 다짐</figcaption>
       </figure>
       <figure>
-        <img class="shot" src="screenshots/archive.png" alt="박제" loading="lazy" onerror="shotFallback(this)">
+        <img class="shot" width="640" height="1385" src="screenshots/archive.png" alt="박제" loading="lazy" onerror="shotFallback(this)">
         <figcaption data-i18n="shotArchive">박제 · 완주</figcaption>
       </figure>
     </div>
@@ -607,7 +610,7 @@
         <p class="ripple-point" data-i18n="sRipple3">여기서는 얼마나 많이 가졌는지가 아니라, <strong>얼마나 많은 사람을 움직였는지</strong>가 남아요.</p>
       </div>
       <figure class="ripple-shot">
-        <img class="shot" src="screenshots/parang.png" alt="울림 피드" loading="lazy" onerror="shotFallback(this)">
+        <img class="shot" width="640" height="1385" src="screenshots/parang.png" alt="울림 피드" loading="lazy" onerror="shotFallback(this)">
         <figcaption data-i18n="shotParang">울림 · 번져가는 한 걸음</figcaption>
       </figure>
     </div>
@@ -630,7 +633,7 @@
     </div>
 
     <figure class="stage-shot">
-      <img class="shot" src="screenshots/plaza.png" alt="광장 탭 — 명사의 하다와 조직의 하다" loading="lazy" onerror="shotFallback(this)">
+      <img class="shot" width="640" height="1385" src="screenshots/plaza.png" alt="광장 탭 — 명사의 하다와 조직의 하다" loading="lazy" onerror="shotFallback(this)">
       <figcaption data-i18n="shotPlaza">광장 · 무대는 비어 있어도 자리를 지켜요</figcaption>
     </figure>
 
@@ -659,7 +662,7 @@
     <!-- 베타 블록 — 정식 출시 시 hidden 으로 바꾸고 #download-store 의 hidden 을 지운다 -->
     <div id="download-beta">
       <figure class="dl-shot">
-        <img class="shot" src="screenshots/login.png" alt="Do : 하다 시작 화면" loading="lazy" onerror="shotFallback(this)">
+        <img class="shot" width="640" height="1385" src="screenshots/login.png" alt="Do : 하다 시작 화면" loading="lazy" onerror="shotFallback(this)">
         <figcaption data-i18n="shotLogin">설치하면 이 화면으로 시작해요</figcaption>
       </figure>
 
@@ -699,7 +702,7 @@
 
       <!-- PC 방문자 — 폰으로 넘기는 QR (900px 이상에서만 표시) -->
       <div class="qr-block">
-        <img src="qr.png" alt="앱 받기 화면으로 가는 QR" onerror="qrFallback(this)">
+        <img src="qr.png" width="400" height="400" alt="앱 받기 화면으로 가는 QR" onerror="qrFallback(this)">
         <div>
           <h4 data-i18n="qrTitle">PC 에서 보고 계신가요?</h4>
           <p data-i18n="qrDesc">Do : 하다는 iPhone · Android 앱이에요. PC 에는 설치되지 않아요. 폰 카메라로 QR 을 찍으면 폰에서 바로 이 받기 화면이 열려요.</p>
