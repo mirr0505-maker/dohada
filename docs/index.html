@@ -158,7 +158,8 @@
 
   /* ── 스크린샷 (img 실패 시 폰 프레임 자리표시자로 교체) ── */
   .shot {
-    width: 100%; max-width: 300px;
+    /* height:auto 가 없으면 <img> 의 height 속성(1385)이 그대로 적용돼 세로로 늘어난다 */
+    width: 100%; max-width: 300px; height: auto;
     border-radius: 28px; border: 6px solid var(--primary);
     box-shadow: 0 24px 60px rgba(26, 26, 26, 0.18);
     background: var(--primary-50);
