@@ -178,13 +178,13 @@ proposed → funded(전원 선주문 결제 완료) → active → settled(완�
 
 | 항목 | 내용 | 시점 |
 |------|------|------|
-| 사업자등록 | PG 계약의 전제조건 | Stage 2 전 |
+| 사업자등록 | PG 계약의 전제조건 | ✅ **완료 (2026-10-05 확인)** — 개인사업자 |
 | 통신판매업 신고 | 기프티콘 판매 = 통신판매. 구청/정부24, 등록면허세 수만 원 | Stage 2 전 |
 | PG 가맹 계약 | 토스페이먼츠 — 개발자센터 테스트 키는 계약 없이 즉시 발급 가능 | 테스트는 지금, 실키는 Stage 3 |
 | 본인확인 서비스 계약 | PASS/NICE/KCB 대행 (아임포트·토스 본인인증 등 경유 가능) — 건당 수십 원 | Stage 3 (Stage 1 은 mock) |
 | 기프티콘 B2B 계약 | 기프티쇼 비즈 등 — 월 최소 물량 + **발급 시점 유연성(선주문 후 지연 발급)** + **앱 내 발급(바코드 표시) 지원** 비교 | Stage 3 |
-| 약관·환불정책 | 전자상거래법 기준 청약철회(7일) 반영 | Stage 3 전 |
-| 개인정보처리방침 갱신 | 수신자 휴대폰번호 처리 항목 추가 | Stage 3 전 |
+| 약관·환불정책 | 전자상거래법 기준 청약철회(7일) 반영 | ✅ **초안 완료 (2026-10-05)** — [`docs/terms.html`](terms.html) 제10조. ⚠️ 변호사 검토 전 |
+| 개인정보처리방침 갱신 | 수신자 휴대폰번호 처리 항목 추가 | ✅ **완료 (2026-10-05)** — [`docs/privacy.html`](privacy.html) 결제·교환권 항목 + 법정 보존기간 |
 
 ---
 
@@ -265,6 +265,27 @@ proposed → funded(전원 선주문 결제 완료) → active → settled(완�
 - [ ] 사업자·통신판매업·PG 실계약·기프티콘 B2B 계약
 - [ ] 본인 → 본인 테스트 계정으로 실결제 → 실제 기프티콘 수신 → 환불까지 전 구간 1회 왕복
 - [ ] 운영 알람: paid-미발급 잔류 건 감지 (client_errors 패턴 재사용)
+
+#### ⚠️ 실결제 전환일에 **같이** 바꿔야 하는 것 (코드가 mock 인 동안 미리 바꾸면 거짓 고지가 된다)
+**① 구현 교체** — [`providers.ts`](../supabase/functions/_shared/payments/providers.ts) 의 mock 3종을 실구현으로.
+`createMockPgClient`(PG 승인·취소) · `createMockGifticonClient`(발급) · `createMockIdentityClient`(본인확인).
+호출부 = `confirm-gift-payment` · `claim-gift` · `verify-identity`. **환경변수 분기 금지**(원칙 0) — 코드 레벨 교체만.
+
+**② 앱 내 "모의 결제" 문구 8곳** (문구만 지우면 안 되고 ①과 같은 배포에):
+| 파일 | 내용 |
+|---|---|
+| [`GiftSheet.tsx`](../mobile/components/challenge/GiftSheet.tsx) | 상단 note · 결제 버튼 "(모의 결제)" · 하단 "실제 결제·계좌 연결 없음" |
+| [`BetSheet.tsx`](../mobile/components/challenge/BetSheet.tsx) | 위와 동일 3곳 |
+| [`gift/[id].tsx`](../mobile/app/gift/[id].tsx) | 받기 화면 각주 |
+| [`create.tsx`](../mobile/app/create.tsx) | 내기 설정 스텝 "(베타: 모의 결제)" |
+| [`settings.tsx`](../mobile/app/settings.tsx) | 기능 설명 2곳 ("가상 교환권") |
+
+**③ 약관·방침은 이미 실결제 전제로 개정됨**(2026-10-05) — 전환 시 추가 개정 불필요.
+단 **위탁 표의 "전자결제대행사(PG)/본인확인기관/교환권 발급사"를 실제 상호로** 교체하고,
+약관 10-5 기부 **공제율 수치**를 자문 ⓐ 결과로 확정 기입할 것.
+
+**④ 결제 화면 고지 의무** — 결제 전 화면에 상품명·금액·청약철회 제한(교환권 발급 후)을 표시해야 한다(전자상거래법).
+현재 GiftSheet/BetSheet 에는 금액만 있고 **철회 제한 고지가 없다** → 전환 시 추가.
 
 ### Stage 4 — 베타 오픈 (응원 한잔만)
 - [ ] 발신 한도·금액 상한 보수적으로 시작, 내기는 미포함
