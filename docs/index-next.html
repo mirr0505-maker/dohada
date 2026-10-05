@@ -239,11 +239,12 @@
   .feature .f-num { font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 1.2px; margin-bottom: 10px; }
   .feature h3 { font-size: 17px; font-weight: 700; color: var(--primary); margin-bottom: 8px; letter-spacing: -0.2px; }
   .feature p { font-size: 14px; color: var(--primary-500); line-height: 1.65; }
-  .feature-shots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 48px; justify-items: center; }
-  .feature-shots figure { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; }
+  /* 장수가 3의 배수가 아니어도 마지막 줄이 가운데 모이도록 flex 로 둔다 */
+  .feature-shots { display: flex; flex-wrap: wrap; justify-content: center; gap: 24px; margin-top: 48px; }
+  .feature-shots figure { flex: 0 1 220px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
   .feature-shots figcaption { font-size: 13px; font-weight: 600; color: var(--primary-500); }
   @media (max-width: 860px) { .feature-grid { grid-template-columns: 1fr 1fr; } }
-  @media (max-width: 560px) { .feature-grid, .feature-shots { grid-template-columns: 1fr; } }
+  @media (max-width: 560px) { .feature-grid { grid-template-columns: 1fr; } }
 
   /* ── #stage ─────────────────────────────────────── */
   .stage { background: var(--bg-soft); }
@@ -257,6 +258,9 @@
   .stage-notes p:last-child { margin-bottom: 0; }
   .stage-notes strong { color: var(--accent-700); }
   @media (max-width: 720px) { .stage-grid { grid-template-columns: 1fr; } }
+
+  .stage-shot, .dl-shot { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 28px; }
+  .stage-shot figcaption, .dl-shot figcaption { font-size: 13px; font-weight: 600; color: var(--primary-500); }
 
   /* ── #download ──────────────────────────────────── */
   .dl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -546,15 +550,23 @@
 
     <div class="feature-shots">
       <figure>
-        <img class="shot" src="screenshots/room-proof.png" alt="하다 방 인증 탭" onerror="shotFallback(this)">
-        <figcaption data-i18n="shotRoom">하다 방 · 인증</figcaption>
+        <img class="shot" src="screenshots/create.png" alt="하다 만들기 마법사" loading="lazy" onerror="shotFallback(this)">
+        <figcaption data-i18n="shotCreate">하다 만들기 · 5단계</figcaption>
       </figure>
       <figure>
-        <img class="shot" src="screenshots/plaza.png" alt="광장" onerror="shotFallback(this)">
-        <figcaption data-i18n="shotPlaza">광장 · 무대와 구경</figcaption>
+        <img class="shot" src="screenshots/room-proof.png" alt="하다 방 인증 탭" loading="lazy" onerror="shotFallback(this)">
+        <figcaption data-i18n="shotRoom">하다 방 · 인증과 응원</figcaption>
       </figure>
       <figure>
-        <img class="shot" src="screenshots/archive.png" alt="박제" onerror="shotFallback(this)">
+        <img class="shot" src="screenshots/parang.png" alt="공명 피드" loading="lazy" onerror="shotFallback(this)">
+        <figcaption data-i18n="shotParang">공명 · 번져가는 한 걸음</figcaption>
+      </figure>
+      <figure>
+        <img class="shot" src="screenshots/status.png" alt="하다 방 현황 탭" loading="lazy" onerror="shotFallback(this)">
+        <figcaption data-i18n="shotStatus">현황 · 안내문과 다짐</figcaption>
+      </figure>
+      <figure>
+        <img class="shot" src="screenshots/archive.png" alt="박제" loading="lazy" onerror="shotFallback(this)">
         <figcaption data-i18n="shotArchive">박제 · 완주</figcaption>
       </figure>
     </div>
@@ -584,6 +596,11 @@
       </div>
     </div>
 
+    <figure class="stage-shot">
+      <img class="shot" src="screenshots/plaza.png" alt="광장 탭 — 명사의 하다와 조직의 하다" loading="lazy" onerror="shotFallback(this)">
+      <figcaption data-i18n="shotPlaza">광장 · 무대는 비어 있어도 자리를 지켜요</figcaption>
+    </figure>
+
     <div class="stage-notes">
       <p data-i18n="sNote1">① <strong>셀프서비스 등록은 없어요.</strong> 제안을 보내 주시면 운영팀이 검토한 뒤 무대로 지정해요. 사칭을 막는 유일한 방어선이라 예외를 두지 않아요.</p>
       <p data-i18n="sNote2">② <strong>조직 명의 계정으로 가입해 주세요.</strong> 하다의 개설자는 나중에 바꿀 수 없어서, 담당자 개인 계정으로 열면 담당자가 바뀔 때 하다를 옮길 수 없어요. 조직 계정이 공식으로 지정되면 그 계정이 여는 「누구나」 하다는 자동으로 무대에 올라요.</p>
@@ -607,6 +624,11 @@
 
     <!-- 베타 블록 — 정식 출시 시 hidden 으로 바꾸고 #download-store 의 hidden 을 지운다 -->
     <div id="download-beta">
+      <figure class="dl-shot">
+        <img class="shot" src="screenshots/login.png" alt="Do : 하다 시작 화면" loading="lazy" onerror="shotFallback(this)">
+        <figcaption data-i18n="shotLogin">설치하면 이 화면으로 시작해요</figcaption>
+      </figure>
+
       <div class="dl-grid">
 
         <div class="dl-card">
@@ -768,7 +790,9 @@
       f5Desc: '인증·기록을 익명으로도 나눌 수 있는 피드. 좋아요·랭킹 없이 "공명해요"와 "나도 할래요"(따라하기)만 — 움직인 사람 수가 은은히 남아요.',
       f6Title: '조용한 알림',
       f6Desc: '응원은 1시간 단위로 묶고, 즉시 알림은 대화·댓글뿐. 밤 10시~아침 6시는 보류, 하루 상한까지 — 그만둘 때도 조용히.',
-      shotRoom: '하다 방 · 인증', shotPlaza: '광장 · 무대와 구경', shotArchive: '박제 · 완주',
+      shotCreate: '하다 만들기 · 5단계', shotRoom: '하다 방 · 인증과 응원', shotParang: '공명 · 번져가는 한 걸음',
+      shotStatus: '현황 · 안내문과 다짐', shotArchive: '박제 · 완주',
+      shotPlaza: '광장 · 무대는 비어 있어도 자리를 지켜요', shotLogin: '설치하면 이 화면으로 시작해요',
 
       sLabel: '무대',
       sTitle: '⭐ 명사의 하다 · 🏛️ 공식 하다<br>이런 무대가 열립니다',
