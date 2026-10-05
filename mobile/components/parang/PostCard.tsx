@@ -100,7 +100,7 @@ export function PostCard({ post }: { post: ParangPost }) {
       {/* 은은한 "움직인 수" — 좋아요 아닌, 조용히 번진 걸음의 흔적.
           reference>0=따라 시작 / 둘 다 0=아직 조용 / 공명해요만 있으면 라인 숨김(모순 방지, count 는 로컬 반영) */}
       {post.reference_count > 0 ? (
-        <Text style={styles.ripple}>이 공명에 {formatCheerCount(post.reference_count)}명이 반응했어요</Text>
+        <Text style={styles.ripple}>이 울림에 {formatCheerCount(post.reference_count)}명이 반응했어요</Text>
       ) : count === 0 ? (
         <Text style={styles.ripple}>아직 조용하지만, 누군가 보고 있어요</Text>
       ) : null}
@@ -116,7 +116,7 @@ export function PostCard({ post }: { post: ParangPost }) {
             fill={couraged ? colors.surface : 'none'}
           />
           <Text style={[styles.courageText, couraged && styles.courageTextOn]}>
-            공명해요{count > 0 ? ` ${formatCheerCount(count)}` : ''}
+            마음 울림{count > 0 ? ` ${formatCheerCount(count)}` : ''}
           </Text>
         </Pressable>
 

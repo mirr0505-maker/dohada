@@ -65,7 +65,7 @@ export function ParangComments({
       {comments === null ? (
         <ActivityIndicator color={colors.brand} style={{ paddingVertical: 12 }} />
       ) : comments.length === 0 ? (
-        <Text style={styles.empty}>첫 공명의 말을 남겨보세요.</Text>
+        <Text style={styles.empty}>마음에 와닿은 글에 첫 울림을 전해보세요.</Text>
       ) : (
         comments.map(c => (
           <View key={c.id} style={styles.row}>
@@ -94,7 +94,7 @@ export function ParangComments({
         <TextInput
           value={input}
           onChangeText={setInput}
-          placeholder="공명의 말 남기기…"
+          placeholder="울림 남기기…"
           placeholderTextColor={colors.faint}
           style={styles.input}
           multiline

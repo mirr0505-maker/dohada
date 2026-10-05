@@ -90,7 +90,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="parang"
         options={{
-          title: '공명',
+          title: '울림',
           tabBarIcon: ({ color }) => (
             <Waves size={TAB_ICON_SIZE} color={color} strokeWidth={1.8} />
           ),
