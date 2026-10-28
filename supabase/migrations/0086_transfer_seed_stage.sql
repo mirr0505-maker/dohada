@@ -2,7 +2,7 @@
 --
 -- 배경 (ORG_HADA_PLAN §9.5 결정 D, 2026-10-28):
 --   유일한 공식 무대가 0083 가드 이전에 개인 계정(mirr0505@gmail.com)으로 세워졌다.
---   조직 하다는 조직 계정의 것이어야 한다 → 법인 계정(doinovation@doinno.co.kr)으로 옮긴다.
+--   조직 하다는 조직 계정의 것이어야 한다 → 법인 도메인 계정(kidoo.kim@doinno.co.kr)으로 옮긴다.
 --   앱 경로로는 개설자 이전이 불가능하다(0022 challenges_creator_update 의 with check) — 그건 의도된 차단이고
 --   바꾸지 않는다. 이 파일은 운영자가 한 번 돌리는 데이터 이전이며, 새 RPC·정책을 만들지 않는다.
 --
@@ -30,7 +30,7 @@ do $$
 declare
   c_challenge_id constant uuid := '7af4c47a-36f4-45c4-957f-01a79f2db751';   -- 매일 8천보 걷기
   c_from_email   constant text := 'mirr0505@gmail.com';
-  c_to_email     constant text := 'doinovation@doinno.co.kr';
+  c_to_email     constant text := 'kidoo.kim@doinno.co.kr';
   v_from    uuid;
   v_to      uuid;
   v_to_tier text;
@@ -120,7 +120,7 @@ end $$;
 -- 검증 (적용 전 기대값 = 2026-10-28 조회. 그 사이 개인 계정 활동이 늘었으면 그만큼 많다):
 --   1) select u.email, c.host_tier, c.host_label from challenges c join users u on u.id = c.creator_id
 --        where c.id = '7af4c47a-36f4-45c4-957f-01a79f2db751';
---      → doinovation@doinno.co.kr / org / DO하다 운영팀
+--      → kidoo.kim@doinno.co.kr / org / DO하다 운영팀
 --   2) notice 건수: challenge_members 1 · challenge_pauses 2 · logs 39 · comments 7 · log_comments 6 ·
 --      cheers 67 · log_likes 50 · challenge_votes 1 · parang_reactions 22 · parang_comments 0
 --   3) 개인 계정 잔여 0:

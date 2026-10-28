@@ -281,7 +281,7 @@ TO-BE 6항 중 6항 구현 완료 (전부 운영 적용 + OTA):
 - 「매일 8천보 걷기」 open · 2026-09-12 ~ **2027-09-11** · 공식 무대(`DO하다 운영팀`) · 모집 캡 면제
 - 개설자 = `mirr0505@gmail.com`(개인 · is_admin) — `role='host'`, 인증 0건
 - 참여자 2명 · 인증 84건 (마지막 2026-10-27)
-- 법인 계정 `doinovation@doinno.co.kr` — 아직 앱 로그인 이력 없음. doinno.co.kr = Google Workspace(MX smtp.google.com) → Google 로그인 가능
+- 법인 계정 `kidoo.kim@doinno.co.kr` — 아직 앱 로그인 이력 없음. doinno.co.kr = Google Workspace(MX smtp.google.com) → Google 로그인 가능
 
 기존 무대 처리 선택지:
 
@@ -302,12 +302,12 @@ TO-BE 6항 중 6항 구현 완료 (전부 운영 적용 + OTA):
 
 운영자 권한 — ✅ **개인 계정에만 유지** (법인 무대 계정엔 주지 않는다). 무대 계정은 실무자에게 인계되는 공개 활동 계정이고, admin 은 전 사용자 이메일·신고를 열람하는 권한이다. 법인 소유 admin 이 필요해지면 별도 계정을 따로 둔다.
 
-문의 메일 — ✅ `doinovation@doinno.co.kr`.
+문의 메일 — ✅ `kidoo.kim@doinno.co.kr`.
 
 실행 순서:
 1. (코드) 9.4 a~e + `0086` 작성 → 검사
 2. (운영) **0085 적용** → OTA (preview·production)
-3. (사용자) `doinovation@doinno.co.kr` 로 앱 Google 로그인 → 닉네임 「DO하다 운영팀」
+3. (사용자) `kidoo.kim@doinno.co.kr` 로 앱 Google 로그인 → 닉네임 「DO하다 운영팀」
 4. (운영자=mirr0505) 콘솔에서 DO하다 검증 기록 등록(사업자등록증 + 도메인) → 법인 계정 `org` 지정
 5. (운영) **0086 적용** — 법인 계정 users 행이 없으면 스크립트가 스스로 중단
 6. 실기기 확인: 법인 계정으로 방 진입 → 주최 표시·기록 작성자·현황 분모(참여자 2명)
