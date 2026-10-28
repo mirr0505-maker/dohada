@@ -54,7 +54,7 @@
 ### 신규 코드 위치 (v2.7 — Phase 1.5 일괄 오픈, 2026-06-11)
 - 용기 받았어요 반응: [`supabase/migrations/0029_story_courage_reactions.sql`](supabase/migrations/0029_story_courage_reactions.sql) (사용자당 1회·본인 글 RLS 거부) + `toggleStoryCourage`/`mapStoryReactions` ([`mobile/lib/db.ts`](mobile/lib/db.ts)) + [`mobile/app/done/[id].tsx`](mobile/app/done/[id].tsx) 토글 UI
 - 생성 마법사 **5단계** (7→5 압축): [`mobile/app/create.tsx`](mobile/app/create.tsx) — 제목→분류→방타입→기간+빈도→인증방식. 내기는 마지막 화면 한 줄 티저
-- 홈 노출 상한: [`mobile/app/(tabs)/home.tsx`](mobile/app/(tabs)/home.tsx) `HOME_ACTIVE_LIMIT=5`(미인증 우선)·`HOME_FINISHED_LIMIT=3` + 모두 보기 링크 + 미인증 선택 모달(`checkinPickerOpen`)
+- 홈 노출 상한: [`mobile/app/(tabs)/home.tsx`](mobile/app/(tabs)/home.tsx) `HOME_ACTIVE_LIMIT=5`(미인증 우선)·`HOME_FINISHED_LIMIT=3` + 모두 보기 링크 ~~+ 미인증 선택 모달(`checkinPickerOpen`)~~ (호출처 끊긴 상태로 남아 있어 v2.38 에서 삭제)
 - 관심 도전 2-티어: `fetchInterestingOpenChallenges` — 1순위 명시 관심 / 2순위 자동 추론, 티어 내 최신순 (인기 가중치 금지)
 - 둘러보기 카테고리 필터: [`mobile/app/(tabs)/discover.tsx`](mobile/app/(tabs)/discover.tsx) — 로드된 목록 기반 칩, 클라 필터
 - 온보딩: 스플래시([`mobile/app/index.tsx`](mobile/app/index.tsx)) 세션 자동 홈 진입 + 건너뛰기, [`mobile/components/OnbView.tsx`](mobile/components/OnbView.tsx) 좌우 Fling 스와이프
@@ -152,14 +152,14 @@
   - UI: [`PledgeSheet`](mobile/components/challenge/PledgeSheet.tsx)(트리거 토글 + **자유 문구** + `moderate-text(pledge)` 동기 차단 — 금액 표기 일절 금지·고가·신체/성적·강요) · [`PledgeCard`](mobile/components/challenge/PledgeCard.tsx)(완주/실패 맞춤 정산 "지킬 시간"·"지켰어요" 명예제도) · [`FellowPledges`](mobile/components/challenge/FellowPledges.tsx)(동료 다짐 공개·읽기전용 — 목격 정체성, 비교/랭킹 X)
   - 클라: [`db.ts`](mobile/lib/db.ts) `fetchChallengePledges`(방 전체→본인/동료 분리)·`createPledge`·`togglePledgeFulfilled`·`deletePledge`·`moderatePledge`. room [`room/[id].tsx`](mobile/app/room/[id].tsx) `pledgeSlot`(현황 탭 betSlot 옆)
   - 결정(2026-06-16): ① 이름 "다짐"(내기 단어 회피 = 법적 분리) ② 문구 자유·트리거만 실패/성공 이진 ③ 정산 명예제도(돈 안 거침) ④ 동료 다짐 공개 + 정산공개 ⑤ 전체 챌린지 유형(count 포함)
-- **일반 UGC 검수 (3a, block 티어)**: [`db.ts`](mobile/lib/db.ts) `moderateUgcText` → 댓글(`addComment`)·기록댓글(`addLogComment`)·기록(`createLog`)·완주이야기(`createCompletionStory`)·대화(`sendChatMessage`) **+ 편집 경로**(`updateLog`·`updateLogComment`·`updateCompletionStory` — 수정 우회 차단)에서 `moderate-text(text)` 동기 차단. 명백한 위반만, 우회 분기 없음. **flag(애매→자동숨김)는 3b(신고·차단)와 인프라 공유 → 3b로 이월**
+- **일반 UGC 검수 (3a, block 티어)**: [`db.ts`](mobile/lib/db.ts) `moderateUgcText` → 댓글(`addComment`)·기록댓글(`addLogComment`)·기록(`createLog`)·완주이야기(`createCompletionStory`)·대화(`sendChatMessage`) **+ 편집 경로**(`updateLog`·`updateLogComment` — 수정 우회 차단. `updateCompletionStory` 는 완주 이야기 수정 화면이 없어 호출처 0 → v2.38 에서 삭제, 수정 기능을 만들면 검수와 함께 다시 둘 것)에서 `moderate-text(text)` 동기 차단. 명백한 위반만, 우회 분기 없음. **flag(애매→자동숨김)는 3b(신고·차단)와 인프라 공유 → 3b로 이월**
 - **배포 (⚠️ migration 먼저)**: 0046 적용 + `moderate-text` EF 배포(`ANTHROPIC_API_KEY` 공유) 완료 → 클라 OTA(preview·production). 나머지 순수 JS
 
 ### 신규 코드 위치 (v2.16 — 신고·차단 + flag 자동숨김 (UGC), 0047, 2026-06-16)
 **애플/구글 UGC 4종(신고·차단·필터링·연락수단) 충족 + AI flag/신고누적 자동숨김.** 출시 차단 #2 해소.
 - **DB [`0047_reports_blocks.sql`](supabase/migrations/0047_reports_blocks.sql)**: `reports`(사유 6종 spam·abuse·sexual·violence·impersonation·other, `unique(reporter,target)` 중복방지) + `blocks`(본인 outgoing RLS) + `blocked_user_ids()` RPC(양방향 id, 방향 비노출) + `hidden` 6테이블(proofs·comments·log_comments·logs·completion_stories·chat_messages) + **신고 3건 누적 → 자동숨김 트리거**
 - **검수 flag 티어**: [`moderation.ts`](supabase/functions/_shared/moderation/moderation.ts) text 모드 allow/**flag**/block 3단. flag → 작성 시 `hidden=true`(`moderateUgcText` boolean 반환, 8곳 threading). block 은 등록 차단(3a)
-- **신고·차단·필터 (클라)**: [`db.ts`](mobile/lib/db.ts) `createReport`·`blockUser`·`unblockUser`·`fetchBlockedUserIds`. **필터링** = hidden(서버 `.eq('hidden',false)`) + 차단 양방향 제외(JS) — 8 surface(방/피드 인증·방/피드 기록·기록댓글·채팅·인증댓글·완주이야기). 베타는 클라 필터, 정식은 RLS 격상
+- **신고·차단·필터 (클라)**: [`db.ts`](mobile/lib/db.ts) `createReport`·`blockUser`·`fetchBlockedUserIds` (`unblockUser` 는 차단목록 관리 UI 가 없어 v2.38 에서 삭제). **필터링** = hidden(서버 `.eq('hidden',false)`) + 차단 양방향 제외(JS) — 8 surface(방/피드 인증·방/피드 기록·기록댓글·채팅·인증댓글·완주이야기). 베타는 클라 필터, 정식은 RLS 격상
 - **UI**: [`ReportSheet`](mobile/components/challenge/ReportSheet.tsx)(사유 6종 칩 + 상세) · 인증 ProofCard ⋯ → 신고/차단([`room/[id].tsx`](mobile/app/room/[id].tsx) `openProofActions`·`handleBlock`) · [`MemberSheet`](mobile/components/challenge/MemberSheet.tsx) 멤버별 차단 · 프로필 "문의·신고 (운영팀)" mailto([`profile.tsx`](mobile/app/(tabs)/profile.tsx) + [`support.ts`](mobile/lib/support.ts) `SUPPORT_EMAIL` 단일 상수, 법인 후 교체)
 - 결정(2026-06-16): ① 사유 6종 ② 자동숨김 신고 3건 / AI flag 1건 즉시 ③ 차단=양방향 콘텐츠 숨김·알림 X ④ 문의=화면엔 "운영팀" ⑤ flag→자동숨김(ⓑ)
 - **배포 (⚠️ migration 먼저)**: 0047 적용 + `moderate-text` EF 재배포 완료 → 클라 OTA(preview·production). 차단목록 관리 UI·완전 RLS 격상은 후속
@@ -287,7 +287,7 @@
 - **하다 구경 = 내 관심 기본 + 3개만** ([`discover.tsx`](mobile/app/(tabs)/discover.tsx)): 광장 맨 아래 '하다 구경'이 항상 '전체'로 시작하고 최대 60장을 전부 나열해 끝없는 스크롤이 되던 문제. ① 관심을 1개 이상 등록했으면 `내 관심` 칩이 기본 활성 ② 카드는 `BROWSE_INITIAL_COUNT=3` 만 노출, `더 보기 (N개 남음)` 로 `BROWSE_STEP_COUNT=10` 씩 펼침(`visibleItems` = `filteredItems.slice`, 원본은 남겨 남은 개수를 정직하게 셈). **광장의 네 목록(⭐명사 무대 · 🏛️조직 무대 · `🌍 지금 합류할 수 있는 하다` · 하다 구경)이 첫 노출 3개를 공유**하되, 펼치는 단위는 목적에 따라 다르다 — 하다 구경은 훑어보는 라이브러리라 10개씩(`BROWSE_STEP_COUNT`), 무대·지금 합류는 한 장씩 읽고 합류를 정하는 목록이라 3개씩(`STAGE_STEP_COUNT`). ③ 칩 변경 시 3개로 리셋(`changeFilter` 단일 핸들러) ④ 필터 때문에 0개면 빈 상태에 `전체 보기` 탈출구 ⑤ 관심 미등록이면 `관심 분류를 정해보세요` 안내 카드 + `관심 정하기` → `/(tabs)/profile?interests=1`([`profile.tsx`](mobile/app/(tabs)/profile.tsx) 가 param 으로 관심 편집 모달 1회 자동 오픈). **안내 카드가 목록을 대체하지 않는다** — 하다 구경은 따라하기 유입 루프의 유일한 입구라 빈 화면이 되면 안 됨. 정렬은 최신순 고정(줄세우기 금지) 그대로.
   - ⚠️ **기본값은 "첫 load 1회만" 이 아니라 "사용자가 칩을 만지기 전까지"**([`discover.tsx`](mobile/app/(tabs)/discover.tsx) `filterTouched`). 세션 복원 전에 `useFocusEffect` 의 load 가 먼저 돌면 `myUserId` 가 없어 관심이 **0개로 조회**되고, "1회만" 이면 그 한 번으로 기본값 적용 기회가 영영 사라져 전체로 고정된다(실제로 발생 — 탭 lazy 마운트라 안 일어날 거라는 추측이 틀렸음). 메모 `reference_session-restore-load-race`
 - **홈 = 무대 분리 + 개설/참여 2밴드** ([`home.tsx`](mobile/app/(tabs)/home.tsx)): 조직·명사 무대(`host_tier` figure/org)가 개인 하다와 같은 리스트에 섞여 있고, 개설/참여·방종류 구분이 카드 배지로만 있어 카드가 쌓이면 안 잡히던 문제. `isStageCh` 로 `stageActiveChs`/`personalActiveChs` 분리 → **앵커(오늘 할 일)는 개인 하다에서만** 뽑고, 렌더는 `내가 연 하다` → `참여 중인 하다` → `🏛️ 참여 중인 무대`(상한 `HOME_STAGE_LIMIT=3`) 순. 카드 JSX 는 `renderActiveCard(c)` 지역 함수로 **추출만**(내용 무변경) + 무대에만 `HostBadge` 한 줄. 밴드는 개설/참여 2개까지 — 방 종류는 카드 배지로 두고 밴드까지 4개로 쪼개면 홈이 관리 화면이 된다.
-  - ⚠️ **`uncheckedChs` 는 손대지 않았다** — 인증 FAB·미인증 선택 모달은 무대까지 인증 대상으로 유지(무대를 홈에서 내리되 **인증 동선은 보존**). 대신 앵커가 없고 미인증이 남았으면(=무대만 미인증) `오늘 할 일을 다 했어요` 카드를 **렌더하지 않는다** — 개인 하다만 끝냈는데 "다 했어요"는 거짓말이 되고, 아래 무대 섹션이 그 역할을 맡는다.
+  - ⚠️ **`uncheckedChs` 는 손대지 않았다** — 인증 FAB·미인증 선택 모달(※ v2.38: 이 모달은 여는 함수가 이미 호출처 없이 남아 있던 죽은 코드라 삭제)은 무대까지 인증 대상으로 유지(무대를 홈에서 내리되 **인증 동선은 보존**). 대신 앵커가 없고 미인증이 남았으면(=무대만 미인증) `오늘 할 일을 다 했어요` 카드를 **렌더하지 않는다** — 개인 하다만 끝냈는데 "다 했어요"는 거짓말이 되고, 아래 무대 섹션이 그 역할을 맡는다.
 - **광장 무대 = 명사·조직 2자리 상설** ([`discover.tsx`](mobile/app/(tabs)/discover.tsx)): 무대가 한 덩어리라 조직 하다가 하나라도 있으면 빈 상태 카드가 통째로 사라져 **명사 자리가 비어 있다는 사실 자체가 안 보이던** 문제. `stageItems` 를 `host_tier` 로 갈라 `figureItems`(⭐ 명사의 하다) / `orgItems`(🏛️ 조직의 하다) 두 하위 블록으로, **각 자리는 0개여도 "여기 열립니다" 카드를 지킨다**(무대 = 상설 자리 원칙). 명사 빈 자리엔 `보고 싶은 명사 제안하기` mailto(운영팀 수요 신호, 조직 제안과 같은 결). 카드 탭의 모집 마감 안내는 `onStagePress` 로 묶어 두 자리가 공유. `fetchStageChallenges` 가 이미 두 종류를 다 받아와 **DB·쿼리 변경 없음**.
 - 결정(2026-09-08): ① 관심 미등록이면 안내 + **전체 3개는 그대로 노출**(0개 아님) ② 첫 노출은 네 목록 모두 3개, 더 보기는 하다 구경 10개씩 / 무대·지금 합류 3개씩 ③ 무대는 홈에서 **빼되 없애지 않음**(별도 섹션) ④ 홈 밴드는 개설/참여 2개까지 ⑤ 명사 빈 자리에도 제안 버튼(조직 카드와 대칭)
 
@@ -314,6 +314,15 @@
   - **웹 트랙 종료 (2026-10-05)**: 체크리스트 8항목 전부 완료 — `index.html` 교체 ✓ · [`terms.html`](docs/terms.html) 신설(footer 링크 복구) ✓ · `qr.png`(#download 착지) ✓ · `guide.html` 별도 유지 + 상호 링크 ✓. **제품 소개 웹페이지는 개인사업자 홈페이지 `doinno.co.kr` 에서 별도 제작**하기로 결정, GitHub Pages 의 `index.html` 은 **현재 수준에서 멈춘다**(커스텀 도메인 연결 안 함). ⚠️ **Pages 자체는 내리면 안 된다** — 앱 안의 법적 링크(약관·개인정보·계정삭제)가 이 주소를 가리킨다. 앞으로 손댈 곳은 법적 문서 내용 변경뿐
   - ⚠️ **이미지 크기 속성과 `height:auto` 는 한 쌍** — 앵커(`#download`) 착지가 밀리는 걸 막으려 `<img width height>` 를 넣으면, CSS 에 `height:auto` 가 없을 때 높이가 속성값 그대로 적용돼 **세로로 늘어난다**(실제 발생). 둘은 항상 같이 간다
   - **약관·개인정보처리방침 = 실결제 전제로 개정 완료 (2026-10-05)** — 상세는 [`PHASE2_FINTECH_PLAN.md`](docs/PHASE2_FINTECH_PLAN.md) §3·Stage 3
+
+### 신규 코드 위치 (v2.38 — 미사용 코드·스타일·패키지 정리, 2026-10-28)
+**동작 변경 없음. 순수 JS + 설정 → OTA(preview·production ✓, 커밋 fac7765·5399fab). 검증 = `tsc --noUnusedLocals --noUnusedParameters` 0 · npm test 135/135 · `expo export --platform all` iOS·Android ✓ · 실기기 확인 ✓(강제종료 2회 후 이상 없음).**
+- **죽은 기능 코드**: 홈 `onCheckinAction`·미인증 선택 모달(`checkinPickerOpen`) — 여는 함수 호출처 0이라 화면에 뜰 수 없었음. 인증 동선(앵커 카드·카드별 인증 버튼)은 무변경. 챌린지방 `streak`(계산만 하고 미사용)·`TabPlaceholder`·`isMemberPaused`. [`db.ts`](mobile/lib/db.ts) 호출처 0 함수 3개 `fetchMyNickname`·`updateCompletionStory`·`unblockUser`
+- **UI 잔재**: 미사용 StyleSheet 키 56개(home·room·login·index·checkin·ArchiveTab·InviteConfirmModal·LogTab·StatusTab) · 미사용 컴포넌트 `CheerPill.tsx` · 토큰 `typeGeneral/typeBrand/typeCeleb/typePublic` · `SUPPORT_LABEL`
+- **패키지 6개 제거**: `expo-auth-session`·`expo-crypto`(구글 로그인은 expo-web-browser 경로)·`expo-image`(RN Image 사용)·`expo-symbols`(템플릿 잔재)·`react-native-web`·`react-dom`(웹 트랙 종료). 네이티브 4종은 **다음 `eas build` 부터** 바이너리에서 빠짐(runtimeVersion=appVersion 이라 OTA 호환 무관). **유지 필수**로 확인한 것: `@react-navigation/*`·`react-native-screens`(expo-router 요구) · `react-native-worklets`(reanimated 4 peer) · `expo-dev-client`(development 프로필) · `expo-system-ui`(userInterfaceStyle·배경색)
+- **설정**: [`app.json`](mobile/app.json) `"platforms": ["ios","android"]` + `web` 블록 삭제. ⚠️ `eas update` 는 내부적으로 `expo export --platform=all` 이라, 웹 패키지만 빼고 platforms 를 안 좁히면 **OTA export 가 웹에서 실패**한다(실제 발생 → 5399fab). OTA 전 사전검증은 반드시 `--platform all` 로
+- **템플릿·루트 잔재**: `scripts/reset-project.js`(실행 시 app/ 이동 — 위험) + npm 스크립트 + README 안내 · 루트 `app.json`(`{"expo":{}}` 잘못된 위치 eas 실행 흔적) · 루트 `icon.png`(docs·assets 와 바이트 동일 중복)
+- **일부러 남긴 것**: `getActiveTimezone`(테스트가 사용) · 같은 파일 안에서만 쓰는 export 타입들 · 기존 린트 오류 32건(대부분 JSX 따옴표 규칙, 범위 밖)
 
 ### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.
@@ -396,6 +405,7 @@ UI/UX, 네비게이션, 디자인 토큰 적용, 빈 상태 화면 등은 Expo G
 실기기에서 직접 돌려 확인한다. 자동 테스트를 강제하지 않는다.
 
 ### 검증 흐름
+- **코드 수정(실행)이 끝나면 항상 코드 검사를 실행한다** (2026-10-28 사용자 지시, 크기 무관). 최소 세트 = ① `mobile/` 에서 `npx tsc --noEmit -p . --noUnusedLocals --noUnusedParameters` 오류 0 ② 루트 `npm test` 전체 통과 ③ 변경 diff 를 직접 읽어 의도 밖 삭제·동작 변경 없는지 확인 ④ 패키지·app.json 을 건드렸으면 `npx expo export --platform all` 번들 성공. Worker 가 구현했어도 Advisor 가 직접 돌린다. 검사 전엔 커밋·push·OTA 하지 않는다
 - Claude Code는 위 자동 테스트 영역을 건드릴 때 **테스트를 같이 작성하고 실행**한다.
 - 그 외 영역은 변경 후 **"실기기에서 확인하세요"** 한 줄 안내로 충분.
 - 통합기획서 해당 절(예: 4.10 박제 자산화, 4.14 내기) 기준을 충족하는지 확인.
