@@ -537,7 +537,7 @@ export async function fetchOpenChallenges(myUserId: string | undefined): Promise
     .from('challenges')
     .select(`
       *,
-      challenge_members(user_id, gave_up_at),
+      challenge_members(user_id, gave_up_at, role),
       creator:creator_id(nickname),
       category:category_id(emoji, name, is_impact),
       subcategory:subcategory_id(name),
@@ -591,7 +591,8 @@ function mapOpenChallengeCard(c: any, myUserId: string | undefined): OpenChallen
     start_date: c.start_date,
     end_date: c.end_date,
     created_at: c.created_at,
-    member_count: activeMembers.length,
+    // 조직 주최자(role='host', 0069)는 도전자가 아니라 인원에서 뺀다 — 방 화면 memberCount 와 같은 기준
+    member_count: activeMembers.filter((m: any) => m.role !== 'host').length,
     creator: { nickname: c.creator?.nickname ?? '도전자' },
     category: c.category
       ? { emoji: c.category.emoji, name: c.category.name, is_impact: !!c.category.is_impact }
@@ -617,7 +618,7 @@ export async function fetchStageChallenges(myUserId?: string): Promise<OpenChall
     .from('challenges')
     .select(`
       *,
-      challenge_members(user_id, gave_up_at),
+      challenge_members(user_id, gave_up_at, role),
       creator:creator_id(nickname),
       category:category_id(emoji, name, is_impact),
       subcategory:subcategory_id(name),
