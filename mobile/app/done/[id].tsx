@@ -2,7 +2,7 @@
 //
 // 진입: 해냈어요 공개 탭 카드 또는 박제 → 본인 이야기 보기
 // 정체성: 자랑 X · 증언 ✓
-//   - 시스템 통계 4칸 (조작 불가)
+//   - 완주/성공 배지 + 시스템 통계 4칸 (조작 불가 — 달성률은 0084 서버 계산값)
 //   - 작성한 옵션 필드만 노출 (빈 항목은 표시 X)
 //   - "나도 [카테고리] 도전 시작하기" CTA → 신규 유입 루프
 //   - 반응 ("용기 받았어요") — 단일 종류, 사용자당 1회 토글 (0029. 본인 글엔 RLS 거부)
@@ -15,6 +15,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Trash2, Trophy, HeartHandshake } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { HostMark } from '@/components/HostMark';
+import { StoryGoalBadges, storyRateStat } from '@/components/StoryGoalBadges';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import { fetchCompletionStory, deleteCompletionStory, toggleStoryCourage } from '@/lib/db';
@@ -175,12 +176,20 @@ export default function CompletionStoryDetailScreen() {
           </Text>
         </View>
 
+        {/* 완주 · 성공 배지 (0084) */}
+        <StoryGoalBadges
+          succeeded={story.succeeded}
+          threshold={story.success_threshold}
+          rate={story.goal_rate}
+          style={styles.goalBadges}
+        />
+
         {/* 통계 — 시스템 자동 잠금 */}
         <View style={styles.statsGrid}>
-          <StatCell num={story.total_days}                    label="일 완주" />
+          <StatCell num={story.total_days}                    label="일 하다" />
           <StatCell num={story.longest_streak}                label="연속 최고" />
           <StatCell num={story.proof_count}                   label="인증" />
-          <StatCell num={Math.round(story.completion_rate)}   label="완주율 %" />
+          <StatCell {...storyRateStat(story)} />
         </View>
 
         {/* 사진 (있을 때만) */}
@@ -299,6 +308,7 @@ const styles = StyleSheet.create({
   },
 
   // 통계
+  goalBadges: { marginHorizontal: 20, marginTop: 12 },
   statsGrid: {
     flexDirection: 'row', justifyContent: 'space-between',
     marginHorizontal: 20, marginTop: 12,

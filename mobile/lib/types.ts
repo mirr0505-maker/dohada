@@ -170,7 +170,7 @@ export type BrowseChallengeCard = {
 };
 
 // ─── v2.5: 해냈어요 (완주 이야기) ─────────────────────
-// "자랑 X · 증언 ✓" 톤. 시스템 통계는 트리거가 자동 채움 (조작 불가).
+// "자랑 X · 증언 ✓" 톤. 시스템 통계는 트리거가, 목표 결과(0084)는 Edge Function 이 채움 (조작 불가).
 // 사용자 옵션: story / hardest / photo_urls / visibility.
 
 export type StoryVisibility = 'public' | 'allies';
@@ -183,7 +183,14 @@ export type DbCompletionStory = {
   total_days: number;
   proof_count: number;
   longest_streak: number;
-  completion_rate: number;       // 0~100
+  completion_rate: number;       // 0~100 — 인증 수 ÷ 전체 일수 단순 비율 (구 표시값, 목표 결과가 없을 때만 "인증률"로)
+  // 🚀 0084 목표 결과 (Edge Function finalize-story-goal 이 stats.ts 와 같은 규칙으로 채움 — 조작 불가)
+  //   null = 아직 계산 안 됨 (0084 이전 이야기 · 계산 실패) → 화면은 completion_rate 로 폴백
+  goal_current: number | null;       // 달성 수
+  goal_target: number | null;        // 성공 기준 수 (임계% 반영)
+  goal_rate: number | null;          // 달성률 % (임계 100% 목표 대비)
+  succeeded: boolean | null;         // 성공(임계 달성) — 완주와 다른 축
+  success_threshold: number | null;  // 계산 당시 성공 임계 % (90/95/100)
   // 사용자 옵션 — 6개 항목 모두 선택. 빈 항목은 상세에 노출 X.
   story: string | null;                  // 한 줄 소감
   hardest: string | null;                // 가장 어려웠던 점

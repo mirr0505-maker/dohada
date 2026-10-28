@@ -12,6 +12,7 @@ import { fetchChatMessages, sendChatMessage, type ChatMessageWithAuthor } from '
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { HostAvatarRing } from '@/components/HostMark';
 import { haptic } from '@/lib/haptics';
+import { toLocalDateStr } from '@/lib/timezone';
 
 type Props = {
   challengeId: string;
@@ -237,9 +238,20 @@ export function ChatTab({ challengeId, myUserId, isMember, farewellDaysLeft = 0,
         data={chatMessages}
         keyExtractor={m => m.id}
         contentContainerStyle={styles.list}
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           const mine = item.user_id === myUserId;
+          // 🚀 날짜 구분선: 시각(HH:MM)만으론 며칠 전 대화인지 몰라 맥락이 끊김 → 하루가 바뀌는 지점에 날짜 표시 (사용자 하루 기준선)
+          const dayStr = toLocalDateStr(item.created_at);
+          const isNewDay = index === 0 || toLocalDateStr(chatMessages[index - 1].created_at) !== dayStr;
           return (
+            <View>
+            {isNewDay && (
+              <View style={styles.dateDivider}>
+                <View style={styles.dateDividerLine} />
+                <Text style={styles.dateDividerText}>{formatDayLabel(dayStr)}</Text>
+                <View style={styles.dateDividerLine} />
+              </View>
+            )}
             <View style={[styles.row, mine && styles.rowMine]}>
               {/* 🚀 0064: 대화는 글이 빽빽해 마크(⭐)가 잡음이 된다 → 금빛 링만 */}
               {!mine && (
@@ -266,6 +278,7 @@ export function ChatTab({ challengeId, myUserId, isMember, farewellDaysLeft = 0,
                   {formatTime(item.created_at)}
                 </Text>
               </View>
+            </View>
             </View>
           );
         }}
@@ -340,6 +353,14 @@ function formatTime(iso: string): string {
   const hh = String(d.getHours()).padStart(2, '0');
   const mm = String(d.getMinutes()).padStart(2, '0');
   return `${hh}:${mm}`;
+}
+
+// 'YYYY-MM-DD' (사용자 시간대 기준) → '2026년 10월 28일 (화)'
+const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+function formatDayLabel(dayStr: string): string {
+  const [y, m, d] = dayStr.split('-').map(Number);
+  const weekday = WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+  return `${y}년 ${m}월 ${d}일 (${weekday})`;
 }
 
 function formatNoticeDate(iso: string): string {
@@ -558,6 +579,18 @@ const styles = StyleSheet.create({
   guestText: {
     fontSize: fontSize.sm,
     color: colors.primary500,
+    fontFamily: fontFamily.regular,
+  },
+  dateDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginVertical: 12,
+  },
+  dateDividerLine: { flex: 1, height: 1, backgroundColor: colors.line },
+  dateDividerText: {
+    fontSize: fontSize.xs,
+    color: colors.faint,
     fontFamily: fontFamily.regular,
   },
 });

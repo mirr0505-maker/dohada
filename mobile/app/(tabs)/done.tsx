@@ -1,5 +1,6 @@
 // 🚀 해냈어요 공개 탭 (리디자인 v2)
 // 정체성: "줄세우지 않고, 서로에게 용기를" — 최신순만(랭킹 X), 시스템 통계 미니 + 발췌 + 용기 받은 N명.
+//   성공(임계 달성, 0084)한 이야기만 제목 아래 작은 🏆 성공 배지 — 부족분은 상세에서만 (목록에서 미달을 늘어놓지 않음)
 // 카드 탭 → /done/[id] 상세 ("나도 도전 시작하기" CTA)
 import React, { useCallback, useState } from 'react';
 import {
@@ -11,6 +12,7 @@ import { Screen } from '@/components/Screen';
 import { AppHeader } from '@/components/AppHeader';
 import { CategoryIcon } from '@/components/CategoryIcon';
 import { HostMark, HostAvatarRing } from '@/components/HostMark';
+import { StorySuccessPill, storyRateStat } from '@/components/StoryGoalBadges';
 import { colors, fontFamily, fontSize, fontWeight, radius, textStyle, shadow } from '@/lib/tokens';
 import { categorySlugByName } from '@/lib/icons';
 import { fetchPublicCompletionStories } from '@/lib/db';
@@ -92,6 +94,9 @@ function StoryCard({ story }: { story: CompletionStoryCard }) {
     story.hardest, story.own_tip, story.what_changed,
   ]);
   const catName = story.challenge.category?.name;
+  // 4번째 칸 — 달성률(0084) 우선, 구 이야기는 단순 비율을 "인증" 으로 (좁은 칸이라 라벨만 짧게)
+  const rateStat = storyRateStat(story);
+  const rateMini = { num: rateStat.num, label: story.goal_rate != null ? '% 달성' : '% 인증' };
 
   return (
     <Pressable
@@ -124,12 +129,16 @@ function StoryCard({ story }: { story: CompletionStoryCard }) {
 
       <Text style={styles.chTitle} numberOfLines={2}>{displayTitle(story.challenge.title)}</Text>
 
+      {story.succeeded === true && (
+        <StorySuccessPill threshold={story.success_threshold} style={styles.successPill} />
+      )}
+
       {/* 통계 미니 4칸 */}
       <View style={styles.statsRow}>
         <MiniStat num={story.total_days}                  label="일" />
         <MiniStat num={story.longest_streak}              label="연속" />
         <MiniStat num={story.proof_count}                 label="인증" />
-        <MiniStat num={Math.round(story.completion_rate)} label="% 완주" />
+        <MiniStat {...rateMini} />
       </View>
 
       {excerpt && <Text style={styles.excerpt} numberOfLines={3}>"{excerpt}"</Text>}
@@ -195,6 +204,7 @@ const styles = StyleSheet.create({
   sub2: { flex: 1, fontSize: fontSize.xs, color: colors.faint, fontFamily: fontFamily.regular },
 
   chTitle: { ...textStyle.cardTitle, fontSize: fontSize.lg, color: colors.ink, letterSpacing: -0.3, marginTop: 2 },
+  successPill: { alignSelf: 'flex-start' },
 
   statsRow: { flexDirection: 'row', gap: 6, backgroundColor: colors.tintWarm, borderRadius: radius.md, padding: 12 },
   miniCell: { flex: 1, alignItems: 'center' },

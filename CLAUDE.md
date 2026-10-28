@@ -324,6 +324,18 @@
 - **템플릿·루트 잔재**: `scripts/reset-project.js`(실행 시 app/ 이동 — 위험) + npm 스크립트 + README 안내 · 루트 `app.json`(`{"expo":{}}` 잘못된 위치 eas 실행 흔적) · 루트 `icon.png`(docs·assets 와 바이트 동일 중복)
 - **일부러 남긴 것**: `getActiveTimezone`(테스트가 사용) · 같은 파일 안에서만 쓰는 export 타입들 · 기존 린트 오류 32건(대부분 JSX 따옴표 규칙, 범위 밖)
 
+### 신규 코드 위치 (v2.39 — 완주 이야기 완주·성공 분리(0084) + 대화 날짜 구분선 + 광장 헤더 한 겹, 2026-10-28)
+**베타 피드백 3건. 검증 = npm test 151/151(+16) · tsc 0 · 미사용 스타일 0. 0084 운영 적용 ✓(컬럼 5개 + authenticated 쓰기 권한 없음 확인).**
+- **완주 이야기 완주·성공 분리 (0084)**: 완주 이야기 통계의 "완주율"(0016 트리거 = 인증 수 ÷ 전체 일수)이 주3회·주1회·목표 횟수형·멈춤·늦합류·성공 임계를 몰라, **주3회를 다 채워도 "완주율 43%"로 영구 박제**되던 문제.
+  - DB [`0084_story_goal_result.sql`](supabase/migrations/0084_story_goal_result.sql): `completion_stories` 에 `goal_current`·`goal_target`·`goal_rate`·`succeeded`·`success_threshold`(전부 nullable = 미계산/구 이야기). **authenticated 에 grant 안 함**(0071 컬럼 화이트리스트 유지) → 클라는 못 쓰고 EF 만 채움 = "시스템이 증명 · 조작 불가" 유지
+  - 판정: [`_shared/goal/storyGoal.ts`](supabase/functions/_shared/goal/storyGoal.ts) `computeStoryGoal` — `stats.ts goalStatus` 와 같은 규칙(cadence·count·임계·멈춤 10%·늦합류·시간대). 판정 SQL 복제 금지 원칙 유지. 테스트 = [`story-goal.test.ts`](__tests__/story-goal.test.ts) 16건(goalStatus 와 무작위 400건 교차 대조 포함, 박제 자산화 = 자동 테스트 의무 영역). betOutcome.ts(결제)는 무변경
+  - EF [`finalize-story-goal`](supabase/functions/finalize-story-goal/index.ts)(JWT ON): ① 작성 직후 본인 이야기만 `{storyId}` → 계산·저장(멱등) ② 백필 `{backfill:true}` + service_role 토큰(키 문자열 비교 X — 함수 내 키와 CLI 키 형태가 달라 403 났음. JWT payload role 확인, 서명은 게이트웨이 verify_jwt 가 보장 → **`--no-verify-jwt` 배포 금지**) → `succeeded is null` 일괄. 클라 = `createCompletionStory` 가 insert 후 호출, 실패해도 이야기는 저장되고 `reportError`
+  - UI [`StoryGoalBadges.tsx`](mobile/components/StoryGoalBadges.tsx) 공용 — 🏁 완주(항상) + 🏆 성공(임계<100 이면 "· 목표 N%") **또는 미달은 중립 톤 "목표 N% 중 R% 달성"**(빨강 금지, 사용자 결정: 미달도 명시). 칸 = `일 하다`(구 "일 완주" = 실제로는 기간) · 연속 최고 · 인증 · `달성률 %`(구 이야기는 `인증률 %` 폴백). 작성([`done/new.tsx`](mobile/app/done/new.tsx), 미리보기는 goalStatus)·상세([`done/[id].tsx`](mobile/app/done/[id].tsx))·해냈어요 목록([`done.tsx`](mobile/app/(tabs)/done.tsx), `% 달성` + 성공일 때만 🏆 — 미달은 목록에 안 띄우고 상세에서만)
+  - 결정(2026-10-28): ① 서버 재계산 저장(앱 계산값 저장 X) ② 미달도 명시
+- **대화 날짜 구분선** ([`ChatTab.tsx`](mobile/components/challenge/ChatTab.tsx)): 메시지마다 HH:MM 만 있어 며칠 전 대화인지 맥락이 끊기던 문제 → 하루가 바뀌는 지점에 `2026년 10월 28일 (화)` 가운데 구분선. 날짜 묶음은 `toLocalDateStr`(사용자 하루 기준선, UTC slice 금지)
+- **광장 헤더 한 겹** ([`discover.tsx`](mobile/app/(tabs)/discover.tsx)): "광장 / 아직 만나지 못한 하다" + "🏛️ 무대 / 명사와 조직이 여는 하다" 2중 → **나침반 아이콘 + "광장" / "명사와 조직이 여는 하다"** 한 겹(기록·울림·해냈어요와 같은 제목 모양·여백). 섹션 제목 이모지 전부 제거(명사의 하다·조직의 하다·지금 합류할 수 있는 하다·하다 구경) + 홈 [`home.tsx`](mobile/app/(tabs)/home.tsx) "내가 주최하는 무대"·"참여 중인 무대" 🏛️ 제거. **평가 4종(✨😱🥹💫)과 카드 안 HostBadge 는 유지**(평가 의미 보존 규칙 · 배지는 홈·초대장 공용)
+- **배포 순서 (⚠️ migration 먼저)**: 0084 ✓ → `finalize-story-goal` EF 배포 → 백필 1회(기존 2건) → OTA. 클라가 먼저 나가면 EF 호출 실패 → 인증률 폴백(무해), EF 가 0084 전에 불리면 500
+
 ### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.
 - 인증 완료 Alert / 카톡 초대 / 생성 후 Alert / 챌린지방 헤더 부제 / FAB 라벨 — 모두 분류별 분기 완료

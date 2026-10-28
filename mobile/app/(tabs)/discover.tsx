@@ -9,7 +9,7 @@ import {
   View, Text, Pressable, FlatList, StyleSheet, RefreshControl, Alert, ScrollView, Image, Linking,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { Telescope, User, Handshake, Globe, Heart, Landmark, type LucideIcon } from 'lucide-react-native';
+import { Telescope, User, Handshake, Globe, Heart, Landmark, Compass, type LucideIcon } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { AppHeader } from '@/components/AppHeader';
 import { EvalBox } from '@/components/EvalBox';
@@ -276,8 +276,11 @@ export default function DiscoverScreen() {
     <Screen backgroundColor={colors.bg}>
       <AppHeader />
       <View style={styles.subHeader}>
-        <Text style={styles.subTitle}>광장</Text>
-        <Text style={styles.subCaption}>아직 만나지 못한 하다</Text>
+        <View style={styles.titleRow}>
+          <Compass size={22} color={colors.sub} strokeWidth={1.8} />
+          <Text style={styles.subTitle}>광장</Text>
+        </View>
+        <Text style={styles.subCaption}>명사와 조직이 여는 하다</Text>
       </View>
 
       {loading ? (
@@ -299,12 +302,9 @@ export default function DiscoverScreen() {
           // 무대 · 누구나 합류 두 섹션은 헤더로 얹는다 (ScrollView 중첩 없이 리스트 가상화 유지)
           ListHeaderComponent={
             <View>
-              {/* ① 🏛️ 무대 — 명사·조직이 연 하다. 명사/조직 각 자리는 0개여도 지킨다(상설) */}
-              <Text style={styles.sectionLabel}>🏛️ 무대</Text>
-              <Text style={styles.sectionHint}>명사와 조직이 여는 하다</Text>
-
+              {/* ① 명사·조직이 연 하다 — 화면 제목 아래 바로 시작(헤더 한 겹, 다른 탭과 동일). 각 자리는 0개여도 지킨다(상설) */}
               {/* ⭐ 명사의 하다 */}
-              <Text style={styles.stageSubLabel}>⭐ 명사의 하다</Text>
+              <Text style={styles.stageSubLabel}>명사의 하다</Text>
               {figureItems.length > 0 ? (
                 <>
                   {figureItems.slice(0, figureVisibleCount).map(c => (
@@ -329,8 +329,8 @@ export default function DiscoverScreen() {
                 </View>
               )}
 
-              {/* 🏛️ 조직의 하다 */}
-              <Text style={styles.stageSubLabel}>🏛️ 조직의 하다</Text>
+              {/* 조직의 하다 */}
+              <Text style={styles.stageSubLabel}>조직의 하다</Text>
               {orgItems.length > 0 ? (
                 <>
                   {orgItems.slice(0, orgVisibleCount).map(c => (
@@ -356,7 +356,7 @@ export default function DiscoverScreen() {
               )}
 
               {/* ② 🌍 지금 합류할 수 있는 하다 (누구나) */}
-              <Text style={[styles.sectionLabel, styles.sectionGap]}>🌍 지금 합류할 수 있는 하다</Text>
+              <Text style={[styles.sectionLabel, styles.sectionGap]}>지금 합류할 수 있는 하다</Text>
               {joinableItems.length > 0 ? (
                 <>
                   {joinableItems.slice(0, joinVisibleCount).map(c => (
@@ -376,7 +376,7 @@ export default function DiscoverScreen() {
               )}
 
               {/* ③ 🔭 하다 구경 — 익명 발상 라이브러리 (기존 목록·칩·4평가·따라하기 유지) */}
-              <Text style={[styles.sectionLabel, styles.sectionGap]}>🔭 하다 구경</Text>
+              <Text style={[styles.sectionLabel, styles.sectionGap]}>하다 구경</Text>
 
               {/* 안내 — 탐색이 아니라 '참조' 톤 */}
               <View style={styles.curationInfo}>
@@ -651,13 +651,14 @@ function methodText(c: BrowseChallengeCard): string {
 }
 
 const styles = StyleSheet.create({
-  subHeader: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
-  subTitle: { ...textStyle.greeting, color: colors.ink, letterSpacing: -0.3 },
-  subCaption: { fontSize: fontSize.sm, color: colors.faint, fontFamily: fontFamily.regular, marginTop: 3 },
+  // 다른 탭(기록·울림·해냈어요)과 같은 제목 모양 — 탭바 아이콘 + 제목 + 한 줄 설명
+  subHeader: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  subTitle: { ...textStyle.greeting, color: colors.ink, letterSpacing: -0.5 },
+  subCaption: { fontSize: fontSize.sm, color: colors.faint, fontFamily: fontFamily.regular, marginTop: 4 },
 
   // 섹션 (무대 / 누구나 합류 / 하다 구경) — 리스트 헤더 안이라 좌우 여백은 list 가 담당
   sectionLabel: { fontSize: fontSize.lg, color: colors.ink, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
-  sectionHint: { fontSize: fontSize.xs, color: colors.faint, fontFamily: fontFamily.regular, marginTop: 2, marginBottom: 10 },
   sectionGap: { marginTop: 28, marginBottom: 10 },
   sectionEmptyText: {
     fontSize: fontSize.sm, color: colors.faint, fontFamily: fontFamily.regular,

@@ -2,7 +2,8 @@
 //
 // 진입: ArchiveTab "완주 이야기 공유하기" → /done/new?challengeId=...
 // 정체성: 자랑 X · 증언 ✓.
-//   - 시스템 통계 (총 기간 · 인증 횟수 · 최장 연속 · 완주율) 자동 잠금 (조작 불가)
+//   - 시스템 통계 (총 기간 · 인증 횟수 · 최장 연속 · 달성률) 자동 잠금 (조작 불가)
+//     + 완주/성공 배지 — 달성률·성공은 저장 후 서버(finalize-story-goal, 0084)가 확정. 여기선 같은 규칙(stats.goalStatus)으로 미리보기
 //   - 6개 사용자 옵션 (한 줄 소감 · 어려웠던 점 · 포기 시 도움 · 시작하는 사람에게
 //     · 나만의 꿀팁 · 무엇이 달라졌나) 모두 선택. 빈 항목은 상세에 노출 X.
 //   - 대표 사진 (옵션, 최대 N장)
@@ -16,6 +17,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { X, Lock, Plus } from 'lucide-react-native';
 import { CategoryIcon } from '@/components/CategoryIcon';
+import { StoryGoalBadges } from '@/components/StoryGoalBadges';
 import { categorySlugByName } from '@/lib/icons';
 import { Screen } from '@/components/Screen';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
@@ -27,7 +29,8 @@ import {
   createCompletionStory, fetchMyCompletionStoryForChallenge,
 } from '@/lib/db';
 import { displayTitle } from '@/lib/format';
-import type { StoryVisibility } from '@/lib/types';
+import { goalStatus, type ChallengePause } from '@/lib/stats';
+import type { StoryVisibility, DbChallenge, ProofWithRelations } from '@/lib/types';
 
 // ─── 이야기 6개 필드 — 라벨/플레이스홀더/길이 ─────────────
 type FieldKey = 'story' | 'hardest' | 'helped' | 'advice' | 'ownTip' | 'whatChanged';
@@ -44,7 +47,9 @@ type Stats = {
   totalDays: number;
   proofCount: number;
   longestStreak: number;
-  completionRate: number;   // 0~100
+  goalRate: number;          // 달성률 % (임계 100% 목표 대비, 100 상한)
+  succeeded: boolean;        // 성공(임계 달성) — 완주와 다른 축
+  successThreshold: number;  // 성공 임계 % (90/95/100)
 };
 
 type Challenge = {
@@ -52,6 +57,10 @@ type Challenge = {
   title: string;
   start_date: string;
   end_date: string;
+  frequency: DbChallenge['frequency'];
+  goal_type: DbChallenge['goal_type'];
+  target_count: DbChallenge['target_count'];
+  success_threshold: DbChallenge['success_threshold'];
   category: { emoji: string; name: string } | null;
 };
 
@@ -100,23 +109,29 @@ export default function NewCompletionStoryScreen() {
           .from('challenges')
           .select(`
             id, title, start_date, end_date,
+            frequency, goal_type, target_count, success_threshold,
             category:category_id (emoji, name)
           `)
           .eq('id', challengeId)
           .single();
         if (chErr) throw chErr;
 
-        // 본인 인증
-        const { data: proofs, error: pErr } = await supabase
-          .from('proofs')
-          .select('created_at')
-          .eq('challenge_id', challengeId)
-          .eq('user_id', myUserId);
-        if (pErr) throw pErr;
+        // 본인 인증 + 합류일(늦합류 비례) + 잠시 멈춤 구간(0078) — 달성률 미리보기 재료
+        const [proofRes, memberRes, pauseRes] = await Promise.all([
+          supabase.from('proofs').select('created_at, local_date')
+            .eq('challenge_id', challengeId).eq('user_id', myUserId),
+          supabase.from('challenge_members').select('joined_at')
+            .eq('challenge_id', challengeId).eq('user_id', myUserId).maybeSingle(),
+          supabase.from('challenge_pauses').select('start_date, end_date')
+            .eq('challenge_id', challengeId).eq('user_id', myUserId),
+        ]);
+        if (proofRes.error) throw proofRes.error;
 
         const c = ch as any as Challenge;
         setChallenge(c);
-        setStats(computeStatsPreview(c, proofs ?? []));
+        setStats(computeStatsPreview(
+          c, proofRes.data ?? [], memberRes.data?.joined_at ?? null, (pauseRes.data ?? []) as ChallengePause[],
+        ));
       } catch (e: any) {
         setError(e?.message ?? '불러오지 못했어요.');
       } finally {
@@ -272,11 +287,17 @@ export default function NewCompletionStoryScreen() {
               <Lock size={12} color={colors.primary500} strokeWidth={2} />
               <Text style={styles.lockText}>시스템이 증명 · 조작 불가</Text>
             </View>
+            <StoryGoalBadges
+              succeeded={stats.succeeded}
+              threshold={stats.successThreshold}
+              rate={stats.goalRate}
+              style={styles.goalBadges}
+            />
             <View style={styles.statsGrid}>
-              <StatCell num={stats.totalDays}      label="일 완주" />
+              <StatCell num={stats.totalDays}      label="일 하다" />
               <StatCell num={stats.longestStreak}  label="연속 최고" />
               <StatCell num={stats.proofCount}     label="인증" />
-              <StatCell num={Math.round(stats.completionRate)} label="완주율 %" />
+              <StatCell num={stats.goalRate}       label="달성률 %" />
             </View>
           </View>
 
@@ -367,8 +388,13 @@ export default function NewCompletionStoryScreen() {
 }
 
 // ─── 시스템 통계 미리보기 — 클라이언트 추정 ───
-// DB 트리거가 INSERT 시 정확히 다시 계산하므로 여기선 미리보기 용도.
-function computeStatsPreview(ch: Challenge, proofs: { created_at: string }[]): Stats {
+// DB 트리거(기간·인증·연속)와 서버 finalize-story-goal(달성률·성공)이 저장 시 다시 계산하므로 여기선 미리보기 용도.
+function computeStatsPreview(
+  ch: Challenge,
+  proofs: { created_at: string; local_date: string }[],
+  joinedAt: string | null,
+  pauses: ChallengePause[],
+): Stats {
   const start = new Date(ch.start_date);
   const end = new Date(ch.end_date + 'T23:59:59');
   const totalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86_400_000));
@@ -398,8 +424,17 @@ function computeStatsPreview(ch: Challenge, proofs: { created_at: string }[]): S
     prev = d;
   }
 
-  const completionRate = Math.min(100, Math.round((proofCount / totalDays) * 100));
-  return { totalDays, proofCount, longestStreak: longest, completionRate };
+  // 달성률·성공 — 판정 단일 소스 goalStatus 그대로 (서버 storyGoal.ts 와 같은 규칙)
+  //   달성률 분모 = 임계 100% 목표 ("목표의 몇 %를 걸었나"), 성공 = 개설 시 임계 기준
+  const challenge = ch as unknown as DbChallenge;
+  const myProofs = proofs as unknown as ProofWithRelations[];
+  const goal = goalStatus(challenge, myProofs, joinedAt, pauses);
+  const fullTarget = goalStatus({ ...challenge, success_threshold: 100 }, myProofs, joinedAt, pauses).target;
+  const goalRate = fullTarget > 0 ? Math.min(100, Math.round(goal.current / fullTarget * 100)) : 0;
+  return {
+    totalDays, proofCount, longestStreak: longest,
+    goalRate, succeeded: goal.isSuccess, successThreshold: ch.success_threshold ?? 100,
+  };
 }
 
 function nullIfEmpty(s: string): string | null {
@@ -497,6 +532,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs, color: colors.primary500,
     fontFamily: fontFamily.medium, fontWeight: fontWeight.medium,
   },
+  goalBadges: { marginBottom: 10 },
   statsGrid: { flexDirection: 'row', justifyContent: 'space-between', gap: 6 },
   statCell: {
     flex: 1, alignItems: 'center',

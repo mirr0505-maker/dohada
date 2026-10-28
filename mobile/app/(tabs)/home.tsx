@@ -558,13 +558,13 @@ export default function HomeScreen() {
               {/* 🚀 무대 = 명사·조직이 연 하다. 개인 하다와 섞이지 않게 따로 모은다 — 주최/참여도 가른다 */}
               {hostedStageChs.length > 0 && (
                 <>
-                  <Text style={styles.bandLabel}>🏛️ 내가 주최하는 무대</Text>
+                  <Text style={styles.bandLabel}>내가 주최하는 무대</Text>
                   {hostedStageChs.map(renderActiveCard)}
                 </>
               )}
               {joinedStageChs.length > 0 && (
                 <>
-                  <Text style={styles.bandLabel}>🏛️ 참여 중인 무대</Text>
+                  <Text style={styles.bandLabel}>참여 중인 무대</Text>
                   {joinedStageChs.map(renderActiveCard)}
                 </>
               )}

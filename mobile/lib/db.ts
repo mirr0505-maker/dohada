@@ -5,6 +5,7 @@ import { getTodayRange } from './format';
 import { toLocalDateStr, setActiveTimezone, DEFAULT_TIMEZONE } from './timezone';
 import { isRecruiting, goalStatus, isFinished, countSuccessfulMembers } from './stats';   // 🚀 0043: 모집 마감 판정 + 다짐 내역 성공 판정 + 0075 성공자 집계
 import type { ChallengePause, MemberPause } from './stats';   // 🚀 0078: 잠시 멈춤 구간
+import { reportError } from './sentry';
 import type {
   ChallengeWithCount, ChallengeKind, ChallengeGoalType, ChallengeMemberRole, ChallengeFrequency, MemberWithToday, ProofWithRelations, DbChallenge,
   CommentWithAuthor, CheerType,
@@ -1770,6 +1771,7 @@ export async function toggleCheer(args: {
 
 // ─── v2.5: 해냈어요 (완주 이야기) CRUD ────────────────────────────────────
 // 시스템 통계 (total_days/proof_count/longest_streak/completion_rate) 는 DB 트리거가 자동 채움.
+// 목표 결과 (goal_current/goal_target/goal_rate/succeeded/success_threshold, 0084) 는 Edge Function 이 채움.
 // 사용자는 story/hardest/photo_urls/visibility 만 전달.
 
 // 완주 이야기 작성 — 챌린지가 종료되고 본인이 멤버(미포기)일 때만 RLS 통과.
@@ -1813,7 +1815,20 @@ export async function createCompletionStory(args: {
     .select()
     .single();
   if (error) throw error;
-  return data as DbCompletionStory;
+  const story = data as DbCompletionStory;
+
+  // 🚀 0084 목표 결과 — 서버가 stats.ts 와 같은 규칙으로 계산·저장 (클라는 이 컬럼들을 쓸 권한이 없다)
+  //   실패해도 이야기는 이미 저장됨 → 화면은 completion_rate("인증률")로 폴백, 백필이 나중에 채운다.
+  try {
+    const { data: goal, error: goalError } = await supabase.functions.invoke<Pick<
+      DbCompletionStory, 'goal_current' | 'goal_target' | 'goal_rate' | 'succeeded' | 'success_threshold'
+    >>('finalize-story-goal', { body: { storyId: story.id } });
+    if (goalError) throw goalError;
+    return goal ? { ...story, ...goal } : story;
+  } catch (e) {
+    reportError(e, { where: 'finalize-story-goal', storyId: story.id });
+    return story;
+  }
 }
 
 // 해냈어요 공개 탭 — visibility='public' 이야기 최신순
