@@ -5,6 +5,7 @@ import React, { useCallback, useState } from 'react';
 import { View, Text, Pressable, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { adminSearchUsers, adminSetUserHostTier, type AdminUserSearchResult } from '@/lib/db';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
+import { OrgVerifyForm } from './OrgVerifyForm';
 
 type Tier = 'individual' | 'figure' | 'org';
 
@@ -33,6 +34,8 @@ function UserTierCard({ item, onChanged }: { item: AdminUserSearchResult; onChan
   const [open, setOpen] = useState(false);
   const [pickTier, setPickTier] = useState<Tier>('individual');
   const [applying, setApplying] = useState(false);
+  // 🚀 0085: 유효한 조직 검증 기록 유무 — 없으면 '공식' 지정 불가(서버도 거부)
+  const [hasOrgRecord, setHasOrgRecord] = useState(false);
 
   const onToggleOpen = useCallback(() => {
     if (open) { setOpen(false); return; }
@@ -79,13 +82,16 @@ function UserTierCard({ item, onChanged }: { item: AdminUserSearchResult; onChan
 
       {open && (
         <View style={styles.editArea}>
+          <OrgVerifyForm user={item} onActiveChange={setHasOrgRecord} />
           <View style={styles.tierRow}>
             {TIER_OPTIONS.map(opt => {
               const on = pickTier === opt.tier;
+              const locked = opt.tier === 'org' && !hasOrgRecord && item.host_tier !== 'org';   // 이미 org 면 막지 않음
               return (
                 <Pressable
                   key={opt.tier}
-                  style={[styles.tierChip, on && styles.tierChipOn]}
+                  style={[styles.tierChip, on && styles.tierChipOn, locked && styles.tierChipLocked]}
+                  disabled={locked}
                   onPress={() => setPickTier(opt.tier)}
                 >
                   <Text style={[styles.tierChipText, on && styles.tierChipTextOn]}>{opt.label}</Text>
@@ -93,6 +99,9 @@ function UserTierCard({ item, onChanged }: { item: AdminUserSearchResult; onChan
               );
             })}
           </View>
+          {!hasOrgRecord && item.host_tier !== 'org' && (
+            <Text style={styles.meta}>공식은 조직 검증 기록이 있어야 지정할 수 있어요.</Text>
+          )}
           <Pressable style={styles.applyBtn} disabled={applying} onPress={onApply}>
             <Text style={styles.applyBtnText}>{applying ? '적용 중…' : '적용'}</Text>
           </Pressable>
@@ -183,6 +192,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary50, borderWidth: 1, borderColor: colors.line,
   },
   tierChipOn: { backgroundColor: colors.brandTint, borderColor: colors.brand },
+  tierChipLocked: { opacity: 0.4 },
   tierChipText: { fontSize: fontSize.sm, color: colors.sub, fontFamily: fontFamily.medium, fontWeight: fontWeight.medium },
   tierChipTextOn: { color: colors.brandInk, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
   applyBtn: { alignItems: 'center', paddingVertical: 10, borderRadius: radius.md, backgroundColor: colors.accent },

@@ -2518,3 +2518,69 @@ export async function adminSetUserHostTier(
   });
   if (error) throw error;
 }
+
+// 🚀 0085: 조직 검증 기록 — org 지정 전에 "누가·언제·무엇을 확인했다"를 남긴다 (원본 서류는 운영 메일함)
+export type OrgType = 'company' | 'nonprofit' | 'public';
+export type OrgProof =
+  | 'biz_reg' | 'nts_status' | 'corp_registry' | 'unique_no'
+  | 'official_letter' | 'employment' | 'domain_email';
+
+export type AdminOrgVerification = {
+  id: string;
+  org_type: OrgType;
+  legal_name: string;
+  registration_no: string | null;
+  official_domain: string | null;
+  proofs: OrgProof[];
+  contact_name: string | null;   // ⚠️ PII — 운영자 콘솔 밖으로 내보내지 않는다
+  contact_role: string | null;
+  contact_email: string | null;  // ⚠️ PII
+  note: string | null;
+  verified_by_nickname: string | null;
+  verified_at: string;
+  revoked_at: string | null;     // null = 유효
+};
+
+export type OrgVerificationInput = {
+  userId: string;
+  orgType: OrgType;
+  legalName: string;
+  registrationNo: string;
+  officialDomain: string;
+  proofs: OrgProof[];
+  contactName: string;
+  contactRole: string;
+  contactEmail: string;
+  note: string;
+};
+
+// 기록 (유효 기록이 있으면 서버가 해지 후 새로 쓴다 = 이력 보존). 증빙 규칙은 서버 check 가 최종 판정.
+export async function adminRecordOrgVerification(input: OrgVerificationInput): Promise<string> {
+  const { data, error } = await supabase.rpc('admin_record_org_verification', {
+    p_user_id: input.userId,
+    p_org_type: input.orgType,
+    p_legal_name: input.legalName,
+    p_registration_no: input.registrationNo,
+    p_official_domain: input.officialDomain,
+    p_proofs: input.proofs,
+    p_contact_name: input.contactName,
+    p_contact_role: input.contactRole,
+    p_contact_email: input.contactEmail,
+    p_note: input.note,
+  });
+  if (error) throw error;
+  return data as string;
+}
+
+// 해지 — 아직 org 계정이면 서버가 거부한다(먼저 개인으로 내려야 함)
+export async function adminRevokeOrgVerification(userId: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_revoke_org_verification', { p_user_id: userId });
+  if (error) throw error;
+}
+
+// 한 계정의 검증 이력 (최신순, 해지분 포함)
+export async function adminListOrgVerifications(userId: string): Promise<AdminOrgVerification[]> {
+  const { data, error } = await supabase.rpc('admin_list_org_verifications', { p_user_id: userId });
+  if (error) throw error;
+  return (data ?? []) as AdminOrgVerification[];
+}
