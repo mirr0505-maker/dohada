@@ -336,6 +336,13 @@
 - **광장 헤더 한 겹** ([`discover.tsx`](mobile/app/(tabs)/discover.tsx)): "광장 / 아직 만나지 못한 하다" + "🏛️ 무대 / 명사와 조직이 여는 하다" 2중 → **나침반 아이콘 + "광장" / "명사와 조직이 여는 하다"** 한 겹(기록·울림·해냈어요와 같은 제목 모양·여백). 섹션 제목 이모지 전부 제거(명사의 하다·조직의 하다·지금 합류할 수 있는 하다·하다 구경) + 홈 [`home.tsx`](mobile/app/(tabs)/home.tsx) "내가 주최하는 무대"·"참여 중인 무대" 🏛️ 제거. **평가 4종(✨😱🥹💫)과 카드 안 HostBadge 는 유지**(평가 의미 보존 규칙 · 배지는 홈·초대장 공용)
 - **배포 순서 (⚠️ migration 먼저)**: 0084 ✓ → `finalize-story-goal` EF 배포 → 백필 1회(기존 2건) → OTA. 클라가 먼저 나가면 EF 호출 실패 → 인증률 폴백(무해), EF 가 0084 전에 불리면 500
 
+### 신규 코드 위치 (v2.40 — 조직 검증 기록(0085) + 씨앗 무대 법인 이전(0086), 2026-10-28)
+**SoT = [`ORG_HADA_PLAN.md`](docs/ORG_HADA_PLAN.md) §9.** 조직 하다 = 조직 계정(실무자는 그 계정을 맡은 사람). 증명 3가지 = 조직 실재 · 실무자 권한 · 계정 소유(공식 도메인), **원본 서류는 앱에 저장 안 함**.
+- DB [`0085_org_verifications.sql`](supabase/migrations/0085_org_verifications.sql): `org_verifications`(authenticated 권한 없음, admin RPC 3종 — 🔒 첫 줄 `is_admin()`) + `admin_set_user_host_tier(org)` 는 **유효 검증 기록 없으면 거부**. 재기록 = 이전 행 해지 이력 보존. UI = [`OrgVerifyForm`](mobile/components/admin/OrgVerifyForm.tsx)(사람 계층 지정 카드)
+- [`0086_transfer_seed_stage.sql`](supabase/migrations/0086_transfer_seed_stage.sql): 「매일 8천보 걷기」를 **같은 id 로** 법인 계정(`kidoo.kim@doinno.co.kr`) 소유 이전 — 1회성 운영 SQL(앱 경로 이전 불가 0022 는 유지). 한잔 주문은 결제자 이름 보존
+- 문의처 `SUPPORT_EMAIL`·법적 문서 → `kidoo.kim@doinno.co.kr`. admin 권한은 개인 계정(mirr0505)에만 유지
+- **운영 반영 완료** (0085·0086 적용 + OTA preview·production)
+
 ### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.
 - 인증 완료 Alert / 카톡 초대 / 생성 후 Alert / 챌린지방 헤더 부제 / FAB 라벨 — 모두 분류별 분기 완료
