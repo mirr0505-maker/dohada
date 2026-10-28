@@ -883,18 +883,6 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.medium,
     fontWeight: fontWeight.medium,
   },
-  photoBox: {
-    marginTop: 12,
-    position: 'relative',
-    borderRadius: radius.lg,
-    overflow: 'hidden',
-    maxHeight: 320,   // 세로 긴 사진이 본문 입력칸을 화면 밖으로 밀어내지 않게 미리보기 높이 제한
-  },
-  photoPreview: {
-    width: '100%',
-    // aspectRatio 는 LogPhoto 가 원본 비율로 지정
-    backgroundColor: colors.primary100,
-  },
   photoRemove: {
     position: 'absolute',
     top: 2, right: 2,

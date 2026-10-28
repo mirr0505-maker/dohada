@@ -2,7 +2,7 @@
 //   시간대(KST)로 kind 결정: 15시 전=아침 다짐, 15시 이후=저녁 회고.
 //   자기와의 조용한 약속 — 자랑/비교 아님. 이미 남겼으면 죄책감 없이 잔잔한 완료 상태.
 import React, { useCallback, useState } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { Text, Pressable, StyleSheet } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 import { haptic } from '@/lib/haptics';

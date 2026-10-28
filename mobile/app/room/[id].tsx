@@ -13,7 +13,6 @@ import {
   fetchChallengePledges, togglePledgeFulfilled, deletePledge, type ChallengePledge,
   blockUser, type ReportTargetType,
 } from '@/lib/db';
-import type { CheerType } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 import { ErrorState } from '@/components/ErrorState';
 import { ProofCardSkeleton } from '@/components/Skeleton';
@@ -46,7 +45,7 @@ import { InviteLetterModal } from '@/components/challenge/InviteLetterModal';
 import { ImpactModal } from '@/components/challenge/ImpactModal';
 import { reportError } from '@/lib/sentry';
 import { haptic } from '@/lib/haptics';
-import { computeProgress, computeStreak, isSuccess, isShortOfGoal, didFinishThrough, isFinished, getFarewellState, isRecruiting, streakMilestone, memberTargetProofCount, PAUSE_CREDIT_RATIO } from '@/lib/stats';
+import { computeProgress, isSuccess, isShortOfGoal, didFinishThrough, isFinished, getFarewellState, isRecruiting, streakMilestone, memberTargetProofCount, PAUSE_CREDIT_RATIO } from '@/lib/stats';
 import type { MemberPause } from '@/lib/stats';   // 🚀 0078: 잠시 멈춤 구간 (멤버별)
 import { StreakMedal } from '@/components/challenge/StreakMedal';
 import { HostMark, HostAvatarRing } from '@/components/HostMark';
@@ -54,7 +53,7 @@ import * as SecureStore from 'expo-secure-store';
 import { joinChallenge } from '@/lib/invite';
 import { formatCheerCount, getTodayRange, displayTitle } from '@/lib/format';
 import type {
-  DbChallenge, MemberWithToday, ProofWithRelations, ChallengeKind,
+  DbChallenge, MemberWithToday, ProofWithRelations, ChallengeKind, CheerType,
 } from '@/lib/types';
 
 // v4 챌린지 방 5탭
@@ -451,12 +450,11 @@ export default function ChallengeRoom() {
     }
   }, [challenge, myUserId, joining, load]);
 
-  // 내가 한 인증만 필터해서 streak 계산
+  // 내가 한 인증만 필터
   const myProofs = useMemo(
     () => proofs.filter(p => p.user_id === myUserId),
     [proofs, myUserId],
   );
-  const streak = useMemo(() => computeStreak(myProofs), [myProofs]);
   // 헤더 🏆/🏁 배지용 완주 판정 주체 — cheered 방은 도전 주체가 개설자 1명이므로
   // 응원자 본인 인증이 아니라 개설자(도전자) 인증 기준으로 판정.
   const badgeProofs = useMemo(
@@ -1521,19 +1519,6 @@ function StackedAvatars({ members, totalCount }: { members: MemberWithToday[]; t
   );
 }
 
-// v4 탭 공용 placeholder (대화/기록/현황/박제)
-function TabPlaceholder({
-  emoji, title, desc,
-}: { emoji: string; title: string; desc: string }) {
-  return (
-    <View style={styles.tabPlaceholder}>
-      <Text style={styles.tabPlaceholderEmoji}>{emoji}</Text>
-      <Text style={styles.tabPlaceholderTitle}>{title}</Text>
-      <Text style={styles.tabPlaceholderDesc}>{desc}</Text>
-    </View>
-  );
-}
-
 const CHEER_OPTIONS: { type: CheerType; emoji: string; label: string }[] = [
   { type: 'fire',   emoji: '🔥', label: '불꽃 응원' },
   { type: 'clap',   emoji: '👏', label: '박수 응원' },
@@ -1683,11 +1668,6 @@ function formatKoreanDate(dateStr: string): string {
   return `${d.getMonth() + 1}월 ${d.getDate()}일`;
 }
 
-function isMemberPaused(pausedUntil: string | null): boolean {
-  if (!pausedUntil) return false;
-  return new Date().toISOString().slice(0, 10) <= pausedUntil;
-}
-
 function formatTime(iso: string): string {
   const d = new Date(iso);
   const now = new Date();
@@ -1699,9 +1679,6 @@ function formatTime(iso: string): string {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  notFoundText: { fontSize: fontSize.base, color: colors.primary500 },
-
   header: {
     minHeight: 56,
     paddingHorizontal: 16,
@@ -1763,10 +1740,6 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },
-  impactBtn: {
-    fontSize: 22,
-    paddingHorizontal: 4,
-  },
   back: { paddingHorizontal: 8 },
   title: {
     fontSize: fontSize.lg,
@@ -1798,73 +1771,6 @@ const styles = StyleSheet.create({
     color: colors.primary300,   // 종료 방 — 회색 비활성 톤
   },
 
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.primary100,
-  },
-  stat: { flex: 1 },
-  statValue: {
-    fontSize: fontSize.xl,
-    color: colors.primary,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-  },
-  statLabel: {
-    fontSize: fontSize.xs,
-    color: colors.primary500,
-    fontFamily: fontFamily.regular,
-    marginTop: 2,
-  },
-  pauseBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    backgroundColor: colors.primary50,
-    borderRadius: radius.pill,
-  },
-  pauseLabel: {
-    fontSize: fontSize.sm,
-    color: colors.primary500,
-    fontFamily: fontFamily.medium,
-    fontWeight: fontWeight.medium,
-  },
-  memberStrip: {
-    paddingVertical: 16,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.primary100,
-  },
-  member: { alignItems: 'center', gap: 6, width: 56 },
-  memberAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.primary50,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-    overflow: 'hidden',
-  },
-  avatarImg: { width: '100%', height: '100%' },
-  memberAvatarChecked: { borderColor: colors.accent },
-  memberName: {
-    fontSize: fontSize.xs,
-    color: colors.primary500,
-    fontFamily: fontFamily.regular,
-  },
-  memberEmpty: {
-    paddingHorizontal: 8,
-    fontSize: fontSize.sm,
-    color: colors.primary500,
-    fontFamily: fontFamily.regular,
-  },
-
   feed: { padding: 16, paddingBottom: 120, gap: 16, flexGrow: 1 },
   proofCard: {
     backgroundColor: colors.surface,
@@ -1893,34 +1799,18 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.regular,
     marginTop: 2,
   },
-  proofPhoto: {
-    width: '100%',
-    aspectRatio: 1,
-    borderRadius: radius.md,
-    backgroundColor: colors.primary50,
-  },
-  zoomHint: {
-    position: 'absolute', bottom: 8, right: 8,
-    backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: radius.pill,
-    paddingHorizontal: 8, paddingVertical: 3,
-  },
-  zoomHintText: { fontSize: 12 },
-  streakMedalWrap: { position: 'absolute', top: 10, right: 10 },
   proofCaption: {
     fontSize: fontSize.base,
     color: colors.primary,
     fontFamily: fontFamily.regular,
     lineHeight: 22,
   },
-  proofFooter: { flexDirection: 'row', alignItems: 'center', gap: 20, paddingTop: 4 },
-  cheerBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 },
   cheerCount: {
     fontSize: fontSize.base,
     color: colors.primary500,
     fontFamily: fontFamily.medium,
     fontWeight: fontWeight.medium,
   },
-  cheerCountOn: { color: colors.danger, fontWeight: fontWeight.bold },
 
   // 4가지 응원 chips + 선물 + 댓글 (v2)
   cheerRow: {
@@ -2093,38 +1983,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     borderRadius: 3,
   },
-  impact: {
-    marginHorizontal: 16,
-    marginBottom: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: colors.accent50,
-    borderRadius: radius.lg,
-  },
-  impactLabel: {
-    fontSize: fontSize.sm,
-    color: colors.accent700,
-    fontFamily: fontFamily.medium,
-    fontWeight: fontWeight.semibold,
-    marginBottom: 8,
-  },
-  impactStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  impactStat: { alignItems: 'center', flex: 1 },
-  impactNum: {
-    fontSize: fontSize.xl,
-    color: colors.primary,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-  },
-  impactName: {
-    fontSize: fontSize.xs,
-    color: colors.primary500,
-    fontFamily: fontFamily.regular,
-    marginTop: 2,
-  },
   tabsBar: {
     flexDirection: 'row',
     paddingHorizontal: 8,
@@ -2153,28 +2011,6 @@ const styles = StyleSheet.create({
     color: colors.brand,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
-  },
-  tabPlaceholder: {
-    flex: 1,
-    paddingHorizontal: 32,
-    paddingTop: 64,
-    alignItems: 'center',
-    gap: 12,
-  },
-  tabPlaceholderEmoji: { fontSize: 56 },
-  tabPlaceholderTitle: {
-    fontSize: fontSize.lg,
-    color: colors.primary,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-    textAlign: 'center',
-  },
-  tabPlaceholderDesc: {
-    fontSize: fontSize.sm,
-    color: colors.primary500,
-    fontFamily: fontFamily.regular,
-    textAlign: 'center',
-    lineHeight: 20,
   },
 
   empty: { paddingVertical: 80, alignItems: 'center', gap: 16 },

@@ -178,12 +178,6 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 24,
   },
-  logoCircle: {
-    fontSize: fontSize['4xl'],
-    color: colors.accent,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-  },
   logoTitle: {
     fontSize: fontSize['5xl'],
     color: colors.primary,
@@ -225,20 +219,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.primary100,
-  },
-  googleBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#4285F4',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  googleBadgeText: {
-    color: colors.surface,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-    fontSize: fontSize.base,
   },
   googleLabel: {
     fontSize: fontSize.lg,

@@ -24,12 +24,6 @@ export const colors = {
   danger: '#EF4444',
   info: '#3B82F6',
 
-  // 챌린지 타입 라벨 컬러
-  typeGeneral: '#737373',
-  typeBrand: '#3B82F6',
-  typeCeleb: '#F59E0B',
-  typePublic: '#22C55E',
-
   // ─── 🚀 리디자인 v2 웜 시맨틱 팔레트 (가산식 — 기존 키는 유지, 화면은 Step 3에서 점진 이전) ───
   // 정본 = DESIGN_GUIDE.md 2번. 신규/리팩터 화면은 아래 토큰을 쓴다.
   bg: '#FAF7F2',            // 웜 크림 배경 (기존 background #FAFAFA 대체 예정)

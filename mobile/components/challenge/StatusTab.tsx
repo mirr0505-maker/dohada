@@ -417,15 +417,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   fill: { height: 6, borderRadius: 3 },
-  rateNum: {
-    fontSize: fontSize.xl,
-    color: colors.primary,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-    minWidth: 50,
-    textAlign: 'right',
-  },
-  rateNumMine: { color: colors.accent },
   empty: { paddingVertical: 64, alignItems: 'center', gap: 12 },
   emptyText: {
     fontSize: fontSize.base, color: colors.primary500,

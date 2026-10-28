@@ -5,7 +5,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Gesture, GestureDetector, Directions } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Users, Camera, Handshake, Globe, type LucideIcon } from 'lucide-react-native';
+import { Users, Camera, Handshake, Globe } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
 import { BrandMark } from '@/components/BrandMark';

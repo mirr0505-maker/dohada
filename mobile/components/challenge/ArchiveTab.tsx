@@ -3,7 +3,7 @@
 // 완주 후: 박제 카드 + "완주 이야기 공유" 버튼 → /done/new (해냈어요 작성)
 //   결제 흐름 (종이/포토북/굿즈) 은 Phase 2.
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { Trophy, Flag, Camera, MessageCircle, Film, FileText, Mail, BookOpen, Shirt, PenLine, type LucideIcon } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
@@ -276,13 +276,6 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontFamily: fontFamily.regular,
     lineHeight: 20,
-  },
-  previewFootnote: {
-    fontSize: fontSize.xs,
-    color: colors.primary500,
-    fontFamily: fontFamily.regular,
-    marginTop: 8,
-    lineHeight: 16,
   },
 
   // v2.5 — 4단계 상품 잠금 카드

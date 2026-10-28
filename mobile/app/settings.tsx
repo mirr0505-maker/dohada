@@ -4,7 +4,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, Pressable, StyleSheet, Alert, Switch, ScrollView,
-  Modal, Linking, Platform,
+  Modal, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -405,7 +405,7 @@ function DeleteAccountModal({
       await deleteAccount();
       haptic.success();
       onDeleted();
-    } catch (e: any) {
+    } catch {
       setDeleting(false);
       Alert.alert('탈퇴 실패', '잠시 후 다시 시도해주세요.\n계속되면 운영팀에 문의해주세요.');
     }

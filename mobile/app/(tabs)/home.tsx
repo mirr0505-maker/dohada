@@ -10,7 +10,7 @@
 // 도전 인연 정의 (베타 v2.5) = 현재 같은 챌린지의 멤버 (×횟수 누적은 Phase 2)
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  View, Text, Pressable, ScrollView, StyleSheet, RefreshControl, Image, Alert, Modal,
+  View, Text, Pressable, ScrollView, StyleSheet, RefreshControl, Image, Alert,
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/components/Screen';
@@ -233,7 +233,6 @@ export default function HomeScreen() {
       proofs,
     }));
   }, [todayProofs]);
-  const [checkinPickerOpen, setCheckinPickerOpen] = useState(false);
 
   // 🚀 아침 인사 카드: _layout 이 알림 탭 시 ?greet=<ts> 로 보내면 홈 상단에 그날 인사말을 띄운다.
   //   (iOS "미리보기 표시: 안 함" 이면 알림 배너엔 텍스트가 안 떠서, 앱 안에서 인사말을 읽게 하는 자리)
@@ -242,24 +241,6 @@ export default function HomeScreen() {
   useEffect(() => {
     if (greet) setGreetCard(todayGreeting());
   }, [greet]);
-
-  // 오늘 인증 액션 — 0개면 완료 안내, 1개면 즉시 인증, 여러 개면 선택 모달
-  const onCheckinAction = () => {
-    haptic.tap();
-    if (totalCount === 0) {
-      router.push('/create' as any);
-      return;
-    }
-    if (uncheckedChs.length === 0) {
-      Alert.alert('오늘 인증 완료', '오늘 몫의 인증을 모두 마쳤어요.\n내일 또 만나요!');
-      return;
-    }
-    if (uncheckedChs.length === 1) {
-      router.push(`/checkin/${uncheckedChs[0].id}` as any);
-      return;
-    }
-    setCheckinPickerOpen(true);
-  };
 
   // 🚀 진행 중 하다 카드 1장 — 개설/참여 밴드와 무대 섹션이 함께 쓴다
   const renderActiveCard = (c: MyChallengeDetail) => {
@@ -683,42 +664,6 @@ export default function HomeScreen() {
 
       {/* 🚀 업데이트 소식 — 새 릴리스 태그일 때 1회 노출 (OTA 인지 + 강제종료 2회 안내) */}
       <WhatsNewModal />
-
-      {/* 🚀 미인증 챌린지 선택 모달 — 인증할 도전이 여러 개일 때 */}
-      <Modal
-        visible={checkinPickerOpen}
-        animationType="fade"
-        transparent={true}
-        onRequestClose={() => setCheckinPickerOpen(false)}
-      >
-        <Pressable style={styles.pickerOverlay} onPress={() => setCheckinPickerOpen(false)}>
-          <Pressable style={styles.pickerCard} onPress={() => {}}>
-            <Text style={styles.pickerTitle}>어떤 하다를 인증할까요?</Text>
-            <View style={{ gap: 8 }}>
-              {uncheckedChs.map(c => (
-                <Pressable
-                  key={c.id}
-                  style={styles.pickerRow}
-                  onPress={() => {
-                    haptic.tap();
-                    setCheckinPickerOpen(false);
-                    router.push(`/checkin/${c.id}` as any);
-                  }}
-                >
-                  <Text style={styles.pickerRowTitle} numberOfLines={1}>{displayTitle(c.title)}</Text>
-                  <Text style={styles.pickerRowArrow}>→</Text>
-                </Pressable>
-              ))}
-            </View>
-            <Pressable
-              style={styles.pickerCancel}
-              onPress={() => { haptic.tap(); setCheckinPickerOpen(false); }}
-            >
-              <Text style={styles.pickerCancelText}>다음에 할게요</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </Screen>
   );
 }
@@ -952,31 +897,6 @@ const styles = StyleSheet.create({
   allDoneTitle: { fontSize: fontSize.lg, color: colors.doneInk, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
   allDoneSub: { fontSize: fontSize.sm, color: colors.sub, fontFamily: fontFamily.regular },
 
-  // me-strip
-  meStrip: {
-    marginHorizontal: 20, marginTop: 16,
-    paddingHorizontal: 16, paddingVertical: 12,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1, borderColor: colors.primary100,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    gap: 10,
-  },
-  meText: {
-    flex: 1,
-    fontSize: fontSize.sm, color: colors.primary,
-    fontFamily: fontFamily.medium, fontWeight: fontWeight.semibold,
-    letterSpacing: -0.2,
-  },
-  meCta: {
-    paddingHorizontal: 14, paddingVertical: 7,
-    backgroundColor: colors.accent50,
-    borderRadius: radius.pill,
-  },
-  meCtaText: {
-    fontSize: fontSize.xs, color: colors.accent700,
-    fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
-  },
   myChallengeList: {
     marginHorizontal: 16,
     marginTop: 16,
@@ -1083,10 +1003,6 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
     letterSpacing: -0.2,
   },
-  sectionSubLabel: {
-    fontSize: fontSize.sm, color: colors.primary500,
-    fontFamily: fontFamily.regular, fontWeight: fontWeight.regular,
-  },
 
   // 도전 인연 빈 상태 카드
   emptyFellowCard: {
@@ -1145,29 +1061,6 @@ const styles = StyleSheet.create({
   },
 
   // 관심 추천 빈 상태 카드
-  // 조용한 마커
-  quietMarker: {
-    alignItems: 'center',
-    paddingTop: 16,
-    paddingBottom: 8,
-    gap: 4,
-  },
-  quietEmoji: {
-    fontSize: 24,
-    marginBottom: 2,
-  },
-  quietText: {
-    fontSize: fontSize.xs,
-    color: colors.primary500,
-    fontFamily: fontFamily.medium,
-    fontWeight: fontWeight.semibold,
-  },
-  quietSubText: {
-    fontSize: 11,
-    color: colors.primary500,
-    fontFamily: fontFamily.regular,
-  },
-
   // 빈 상태
   emptyCard: {
     marginHorizontal: 20, marginTop: 16,
@@ -1231,24 +1124,8 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs, color: colors.primary500,
     fontFamily: fontFamily.regular, marginTop: 1,
   },
-  tag: {
-    paddingHorizontal: 10, paddingVertical: 4,
-    backgroundColor: colors.accent50,
-    borderRadius: radius.pill,
-    maxWidth: 130,
-  },
-  tagText: {
-    fontSize: 11, color: colors.accent700,
-    fontFamily: fontFamily.bold, fontWeight: fontWeight.bold,
-  },
 
   // 인증 카드
-  proofPhoto: {
-    width: '100%', aspectRatio: 4 / 3,
-    borderRadius: radius.md,
-    backgroundColor: colors.primary100,
-  },
-  streakMedalWrap: { position: 'absolute', top: 10, right: 10 },
   caption: {
     fontSize: fontSize.sm, color: colors.primary,
     fontFamily: fontFamily.regular, lineHeight: 20,
@@ -1360,62 +1237,6 @@ const styles = StyleSheet.create({
     color: colors.primary700,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.semibold,
-  },
-
-  // 🚀 미인증 챌린지 선택 모달
-  pickerOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  pickerCard: {
-    width: '100%',
-    maxWidth: 340,
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: 20,
-    gap: 14,
-    ...shadow.lg,
-  },
-  pickerTitle: {
-    fontSize: fontSize.lg,
-    color: colors.primary,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-    textAlign: 'center',
-  },
-  pickerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    backgroundColor: colors.primary50,
-    borderRadius: radius.md,
-  },
-  pickerRowTitle: {
-    flex: 1,
-    fontSize: fontSize.base,
-    color: colors.primary,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.semibold,
-  },
-  pickerRowArrow: {
-    fontSize: fontSize.lg,
-    color: colors.accent,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-  },
-  pickerCancel: {
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  pickerCancelText: {
-    fontSize: fontSize.sm,
-    color: colors.primary500,
-    fontFamily: fontFamily.medium,
   },
 
   // 🚀 콜드스타트 온램프 카드 (accent50 + accent 보더, 디자인 토큰 내)

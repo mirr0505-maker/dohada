@@ -435,7 +435,6 @@ const styles = StyleSheet.create({
     width: 20, height: 20, borderRadius: 10,
     backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center',
   },
-  thumbXText: { color: colors.surface, fontSize: 11, fontWeight: fontWeight.bold },
   addRow: { flexDirection: 'row', gap: 8 },
   addBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,

@@ -1658,12 +1658,6 @@ export async function fetchMyFootprints(userId: string): Promise<MyFootprints> {
   return { completed, bestStreak, cheersReceived, finished };
 }
 
-// 후방 호환 — profile.tsx 가 닉네임만 받던 시절 잔재
-export async function fetchMyNickname(userId: string): Promise<string> {
-  const p = await fetchMyProfile(userId);
-  return p.nickname;
-}
-
 // 🚀 하루 기준선 — 내 기준 시간대(0077). 인증 날짜·연속·완주 판정의 경계를 정한다.
 //   서버(proofs.local_date 트리거)와 화면 판정이 같은 경계를 쓰도록, 로그인 직후 읽어
 //   setActiveTimezone 으로 앱 전역에 반영한다.
@@ -1939,41 +1933,6 @@ export async function fetchMyCompletionStoryForChallenge(args: {
   return (data ?? null) as DbCompletionStory | null;
 }
 
-// 사용자 옵션·사진·공개범위만 수정 (시스템 통계는 트리거가 보호)
-export async function updateCompletionStory(args: {
-  id: string;
-  story?: string | null;
-  hardest?: string | null;
-  helpedWhenGivingUp?: string | null;
-  adviceToStarters?: string | null;
-  ownTip?: string | null;
-  whatChanged?: string | null;
-  photoUrls?: string[];
-  visibility?: StoryVisibility;
-}): Promise<void> {
-  const patch: Record<string, unknown> = {};
-  if (args.story !== undefined)              patch.story = args.story;
-  if (args.hardest !== undefined)            patch.hardest = args.hardest;
-  if (args.helpedWhenGivingUp !== undefined) patch.helped_when_giving_up = args.helpedWhenGivingUp;
-  if (args.adviceToStarters !== undefined)   patch.advice_to_starters = args.adviceToStarters;
-  if (args.ownTip !== undefined)             patch.own_tip = args.ownTip;
-  if (args.whatChanged !== undefined)        patch.what_changed = args.whatChanged;
-  if (args.photoUrls !== undefined)          patch.photo_urls = args.photoUrls;
-  if (args.visibility !== undefined)         patch.visibility = args.visibility;
-  if (Object.keys(patch).length === 0) return;
-  // 🚀 3a 검수 — 수정되는 자유 서술 텍스트
-  const moderationText =
-    [args.story, args.hardest, args.helpedWhenGivingUp, args.adviceToStarters, args.ownTip, args.whatChanged]
-      .filter(Boolean).join('\n');
-  // 🚀 검수 (v2.19: block→차단, flag·allow→통과·미숨김). hidden 은 patch 에 넣지 않는다 — 서버만 정한다
-  if (moderationText) await moderateUgcText(moderationText);
-  const { error } = await supabase
-    .from('completion_stories')
-    .update(patch)
-    .eq('id', args.id);
-  if (error) throw error;
-}
-
 export async function deleteCompletionStory(id: string): Promise<void> {
   const { error } = await supabase
     .from('completion_stories')
@@ -2227,13 +2186,6 @@ export async function blockUser(blockerId: string, blockedId: string): Promise<v
   if (blockerId === blockedId) throw new Error('자기 자신은 차단할 수 없어요.');
   const { error } = await supabase.from('blocks').insert({ blocker_id: blockerId, blocked_id: blockedId });
   if (error && (error as { code?: string }).code !== '23505') throw error;   // 중복 차단은 조용히 무시
-}
-
-export async function unblockUser(blockerId: string, blockedId: string): Promise<void> {
-  const { error } = await supabase
-    .from('blocks').delete()
-    .eq('blocker_id', blockerId).eq('blocked_id', blockedId);
-  if (error) throw error;
 }
 
 // 양방향 차단 id (내가 차단 + 나를 차단) — 클라 필터용 Set. 방향은 RPC 가 숨김.

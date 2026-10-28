@@ -56,11 +56,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 16,
   },
-  logo: {
-    fontSize: fontSize['5xl'],
-    color: colors.surface,
-    fontFamily: fontFamily.bold,
-  },
   title: {
     fontSize: fontSize['6xl'],
     color: colors.surface,
