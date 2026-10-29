@@ -314,6 +314,7 @@
   - **웹 트랙 종료 (2026-10-05)**: 체크리스트 8항목 전부 완료 — `index.html` 교체 ✓ · [`terms.html`](docs/terms.html) 신설(footer 링크 복구) ✓ · `qr.png`(#download 착지) ✓ · `guide.html` 별도 유지 + 상호 링크 ✓. **제품 소개 웹페이지는 개인사업자 홈페이지 `doinno.co.kr` 에서 별도 제작**하기로 결정, GitHub Pages 의 `index.html` 은 **현재 수준에서 멈춘다**(커스텀 도메인 연결 안 함). ⚠️ **Pages 자체는 내리면 안 된다** — 앱 안의 법적 링크(약관·개인정보·계정삭제)가 이 주소를 가리킨다. 앞으로 손댈 곳은 법적 문서 내용 변경뿐
   - ⚠️ **이미지 크기 속성과 `height:auto` 는 한 쌍** — 앵커(`#download`) 착지가 밀리는 걸 막으려 `<img width height>` 를 넣으면, CSS 에 `height:auto` 가 없을 때 높이가 속성값 그대로 적용돼 **세로로 늘어난다**(실제 발생). 둘은 항상 같이 간다
   - **약관·개인정보처리방침 = 실결제 전제로 개정 완료 (2026-10-05)** — 상세는 [`PHASE2_FINTECH_PLAN.md`](docs/PHASE2_FINTECH_PLAN.md) §3·Stage 3
+  - **응원 한잔 실결제 착수 브리프 = [`PHASE2_FINTECH_PLAN.md`](docs/PHASE2_FINTECH_PLAN.md) §9** (2026-10-29): AS-IS 전수 · 결정 D1~D12 · WP0(약관 링크·DI 행·사업자 정보) → WP1(교환권 격리 0092·감사 로그 0091·운영자 환불 EF) → WP2(Toss 샌드박스, Pages `pay.html` + `openAuthSessionAsync`, **preview 채널만**) → WP3(전환일). Worker 는 이 절만 읽고 WP 순서대로 실행
 
 ### 신규 코드 위치 (v2.38 — 미사용 코드·스타일·패키지 정리, 2026-10-28)
 **동작 변경 없음. 순수 JS + 설정 → OTA(preview·production ✓, 커밋 fac7765·5399fab). 검증 = `tsc --noUnusedLocals --noUnusedParameters` 0 · npm test 135/135 · `expo export --platform all` iOS·Android ✓ · 실기기 확인 ✓(강제종료 2회 후 이상 없음).**
