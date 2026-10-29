@@ -15,6 +15,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { validateCreateOrder } from '../_shared/payments/orderPolicy.ts';
+import { recordGiftEvent } from '../_shared/payments/audit.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -168,5 +169,6 @@ Deno.serve(async (req) => {
     .single();
   if (insErr) return json(500, { error: insErr.message });
 
+  await recordGiftEvent(service, { orderId: order.id, from: null, to: 'created', actorId: user.id, actorRole: 'sender' });
   return json(200, { orderId: order.id, amount: order.amount });
 });

@@ -78,7 +78,7 @@ export type GiftOrderRow = {
   product_tier: string;
   amount: number;
   status: string;
-  voucher_ref: string | null;
+  voucher_ref: string | null;   // 테이블에서 직접 못 읽는다(0092) — 받는 사람 본인일 때만 my_gift_voucher RPC 로 채움
   created_at: string;
   sender: { nickname: string; avatar_url: string | null } | null;
   recipient: { nickname: string; avatar_url: string | null } | null;
@@ -189,19 +189,30 @@ export async function claimGift(
 }
 
 // 주문 단건 조회 (수령 화면) — RLS 가 당사자(보낸/받는 사람)만 허용
+//   ⚠️ voucher_ref·pg_payment_key 는 select 하면 42501 (0092 컬럼 화이트리스트).
+//   교환권은 my_gift_voucher RPC 가 받는 사람 본인 + 발급 후일 때만 돌려준다 — 보낸 사람에겐 null.
+const VOUCHER_VISIBLE_STATUSES = ['issued', 'delivered', 'redeemed'];
+
 export async function fetchGiftOrder(orderId: string): Promise<GiftOrderRow | null> {
   const { data, error } = await supabase
     .from('gift_orders')
     .select(`
       id, order_type, challenge_id, sender_id, recipient_id, product_tier,
-      amount, status, voucher_ref, created_at,
+      amount, status, created_at,
       sender:sender_id(nickname, avatar_url),
       recipient:recipient_id(nickname, avatar_url)
     `)
     .eq('id', orderId)
     .maybeSingle();
   if (error) throw error;
-  return (data as unknown as GiftOrderRow) ?? null;
+  if (!data) return null;
+  const row = data as unknown as GiftOrderRow;
+  let voucherRef: string | null = null;
+  if (VOUCHER_VISIBLE_STATUSES.includes(row.status)) {
+    const { data: v } = await supabase.rpc('my_gift_voucher', { p_order_id: orderId });
+    voucherRef = (v as string | null) ?? null;
+  }
+  return { ...row, voucher_ref: voucherRef };
 }
 
 // 이 방에서 내가 받은 한잔들 — 본인 인증 카드 "☕ 한잔 도착" 버튼 + 폴백 배너용
@@ -281,6 +292,47 @@ export async function fetchChallengeDonationCount(challengeId: string): Promise<
   const { data, error } = await supabase.rpc('challenge_donation_stats', { p_challenge_id: challengeId });
   if (error) return 0;     // 집계 실패는 치명적이지 않음 — 0 으로 폴백
   return Number(data) || 0;
+}
+
+// ─── 🔒 운영자 환불 (0091 + refund-gift-order EF) — 운영자 콘솔 전용. 서버가 is_admin() 으로 다시 막는다 ───
+export type AdminGiftOrder = {
+  id: string;
+  order_type: 'cheer' | 'bet';
+  status: string;
+  product_tier: string;
+  amount: number;
+  sender_nickname: string;
+  recipient_nickname: string;
+  challenge_title: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AdminGiftEvent = {
+  from_status: string | null;
+  to_status: string;
+  actor_role: 'sender' | 'recipient' | 'admin' | 'system';
+  reason: string | null;
+  created_at: string;
+};
+
+// 주문번호 앞자리 또는 보낸/받는 사람 닉네임
+export async function adminSearchGiftOrders(q: string): Promise<AdminGiftOrder[]> {
+  const { data, error } = await supabase.rpc('admin_search_gift_orders', { p_q: q });
+  if (error) throw error;
+  return (data ?? []) as AdminGiftOrder[];
+}
+
+export async function adminListGiftEvents(orderId: string): Promise<AdminGiftEvent[]> {
+  const { data, error } = await supabase.rpc('admin_list_gift_events', { p_order_id: orderId });
+  if (error) throw error;
+  return (data ?? []) as AdminGiftEvent[];
+}
+
+export async function adminRefundGiftOrder(orderId: string, reason: string): Promise<{ status: string }> {
+  const { data, error } = await supabase.functions.invoke('refund-gift-order', { body: { orderId, reason } });
+  if (error) throw new Error(await describeFnError(error));
+  return { status: data.status };
 }
 
 // Edge Function 에러 본문에서 서버 reason 추출 (예: daily_limit_exceeded)

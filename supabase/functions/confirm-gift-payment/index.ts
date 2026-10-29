@@ -16,6 +16,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { paymentMatchesOrder } from '../_shared/payments/verifyPayment.ts';
 import { canTransition } from '../_shared/payments/giftStateMachine.ts';
 import { createMockPgClient } from '../_shared/payments/providers.ts';
+import { recordGiftEvent } from '../_shared/payments/audit.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -52,8 +53,8 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   );
 
-  // 상태 전이 헬퍼 — 상태머신 검증 + 현재 상태 조건부 update (동시 요청 경합 방지)
-  async function transition(fromStatus: string, toStatus: string, extra = {}) {
+  // 상태 전이 헬퍼 — 상태머신 검증 + 현재 상태 조건부 update (동시 요청 경합 방지) + 감사 로그
+  async function transition(fromStatus: string, toStatus: string, extra = {}, reason: string | null = null) {
     if (!canTransition(fromStatus, toStatus)) {
       throw new Error(`illegal_transition:${fromStatus}->${toStatus}`);
     }
@@ -66,6 +67,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!data) throw new Error('concurrent_transition');
+    await recordGiftEvent(service, { orderId, from: fromStatus, to: toStatus, actorId: user.id, actorRole: 'sender', reason });
     return data;
   }
 
@@ -87,7 +89,7 @@ Deno.serve(async (req) => {
       await pg.cancel(paymentKey, `verify_failed:${verdict.reason}`);
     }
     if (order.status === 'created') {
-      await transition('created', 'pay_failed', { fail_reason: verdict.reason });
+      await transition('created', 'pay_failed', { fail_reason: verdict.reason }, verdict.reason);
     }
     return json(400, { error: verdict.reason });
   }

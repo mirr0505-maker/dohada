@@ -13,6 +13,7 @@ import { OrgApplicationQueue } from '@/components/admin/OrgApplicationQueue';
 import { UserTierAssign } from '@/components/admin/UserTierAssign';
 import { HostTierAssign } from '@/components/admin/HostTierAssign';
 import { HiddenRestore } from '@/components/admin/HiddenRestore';
+import { GiftRefund } from '@/components/admin/GiftRefund';
 
 export default function AdminScreen() {
   const [state, setState] = useState<'checking' | 'ok' | 'denied'>('checking');
@@ -58,6 +59,9 @@ export default function AdminScreen() {
 
           <Text style={styles.section}>숨김 복구</Text>
           <HiddenRestore />
+
+          <Text style={styles.section}>한잔 환불</Text>
+          <GiftRefund />
         </ScrollView>
       )}
     </Screen>

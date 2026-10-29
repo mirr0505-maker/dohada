@@ -20,6 +20,7 @@ import { validateClaim, validateBetClaim } from '../_shared/payments/claimPolicy
 import { canTransition } from '../_shared/payments/giftStateMachine.ts';
 import { computeSelfBetOutcome } from '../_shared/payments/betOutcome.ts';
 import { createMockPgClient, createMockGifticonClient } from '../_shared/payments/providers.ts';
+import { recordGiftEvent, type GiftEventActorRole } from '../_shared/payments/audit.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -87,8 +88,12 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   );
 
-  // 상태 전이 헬퍼 — 상태머신 검증 + 현재 상태 조건부 update (중복 탭 경합 방지)
-  async function transition(fromStatus: string, toStatus: string, extra = {}) {
+  // 상태 전이 헬퍼 — 상태머신 검증 + 현재 상태 조건부 update (중복 탭 경합 방지) + 감사 로그
+  //   actorRole: 받는 사람이 고른 전이 = recipient / 발급 실패 후 자동 처리 = system
+  async function transition(
+    fromStatus: string, toStatus: string, extra = {},
+    actorRole: GiftEventActorRole = 'recipient', reason: string | null = null,
+  ) {
     if (!canTransition(fromStatus, toStatus)) {
       throw new Error(`illegal_transition:${fromStatus}->${toStatus}`);
     }
@@ -101,6 +106,10 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!data) throw new Error('concurrent_transition');
+    await recordGiftEvent(service, {
+      orderId, from: fromStatus, to: toStatus,
+      actorId: actorRole === 'system' ? null : user.id, actorRole, reason,
+    });
     return data;
   }
 
@@ -129,14 +138,14 @@ Deno.serve(async (req) => {
 
   // 기부하기 — 발급 없이 기부 풀로
   if (action === 'donate') {
-    await transition('paid', 'donated');
+    await transition('paid', 'donated', {}, 'recipient', gaveUp ? 'gave_up' : null);
     return json(200, { status: 'donated' });
   }
 
   // 환불 — 서약(pledge) 모드 미완주 정산. 발급 실패(auto_refund)와 구분되는 정산 환불(refunded)
   if (action === 'refund') {
     await pg.cancel(order.pg_payment_key ?? '', 'bet_pledge_refund');
-    await transition('paid', 'refunded');
+    await transition('paid', 'refunded', {}, 'recipient', 'bet_pledge_refund');
     return json(200, { status: 'refunded' });
   }
 
@@ -144,12 +153,12 @@ Deno.serve(async (req) => {
   try {
     const { voucherRef } = await gifticon.issue(order.product_tier, order.recipient_id);
     await transition('paid', 'issued', { voucher_ref: voucherRef });
-    await transition('issued', 'delivered');
+    await transition('issued', 'delivered', {}, 'system');
     return json(200, { status: 'delivered', voucherRef });
   } catch (_issueErr) {
-    await transition('paid', 'issue_failed', { fail_reason: 'gifticon_issue_failed' });
+    await transition('paid', 'issue_failed', { fail_reason: 'gifticon_issue_failed' }, 'system', 'gifticon_issue_failed');
     await pg.cancel(order.pg_payment_key ?? '', 'gifticon_issue_failed');
-    await transition('issue_failed', 'auto_refund');
+    await transition('issue_failed', 'auto_refund', {}, 'system', 'gifticon_issue_failed');
     return json(502, { status: 'auto_refund', error: 'gifticon_issue_failed' });
   }
 });
