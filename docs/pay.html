@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Do : 하다 — 결제</title>
+<!--
+  🚀 한잔 결제 페이지 (PHASE2_FINTECH_PLAN §9 WP2)
+  앱이 expo-web-browser 로 이 페이지를 연다 → 토스 기존 결제창(v1) → 결과는 pay-result.html → dohada://pay-result 로 앱 복귀.
+  왜 웹 페이지인가: 토스 RN SDK 는 react-native-webview(네이티브)가 필요해 OTA 로 못 낸다. 이 방식은 새 네이티브 의존성 0.
+
+  보안: 여기 있는 건 공개용 클라이언트 키뿐이다. 이 페이지에 아무 금액을 넣어 열어도,
+  서버(confirm-gift-payment)가 DB 주문 금액으로 승인을 요청하므로 금액이 다르면 토스가 거부한다.
+  ⚠️ GitHub Pages 를 내리면 결제가 멈춘다 (WEB_PLAN.md §9).
+-->
+<script src="https://js.tosspayments.com/v1/payment"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", Arial, sans-serif;
+    color: #1A1A1A; background: #FFFFFF; line-height: 1.7; word-break: keep-all;
+    min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  .box { max-width: 360px; width: 100%; text-align: center; }
+  .brand { font-weight: 700; margin-bottom: 20px; }
+  .brand .ha { color: #FF6B35; }
+  .msg { font-size: 15px; color: #6B6B6B; margin-bottom: 20px; }
+  .amount { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+  button {
+    width: 100%; padding: 14px; border: 0; border-radius: 999px;
+    background: #FF6B35; color: #FFFFFF; font-size: 16px; font-weight: 700;
+  }
+  .test { margin-top: 14px; font-size: 12px; color: #9C9C9C; }
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="brand">Do : <span class="ha">하다</span></div>
+  <div class="amount" id="amount"></div>
+  <div class="msg" id="msg">결제창을 여는 중이에요…</div>
+  <button id="pay" hidden>결제하기</button>
+  <div class="test">테스트 결제 — 실제로 청구되지 않아요</div>
+</div>
+<script>
+  // 사장님 계정의 '공개용' 테스트 클라이언트 키 (API 개별 연동 키). 실결제 전환 시 live_ck 로 교체
+  var CLIENT_KEY = 'test_ck_24xLea5zVAo0dQe7109l8QAMYNwW';
+  var RESULT_URL = location.origin + location.pathname.replace(/pay\.html$/, 'pay-result.html');
+
+  var q = new URLSearchParams(location.search);
+  var orderId = q.get('orderId') || '';
+  var amount = Number(q.get('amount'));
+  var orderName = (q.get('orderName') || '응원 한잔').slice(0, 100);
+
+  function backToApp(params) {
+    location.replace(RESULT_URL + '?' + new URLSearchParams(params).toString());
+  }
+
+  // 토스 주문번호 규칙: 6~64자 영문·숫자·-·_ (우리 주문 id = uuid)
+  var valid = /^[A-Za-z0-9_-]{6,64}$/.test(orderId) && Number.isInteger(amount) && amount > 0;
+
+  function pay() {
+    document.getElementById('pay').hidden = true;
+    TossPayments(CLIENT_KEY).requestPayment('카드', {
+      amount: amount,
+      orderId: orderId,
+      orderName: orderName,
+      successUrl: RESULT_URL,
+      failUrl: RESULT_URL,
+    }).catch(function (err) {
+      // 결제창을 닫거나(USER_CANCEL) 열지 못한 경우 — 앱으로 사유를 돌려보낸다
+      backToApp({ code: (err && err.code) || 'PAY_WINDOW_ERROR', message: (err && err.message) || '', orderId: orderId });
+    });
+  }
+
+  if (!valid) {
+    document.getElementById('msg').textContent = '결제 정보가 올바르지 않아요. 앱에서 다시 시도해 주세요.';
+  } else {
+    document.getElementById('amount').textContent = amount.toLocaleString('ko-KR') + '원';
+    document.getElementById('pay').onclick = pay;
+    try {
+      pay();
+    } catch (e) {
+      // 자동으로 못 열면(브라우저 제한 등) 버튼으로
+      document.getElementById('msg').textContent = '아래 버튼을 눌러 결제를 계속해 주세요.';
+      document.getElementById('pay').hidden = false;
+    }
+  }
+</script>
+</body>
+</html>
