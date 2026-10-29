@@ -6,6 +6,7 @@ import {
   View, Text, Pressable, Modal, StyleSheet, TextInput, ActivityIndicator, Alert,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Coffee } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { haptic } from '@/lib/haptics';
@@ -42,6 +43,7 @@ const REASON_LABEL: Record<string, string> = {
 export function GiftSheet({
   visible, onClose, challengeId, recipientId, recipientNickname, proofId = null, myUserId,
 }: Props) {
+  const insets = useSafeAreaInsets();
   const [step, setStep] = useState<Step>('tier');
   const [tier, setTier] = useState<GiftTier | null>(null);
   const [verified, setVerified] = useState<boolean | null>(null);   // null = 확인 중
@@ -112,7 +114,8 @@ export function GiftSheet({
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={() => {}}>
+        {/* 안드로이드 edge-to-edge 에선 시트가 내비게이션 바 뒤까지 그려진다 → 바 높이만큼 아래 여백을 더한다 (갤S9 하단 문구 잘림) */}
+        <Pressable style={[styles.sheet, { paddingBottom: Math.max(36, insets.bottom + 16) }]} onPress={() => {}}>
           {step === 'tier' && (
             <>
               <View style={styles.titleRow}>
@@ -217,7 +220,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
     padding: 24,
-    paddingBottom: 36,
     gap: 12,
     ...shadow.lg,
   },

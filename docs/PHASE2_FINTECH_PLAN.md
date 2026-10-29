@@ -408,7 +408,7 @@ proposed → funded(전원 선주문 결제 완료) → active → settled(완�
 |---|---|
 | WP0 | ✅ 2026-10-29 — 앱 내 약관·개인정보 열기 · 방침 DI 행 · 문구 표 13곳 (커밋 bbbbfb6). **WP0-4 사업자 정보는 통판 신고번호까지 받은 뒤 한 번에** |
 | WP1 | ✅ 2026-10-29 — 0091·0092 운영 적용 · EF 4개 배포(refund-gift-order 신규) · OTA preview·production (커밋 8693109). 검증: authenticated SELECT 13컬럼(voucher_ref·pg_payment_key 제외) · 무권한 환불 호출 401 |
-| WP2 | ✅ 2026-10-29 구현·배포 — **브랜치 `feat/toss-sandbox`** (production 섞임 방지). EF 4개 배포 · Pages `pay.html`·`pay-result.html`(master) · **preview OTA `d4488e90`**. ⏳ 실기기 왕복(결제창→승인→운영자 환불) 확인 대기. 시크릿 = Supabase Secrets `TOSS_SECRET_KEY` |
+| WP2 | ✅ 2026-10-29 구현·배포 — **브랜치 `feat/toss-sandbox`** (production 섞임 방지). EF 4개 배포 · Pages `pay.html`·`pay-result.html`(master) · **preview OTA `d4488e90`→`e4290c63`**(D13 포함) · 안드로이드 preview APK 재빌드(`f488cbda`, 6월 APK 만료). **실기기 확인 범위 (10-29, 갤S9)**: 한잔 시트→`pay.html`→토스 결제창(간편결제·카드 선택)까지 ✓. **승인→paid→운영자 환불(토스 취소 API)은 미확인** — 테스트폰에 카드앱·카카오/토스 계정이 없어 결제 인증에서 중단. ⚠️ **WP3 전환 전 필수**: 간편결제 계정이 있는 안드로이드 1대로 결제→승인→환불 1회 + `gift_order_events` 기록 확인 (테스트 환경은 본인 카드여도 가상 승인 — 출금 없음). 시크릿 = Supabase Secrets `TOSS_SECRET_KEY` |
 
 > **WP2 설계 보정 (2026-10-29)**: preview·production 이 **같은 서버**를 쓴다(환경 분리 미착수) → 승인 EF 를 토스로 통째 교체하면 모의 결제 중인 production 앱이 깨진다.
 > 그래서 `createStage2PgClient` 가 **`MOCKPAY:` 키는 모의 / 그 외는 토스**로 나눈다. ⚠️ **WP3 체크리스트 1번 = 이 라우팅과 모의 PG 삭제** — 실돈 서버에 "MOCKPAY = 승인" 경로가 남으면 공짜 결제 백도어다.
@@ -493,6 +493,7 @@ proposed → funded(전원 선주문 결제 완료) → active → settled(완�
 - `WEB_PLAN.md §9`·CLAUDE.md Pages 경고에 "결제 페이지 호스팅" 사유 추가(D4)
 
 #### WP3 — 전환일 묶음 (PG 실키 · 통신판매업 · 기프티콘 B2B · 자문 ⓐⓓ 후)
+- **-1 (착수 조건)** WP2 미확인 구간(승인→paid→운영자 환불) 실기기 1회 왕복 — 위 WP2 행 참조. 이걸 건너뛰고 실키로 바꾸지 않는다
 - **0 (가장 먼저)** `createStage2PgClient` 라우팅과 `createMockPgClient` 사용처 삭제 → 토스 클라이언트 단독. 앱 `confirmGiftPaymentMock`(내기) 도 함께 정리. `feat/toss-sandbox` 브랜치를 master 에 병합
 - **D13** 응원 한잔 기부 제거 (§9.2-2 표) + 상품권 실구현 (§9.2-3)
 - 3a PG 실키(`live_sk_`) + `docs/pay.html` 클라이언트 키 교체 · 3b `createGifticonClient` 실구현(B2B 계약 후) + `gift/[id].tsx` 바코드 표시(`my_gift_voucher` RPC) · 3c 본인확인(PASS) 실연동(⑤b 와 묶음)
