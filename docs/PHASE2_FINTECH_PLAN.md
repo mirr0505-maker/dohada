@@ -357,3 +357,92 @@ proposed → funded(전원 선주문 결제 완료) → active → settled(완�
 | 정산 계산 실수 | 상태머신 + 전수 단위 테스트 + 매일 정산 대사 (Stage 4) |
 | 법/심사 폭탄 | 응원·내기 모두 실물 교환권 구조(IAP 면제·송금업·예치 회피) + 미완주분 기부로 참여자 간 득실 소멸(도박 구성요건 차단) + 법률 자문 게이트 |
 | 실수해도 망하지 않게 | 실돈은 Stage 3 에야 등장, 그때도 본인 카드 + 한도 1만원부터 |
+
+---
+
+## 8. 응원 한잔 실결제 착수 계획 — AS-IS → TO-BE (2026-10-29, Advisor 검토본)
+
+> **이 절이 응원 한잔 실결제 트랙의 실행 브리프다.** 2026-10-05 검토(약관 개정·전환일 체크리스트)를
+> v2.41 코드 기준으로 재대조해 작업 묶음(WP)으로 쪼갰다. 실행은 Worker(Opus) 세션이 WP 순서대로.
+> 범위 = **응원 한잔(cheer)만.** 내기·기부 허브·본인확인 실연동은 ⑤b 자문 게이트 뒤에 둔다.
+
+### 8.1 AS-IS — 2026-10-29 코드 기준 (전수 확인)
+
+| 영역 | 상태 | 근거 |
+|---|---|---|
+| PG·기프티콘·본인확인 | **전부 mock.** 클라가 `MOCKPAY:<orderId>:<amount>` 키를 조립 → `confirm-gift-payment` 가 mock 승인 | `providers.ts` · `payments.ts:176` |
+| 승인 대조·상태머신·동시성 | **실결제 수준으로 이미 있음** — 금액은 서버 카탈로그, `transition()` 이 `eq(status, from)` 조건부 update, 대조 실패 시 PG 취소 | `confirm-gift-payment` · `giftStateMachine.ts` · `verifyPayment.ts` |
+| 🔴 교환권 격리 | **보낸 사람이 `voucher_ref`·`pg_payment_key` 를 읽을 수 있다.** RLS `gift_orders_party_read` 가 sender∪recipient 행 전체를 열고, 컬럼 GRANT 제한이 없다. 실물 기프티콘이면 **보낸 사람이 바코드를 쓸 수 있는 구조** | `0032:100` · GRANT 전무 |
+| 🔴 운영자 환불 경로 | **없음.** 정산 환불(pledge)·발급 실패 자동 환불은 EF 안에 있으나, 약관 10-3 ①④(청약철회·귀책 전액 환불)를 집행할 EF 가 없다 → 실결제 시 PG 콘솔 수동 + DB 수동 = 상태머신 우회·대사 불일치 | EF 목록에 refund 없음 |
+| 🔴 감사 로그 | **없음.** 상태 전이가 행 덮어쓰기라 분쟁·대사 시 이력을 못 꺼낸다 | `gift_orders` 단일 행 |
+| 미수령 잔류 | 수신자가 받기/기부를 영영 안 고르면 `paid` 영구 잔류. 약관 10-4 의 "30일 후 기부 전환"은 내기 기준이고 응원엔 조항·cron 둘 다 없다 | — |
+| 철회 제한 고지 | 결제 전 화면에 금액만. 전상법 고지(교환권 발급 후 철회 제한) 없음 | `GiftSheet.tsx` confirm 스텝 |
+| 앱 내 약관 전문 | **열 수 없다.** 가입 화면 "보기"는 글자뿐(탭하면 체크 토글), 설정은 "가입 화면에서 보세요" Alert — 서로를 가리킴. 웹엔 이미 공개됨 | `welcome.tsx:116` · `settings.tsx:105` |
+| 약관 1조 사업자 정보 | 운영자명·문의 메일만. 전상법 13조 표시 항목(상호·대표·주소·전화·사업자등록번호·통신판매업 신고번호) 없음 | `terms.html` 1조 |
+| 방침 DI 보존기간 | "본인확인 기록 6개월"로 써 놓았으나 구현은 `user_verifications.di` 를 **탈퇴 시까지** 보관(1인 다계정 결제 차단 unique). 6개월에 지우면 차단이 무력화됨 — **문서가 구현과 어긋남** | `0032:20` · `delete-account` 가 탈퇴 시 삭제 ✓ |
+| mock 문구 | **13곳** (`grep "모의\|가상 교환권"`: GiftSheet 4 · BetSheet 4 · gift/[id] 2 · create 1 · settings 2). 플랜 ②표는 8곳으로 적혀 있음 — 특히 **"모의 인증" 2곳**(GiftSheet:160·BetSheet:225)과 "모의 발급"(gift/[id]:100)이 빠짐 | grep 전수 |
+| 클라 결제 수단 | `react-native-webview`·Toss SDK **없음.** `expo-web-browser` 있음. 앱 스킴 `dohada`. **iOS 버전 동결(OTA만)** 제약 | `package.json` · `app.json` |
+| 인프라 | 사업자등록 ✅ / 통신판매업 ✗ / PG 테스트키 ✗ / PG 실계약 ✗ / 본인확인 ✗ / 기프티콘 B2B ✗ | §3 |
+| 2026-10-05 검토 중 해소된 것 | 약관 교차참조(제9→10조) ✓ · 문의 메일 `doinnovation@doinno.co.kr` 전환 ✓ (v2.41) | — |
+
+### 8.2 결정 사항 (Advisor, 2026-10-29)
+
+| # | 결정 | 이유 |
+|---|---|---|
+| D1 | 범위 = **응원 한잔만.** `BET_ENABLED=false` 유지 | 내기는 ⑤b 자문 게이트. 응원은 선물하기 = 통신판매로 단순 |
+| D2 | 결제창 = **Toss 결제창(JS SDK v2)을 GitHub Pages 정적 페이지(`docs/pay.html`)에서 띄우고, 앱은 `expo-web-browser.openAuthSessionAsync` 로 열어 `dohada://pay-result` 로 복귀** | 새 네이티브 의존성 0 → **OTA 로 배포 가능**(iOS 버전 동결). 대안 `@tosspayments/widget-sdk-react-native` 는 `react-native-webview` 가 필요 → eas build + Beta App Review 대기. 비밀키는 EF 에만, 페이지엔 공개 클라이언트 키만 |
+| D3 | 승인 금액은 **DB 주문 금액**으로 Toss confirm 에 보낸다 (클라·페이지 값 불신 유지). `PgClient.confirm(paymentKey, orderId, amount)` 로 시그니처 확장(mock 도 동일) | Toss confirm 은 amount 필수 + 불일치 거부 → 이중 방어 |
+| D4 | **GitHub Pages 유지 사유 추가** — 약관·개인정보·계정삭제에 더해 **결제 페이지 호스팅** | `WEB_PLAN.md §9` 와 CLAUDE.md 경고에 반영 |
+| D5 | 환불 = **EF `refund-gift-order`**(`is_admin()` 검사 + `pg.cancel` + 상태 전이 + 감사 로그). 운영자 콘솔에 환불 카드. **SQL/콘솔 수동 환불 금지** | 상태머신 우회·대사 불일치 차단 |
+| D6 | 감사 로그 = `gift_order_events` 테이블. EF 의 `transition()` 이 전이마다 기록. authenticated 권한 없음 | 분쟁·정산 대사 근거 |
+| D7 | 교환권 격리 = `gift_orders` 에서 `voucher_ref`·`pg_payment_key` **컬럼 GRANT 회수**(0068 패턴) + 수령인 전용 SECURITY DEFINER RPC `my_gift_voucher(order_id)` | RLS 는 행만 고르고 컬럼은 못 막는다(메모 `reference_rls-column-grant-gap`) |
+| D8 | 테스트키 단계는 **preview 채널에만 OTA.** production 은 WP1 까지만 | 코드 분기(mock 폴백) 없이 채널로 분리 — "환경변수 분기 금지" 원칙 유지 |
+| D9 | 사업자 정보는 **플레이스홀더로 넣지 않는다.** 실제 값을 받은 뒤 1줄 커밋 | 거짓 표기 방지 |
+| D10 | 방침 DI 행 = **"본인확인 결과값(DI) · 탈퇴 시까지 · 1인 다계정 결제 차단"** 으로 구현과 일치시키고, 강행규정 여부는 **자문 ⓓ 안건에 추가** | 문서가 구현을 속이면 안 됨 |
+| D11 | 기프티콘 B2B 는 WP3 까지 mock 유지 — 테스트키로는 **결제 왕복만** 검증 | B2B 계약 전 |
+| D12 | 응원 한잔 미수령 **30일 → 기부 전환 + 전환 전 1회 알림**을 약관 10-1 에 한 줄 추가하고 cron 으로 구현(WP3) | paid 영구 잔류 차단 |
+
+### 8.3 작업 묶음 (WP) — 순서대로. 각 WP 끝에 코드 검사 세트(tsc·npm test·diff·필요 시 export) 필수
+
+#### WP0 — 법·고지 (지금 · 블로커 없음 · OTA)
+- **WP0-1 앱 내 약관 전문 링크**: `lib/support.ts` 에 `TERMS_URL`·`PRIVACY_URL`(Pages 주소) 상수. `welcome.tsx` `TermRow` 의 "보기"를 **체크 토글과 분리된 Pressable** 로 → `WebBrowser.openBrowserAsync(url)`. `settings.tsx` "약관·버전 정보" → 버전 Alert 대신 **약관 / 개인정보처리방침 열기 2줄 + 버전 표시**(순환 안내 문구 삭제). 유료 기능 앱의 심사 요건
+- **WP0-2 방침 DI 행 수정** (D10): `privacy.html` 보존기간 표의 "본인확인에 관한 기록 · 6개월 · 정보통신망법" 행 → "본인확인 결과값(DI) · 탈퇴 시까지 · 1인 다계정 결제 차단(서비스 운영상 필요)". §2.3 자문 안건 ⓓ 에 "DI 보존기간 강행규정 여부" 추가
+- **WP0-3 플랜 ②표 13곳으로 보정** (§5 Stage 3 전환일 표). 기준 = `grep -rn "모의\|가상 교환권" mobile/app mobile/components mobile/lib`
+- **WP0-4 약관 1조 사업자 정보** (D9, 사장님 입력 후): 상호·대표자·사업장 주소·전화·사업자등록번호 + (신고 후) 통신판매업 신고번호. `index.html` footer 에도 사업자 정보 1줄
+- 완료 기준: tsc 0 · npm test 전체 · **실기기** 에서 가입 화면·설정에서 약관이 브라우저로 열림 · 커밋 → OTA(preview·production)
+
+#### WP1 — 보안 하드닝 R1 (테스트키 불필요 · 마이그레이션 0091~)
+- **0091 `gift_order_events`**: `(id, order_id fk, from_status, to_status, actor_id null, actor_role text, reason text, pg_payload jsonb, created_at)`. RLS enable + 정책 없음 + authenticated 권한 없음(service role 전용). 조회는 admin RPC `admin_list_gift_events(order_id)` (🔒 첫 줄 `is_admin()`)
+- **0092 교환권 격리** (D7): 컬럼 화이트리스트(0068 패턴 그대로)로 `voucher_ref`·`pg_payment_key` 를 authenticated 에서 제외 + `my_gift_voucher(p_order_id)` SECURITY DEFINER — `recipient_id = auth.uid() and status in ('issued','delivered')` 일 때만 `voucher_ref` 반환. ⚠️ **클라 `fetchGiftOrder`·`fetchMyGiftHistory`·`fetchMyReceivedGifts` 의 select 목록에서 두 컬럼을 먼저 빼지 않으면 42501 로 한잔 내역 전체가 깨진다** — 마이그레이션보다 **클라 OTA 가 먼저**(또는 같은 날). `gift/[id].tsx` 는 RPC 로 교체
+- **`_shared/payments/audit.ts`** `recordEvent(service, {...})` + `confirm-gift-payment`·`claim-gift`·`create-gift-order` 의 `transition()` 안에서 호출(실패해도 전이는 성공시키되 로그 — 감사 로그 장애가 결제를 막으면 안 됨)
+- **EF `refund-gift-order`** (D5): body `{orderId, reason}` · JWT 본인 → `is_admin()` RPC 로 확인 · 허용 상태 = **`paid` 만**(`delivered`·`donated` 는 거부 — 발급·기부 완료는 환불 불가, 약관 10-3 ②③) · `pg.cancel` → `paid→refunded` · 이벤트 기록. 순수 판정은 `_shared/payments/refundPolicy.ts` `canAdminRefund(status)` 로 빼서 테스트
+- **운영자 콘솔 `GiftRefund.tsx`**: 주문번호/닉네임 검색(admin RPC `admin_search_gift_orders`, 🔒) → 상태·금액·이벤트 이력 → 사유 입력 → 환불. Phase B 첫 카드
+- 테스트(자동 의무): `refund-policy.test.ts`(상태별 허용) · `gift-order.test.ts` 에 이벤트 기록 순서 케이스 · 기존 전부 통과
+- 완료 기준: 마이그레이션 2개 **운영 적용(SQL Editor 또는 `db query --linked -f`)** → EF 2개 배포 → OTA. 실기기: 보낸 사람 화면에 교환권 없음 · 받은 사람만 보임 · 운영자 환불 1회 왕복(mock)
+
+#### WP2 — Toss 샌드박스 (테스트키 받은 뒤 · preview 채널만)
+- **`providers.ts` `createTossPgClient(secretKey)`**: `confirm` = `POST https://api.tosspayments.com/v1/payments/confirm` Basic(base64(secretKey+':')) body `{paymentKey, orderId, amount}` → `{orderId, totalAmount→amount, status}` · `cancel` = `POST /v1/payments/{paymentKey}/cancel` `{cancelReason}`. 응답 파싱은 순수 함수 `parseTossConfirm(json)` 로 분리해 **mock fetch 로 테스트**(`toss-pg.test.ts`: 정상·금액불일치·ALREADY_PROCESSED·네트워크 오류). 인터페이스에 `amount` 추가(D3), mock 도 맞춤
+- **주입**: `confirm-gift-payment`·`claim-gift` 의 `const pg = createMockPgClient()` → `createTossPgClient(Deno.env.get('TOSS_SECRET_KEY'))`. **키 없으면 throw** — mock 폴백 금지(원칙 0). `supabase secrets set TOSS_SECRET_KEY=test_sk_…`
+- **`docs/pay.html`**: Toss JS SDK v2 `loadTossPayments(clientKey).payment({customerKey})` → `requestPayment({method:'CARD', amount, orderId, orderName, successUrl, failUrl})`. 쿼리로 `orderId·amount·orderName·customerKey` 수신. clientKey 는 공개 키(`test_ck_…`)라 페이지에 둬도 된다. **`docs/pay-result.html`**: 쿼리 그대로 `location.replace('dohada://pay-result?' + search)` (성공·실패 공통)
+- **클라 `payments.ts`**: `confirmGiftPaymentMock` → `payWithToss(orderId, amount, orderName, customerKey=userId)`: `WebBrowser.openAuthSessionAsync(payUrl, 'dohada://pay-result')` → `result.type==='success'` 면 URL 파싱 → `paymentKey` 있으면 `confirm-gift-payment` 호출, `code` 있으면 사용자 취소/실패 안내. `GiftSheet` confirm 스텝 버튼 문구 "(모의 결제)" → **"(테스트 결제 · 실제 청구 없음)"**, 하단 note 동일 톤 — preview 테스터가 결제창을 보게 되므로 "계좌 연결 없음" 문구는 거짓이 됨
+- **미결제 주문 처리**: 결제창을 닫고 나온 `created` 주문이 `DAILY_CHEER_LIMIT`(3) 계산에 포함되는지 `create-gift-order` 의 `sentTodayCount` 쿼리 확인 → 포함되면 결제 완료 상태만 세도록 좁힌다(창만 열었다 닫아도 한도가 깎이면 안 됨)
+- 웹훅(Stage 2 체크 2번째)은 **보류** — 동기 confirm 으로 충분. 실결제 후 정산 대사용으로 WP3
+- 완료 기준: `npm test` 통과 · `expo export --platform all` · **preview OTA 만** · 실기기(iOS·Android) 테스트카드로 **결제창→승인→paid→운영자 환불→refunded** 1회 왕복 · `gift_order_events` 에 4건 기록 확인
+- `WEB_PLAN.md §9`·CLAUDE.md Pages 경고에 "결제 페이지 호스팅" 사유 추가(D4)
+
+#### WP3 — 전환일 묶음 (PG 실키 · 통신판매업 · 기프티콘 B2B · 자문 ⓐⓓ 후)
+- 3a PG 실키(`live_sk_`) + `docs/pay.html` 클라이언트 키 교체 · 3b `createGifticonClient` 실구현(B2B 계약 후) + `gift/[id].tsx` 바코드 표시(`my_gift_voucher` RPC) · 3c 본인확인(PASS) 실연동(⑤b 와 묶음)
+- 앱 mock 문구 13곳 교체 + **10-3② 철회 제한 고지**(confirm 스텝) + 약관 위탁 표 실제 상호 + 10-5 공제율
+- 미수령 30일 자동 기부(D12): SQL 함수 `donate_stale_cheer_gifts()` 를 `flush-notifications` 가 하루 1회 호출(0043 autoclose 패턴) + 알림 kind 1종(⚠️ kind 제약은 0033 전체 목록 — 누락 시 23514) + 약관 10-1 한 줄
+- 정산 대사 1주(Stage 4) + 웹훅
+- production OTA — 이때 처음으로 실결제 코드가 production 에 간다
+
+### 8.4 사장님 몫 (제가 못 하는 것)
+
+| 항목 | 막는 WP | 비고 |
+|---|---|---|
+| **토스페이먼츠 테스트 키** (`test_ck_`·`test_sk_`) | WP2 | 개발자센터 가입만으로 즉시. 계약 불필요 |
+| **통신판매업 신고** | WP3 | 정부24 · 등록면허세. PG 실계약 전제 |
+| **약관 1조 사업자 정보** | WP0-4 | 상호·대표·주소·전화·사업자등록번호 (+신고번호) |
+| PG 실계약 · 기프티콘 B2B · 본인확인 계약 | WP3 | — |
+| 변호사 미팅 | WP3 | 안건 ⓐ~ⓓ + **DI 보존기간(D10)** 추가 + 약관 초안 지참 |
