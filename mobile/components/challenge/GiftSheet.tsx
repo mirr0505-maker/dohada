@@ -174,7 +174,7 @@ export function GiftSheet({
               <Text style={styles.title}>{selectedTier.label}</Text>
               <Text style={styles.sub}>
                 {recipientNickname}님에게 {selectedTier.price.toLocaleString()}원의 한잔을 보내요{'\n'}
-                받는 분이 "받기" 또는 "기부하기"를 선택하면 알려드릴게요
+                받는 분이 한잔을 받으면 알려드릴게요
               </Text>
               <Pressable
                 style={[styles.primaryBtn, busy && styles.btnDisabled]}

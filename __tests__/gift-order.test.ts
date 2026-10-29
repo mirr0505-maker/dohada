@@ -179,7 +179,8 @@ const claimOrder = { recipient_id: 'user-b', status: 'paid' };
 
 test('수령 정책 — 받는 사람 본인만 받기/기부 가능', () => {
   assert.deepEqual(validateClaim(claimOrder, 'user-b', 'receive'), { ok: true });
-  assert.deepEqual(validateClaim(claimOrder, 'user-b', 'donate'), { ok: true });
+  // D13: 응원 한잔은 기부 선택지 없음 — 받기만
+  assert.deepEqual(validateClaim(claimOrder, 'user-b', 'donate'), { ok: false, reason: 'cheer_donate_removed' });
   assert.deepEqual(validateClaim(claimOrder, 'user-a', 'receive'), { ok: false, reason: 'not_recipient' });
 });
 

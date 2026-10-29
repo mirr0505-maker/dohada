@@ -1,10 +1,10 @@
 // 🚀 응원 한잔 수령/상세 화면 — 알림 "한잔 도착" 탭으로 진입
-// 받는 사람: 내가 받기 / 기부하기 2택 → 선택 결과는 보낸 사람에게 피드백 알림 (0033 트리거)
+// 받는 사람: 내가 받기 → 결과는 보낸 사람에게 피드백 알림 (0033 트리거). 응원 한잔은 기부 선택지 없음(D13)
 // 보낸 사람: 진행 상태 확인용 (도착 대기 / 받음 / 기부됨 / 환불)
 import React, { useCallback, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Coffee, Heart } from 'lucide-react-native';
+import { ArrowLeft, Coffee } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
@@ -103,35 +103,16 @@ export default function GiftDetail() {
             )}
           </View>
 
-          {/* 받는 사람의 2택 — 선택 결과는 보낸 사람에게 알림으로 전달 */}
+          {/* 받는 사람 — 받기를 누르면 교환권이 발급되고, 보낸 사람에게 알림으로 전해진다 (기부 선택지 없음, D13) */}
           {claimable && (
-            <View style={{ gap: 10 }}>
-              <Pressable
-                style={[styles.primaryBtn, busy && styles.btnDisabled]}
-                onPress={() => onClaim('receive')}
-                disabled={busy}
-              >
-                <Coffee size={18} color={colors.surface} strokeWidth={2} />
-                <Text style={styles.primaryBtnText}>내가 받기</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.donateBtn, busy && styles.btnDisabled]}
-                onPress={() => {
-                  Alert.alert(
-                    '기부하기',
-                    '이 한잔을 기부로 돌릴까요?\n보낸 분에게도 따뜻한 소식으로 전해져요.',
-                    [
-                      { text: '취소', style: 'cancel' },
-                      { text: '기부하기', onPress: () => onClaim('donate') },
-                    ],
-                  );
-                }}
-                disabled={busy}
-              >
-                <Heart size={17} color={colors.done} strokeWidth={2} />
-                <Text style={styles.donateBtnText}>기부하기 — 누군가의 한잔이 돼요</Text>
-              </Pressable>
-            </View>
+            <Pressable
+              style={[styles.primaryBtn, busy && styles.btnDisabled]}
+              onPress={() => onClaim('receive')}
+              disabled={busy}
+            >
+              <Coffee size={18} color={colors.surface} strokeWidth={2} />
+              <Text style={styles.primaryBtnText}>내가 받기</Text>
+            </Pressable>
           )}
 
           <Text style={styles.mockFootnote}>베타 테스트 — 테스트 결제로 보낸 한잔이에요. 실제 청구는 없고 교환권은 모의로 발급돼요.</Text>
@@ -225,23 +206,6 @@ const styles = StyleSheet.create({
   primaryBtnText: {
     fontSize: fontSize.base,
     color: colors.surface,
-    fontFamily: fontFamily.bold,
-    fontWeight: fontWeight.bold,
-  },
-  donateBtn: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: colors.done,
-  },
-  donateBtnText: {
-    fontSize: fontSize.base,
-    color: colors.done,
     fontFamily: fontFamily.bold,
     fontWeight: fontWeight.bold,
   },
