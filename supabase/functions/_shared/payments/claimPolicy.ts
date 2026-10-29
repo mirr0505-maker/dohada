@@ -13,7 +13,12 @@ export type ClaimOrderView = {
 export type ClaimVerdict = { ok: true } | { ok: false; reason: string };
 
 export function validateClaim(order: ClaimOrderView, userId: string, action: ClaimAction): ClaimVerdict {
-  if (action !== 'receive' && action !== 'donate') {       // 응원 한잔은 receive/donate 만
+  // 응원 한잔 = 받는 사람에게 상품권이 가는 것만 (D13, 2026-10-29) — 기부 선택지 없음.
+  //   기부처 선정·집행·공시 운영 부담 + 기부금품법 검토를 응원 한잔에서 떼어낸다. 내기 한잔의 기부는 validateBetClaim 그대로.
+  if (action === 'donate') {
+    return { ok: false, reason: 'cheer_donate_removed' };
+  }
+  if (action !== 'receive') {
     return { ok: false, reason: 'invalid_action' };
   }
   if (order.recipient_id !== userId) {

@@ -194,7 +194,7 @@ export default function SettingsScreen() {
               desc="완주한 나의 하다 이야기를 책으로 영구 소장할 수 있게 돼요." />
             <Divider />
             <RoadmapRow icon={HeartHandshake} title="함께 만든 변화 — 기부 허브"
-              desc="받은 응원을 기부로 돌리기 — 내 한 잔이 누군가의 한 잔이 돼요." />
+              desc="내기 한잔에서 모인 기부를 한곳에 모아 함께 만든 변화로 보여드려요." />
           </View>
         </View>
 
