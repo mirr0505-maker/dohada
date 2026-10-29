@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Do : 하다 — 결제 결과</title>
+<!--
+  🚀 결제 결과 → 앱 복귀 (PHASE2_FINTECH_PLAN §9 WP2)
+  토스 결제창이 성공(?paymentKey&orderId&amount) 또는 실패(?code&message&orderId)로 이 페이지를 연다.
+  여기서는 아무것도 확정하지 않는다 — 쿼리를 그대로 앱(dohada://pay-result)에 넘기고,
+  앱이 서버(confirm-gift-payment)에 승인을 요청해야 비로소 결제가 완료된다.
+-->
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", Arial, sans-serif;
+    color: #1A1A1A; background: #FFFFFF; line-height: 1.7; word-break: keep-all;
+    min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  .box { max-width: 360px; width: 100%; text-align: center; }
+  .msg { font-size: 15px; color: #6B6B6B; margin-bottom: 20px; }
+  a.btn {
+    display: block; padding: 14px; border-radius: 999px; text-decoration: none;
+    background: #FF6B35; color: #FFFFFF; font-size: 16px; font-weight: 700;
+  }
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="msg">앱으로 돌아가는 중이에요…</div>
+  <!-- 자동 이동이 막히는 브라우저(안드로이드 일부)를 위한 수동 버튼 -->
+  <a class="btn" id="back" href="#">앱으로 돌아가기</a>
+</div>
+<script>
+  var appUrl = 'dohada://pay-result' + location.search;
+  document.getElementById('back').href = appUrl;
+  location.replace(appUrl);
+</script>
+</body>
+</html>
