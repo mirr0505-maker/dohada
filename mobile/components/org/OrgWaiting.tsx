@@ -18,7 +18,8 @@ export function OrgWaiting({ status, email, onRefresh, onSignOut }: Props) {
     pathname: '/org/signup',
     params: {
       orgType: status.org_type ?? 'company', legalName: status.legal_name ?? '', registrationNo: status.registration_no ?? '',
-      contactName: status.contact_name ?? '', contactPhone: status.contact_phone ?? '', email,
+      contactName: status.contact_name ?? '', contactPhone: status.contact_phone ?? '',
+      activityUrl: status.activity_url ?? '', track: status.org_type === 'group' ? 'group' : 'org', email,
     },
   } as any);
 
@@ -33,7 +34,7 @@ export function OrgWaiting({ status, email, onRefresh, onSignOut }: Props) {
         <Text style={styles.body}>
           {rejected
             ? (status.note ?? '운영팀에 문의해 주세요.')
-            : `보통 1~2일 걸려요. 확인되면 공식 주최자로 열리고,\n이 화면에서 바로 하다를 열 수 있어요.`}
+            : `보통 1~2일 걸려요. 확인되면 ${status.org_type === 'group' ? '모임' : '공식'} 주최자로 열리고,\n이 화면에서 바로 하다를 열 수 있어요.\n확인 연락은 가입한 메일로 가요.`}
         </Text>
       </View>
 

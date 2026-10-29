@@ -1,6 +1,7 @@
 // 🚀 조직 하다 모드 선택 — 하다 만들기(create.tsx ?org=1)의 방 타입 스텝 대체 (ORG_HADA_PLAN §10.2 A-6)
 //   누구나 합류 = open (광장 노출·누구나 합류)
 //   구성원 전용 = closed (광장 노출·참여 코드 있어야 합류, 0089)
+//   모임(0090)은 구성원 전용만 — 누구나 합류 카드를 보여 주지 않는다
 import React from 'react';
 import { View, Text, Pressable, TextInput, StyleSheet } from 'react-native';
 import { Globe, Lock, Check } from 'lucide-react-native';
@@ -10,9 +11,10 @@ import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 type Props = {
   value: ChallengeKind; setValue: (v: ChallengeKind) => void;
   joinCode: string; setJoinCode: (v: string) => void;   // 구성원 전용일 때만 쓰인다
+  isGroup: boolean;                                      // 0090: 모임 계정
 };
 
-export function OrgModePicker({ value, setValue, joinCode, setJoinCode }: Props) {
+export function OrgModePicker({ value, setValue, joinCode, setJoinCode, isGroup }: Props) {
   const card = (kind: ChallengeKind, Icon: typeof Globe, label: string, desc: string) => {
     const active = value === kind;
     return (
@@ -32,8 +34,8 @@ export function OrgModePicker({ value, setValue, joinCode, setJoinCode }: Props)
 
   return (
     <View style={{ gap: 12 }}>
-      {card('open', Globe, '누구나 합류', '시민·고객 누구나 광장에서 보고 함께해요')}
-      {card('closed', Lock, '구성원 전용', '광장엔 보이지만, 참여 코드를 아는 구성원만 합류해요')}
+      {!isGroup && card('open', Globe, '누구나 합류', '시민·고객 누구나 광장에서 보고 함께해요')}
+      {card('closed', Lock, '구성원 전용', isGroup ? '광장엔 보이지만, 참여 코드를 아는 모임 회원만 합류해요' : '광장엔 보이지만, 참여 코드를 아는 구성원만 합류해요')}
       {value === 'closed' && (
         <View style={{ gap: 6 }}>
           <TextInput
@@ -42,7 +44,7 @@ export function OrgModePicker({ value, setValue, joinCode, setJoinCode }: Props)
             onChangeText={t => setJoinCode(t.replace(/[^A-Za-z0-9]/g, ''))}
           />
           <Text style={styles.note}>
-            사내 공지로 구성원에게만 알려 주세요. 코드는 저장되지 않아 다시 볼 수 없어요 — 잊으면 조직 홈에서 새로 정해요.
+            {isGroup ? '모임 공지로 회원에게만 알려 주세요.' : '사내 공지로 구성원에게만 알려 주세요.'} 코드는 저장되지 않아 다시 볼 수 없어요 — 잊으면 조직 홈에서 새로 정해요.
           </Text>
         </View>
       )}

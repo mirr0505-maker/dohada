@@ -62,7 +62,7 @@ const KIND_ICON: Record<string, LucideIcon> = {
 };
 
 // 🚀 0087: org = 조직 홈에서 쓸 때. 아바타는 프로필(개인 탭)로 가지 않고, ≡ 는 조직 메뉴(문의·로그아웃)를 연다.
-export function AppHeader({ org }: { org?: { onMenu: () => void } } = {}) {
+export function AppHeader({ org }: { org?: { onMenu: () => void; roleLabel: string } } = {}) {
   const session = useSession();
   const { height: winHeight } = useWindowDimensions();   // 알림함 목록 높이 — 화면 비례
   const myUserId = session?.user?.id;
@@ -142,7 +142,7 @@ export function AppHeader({ org }: { org?: { onMenu: () => void } } = {}) {
             <Text style={styles.profileNick} numberOfLines={1}>{nickname}</Text>
             <HostMark hostTier={hostTier} />
           </View>
-          <Text style={styles.profileSub}>{org ? '공식 주최자' : '오늘도 한 걸음'}</Text>
+          <Text style={styles.profileSub}>{org ? org.roleLabel : '오늘도 한 걸음'}</Text>
         </View>
       </Pressable>
 

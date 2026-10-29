@@ -1233,7 +1233,7 @@ export type InviteInfo = {
   intro_image_url: string | null;        // 🚀 0037: 안내문 이미지
   bet_tier: string | null;               // 🚀 0040: 다인 내기 티어 (null=내기 없음)
   bet_donation_mode: string | null;      // 🚀 0040: 다인 내기 기부 모드
-  host_tier?: 'individual' | 'figure' | 'org';  // 🚀 0073: 주최 계층 — 합류 결정 직전 신뢰 표식
+  host_tier?: 'individual' | 'figure' | 'org' | 'group';  // 🚀 0073: 주최 계층 — 합류 결정 직전 신뢰 표식 (0090: group=모임)
   host_label?: string | null;                   // 🚀 0073: 표시용 주최자명 (figure/org 일 때)
   sponsor_amount_per_completer?: number | null; // 🚀 0075: 완주 매칭 기부 약정 — 완주자 1명당 금액(원)
   sponsor_beneficiary?: string | null;          // 🚀 0075: 기부처 표시명
@@ -2518,7 +2518,7 @@ export async function adminSetUserHostTier(
 }
 
 // 🚀 0085: 조직 검증 기록 — org 지정 전에 "누가·언제·무엇을 확인했다"를 남긴다 (원본 서류는 운영 메일함)
-export type OrgType = 'company' | 'nonprofit' | 'public';
+export type OrgType = 'company' | 'sole' | 'nonprofit' | 'public' | 'group';   // 🚀 0090: sole=개인사업자, group=모임(임의 단체)
 export type OrgProof =
   | 'biz_reg' | 'nts_status' | 'corp_registry' | 'unique_no'
   | 'official_letter' | 'employment' | 'domain_email';

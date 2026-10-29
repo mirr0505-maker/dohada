@@ -157,10 +157,17 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.footerBlock}>
-          {/* 🚀 조직 로그인 (0087) — 개인 로그인이 주인공, 조직 입구는 작게 */}
-          <Pressable onPress={() => router.push('/org/signup' as any)} disabled={signingIn} hitSlop={8}>
-            <Text style={styles.orgLink}>기업·기관·단체이신가요? 조직으로 시작하기 →</Text>
-          </Pressable>
+          {/* 🚀 조직·모임 입구 (0087 · 0090) — 개인 로그인이 주인공, 두 갈래는 작게 */}
+          <Text style={styles.orgLead}>기업·기관·모임이신가요?</Text>
+          <View style={styles.orgRow}>
+            <Pressable onPress={() => router.push('/org/signup' as any)} disabled={signingIn} hitSlop={8}>
+              <Text style={styles.orgLink}>조직으로 시작</Text>
+            </Pressable>
+            <Text style={styles.orgDivider}>·</Text>
+            <Pressable onPress={() => router.push('/org/signup?track=group' as any)} disabled={signingIn} hitSlop={8}>
+              <Text style={styles.orgLink}>모임으로 시작</Text>
+            </Pressable>
+          </View>
           <Text style={styles.footer}>
             계속 진행하면 약관에 동의하는 단계로 넘어가요.
           </Text>
@@ -250,7 +257,22 @@ const styles = StyleSheet.create({
   },
   footerBlock: {
     alignItems: 'center',
-    gap: 14,
+    gap: 8,
+  },
+  orgLead: {
+    fontSize: fontSize.sm,
+    color: colors.primary500,
+    fontFamily: fontFamily.regular,
+  },
+  orgRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 6,
+  },
+  orgDivider: {
+    fontSize: fontSize.sm,
+    color: colors.primary300,
   },
   orgLink: {
     fontSize: fontSize.sm,

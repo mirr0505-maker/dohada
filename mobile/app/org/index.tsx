@@ -51,8 +51,8 @@ export default function OrgIndexScreen() {
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={colors.brand} />
         </View>
-      ) : status.host_tier === 'org' ? (
-        <OrgHome userId={session.user.id} onMenu={onMenu} />
+      ) : status.host_tier === 'org' || status.host_tier === 'group' ? (
+        <OrgHome userId={session.user.id} isGroup={status.host_tier === 'group'} onMenu={onMenu} />
       ) : (
         <OrgWaiting status={status} email={session.user.email ?? ''} onRefresh={load} onSignOut={onSignOut} />
       )}

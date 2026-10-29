@@ -52,7 +52,7 @@ export type DbChallenge = {
   recruit_locked?: boolean;           // 🚀 0043: 누구나 방 개설자 수동 모집 잠금 (기간 50% 자동마감과 합쳐 isRecruiting 으로 판정)
   recruit_cap_exempt?: boolean;       // 🚀 0064: 모집 캡 면제 (명사/조직 승격 시 부여) — isRecruiting 에서 기간 50% 자동마감 건너뜀
   recruit_warn_level?: number;        // 🚀 0043: 인원 임계 알림 단계 (0/50/100, 1회성)
-  host_tier?: 'individual' | 'figure' | 'org'; // 🚀 0058: 주최 계층 (기본 individual, kind 와 직교)
+  host_tier?: 'individual' | 'figure' | 'org' | 'group'; // 🚀 0058: 주최 계층 (기본 individual, kind 와 직교) · 0090: group = 모임
   host_label?: string | null;         // 🚀 0058: 표시용 주최자명 (figure/org 일 때, 예 '유재석'·'환경부')
   sponsor_amount_per_completer?: number | null;  // 🚀 0075: 완주 매칭 기부 — 완주자 1명당 금액(원). null=약정 없음
   sponsor_beneficiary?: string | null;           // 🚀 0075: 기부처 표시명 (예 '유니세프')

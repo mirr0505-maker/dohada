@@ -11,7 +11,7 @@ export type OrgApplicationStatus = 'pending' | 'approved' | 'rejected';
 // 내 계정 상태 — 라우팅·대기 화면의 단일 근거
 export type MyOrgStatus = {
   account_type: 'personal' | 'org' | null;   // null = users 행 없음(코드 로그인만 한 신규)
-  host_tier: 'individual' | 'figure' | 'org' | null;
+  host_tier: 'individual' | 'figure' | 'org' | 'group' | null;   // 0090: group = 승인된 모임
   nickname: string | null;
   status: OrgApplicationStatus | null;       // null = 신청 기록 없음 (예: 운영자가 손으로 지정한 조직)
   note: string | null;                       // 거절 사유
@@ -20,6 +20,7 @@ export type MyOrgStatus = {
   registration_no: string | null;
   contact_name: string | null;
   contact_phone: string | null;
+  activity_url: string | null;   // 🚀 0090: 모임 활동 링크(밴드·카페·오픈톡)
 };
 
 export async function fetchMyOrgStatus(): Promise<MyOrgStatus> {
@@ -44,6 +45,7 @@ export type OrgApplicationInput = {
   registrationNo: string;
   contactName: string;
   contactPhone: string;   // 선택 — 빈 문자열이면 서버가 null 로
+  activityUrl: string;    // 🚀 0090: 모임 필수, 그 외 빈 문자열
 };
 
 // 코드 로그인 직후 호출. 개인 메일·개인 계정 메일은 서버가 거부(메시지 그대로 노출).
@@ -54,6 +56,7 @@ export async function submitOrgApplication(input: OrgApplicationInput): Promise<
     p_registration_no: input.registrationNo,
     p_contact_name: input.contactName,
     p_contact_phone: input.contactPhone,
+    p_activity_url: input.activityUrl,
   });
   if (error) throw new Error(error.message);
 }
@@ -108,6 +111,7 @@ export type AdminOrgApplication = {
   contact_name: string;           // ⚠️ PII — 운영자 콘솔 밖으로 내보내지 않는다
   contact_phone: string | null;   // ⚠️ PII
   contact_email: string;          // ⚠️ PII
+  activity_url: string | null;    // 🚀 0090: 모임 활동 링크
   status: OrgApplicationStatus;
   note: string | null;
   created_at: string;

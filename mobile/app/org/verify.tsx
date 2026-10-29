@@ -20,6 +20,7 @@ export default function OrgVerifyScreen() {
   const p = useLocalSearchParams<{
     mode: 'signup' | 'login'; email: string;
     orgType?: string; legalName?: string; registrationNo?: string; contactName?: string; contactPhone?: string;
+    activityUrl?: string;   // 🚀 0090: 모임 활동 링크
   }>();
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -53,7 +54,7 @@ export default function OrgVerifyScreen() {
         return router.replace('/org' as any);
       }
 
-      // signup — 이미 승인된 조직이면 신청을 다시 내지 않고 들어간다
+      // signup — 이미 승인된 계정이면 신청을 다시 내지 않고 들어간다
       if (status.account_type === 'org' && status.status === 'approved') return router.replace('/org' as any);
       try {
         await submitOrgApplication({
@@ -62,6 +63,7 @@ export default function OrgVerifyScreen() {
           registrationNo: p.registrationNo ?? '',
           contactName: p.contactName ?? '',
           contactPhone: p.contactPhone ?? '',
+          activityUrl: p.activityUrl ?? '',
         });
       } catch (e: any) {
         return failAndSignOut('가입 신청을 하지 못했어요', e?.message ?? String(e));

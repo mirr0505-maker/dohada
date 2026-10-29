@@ -130,7 +130,7 @@ export function isRecruiting(
   // 🚀 0074: 조직(org) 하다는 모집 캡 면제. 0043 캡("기간 50% 자동 마감")은 "서로를 목격하는 동료"를
   //   지키는 장치인데 조직 하다는 애초에 광장이라 전제가 성립하지 않는다.
   //   ⚠️ 면제하는 것은 캡뿐 — 개설자가 손수 잠근 방은 org 라도 모집 중이 아니다.
-  if (challenge.host_tier === 'org') return !challenge.recruit_locked;
+  if (challenge.host_tier === 'org' || challenge.host_tier === 'group') return !challenge.recruit_locked;   // 0090: 모임도 같은 갈래
   if (challenge.kind !== 'open') return true;
   if (challenge.recruit_locked) return false;
   // 🚀 0064: 면제(recruit_cap_exempt) 방은 기간 50% 자동 마감을 받지 않는다(1,000명까지 자라야 하므로).

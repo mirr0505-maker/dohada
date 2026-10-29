@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { PERSONAL_EMAIL_DOMAINS, emailDomain, isPersonalEmailDomain, isLikelyEmail } from '../mobile/lib/orgEmail.ts';
+import { PERSONAL_EMAIL_DOMAINS, emailDomain, isPersonalEmailDomain, isLikelyEmail, personalEmailAllowed } from '../mobile/lib/orgEmail.ts';
 
 test('개인 메일 도메인은 거부', () => {
   for (const email of ['a@gmail.com', 'b@naver.com', 'c@daum.net', 'd@hanmail.net', 'e@kakao.com', 'f@icloud.com']) {
@@ -44,4 +44,15 @@ test('클라 목록 = 서버 SQL 목록 (0087 PERSONAL_EMAIL_DOMAINS)', () => {
   assert.ok(block, 'SQL 에 PERSONAL_EMAIL_DOMAINS 표식이 있어야 한다');
   const sqlDomains = [...block.matchAll(/'([^']+)'/g)].map((m) => m[1]).sort();
   assert.deepEqual(sqlDomains, [...PERSONAL_EMAIL_DOMAINS].sort());
+});
+
+test('개인 메일 허용 유형 = 개인사업자·모임만 (0090)', () => {
+  assert.equal(personalEmailAllowed('sole'), true);
+  assert.equal(personalEmailAllowed('group'), true);
+  for (const t of ['company', 'nonprofit', 'public', '']) assert.equal(personalEmailAllowed(t), false, t);
+});
+
+test('개인 메일 허용 유형 = 서버 SQL 조건 (0090 submit_org_application)', () => {
+  const sql = readFileSync(new URL('../supabase/migrations/0090_group_sole_tracks.sql', import.meta.url), 'utf8');
+  assert.ok(sql.includes("and p_org_type not in ('sole', 'group')"), '서버 조건이 sole·group 이어야 한다');
 });

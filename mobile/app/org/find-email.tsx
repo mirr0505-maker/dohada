@@ -37,9 +37,9 @@ export default function OrgFindEmailScreen() {
           <View style={{ width: 24 }} />
         </View>
         <View style={styles.body}>
-          <OrgField label="사업자등록번호 · 고유번호" value={regNo} onChangeText={t => { setRegNo(t); setResults(null); }}
-            keyboardType="numbers-and-punctuation" autoFocus
-            hint="가입할 때 넣은 번호예요. 하이픈은 있어도 없어도 돼요." />
+          <OrgField label="사업자등록번호 · 고유번호" value={regNo} onChangeText={t => { setRegNo(t.replace(/\D/g, '')); setResults(null); }}
+            placeholder="1234567890" keyboardType="number-pad" maxLength={13} autoFocus
+            hint="가입할 때 넣은 번호를 - 없이 숫자만 입력하세요." />
           <Button label="찾기" onPress={onFind} disabled={regNo.replace(/\D/g, '').length < 5} loading={busy} block size="xl" />
 
           {results && results.length > 0 && (

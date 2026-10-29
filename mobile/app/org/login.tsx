@@ -7,13 +7,12 @@ import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
 import { OrgField } from '@/components/org/OrgField';
 import { requestOrgLoginCode } from '@/lib/auth';
-import { isLikelyEmail, isPersonalEmailDomain } from '@/lib/orgEmail';
+import { isLikelyEmail } from '@/lib/orgEmail';
 import { colors, fontFamily, fontSize, fontWeight } from '@/lib/tokens';
 
 export default function OrgLoginScreen() {
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
-  const personalMail = !!email.trim() && isPersonalEmailDomain(email);
 
   const onSend = async () => {
     try {
@@ -32,19 +31,23 @@ export default function OrgLoginScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={12}><ChevronLeft size={24} color={colors.ink} /></Pressable>
-          <Text style={styles.headerTitle}>조직 로그인</Text>
+          <Text style={styles.headerTitle}>조직·모임 로그인</Text>
           <View style={{ width: 24 }} />
         </View>
         <View style={styles.body}>
-          <OrgField label="조직 메일" value={email} onChangeText={setEmail} placeholder="walk@company.co.kr"
+          {/* 0090: 개인사업자·모임은 개인 메일로도 가입하므로 여기선 막지 않는다 — 조직 계정인지는 코드 확인 후 서버가 가린다 */}
+          <OrgField label="가입한 메일" value={email} onChangeText={setEmail} placeholder="walk@company.co.kr"
             autoCapitalize="none" autoCorrect={false} keyboardType="email-address" autoFocus
-            hint={personalMail ? '개인 메일은 조직 계정이 아니에요. 처음 화면에서 Google·Apple 로 시작해 주세요.' : '가입할 때 쓴 조직 메일로 코드를 보내요.'} />
-          <Button label="코드 받기" onPress={onSend} disabled={!isLikelyEmail(email) || personalMail} loading={sending} block size="xl" />
+            hint="조직·모임으로 가입할 때 쓴 메일로 코드를 보내요." />
+          <Button label="코드 받기" onPress={onSend} disabled={!isLikelyEmail(email)} loading={sending} block size="xl" />
           <Pressable style={styles.linkRow} onPress={() => router.push('/org/find-email' as any)}>
-            <Text style={styles.subLink}>조직 메일이 기억나지 않아요</Text>
+            <Text style={styles.subLink}>가입한 메일이 기억나지 않아요</Text>
           </Pressable>
           <Pressable style={styles.linkRow} onPress={() => router.replace('/org/signup' as any)}>
-            <Text style={styles.link}>처음이에요 · 조직 가입하기</Text>
+            <Text style={styles.link}>처음이에요 · 조직으로 가입하기</Text>
+          </Pressable>
+          <Pressable style={styles.linkRow} onPress={() => router.replace('/org/signup?track=group' as any)}>
+            <Text style={styles.link}>처음이에요 · 모임으로 가입하기</Text>
           </Pressable>
         </View>
       </KeyboardAvoidingView>

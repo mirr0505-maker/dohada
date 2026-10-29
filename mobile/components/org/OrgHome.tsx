@@ -12,7 +12,7 @@ import type { MyChallengeDetail } from '@/lib/db';
 import { getTodayRange, formatCheerCount } from '@/lib/format';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 
-type Props = { userId: string; onMenu: () => void };
+type Props = { userId: string; isGroup: boolean; onMenu: () => void };   // isGroup: 0090 모임 계정
 
 // 기간 표시 — 같은 해면 월.일만, 해가 바뀌면 연도까지 (09.12 ~ 09.11 처럼 거꾸로 보이는 것 방지)
 const formatPeriod = (start: string, end: string): string => {
@@ -22,7 +22,7 @@ const formatPeriod = (start: string, end: string): string => {
     : `${dot(start)} ~ ${dot(end)}`;
 };
 
-export function OrgHome({ userId, onMenu }: Props) {
+export function OrgHome({ userId, isGroup, onMenu }: Props) {
   const [items, setItems] = useState<MyChallengeDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [codeTarget, setCodeTarget] = useState<MyChallengeDetail | null>(null);   // 참여 코드 새로 정하기 대상
@@ -68,19 +68,21 @@ export function OrgHome({ userId, onMenu }: Props) {
 
   return (
     <View style={{ flex: 1 }}>
-      <AppHeader org={{ onMenu }} />
+      <AppHeader org={{ onMenu, roleLabel: isGroup ? '모임 주최자' : '공식 주최자' }} />
       <ScrollView
         refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}
         contentContainerStyle={styles.body}
       >
-        <Pressable style={styles.openBtn} onPress={() => router.push('/create?org=1' as any)}>
+        <Pressable style={styles.openBtn} onPress={() => router.push((isGroup ? '/create?org=1&group=1' : '/create?org=1') as any)}>
           <Plus size={20} color={colors.onBrand} strokeWidth={2.4} />
-          <Text style={styles.openText}>조직 하다 열기</Text>
+          <Text style={styles.openText}>{isGroup ? '모임 하다 열기' : '조직 하다 열기'}</Text>
         </Pressable>
 
         {!loading && items.length === 0 && (
           <Text style={styles.empty}>
-            아직 연 하다가 없어요.{'\n'}누구나 합류할 캠페인도, 우리 구성원만의 하다도 열 수 있어요.
+            {isGroup
+              ? '아직 연 하다가 없어요.\n참여 코드를 아는 우리 모임만 함께하는 하다를 열어 보세요.'
+              : '아직 연 하다가 없어요.\n누구나 합류할 캠페인도, 우리 구성원만의 하다도 열 수 있어요.'}
           </Text>
         )}
         {active.length > 0 && <Text style={styles.section}>진행 중</Text>}

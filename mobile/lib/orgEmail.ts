@@ -26,3 +26,11 @@ export function isPersonalEmailDomain(email: string): boolean {
 export function isLikelyEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
+
+// 🚀 0090: 개인 메일로 가입할 수 있는 유형 — 개인사업자·모임만 (서버 submit_org_application 과 같은 규칙)
+//   기업·비영리·공공은 조직 도메인 메일이 곧 '이 조직의 계정'이라는 증명이라 개인 메일을 받지 않는다.
+export const PERSONAL_EMAIL_ALLOWED_TYPES = ['sole', 'group'] as const;
+
+export function personalEmailAllowed(orgType: string): boolean {
+  return (PERSONAL_EMAIL_ALLOWED_TYPES as readonly string[]).includes(orgType);
+}

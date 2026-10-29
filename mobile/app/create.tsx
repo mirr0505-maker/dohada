@@ -88,13 +88,15 @@ export default function CreateChallenge() {
   const {
     title: titleParam, kind: kindParam, ref: refParam,
     categoryId: categoryIdParam, goalType: goalTypeParam,
-    frequency: frequencyParam, targetCount: targetCountParam, org: orgParam,
+    frequency: frequencyParam, targetCount: targetCountParam, org: orgParam, group: groupParam,
   } = useLocalSearchParams<{
     title?: string; kind?: string; ref?: string; categoryId?: string;
     goalType?: string; frequency?: string; targetCount?: string;
     org?: string;   // 🚀 0087: 조직 홈에서 진입 — 방 타입 대신 누구나 합류/구성원 전용, 내기 없음
+    group?: string; // 🚀 0090: 모임 계정 — 구성원 전용만
   }>();
   const isOrgMode = orgParam === '1';
+  const isGroupMode = isOrgMode && groupParam === '1';
   // 🚀 0089: 구성원 전용(closed) 조직 하다의 참여 코드 — 생성 직후 set_join_code 로 해시 저장
   const [joinCode, setJoinCodeDraft] = useState('');
   // 숫자 파라미터 안전 파싱 (NaN 방지)
@@ -117,7 +119,7 @@ export default function CreateChallenge() {
   const [proofType, setProofType] = useState<CreateChallengeProofType>('photo');   // v2.2
   // 🚀 기본 방타입 = cheered(응원받기). 홈 온램프·빈상태 '선언하기'가 ?kind= 로 넘긴 값이 있으면 그 값 우선.
   const [kind, setKind] = useState<ChallengeKind>(
-    isOrgMode ? 'open'
+    isGroupMode ? 'closed' : isOrgMode ? 'open'
     : kindParam === 'solo' || kindParam === 'cheered' || kindParam === 'closed' || kindParam === 'open'
       ? kindParam
       : 'cheered',
@@ -325,7 +327,7 @@ export default function CreateChallenge() {
           {step === 3 && (
             <View style={{ gap: 12 }}>
               {isOrgMode
-                ? <OrgModePicker value={kind} setValue={setKind} joinCode={joinCode} setJoinCode={setJoinCodeDraft} />
+                ? <OrgModePicker value={kind} setValue={setKind} joinCode={joinCode} setJoinCode={setJoinCodeDraft} isGroup={isGroupMode} />
                 : <Step6RoomType value={kind} setValue={setKind} durationDays={durationDays} />}
               {/* 🚀 안내문 — 나홀로 제외. 합류 전 미리보기·방 현황에 보임 (선택 입력) */}
               {kind !== 'solo' && (

@@ -119,7 +119,8 @@ export default function DiscoverScreen() {
 
   // 🚀 무대 2종 — ⭐명사 / 🏛️조직. 한쪽이 0개여도 자리를 지켜 "여기 열립니다"를 보여준다(상설)
   const figureItems = useMemo(() => stageItems.filter(c => c.host_tier === 'figure'), [stageItems]);
-  const orgItems    = useMemo(() => stageItems.filter(c => c.host_tier === 'org'), [stageItems]);
+  // 🚀 0090: 모임(group)의 구성원 전용 하다도 이 자리에 — 배지(🏛️ 공식 / 👥 모임)로 구분된다
+  const orgItems    = useMemo(() => stageItems.filter(c => c.host_tier === 'org' || c.host_tier === 'group'), [stageItems]);
 
   // 무대에 이미 올라온 하다는 '누구나 합류' 섹션에서 중복 제거
   const joinableItems = useMemo(() => {
@@ -337,7 +338,7 @@ export default function DiscoverScreen() {
               )}
 
               {/* 조직의 하다 */}
-              <Text style={styles.stageSubLabel}>조직의 하다</Text>
+              <Text style={styles.stageSubLabel}>조직·모임의 하다</Text>
               {orgItems.length > 0 ? (
                 <>
                   {orgItems.slice(0, orgVisibleCount).map(c => (

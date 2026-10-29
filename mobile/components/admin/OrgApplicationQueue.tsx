@@ -2,13 +2,21 @@
 //   승인 = 검증 기록(메일) + 공식 지정(소급·알림) 이 서버 한 트랜잭션. 서류는 받지 않는다.
 //   거절 사유는 신청자 대기 화면에 그대로 보인다.
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, Pressable, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, Pressable, TextInput, StyleSheet, ActivityIndicator, Alert, Linking } from 'react-native';
 import { adminListOrgApplications, adminApproveOrgApplication, adminRejectOrgApplication } from '@/lib/org';
 import type { AdminOrgApplication } from '@/lib/org';
-import { emailDomain } from '@/lib/orgEmail';
+import { emailDomain, isPersonalEmailDomain } from '@/lib/orgEmail';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 
-const ORG_TYPE_LABEL: Record<string, string> = { company: '기업', nonprofit: '비영리·단체', public: '공공기관' };
+const ORG_TYPE_LABEL: Record<string, string> = {
+  company: '기업', sole: '개인사업자', nonprofit: '비영리·단체', public: '공공기관', group: '모임',
+};
+
+// 유형별로 운영자가 확인할 것 (0090) — 승인 시 서버가 같은 항목을 검증 기록에 남긴다
+const CHECK_HINT: Record<string, string> = {
+  sole: '홈택스 사업자 상태조회로 번호·상호가 살아 있는지 확인',
+  group: '활동 링크를 열어 실제로 활동하는 모임인지 확인, 필요하면 메일로 의견 교환',
+};
 
 export function OrgApplicationQueue() {
   const [items, setItems] = useState<AdminOrgApplication[]>([]);
@@ -43,7 +51,7 @@ export function OrgApplicationQueue() {
   return (
     <View style={styles.wrap}>
       <Text style={styles.hint}>
-        조직 메일로 코드 인증을 마친 신청이에요. 조직 이름·번호·메일 도메인이 맞는지 보고 승인해 주세요.
+        메일 코드 인증을 마친 신청이에요. 조직은 이름·번호·메일 도메인을, 개인사업자는 사업자 상태를, 모임은 활동 링크를 보고 승인해 주세요.
       </Text>
       {items.length === 0 ? (
         <Text style={styles.empty}>대기 중인 신청이 없어요</Text>
@@ -54,7 +62,14 @@ export function OrgApplicationQueue() {
             <Text style={styles.title}>{a.legal_name}</Text>
             <Text style={styles.meta}>
               {ORG_TYPE_LABEL[a.org_type] ?? a.org_type} · 번호 {a.registration_no ?? '없음'} · 도메인 {emailDomain(a.contact_email)}
+              {isPersonalEmailDomain(a.contact_email) ? ' · ⚠️ 개인 메일' : ''}
             </Text>
+            {!!a.activity_url && (
+              <Pressable onPress={() => Linking.openURL(a.activity_url!.startsWith('http') ? a.activity_url! : `https://${a.activity_url}`)}>
+                <Text style={styles.linkText} numberOfLines={1}>활동 링크 열기 · {a.activity_url}</Text>
+              </Pressable>
+            )}
+            {!!CHECK_HINT[a.org_type] && <Text style={styles.meta}>확인: {CHECK_HINT[a.org_type]}</Text>}
             <Text style={styles.meta}>
               {a.contact_name} · {a.contact_email}{a.contact_phone ? ` · ${a.contact_phone}` : ''}
             </Text>
@@ -84,6 +99,10 @@ export function OrgApplicationQueue() {
                 <Pressable style={styles.actionBtn} disabled={busy} onPress={() => setRejectingId(a.user_id)}>
                   <Text style={styles.cancelText}>거절</Text>
                 </Pressable>
+                {/* 🚀 0090: 승인 전 의견 교환 — 신청자 메일로 바로 */}
+                <Pressable style={styles.actionBtn} onPress={() => Linking.openURL(`mailto:${a.contact_email}?subject=${encodeURIComponent(`[Do:하다] ${a.legal_name} 가입 확인`)}`)}>
+                  <Text style={styles.cancelText}>메일 보내기</Text>
+                </Pressable>
               </View>
             )}
           </View>
@@ -105,6 +124,7 @@ const styles = StyleSheet.create({
   actionBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: radius.sm, backgroundColor: colors.primary50 },
   approveText: { fontSize: fontSize.sm, color: colors.brandInk, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
   rejectText: { fontSize: fontSize.sm, color: colors.danger, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
+  linkText: { fontSize: fontSize.xs, color: colors.brandInk, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
   cancelText: { fontSize: fontSize.sm, color: colors.sub, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
   input: {
     backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line,

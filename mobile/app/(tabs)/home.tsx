@@ -186,7 +186,7 @@ export default function HomeScreen() {
     c.start_date <= kstTodayStr;
 
   // 🚀 특별 하다(무대) = 명사·조직이 연 하다. 개인 하다와 성격이 달라 홈에서 자리를 나눈다
-  const isStageCh = (c: MyChallengeDetail) => c.host_tier === 'figure' || c.host_tier === 'org';
+  const isStageCh = (c: MyChallengeDetail) => c.host_tier === 'figure' || c.host_tier === 'org' || c.host_tier === 'group';
   const stageActiveChs    = activeChs.filter(isStageCh);
   const personalActiveChs = activeChs.filter(c => !isStageCh(c));
 

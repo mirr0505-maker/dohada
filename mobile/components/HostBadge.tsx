@@ -6,22 +6,23 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { colors, fontSize, fontFamily, fontWeight, radius } from '@/lib/tokens';
 
-type HostTier = 'individual' | 'figure' | 'org' | null | undefined;
+type HostTier = 'individual' | 'figure' | 'org' | 'group' | null | undefined;
 
 type Props = {
   hostTier: HostTier;
   hostLabel?: string | null;   // 표시용 주최자명 (예: '유재석', '환경부')
 };
 
-// 계층별 표식 — 명사=사람(따뜻한 accent), 조직=기관(차분한 sage)
-const TIER_META: Record<'figure' | 'org', { emoji: string; label: string; bg: string; border: string; text: string }> = {
+// 계층별 표식 — 명사=사람(따뜻한 accent), 조직=기관(차분한 sage), 모임=임의 단체(중립 — '공식'과 구분, 0090)
+const TIER_META: Record<'figure' | 'org' | 'group', { emoji: string; label: string; bg: string; border: string; text: string }> = {
   figure: { emoji: '⭐', label: '명사', bg: colors.accent50, border: colors.accent100, text: colors.accent700 },
   org:    { emoji: '🏛️', label: '공식', bg: colors.tintSage, border: colors.tintSage, text: colors.doneInk },
+  group:  { emoji: '👥', label: '모임', bg: colors.primary50, border: colors.line, text: colors.sub },
 };
 
 export function HostBadge({ hostTier, hostLabel }: Props) {
   // 일반(individual)·미지정은 배지 없음 — 대다수 하다는 표식 없이 조용히
-  if (hostTier !== 'figure' && hostTier !== 'org') return null;
+  if (hostTier !== 'figure' && hostTier !== 'org' && hostTier !== 'group') return null;
 
   const meta = TIER_META[hostTier];
   const name = hostLabel && hostLabel.trim() !== '' ? hostLabel.trim() : null;
