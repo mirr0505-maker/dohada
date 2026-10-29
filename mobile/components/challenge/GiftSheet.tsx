@@ -11,7 +11,7 @@ import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/
 import { haptic } from '@/lib/haptics';
 import {
   GIFT_TIERS, type GiftTier,
-  fetchMyVerification, verifyIdentityMock, createGiftOrder, confirmGiftPaymentMock,
+  fetchMyVerification, verifyIdentityMock, createGiftOrder, payWithToss,
   formatBirthDateInput,
 } from '@/lib/payments';
 
@@ -35,6 +35,8 @@ const REASON_LABEL: Record<string, string> = {
   self_cheer_not_allowed: '나에게는 보낼 수 없어요.',
   daily_limit_exceeded: '응원 한잔은 하루 3건까지 보낼 수 있어요.',
   amount_mismatch: '결제 금액이 맞지 않아 취소했어요.',
+  pg_not_done: '결제가 승인되지 않았어요.',
+  pg_unreachable: '결제 확인이 지연되고 있어요. 잠시 후 한잔 내역을 확인해 주세요.',
 };
 
 export function GiftSheet({
@@ -90,7 +92,13 @@ export function GiftSheet({
     setBusy(true);
     try {
       const { orderId, amount } = await createGiftOrder({ challengeId, recipientId, tier: selectedTier.tier, proofId });
-      await confirmGiftPaymentMock(orderId, amount);   // Stage 3: PG 결제창으로 교체
+      // 토스 결제창(Stage 2 테스트) — 닫으면 그대로 확인 단계에 머문다
+      const result = await payWithToss(orderId, amount, `응원 ${selectedTier.label}`);
+      if (result.status === 'canceled') return;
+      if (result.status === 'failed') {
+        Alert.alert('보내기 실패', REASON_LABEL[result.message] ?? result.message);
+        return;
+      }
       haptic.success();
       setStep('done');
     } catch (e: any) {
@@ -122,7 +130,7 @@ export function GiftSheet({
                   <Text style={styles.tierPrice}>{t.price.toLocaleString()}원</Text>
                 </Pressable>
               ))}
-              <Text style={styles.mockNote}>베타 테스트 — 모의 결제예요. 실제 결제·계좌 연결이 없어 돈이 빠져나가지 않아요.</Text>
+              <Text style={styles.mockNote}>베타 테스트 결제예요. 토스 테스트 결제창으로 진행되고, 실제로 청구되지 않아요.</Text>
             </>
           )}
 
@@ -175,9 +183,9 @@ export function GiftSheet({
               >
                 {busy
                   ? <ActivityIndicator color={colors.surface} />
-                  : <Text style={styles.primaryBtnText}>{selectedTier.price.toLocaleString()}원 보내기 (모의 결제)</Text>}
+                  : <Text style={styles.primaryBtnText}>{selectedTier.price.toLocaleString()}원 보내기 (테스트 결제)</Text>}
               </Pressable>
-              <Text style={styles.mockNote}>실제 결제·계좌 연결 없음 · 베타 모의 결제 (돈 안 빠져나가요)</Text>
+              <Text style={styles.mockNote}>테스트 결제 · 실제 청구 없음 — 카드 정보는 토스 결제창에서만 입력돼요</Text>
             </>
           )}
 

@@ -19,7 +19,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { validateClaim, validateBetClaim } from '../_shared/payments/claimPolicy.ts';
 import { canTransition } from '../_shared/payments/giftStateMachine.ts';
 import { computeSelfBetOutcome } from '../_shared/payments/betOutcome.ts';
-import { createMockPgClient, createMockGifticonClient } from '../_shared/payments/providers.ts';
+import { createMockPgClient, createMockGifticonClient, createTossPgClient, createStage2PgClient } from '../_shared/payments/providers.ts';
 import { recordGiftEvent, type GiftEventActorRole } from '../_shared/payments/audit.ts';
 
 const corsHeaders = {
@@ -27,8 +27,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Stage 1 주입 지점 — 실서비스 전환 시 이 두 줄만 교체
-const pg = createMockPgClient();
+// Stage 2 주입 — 모의 결제키(MOCKPAY:)는 모의, 그 외는 토스 샌드박스. ⚠️ Stage 3 에서 라우팅·모의 삭제
+const pg = createStage2PgClient(createTossPgClient(Deno.env.get('TOSS_SECRET_KEY')), createMockPgClient());
 const gifticon = createMockGifticonClient();
 
 function json(status: number, body: unknown): Response {

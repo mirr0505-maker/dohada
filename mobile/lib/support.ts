@@ -7,3 +7,5 @@ export const SUPPORT_EMAIL = 'doinnovation@doinno.co.kr';
 const LEGAL_BASE_URL = 'https://mirr0505-maker.github.io/dohada';
 export const TERMS_URL = `${LEGAL_BASE_URL}/terms.html`;
 export const PRIVACY_URL = `${LEGAL_BASE_URL}/privacy.html`;
+// 한잔 결제 페이지 — 토스 결제창을 띄우고 dohada://pay-result 로 돌려보낸다 (docs/pay.html)
+export const PAY_PAGE_URL = `${LEGAL_BASE_URL}/pay.html`;

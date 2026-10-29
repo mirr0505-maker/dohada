@@ -15,7 +15,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { paymentMatchesOrder } from '../_shared/payments/verifyPayment.ts';
 import { canTransition } from '../_shared/payments/giftStateMachine.ts';
-import { createMockPgClient } from '../_shared/payments/providers.ts';
+import { createMockPgClient, createTossPgClient, createStage2PgClient } from '../_shared/payments/providers.ts';
 import { recordGiftEvent } from '../_shared/payments/audit.ts';
 
 const corsHeaders = {
@@ -23,8 +23,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Stage 1 주입 지점 — 실서비스 전환 시 이 한 줄만 교체
-const pg = createMockPgClient();
+// Stage 2 주입 — 모의 결제키(MOCKPAY:)는 모의, 그 외는 토스 샌드박스. ⚠️ Stage 3 에서 라우팅·모의 삭제
+const pg = createStage2PgClient(createTossPgClient(Deno.env.get('TOSS_SECRET_KEY')), createMockPgClient());
 
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -81,7 +81,14 @@ Deno.serve(async (req) => {
   if (order.sender_id !== user.id) return json(403, { error: 'not_order_owner' });
 
   // 2. PG 승인 + 대조 (금액 위변조 방어의 핵심)
-  const pgResult = await pg.confirm(paymentKey, orderId);
+  //   금액은 DB 주문 금액을 보낸다 — 결제 페이지가 다른 금액으로 결제했다면 토스가 승인을 거부한다
+  let pgResult;
+  try {
+    pgResult = await pg.confirm(paymentKey, orderId, order.amount);
+  } catch (e) {
+    // 네트워크 등으로 승인 여부를 모름 — 주문을 실패로 확정하지 않는다(created 유지, 재시도 시 회복)
+    return json(502, { error: 'pg_unreachable', detail: String(e) });
+  }
   const verdict = paymentMatchesOrder(order, pgResult);
   if (!verdict.ok) {
     // 승인은 됐는데 대조 실패 → 즉시 취소 (돈을 받지 않은 상태로 복귀)

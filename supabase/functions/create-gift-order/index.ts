@@ -22,6 +22,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// 하루 한도 계산에 넣는 미결제(created) 주문의 유효 시간
+const PENDING_ORDER_WINDOW_MS = 10 * 60 * 1000;
+
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -122,7 +125,11 @@ Deno.serve(async (req) => {
       .eq('sender_id', user.id)
       .eq('order_type', 'cheer')
       .gte('created_at', kstDayStartUtcIso())
-      .not('status', 'in', '(canceled,pay_failed)'),
+      .not('status', 'in', '(canceled,pay_failed)')
+      // 결제창을 열었다 닫기만 한 미결제(created) 주문이 하루 한도를 깎으면 안 된다.
+      //   그렇다고 created 를 아예 빼면 주문을 여러 개 만들어 두고 한꺼번에 결제해 한도를 넘을 수 있다
+      //   → 최근 10분 안의 미결제만 센다 (결제창 세션은 그 안에 끝난다)
+      .or(`status.neq.created,created_at.gte.${new Date(Date.now() - PENDING_ORDER_WINDOW_MS).toISOString()}`),
   ]);
 
   const memberIds = new Set((memberships.data ?? []).map((m) => m.user_id));

@@ -134,7 +134,7 @@ export default function GiftDetail() {
             </View>
           )}
 
-          <Text style={styles.mockFootnote}>베타 테스트 — 실제 결제·계좌 연결이 없는 모의 한잔이에요.</Text>
+          <Text style={styles.mockFootnote}>베타 테스트 — 테스트 결제로 보낸 한잔이에요. 실제 청구는 없고 교환권은 모의로 발급돼요.</Text>
         </View>
       )}
     </Screen>

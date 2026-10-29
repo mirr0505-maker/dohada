@@ -167,10 +167,10 @@ test('결제 대조 — PG 미승인(DONE 아님) 거부', () => {
 test('mock PG — paymentKey 의 주문·금액을 승인 결과로 반환, 형식 오류는 FAILED', async () => {
   const pg = createMockPgClient();
   assert.deepEqual(
-    await pg.confirm('MOCKPAY:order-1:5000', 'order-1'),
+    await pg.confirm('MOCKPAY:order-1:5000', 'order-1', 5000),
     { orderId: 'order-1', amount: 5_000, status: 'DONE' },
   );
-  const bad = await pg.confirm('garbage-key', 'order-1');
+  const bad = await pg.confirm('garbage-key', 'order-1', 5000);
   assert.equal(bad.status, 'FAILED');
 });
 

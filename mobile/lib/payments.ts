@@ -2,6 +2,9 @@
 // 금액·정책의 진실원천은 서버(Edge Function + 카탈로그). 여기 가격표는 표시 전용.
 // 실서비스 전환(Stage 3)은 서버 providers.ts 교체 — 이 파일의 mock 문자열 두 곳도 함께 교체.
 import { supabase } from './supabase';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
+import { PAY_PAGE_URL } from './support';
 
 // ☕ 파일럿 게이트 — Stage 4 베타 오픈 전까지 지정 계정만 (mock 결제 노출 방지)
 // 테스트 계정 추가 시 여기에 이메일 추가 후 OTA. 전체 오픈은 게이트 제거 (PHASE2 Stage 4)
@@ -176,6 +179,36 @@ export async function confirmGiftPaymentMock(orderId: string, amount: number): P
     body: { orderId, paymentKey: `MOCKPAY:${orderId}:${amount}` },
   });
   if (error) throw new Error(await describeFnError(error));
+}
+
+// 🚀 토스 결제창으로 결제 (Stage 2 샌드박스 · 테스트 키 — 실제 청구 없음)
+//   앱 → 결제 페이지(docs/pay.html, 브라우저) → 토스 결제창 → dohada://pay-result 로 복귀 → 서버 승인.
+//   결제 페이지가 돌려준 값은 믿지 않는다 — 서버가 DB 주문 금액으로 토스에 승인을 요청한다.
+//   결과: paid = 승인 완료 / canceled = 사용자가 닫음 / failed = 결제 거절(사유 message)
+const PAY_RETURN_URL = 'dohada://pay-result';
+
+export type TossPayResult =
+  | { status: 'paid' }
+  | { status: 'canceled' }
+  | { status: 'failed'; message: string };
+
+export async function payWithToss(orderId: string, amount: number, orderName: string): Promise<TossPayResult> {
+  const payUrl = `${PAY_PAGE_URL}?orderId=${encodeURIComponent(orderId)}&amount=${amount}&orderName=${encodeURIComponent(orderName)}`;
+  const res = await WebBrowser.openAuthSessionAsync(payUrl, PAY_RETURN_URL);
+  if (res.type !== 'success') return { status: 'canceled' };   // 브라우저를 닫음
+
+  const q = Linking.parse(res.url).queryParams ?? {};
+  const paymentKey = typeof q.paymentKey === 'string' ? q.paymentKey : null;
+  if (!paymentKey) {
+    const code = typeof q.code === 'string' ? q.code : '';
+    // 토스: 결제창에서 취소 = PAY_PROCESS_CANCELED / 창을 닫음 = USER_CANCEL
+    if (code === 'PAY_PROCESS_CANCELED' || code === 'USER_CANCEL') return { status: 'canceled' };
+    return { status: 'failed', message: typeof q.message === 'string' && q.message ? q.message : '결제가 완료되지 않았어요.' };
+  }
+
+  const { error } = await supabase.functions.invoke('confirm-gift-payment', { body: { orderId, paymentKey } });
+  if (error) return { status: 'failed', message: await describeFnError(error) };
+  return { status: 'paid' };
 }
 
 // 수령/정산 선택 — 내가 받기 / 기부하기 / 환불(서약 모드 미완주)
