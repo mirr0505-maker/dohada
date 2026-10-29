@@ -9,7 +9,7 @@ import {
   View, Text, Pressable, FlatList, StyleSheet, RefreshControl, Alert, ScrollView, Image, Linking,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { Telescope, User, Handshake, Globe, Heart, Landmark, Compass, type LucideIcon } from 'lucide-react-native';
+import { Telescope, User, Handshake, Globe, Heart, Landmark, Compass, Lock, type LucideIcon } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { AppHeader } from '@/components/AppHeader';
 import { EvalBox } from '@/components/EvalBox';
@@ -26,6 +26,7 @@ import {
   fetchOpenChallenges, fetchStageChallenges,
 } from '@/lib/db';
 import { joinChallenge } from '@/lib/invite';
+import { joinMemberOnly, joinMemberOnlyMessage } from '@/lib/org';   // 🚀 0089: 구성원 전용 무대
 import { isRecruiting } from '@/lib/stats';   // 🚀 무대 카드의 모집 마감 표시
 import { SUPPORT_EMAIL } from '@/lib/support';
 import { formatCheerCount, displayTitle } from '@/lib/format';
@@ -138,7 +139,7 @@ export default function DiscoverScreen() {
       const [data, interests, stage, open] = await Promise.all([
         fetchBrowseChallenges(),
         myUserId ? fetchMyInterests(myUserId).catch(() => []) : Promise.resolve([]),
-        fetchStageChallenges(myUserId).catch(() => []),
+        fetchStageChallenges().catch(() => []),
         fetchOpenChallenges(myUserId).catch(() => []),
       ]);
       setItems(data);
@@ -168,11 +169,17 @@ export default function DiscoverScreen() {
   // 무대·누구나 카드 탭 — 바로 합류시키지 않고 안내문 미리보기 시트를 연다 (홈과 동일 동선)
   const openPreview = useCallback((c: OpenChallengeCard) => { haptic.tap(); setPreviewCard(c); }, []);
 
-  const doJoin = useCallback(async () => {
+  const doJoin = useCallback(async (joinCode: string) => {
     if (!myUserId || !previewCard || joining) return;
     try {
       setJoining(true);
-      await joinChallenge(previewCard.id, myUserId);
+      if (previewCard.requires_code) {
+        // 🚀 0089: 구성원 전용 — 서버가 코드를 확인하고 합류시킨다 (직접 insert 는 RLS 가 막는다)
+        const failMessage = joinMemberOnlyMessage(await joinMemberOnly(previewCard.id, joinCode));
+        if (failMessage) { haptic.warning(); Alert.alert('합류하지 못했어요', failMessage); return; }
+      } else {
+        await joinChallenge(previewCard.id, myUserId);
+      }
       haptic.success();
       setPreviewCard(null);
       Alert.alert('합류 완료', '하다에 성공적으로 합류했습니다!');
@@ -498,6 +505,13 @@ function StageCard({ challenge, isHost, onPress }: { challenge: OpenChallengeCar
       <Text style={styles.metaText}>
         {challenge.category ? `${challenge.category.name} · ` : ''}함께 {formatCheerCount(challenge.member_count)}명
       </Text>
+      {/* 🚀 0089: 구성원 전용 — 광장엔 보이지만 참여 코드를 아는 구성원만 합류 */}
+      {challenge.requires_code && (
+        <View style={styles.stageClosedChip}>
+          <Lock size={11} color={colors.primary500} strokeWidth={2} />
+          <Text style={styles.stageClosedText}>구성원 전용</Text>
+        </View>
+      )}
       {/* 🚀 모집이 닫힌 무대는 정직하게 밝힌다 — 개설자가 손수 잠갔거나 기간이 지난 경우.
           '종료'가 아니라 '모집 마감'이다: 기존 멤버의 인증·기록·대화는 그대로 이어진다. */}
       {!isRecruiting(challenge) && (
@@ -525,7 +539,7 @@ function StageCard({ challenge, isHost, onPress }: { challenge: OpenChallengeCar
         <View style={styles.cardFooter}>
           <View style={{ flex: 1 }} />
           <Pressable style={styles.copyBtn} onPress={onPress} hitSlop={4}>
-            <Text style={styles.copyBtnText}>함께 합류하기</Text>
+            <Text style={styles.copyBtnText}>{challenge.requires_code ? '참여 코드로 합류' : '함께 합류하기'}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -666,7 +680,7 @@ const styles = StyleSheet.create({
   },
   headerCard: { marginBottom: 12 },
   stageClosedChip: {
-    alignSelf: 'flex-start', marginTop: 8,
+    alignSelf: 'flex-start', marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 10, paddingVertical: 4,
     borderRadius: radius.pill, backgroundColor: colors.primary50,
   },

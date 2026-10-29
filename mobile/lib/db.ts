@@ -608,33 +608,30 @@ function mapOpenChallengeCard(c: any, myUserId: string | undefined): OpenChallen
 }
 
 // ─── 광장 '무대' — 명사·조직이 연 하다 ──────────────────
-// 무대 = kind='open' + host_tier in (figure, org). kind='open' 조건은 필수 —
-// challenges 의 비멤버 SELECT 가 open 에만 열려 있어(0003) 다른 kind 는 애초에 못 읽는다.
-// 둘러보기와 달리 ① 이미 참여 중인 하다도 남기고 ② 모집 마감 여부로도 거르지 않는다.
-//   무대는 "이런 무대가 있다"를 보여주는 상설 섹션이라 내가 참여 중이어도 사라지면 안 된다.
-// 정렬은 최신순 고정 — 참여자 수·인기순 줄세우기 금지 (수칙 2).
-export async function fetchStageChallenges(myUserId?: string): Promise<OpenChallengeCard[]> {
-  const { data, error } = await supabase
-    .from('challenges')
-    .select(`
-      *,
-      challenge_members(user_id, gave_up_at, role),
-      creator:creator_id(nickname),
-      category:category_id(emoji, name, is_impact),
-      subcategory:subcategory_id(name),
-      challenge_votes(user_id, vote_type)
-    `)
-    .eq('kind', 'open')
-    .in('host_tier', ['figure', 'org'])
-    .is('gave_up_at', null)
-    // 🚀 끝난 무대는 광장에 두지 않는다 — 광장은 '지금 만날 수 있는 하다'다.
-    //   종료일 당일까지는 남긴다(그날 24시까지 운영). 날짜는 사용자의 기준 시간대(0077).
-    .gte('end_date', getTodayRange().dateStr)
-    .order('created_at', { ascending: false })
-    .limit(50);
+// 🚀 0089: stage_challenges RPC — 누구나(open) 무대 + 조직의 구성원 전용(closed) 무대.
+//   closed 는 비멤버가 행을 못 읽어(RLS) 직접 select 로는 안 보인다 → RPC 가 카드 정보만 내보낸다
+//   (방 내용·멤버 목록·참여 코드 해시는 내보내지 않음). 종료 무대 제외, 최신순 고정(줄세우기 금지).
+// 둘러보기와 달리 ① 이미 참여 중인 하다도 남기고 ② 모집 마감 여부로도 거르지 않는다(상설 섹션).
+export async function fetchStageChallenges(): Promise<OpenChallengeCard[]> {
+  const { data, error } = await supabase.rpc('stage_challenges');
   if (error) throw error;
 
-  return (data ?? []).map((c: any) => mapOpenChallengeCard(c, myUserId));
+  return ((data ?? []) as any[]).map(c => {
+    const raw = (c.votes ?? {}) as Record<string, number>;
+    const votesByType: ChallengeVoteCounts = { creative: 0, hard: 0, touching: 0, fresh: 0 };
+    for (const k of Object.keys(raw)) {
+      if (k in votesByType) votesByType[k as ChallengeVoteType] = Number(raw[k]) || 0;
+    }
+    return {
+      ...c,
+      kind: c.kind as ChallengeKind,
+      creator: { nickname: c.host_label ?? '도전자' },   // 무대는 주최자명(host_label)이 곧 이름
+      votes_by_type: votesByType,
+      my_votes: (c.my_votes ?? []) as ChallengeVoteType[],
+      host_tier: c.host_tier ?? 'individual',
+      requires_code: !!c.requires_code,
+    } as OpenChallengeCard;
+  });
 }
 
 // 둘러보기 카드의 4가지 평가 토글

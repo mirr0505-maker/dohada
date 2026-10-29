@@ -1,11 +1,12 @@
 // 🚀 누구나 합류 — 합류 전 미리보기 바텀시트
 // 홈에서 "함께 합류하기"를 누르면 바로 합류 Alert 가 아니라, 이 도전이 어떤 도전인지
 // (안내문 텍스트 + 이미지 + 기간·인원·개설자)를 충분히 보고 결정할 수 있게 한다.
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, Pressable, Modal, StyleSheet, ScrollView, Image, ActivityIndicator, Keyboard,
+  TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { Globe, Crown, Users, Calendar, Target } from 'lucide-react-native';
+import { Globe, Crown, Users, Calendar, Target, Lock } from 'lucide-react-native';
 import { CategoryIcon } from '@/components/CategoryIcon';
 import { HostBadge } from '@/components/HostBadge';
 import { categorySlugByName } from '@/lib/icons';
@@ -19,22 +20,24 @@ type Props = {
   challenge: OpenChallengeCard | null;
   joining: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: (joinCode: string) => void;   // 🚀 0089: 구성원 전용이면 입력한 참여 코드, 아니면 ''
 };
 
 export function OpenJoinPreviewSheet({ challenge, joining, onClose, onConfirm }: Props) {
   const visible = challenge !== null;
   const hasIntro = !!(challenge?.description && challenge.description.trim() !== '');
+  const requiresCode = !!challenge?.requires_code;
+  const [joinCode, setJoinCode] = useState('');
 
   // 열릴 때 키보드(자동완성 추천줄 포함) 강제 닫기 — 다른 화면 입력 포커스가 남아 시트를 덮는 것 방지
   useEffect(() => {
-    if (visible) Keyboard.dismiss();
+    if (visible) { Keyboard.dismiss(); setJoinCode(''); }
   }, [visible]);
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       {/* backdrop = 닫기용 절대영역 + 그 위 시트(View) — Pressable 로 ScrollView 를 감싸면 스크롤 제스처가 막힘 */}
-      <View style={styles.backdrop}>
+      <KeyboardAvoidingView style={styles.backdrop} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={styles.sheet}>
           {challenge && (
@@ -46,8 +49,10 @@ export function OpenJoinPreviewSheet({ challenge, joining, onClose, onConfirm }:
                 showsVerticalScrollIndicator={true}
               >
                 <View style={styles.curationRow}>
-                  <Globe size={13} color={colors.accent} strokeWidth={2} />
-                  <Text style={styles.curation}>누구나 합류</Text>
+                  {requiresCode
+                    ? <Lock size={13} color={colors.accent} strokeWidth={2} />
+                    : <Globe size={13} color={colors.accent} strokeWidth={2} />}
+                  <Text style={styles.curation}>{requiresCode ? '구성원 전용' : '누구나 합류'}</Text>
                 </View>
                 <Text style={styles.title}>{displayTitle(challenge.title)}</Text>
 
@@ -107,14 +112,23 @@ export function OpenJoinPreviewSheet({ challenge, joining, onClose, onConfirm }:
                 ) : null}
               </ScrollView>
 
+              {/* 🚀 0089: 구성원 전용 — 주최측이 구성원에게 알려 준 참여 코드 */}
+              {requiresCode && (
+                <TextInput
+                  style={styles.codeInput} value={joinCode} placeholder="참여 코드"
+                  placeholderTextColor={colors.faint} autoCapitalize="characters" autoCorrect={false} maxLength={12}
+                  onChangeText={t => setJoinCode(t.replace(/[^A-Za-z0-9]/g, ''))}
+                />
+              )}
+
               <View style={styles.btnRow}>
                 <Pressable style={[styles.btn, styles.btnGhost]} onPress={onClose} disabled={joining}>
                   <Text style={styles.btnGhostText}>닫기</Text>
                 </Pressable>
                 <Pressable
-                  style={[styles.btn, styles.btnPrimary, joining && styles.btnDisabled]}
-                  onPress={() => { haptic.tap(); onConfirm(); }}
-                  disabled={joining}
+                  style={[styles.btn, styles.btnPrimary, (joining || (requiresCode && joinCode.length < 4)) && styles.btnDisabled]}
+                  onPress={() => { haptic.tap(); onConfirm(joinCode); }}
+                  disabled={joining || (requiresCode && joinCode.length < 4)}
                 >
                   {joining
                     ? <ActivityIndicator color={colors.surface} />
@@ -124,12 +138,17 @@ export function OpenJoinPreviewSheet({ challenge, joining, onClose, onConfirm }:
             </>
           )}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  codeInput: {
+    marginTop: 12, backgroundColor: colors.bg, borderRadius: radius.md,
+    borderWidth: 1, borderColor: colors.line, paddingHorizontal: 14, paddingVertical: 12,
+    fontSize: fontSize.base, color: colors.ink, fontFamily: fontFamily.bold, letterSpacing: 2, textAlign: 'center',
+  },
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',

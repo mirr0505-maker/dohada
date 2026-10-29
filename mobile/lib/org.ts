@@ -58,6 +58,47 @@ export async function submitOrgApplication(input: OrgApplicationInput): Promise<
   if (error) throw new Error(error.message);
 }
 
+// 🚀 0088: 조직 메일 찾기 — 로그인 전 호출. 서버가 메일을 가려서(wa***@도메인) 돌려준다.
+export type FoundOrgEmail = { legal_name: string; masked_email: string };
+
+export async function findOrgLoginEmail(registrationNo: string): Promise<FoundOrgEmail[]> {
+  const { data, error } = await supabase.rpc('find_org_login_email', { p_registration_no: registrationNo });
+  if (error) throw error;
+  return (data ?? []) as FoundOrgEmail[];
+}
+
+// 🚀 0089: 구성원 전용 조직 하다 — 참여 코드 (영문·숫자 4~12자, 대소문자 무시)
+export const JOIN_CODE_PATTERN = /^[A-Za-z0-9]{4,12}$/;
+
+// 개설자가 코드를 정하거나 새로 정한다. 서버는 해시만 남긴다 — 잊으면 새로 정하는 수밖에 없다.
+export async function setJoinCode(challengeId: string, code: string): Promise<void> {
+  const { error } = await supabase.rpc('set_join_code', { p_challenge_id: challengeId, p_code: code });
+  if (error) throw new Error(error.message);
+}
+
+export type JoinMemberOnlyResult =
+  | 'joined' | 'already_member' | 'wrong_code' | 'ended' | 'locked' | 'gave_up' | 'not_member_only';
+
+// 코드로 합류. 실패 사유는 문자열로 돌려준다(joinMemberOnlyMessage 로 안내 문구).
+export async function joinMemberOnly(challengeId: string, code: string): Promise<JoinMemberOnlyResult> {
+  const { data, error } = await supabase.rpc('join_member_only', { p_challenge_id: challengeId, p_code: code });
+  if (error) throw new Error(error.message);
+  return data as JoinMemberOnlyResult;
+}
+
+// 합류 실패 안내 — joined·already_member 는 성공으로 다룬다(null)
+export function joinMemberOnlyMessage(result: JoinMemberOnlyResult): string | null {
+  switch (result) {
+    case 'joined':
+    case 'already_member': return null;
+    case 'wrong_code': return '참여 코드가 맞지 않아요. 주최측에 다시 확인해 주세요.';
+    case 'ended': return '이미 끝난 하다예요.';
+    case 'locked': return '지금은 새로 합류할 수 없는 하다예요.';
+    case 'gave_up': return '그만둔 하다에는 다시 합류할 수 없어요.';
+    case 'not_member_only': return '참여 코드가 필요한 하다가 아니에요.';
+  }
+}
+
 // ─── 운영자 (🔒 서버가 is_admin() 으로 최종 차단) ─────────────
 export type AdminOrgApplication = {
   user_id: string;

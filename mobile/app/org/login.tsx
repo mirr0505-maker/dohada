@@ -40,6 +40,9 @@ export default function OrgLoginScreen() {
             autoCapitalize="none" autoCorrect={false} keyboardType="email-address" autoFocus
             hint={personalMail ? '개인 메일은 조직 계정이 아니에요. 처음 화면에서 Google·Apple 로 시작해 주세요.' : '가입할 때 쓴 조직 메일로 코드를 보내요.'} />
           <Button label="코드 받기" onPress={onSend} disabled={!isLikelyEmail(email) || personalMail} loading={sending} block size="xl" />
+          <Pressable style={styles.linkRow} onPress={() => router.push('/org/find-email' as any)}>
+            <Text style={styles.subLink}>조직 메일이 기억나지 않아요</Text>
+          </Pressable>
           <Pressable style={styles.linkRow} onPress={() => router.replace('/org/signup' as any)}>
             <Text style={styles.link}>처음이에요 · 조직 가입하기</Text>
           </Pressable>
@@ -55,4 +58,5 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: 20, paddingTop: 12, gap: 18 },
   linkRow: { alignItems: 'center', paddingVertical: 8 },
   link: { fontSize: fontSize.sm, color: colors.brandInk, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
+  subLink: { fontSize: fontSize.sm, color: colors.sub, fontFamily: fontFamily.medium, fontWeight: fontWeight.medium, textDecorationLine: 'underline' },
 });

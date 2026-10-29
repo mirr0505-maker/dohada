@@ -6,6 +6,7 @@ import { View, Text, Pressable, ScrollView, StyleSheet, RefreshControl } from 'r
 import { router, useFocusEffect } from 'expo-router';
 import { Plus, Users, Lock, Globe } from 'lucide-react-native';
 import { AppHeader } from '@/components/AppHeader';
+import { JoinCodeModal } from '@/components/org/JoinCodeModal';
 import { fetchMyChallengesWithDetails } from '@/lib/db';
 import type { MyChallengeDetail } from '@/lib/db';
 import { getTodayRange, formatCheerCount } from '@/lib/format';
@@ -24,6 +25,7 @@ const formatPeriod = (start: string, end: string): string => {
 export function OrgHome({ userId, onMenu }: Props) {
   const [items, setItems] = useState<MyChallengeDetail[]>([]);
   const [loading, setLoading] = useState(true);
+  const [codeTarget, setCodeTarget] = useState<MyChallengeDetail | null>(null);   // 참여 코드 새로 정하기 대상
 
   const load = useCallback(async () => {
     try {
@@ -55,6 +57,12 @@ export function OrgHome({ userId, onMenu }: Props) {
         <Users size={14} color={colors.sub} />
         <Text style={styles.metaText}>참여 {formatCheerCount(c.member_count)}명 · 오늘 인증 {formatCheerCount(c.today_check_count)}명</Text>
       </View>
+      {/* 🚀 0089: 구성원 전용 — 코드는 다시 볼 수 없어 '새로 정하기'만 (끝난 하다는 합류가 없으니 숨김) */}
+      {c.kind === 'closed' && c.end_date >= today && (
+        <Pressable onPress={() => setCodeTarget(c)} hitSlop={6}>
+          <Text style={styles.codeLink}>참여 코드 새로 정하기</Text>
+        </Pressable>
+      )}
     </Pressable>
   );
 
@@ -80,6 +88,7 @@ export function OrgHome({ userId, onMenu }: Props) {
         {ended.length > 0 && <Text style={styles.section}>끝난 하다</Text>}
         {ended.map(renderCard)}
       </ScrollView>
+      <JoinCodeModal challengeId={codeTarget?.id ?? null} title={codeTarget?.title ?? ''} onClose={() => setCodeTarget(null)} />
     </View>
   );
 }
@@ -100,5 +109,6 @@ const styles = StyleSheet.create({
   period: { fontSize: fontSize.xs, color: colors.faint, fontFamily: fontFamily.regular },
   cardTitle: { fontSize: fontSize.lg, color: colors.ink, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
   cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  codeLink: { fontSize: fontSize.sm, color: colors.brandInk, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold, marginTop: 2 },
   metaText: { fontSize: fontSize.sm, color: colors.sub, fontFamily: fontFamily.regular },
 });

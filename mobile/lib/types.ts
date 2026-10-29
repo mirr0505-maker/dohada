@@ -146,6 +146,7 @@ export type OpenChallengeCard = ChallengeWithCount & {
   votes_by_type: ChallengeVoteCounts;
   my_votes: ChallengeVoteType[];
   is_joined: boolean;   // 🚀 무대 카드 CTA 분기용 — 내 활성 멤버 행이 있으면 true (개설자 포함)
+  requires_code?: boolean;   // 🚀 0089: 구성원 전용 조직 하다 — 참여 코드가 있어야 합류
 };
 
 // 🚀 하다 구경 (익명 발상 라이브러리, 0050) 카드 — browse_challenges RPC 반환.

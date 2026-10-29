@@ -33,6 +33,7 @@ import {
 import { targetProofCount, PAUSE_CREDIT_RATIO } from '@/lib/stats';
 import type { ChallengeKind } from '@/lib/types';
 import { OrgModePicker } from '@/components/org/OrgModePicker';   // 🚀 0087: 조직 모드 방 타입
+import { setJoinCode, JOIN_CODE_PATTERN } from '@/lib/org';         // 🚀 0089: 구성원 전용 참여 코드
 
 const TOTAL_STEPS = 5;
 
@@ -94,6 +95,8 @@ export default function CreateChallenge() {
     org?: string;   // 🚀 0087: 조직 홈에서 진입 — 방 타입 대신 누구나 합류/구성원 전용, 내기 없음
   }>();
   const isOrgMode = orgParam === '1';
+  // 🚀 0089: 구성원 전용(closed) 조직 하다의 참여 코드 — 생성 직후 set_join_code 로 해시 저장
+  const [joinCode, setJoinCodeDraft] = useState('');
   // 숫자 파라미터 안전 파싱 (NaN 방지)
   const parseIntParam = (v?: string): number | null => {
     if (typeof v !== 'string' || v.trim() === '') return null;
@@ -119,6 +122,7 @@ export default function CreateChallenge() {
       ? kindParam
       : 'cheered',
   );
+  const needsJoinCode = isOrgMode && kind === 'closed';   // 🚀 0089
   const [startDate, setStartDate] = useState<string>(toLocalDateStr(new Date())); // 🚀 당일 챌린지용 시작일 (로컬 기준 — 타임존 밀림 방지)
   // 🚀 안내문 (나홀로 제외) — 합류 전 미리보기·방 현황에 노출. 텍스트 + 보관함 이미지(선택)
   const [description, setDescription] = useState('');
@@ -155,7 +159,7 @@ export default function CreateChallenge() {
     if (submitting) return false;
     if (step === 1) return title.trim().length >= 2;
     if (step === 2) return categoryId != null;
-    if (step === 3) return Boolean(kind);                              // 방 타입
+    if (step === 3) return Boolean(kind) && (!needsJoinCode || JOIN_CODE_PATTERN.test(joinCode));   // 방 타입 (+ 구성원 전용은 참여 코드)
     if (step === 4) return goalType === 'count'
       ? durationDays > 0 && targetCount >= 1                           // 목표 횟수형: 기간 + 목표 개수
       : durationDays > 0 && Boolean(frequency);                        // 주기형: 기간 + 빈도
@@ -233,6 +237,19 @@ export default function CreateChallenge() {
         betTier: (kind === 'closed' || kind === 'open') ? betTier : null,
         betDonationMode,
       });
+      // 🚀 0089: 구성원 전용 조직 하다 — 코드 저장 실패 시 그 방은 "코드 없는 closed"로 남는다(초대 링크만으로 합류 가능)
+      //   → 실패를 숨기지 않고 알린다. 조직 홈에서 다시 정할 수 있다.
+      if (needsJoinCode) {
+        try {
+          await setJoinCode(challenge.id, joinCode);
+          Alert.alert('참여 코드', `${joinCode.toUpperCase()}
+
+구성원에게 초대 링크와 함께 알려 주세요. 이 코드는 다시 볼 수 없어요.`);
+        } catch (e: any) {
+          Alert.alert('참여 코드를 저장하지 못했어요', `${e?.message ?? String(e)}
+조직 홈에서 다시 정해 주세요.`);
+        }
+      }
       // 🚀 하다 구경 "따라하기"로 만든 하다면 원본에 참조 1회 기록 (멱등 — 실패해도 생성 흐름엔 영향 없음)
       if (typeof refParam === 'string' && refParam) {
         try { await referenceChallenge(refParam); } catch { /* 참조수는 부가 표시 — 무시 */ }
@@ -249,7 +266,7 @@ export default function CreateChallenge() {
     } finally {
       setSubmitting(false);
     }
-  }, [session, title, kind, durationDays, categoryId, subcategoryId, frequency, goalType, targetCount, successThreshold, proofType, startDate, description, introImageUri]);
+  }, [session, title, kind, durationDays, categoryId, subcategoryId, frequency, goalType, targetCount, successThreshold, proofType, startDate, description, introImageUri, needsJoinCode, joinCode]);
 
   const stepMeta = STEP_META[step];
 
@@ -308,7 +325,7 @@ export default function CreateChallenge() {
           {step === 3 && (
             <View style={{ gap: 12 }}>
               {isOrgMode
-                ? <OrgModePicker value={kind} setValue={setKind} />
+                ? <OrgModePicker value={kind} setValue={setKind} joinCode={joinCode} setJoinCode={setJoinCodeDraft} />
                 : <Step6RoomType value={kind} setValue={setKind} durationDays={durationDays} />}
               {/* 🚀 안내문 — 나홀로 제외. 합류 전 미리보기·방 현황에 보임 (선택 입력) */}
               {kind !== 'solo' && (

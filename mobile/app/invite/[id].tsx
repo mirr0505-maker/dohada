@@ -1,7 +1,7 @@
 // 🚀 초대 진입점 — dohada://invite/<id> 또는 앱 내 push 로 진입
 // 개선: 자동 참여 차단 → 챌린지 기본 정보 및 초대 메시지를 확인하고 참여 여부를 수락/거절 선택하는 랜딩페이지
 import React, { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, Alert, Pressable, Image, ScrollView } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, Alert, Pressable, Image, ScrollView, TextInput } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Mail, AlertTriangle, Crown, Users, Calendar, Target } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
@@ -12,6 +12,7 @@ import { categorySlugByName } from '@/lib/icons';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import { joinChallenge, setPendingInvite, clearPendingInvite } from '@/lib/invite';
+import { joinMemberOnly, joinMemberOnlyMessage } from '@/lib/org';   // 🚀 0089: 구성원 전용
 import { fetchChallengeDetailForInvite } from '@/lib/db';
 import { getChallengeDDay, displayTitle, formatWon } from '@/lib/format';
 import { betBadgeText } from '@/lib/payments';
@@ -25,6 +26,8 @@ export default function InviteScreen() {
   const [status, setStatus] = useState<Status>('loading');
   const [errorMsg, setErrorMsg] = useState('');
   const [challenge, setChallenge] = useState<any>(null);
+  const [joinCode, setJoinCode] = useState('');   // 🚀 0089: 구성원 전용 하다의 참여 코드
+  const requiresCode = !!challenge?.requires_code;
 
   useEffect(() => {
     if (!id) return;
@@ -58,7 +61,20 @@ export default function InviteScreen() {
     haptic.tap();
     try {
       setStatus('joining');
-      const result = await joinChallenge(id, session.user.id);
+      let result: string;
+      if (requiresCode) {
+        // 🚀 0089: 코드 방은 서버가 코드를 확인하고 합류시킨다 (직접 insert 는 RLS 가 막는다)
+        result = await joinMemberOnly(id, joinCode);
+        const failMessage = joinMemberOnlyMessage(result as any);
+        if (failMessage) {
+          setStatus('confirming');   // 화면 유지 — 코드를 다시 넣을 수 있게
+          haptic.warning();
+          Alert.alert('합류하지 못했어요', failMessage);
+          return;
+        }
+      } else {
+        result = await joinChallenge(id, session.user.id);
+      }
       // pendingInvite 가 남아있으면 정리 (로그인 후 자동 진입 흐름 종료)
       await clearPendingInvite().catch(() => {});
       haptic.success();
@@ -203,11 +219,27 @@ export default function InviteScreen() {
               </View>
             )}
 
+            {/* 🚀 0089: 구성원 전용 — 주최측이 구성원에게 알려 준 참여 코드 */}
+            {requiresCode && (
+              <View style={{ gap: 6 }}>
+                <Text style={styles.messageLabel}>구성원 전용 하다예요 · 참여 코드를 입력해 주세요</Text>
+                <TextInput
+                  style={styles.codeInput} value={joinCode} placeholder="참여 코드"
+                  placeholderTextColor={colors.faint} autoCapitalize="characters" autoCorrect={false} maxLength={12}
+                  onChangeText={t => setJoinCode(t.replace(/[^A-Za-z0-9]/g, ''))}
+                />
+              </View>
+            )}
+
             <View style={styles.buttonRow}>
               <Pressable style={[styles.btn, styles.btnReject]} onPress={handleReject}>
                 <Text style={styles.btnRejectText}>나중에 하기</Text>
               </Pressable>
-              <Pressable style={[styles.btn, styles.btnAccept]} onPress={handleAccept}>
+              <Pressable
+                style={[styles.btn, styles.btnAccept, requiresCode && joinCode.length < 4 && { opacity: 0.5 }]}
+                onPress={handleAccept}
+                disabled={requiresCode && joinCode.length < 4}
+              >
                 <Text style={styles.btnAcceptText}>함께 하기</Text>
               </Pressable>
             </View>
@@ -238,6 +270,11 @@ export default function InviteScreen() {
 }
 
 const styles = StyleSheet.create({
+  codeInput: {
+    backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line,
+    paddingHorizontal: 14, paddingVertical: 12, fontSize: fontSize.base, color: colors.ink,
+    fontFamily: fontFamily.bold, letterSpacing: 2, textAlign: 'center',
+  },
   scroll: {
     flex: 1,
     backgroundColor: colors.background,
