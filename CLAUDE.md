@@ -342,6 +342,7 @@
 - [`0086_transfer_seed_stage.sql`](supabase/migrations/0086_transfer_seed_stage.sql): 「매일 8천보 걷기」를 **같은 id 로** 법인 계정(`kidoo.kim@doinno.co.kr`) 소유 이전 — 1회성 운영 SQL(앱 경로 이전 불가 0022 는 유지). 한잔 주문은 결제자 이름 보존
 - 문의처 `SUPPORT_EMAIL`·법적 문서 → `kidoo.kim@doinno.co.kr`. admin 권한은 개인 계정(mirr0505)에만 유지
 - **운영 반영 완료** (0085·0086 적용 + OTA preview·production)
+- **다음 실행 (기획 완료 2026-10-28, 미착수)**: [`ORG_HADA_PLAN.md`](docs/ORG_HADA_PLAN.md) **§10** — 조직 메일 OTP 로그인(`users.account_type`) + 조직 전용 영역 + 누구나 합류/구성원 전용(참여 코드) + 고정 공지 + 주최자 명단. 묶음 A(0087)→B(0088)→C. §9.1 도메인 계정 모델은 폐기
 
 ### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.

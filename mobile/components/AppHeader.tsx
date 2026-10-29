@@ -61,7 +61,8 @@ const KIND_ICON: Record<string, LucideIcon> = {
   host_assigned: Landmark,   // 🚀 0074: 무대(명사/공식) 지정
 };
 
-export function AppHeader() {
+// 🚀 0087: org = 조직 홈에서 쓸 때. 아바타는 프로필(개인 탭)로 가지 않고, ≡ 는 조직 메뉴(문의·로그아웃)를 연다.
+export function AppHeader({ org }: { org?: { onMenu: () => void } } = {}) {
   const session = useSession();
   const { height: winHeight } = useWindowDimensions();   // 알림함 목록 높이 — 화면 비례
   const myUserId = session?.user?.id;
@@ -122,6 +123,7 @@ export function AppHeader() {
       <Pressable
         style={styles.profile}
         onPress={() => { haptic.tap(); router.push('/(tabs)/profile' as any); }}
+        disabled={!!org}
         hitSlop={6}
         accessibilityRole="button"
         accessibilityLabel="내 프로필"
@@ -140,7 +142,7 @@ export function AppHeader() {
             <Text style={styles.profileNick} numberOfLines={1}>{nickname}</Text>
             <HostMark hostTier={hostTier} />
           </View>
-          <Text style={styles.profileSub}>오늘도 한 걸음</Text>
+          <Text style={styles.profileSub}>{org ? '공식 주최자' : '오늘도 한 걸음'}</Text>
         </View>
       </Pressable>
 
@@ -159,7 +161,7 @@ export function AppHeader() {
         </Pressable>
         <Pressable
           style={styles.iconBtn}
-          onPress={() => { haptic.tap(); router.push('/settings' as any); }}
+          onPress={() => { haptic.tap(); if (org) org.onMenu(); else router.push('/settings' as any); }}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel="설정"

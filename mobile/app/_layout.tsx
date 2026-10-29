@@ -13,6 +13,7 @@ import { scheduleDailyReminder, cancelDailyReminder } from '@/lib/notifications'
 import { registerExpoPushToken, ensureNotificationPrefs } from '@/lib/push';
 import { useSession } from '@/lib/session';
 import { fetchMyTimezone } from '@/lib/db';
+import { isOrgAccount } from '@/lib/org';
 import { setActiveTimezone } from '@/lib/timezone';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import * as SecureStore from 'expo-secure-store';
@@ -139,9 +140,11 @@ export default function RootLayout() {
 
     // 서버 푸시: 알림함 자동 오픈(?bell). 아침 인사: 홈 + 그날 인사말 카드(?greet).
     //   파라미터는 매번 달라야 홈/헤더가 재반응 — timestamp 사용
-    const target = isServerPush ? `/(tabs)/home?bell=${Date.now()}` : `/(tabs)/home?greet=${Date.now()}`;
-    setTimeout(() => {
+    const homeTarget = isServerPush ? `/(tabs)/home?bell=${Date.now()}` : `/(tabs)/home?greet=${Date.now()}`;
+    setTimeout(async () => {
       try {
+        // 🚀 0087: 조직 계정은 조직 홈(알림 벨 포함)으로 — 아침 인사 카드는 조직 홈에 없다
+        const target = (await isOrgAccount()) ? (isServerPush ? `/org?bell=${Date.now()}` : '/org') : homeTarget;
         // 콜드 스타트로 아직 온보딩/로그인 라우트라면 홈으로 replace (뒤로가기에 온보딩 안 남게)
         const PRE_MAIN = ['/', '/onb1', '/onb2', '/onb3', '/onb4', '/login', '/welcome'];
         if (PRE_MAIN.includes(pathnameRef.current)) {

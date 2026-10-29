@@ -920,9 +920,10 @@ export default function ChallengeRoom() {
   };
   const openProofActions = (proof: ProofWithRelations) => {
     const nickname = proof.author?.nickname ?? '이 사용자';
+    // 🚀 0087: 조직 주최자(role='host')는 차단하지 않는다 — 차단은 양방향 숨김이라 주최자가 참여자를 못 보게 된다. 신고만.
     Alert.alert('이 인증', undefined, [
       { text: '신고하기', onPress: () => { setReportTarget({ type: 'proof', id: proof.id }); setReportSheetOpen(true); } },
-      { text: `${nickname} 차단`, style: 'destructive', onPress: () => handleBlock(proof.user_id, nickname) },
+      ...(iAmHost ? [] : [{ text: `${nickname} 차단`, style: 'destructive' as const, onPress: () => handleBlock(proof.user_id, nickname) }]),
       { text: '취소', style: 'cancel' },
     ]);
   };
@@ -1413,7 +1414,7 @@ export default function ChallengeRoom() {
         isMember={isMember}
         myUserId={myUserId}
         creatorId={challenge.creator_id}
-        onBlock={isMember ? handleBlock : undefined}
+        onBlock={isMember && !iAmHost ? handleBlock : undefined}
       />
 
       {/* 🚀 3b 신고 시트 — 인증 ⋯메뉴에서 진입 */}

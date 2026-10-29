@@ -12,6 +12,7 @@ import {
 } from '@/lib/auth';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { getPendingInvite, clearPendingInvite } from '@/lib/invite';
+import { isOrgAccount } from '@/lib/org';
 
 // 구글 공식 4색 G 로고
 function GoogleLogo({ size = 20 }: { size?: number }) {
@@ -64,7 +65,8 @@ export default function LoginScreen() {
           if (res.isNewUser) {
             router.replace('/welcome');
           } else {
-            router.replace('/home');
+            // 🚀 0087: Google 로 로그인하는 조직 계정(기존 법인 계정)은 조직 영역으로
+            router.replace((await isOrgAccount()) ? ('/org' as any) : '/home');
           }
         }
       }
@@ -154,9 +156,15 @@ export default function LoginScreen() {
           )}
         </View>
 
-        <Text style={styles.footer}>
-          계속 진행하면 약관에 동의하는 단계로 넘어가요.
-        </Text>
+        <View style={styles.footerBlock}>
+          {/* 🚀 조직 로그인 (0087) — 개인 로그인이 주인공, 조직 입구는 작게 */}
+          <Pressable onPress={() => router.push('/org/signup' as any)} disabled={signingIn} hitSlop={8}>
+            <Text style={styles.orgLink}>기업·기관·단체이신가요? 조직으로 시작하기 →</Text>
+          </Pressable>
+          <Text style={styles.footer}>
+            계속 진행하면 약관에 동의하는 단계로 넘어가요.
+          </Text>
+        </View>
       </View>
     </Screen>
   );
@@ -239,6 +247,17 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontFamily: fontFamily.medium,
     fontWeight: fontWeight.semibold,
+  },
+  footerBlock: {
+    alignItems: 'center',
+    gap: 14,
+  },
+  orgLink: {
+    fontSize: fontSize.sm,
+    color: colors.primary700,
+    fontFamily: fontFamily.medium,
+    fontWeight: fontWeight.semibold,
+    textDecorationLine: 'underline',
   },
   footer: {
     fontSize: fontSize.xs,

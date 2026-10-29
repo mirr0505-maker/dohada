@@ -15,8 +15,6 @@ const PROOFS: { v: OrgProof; label: string }[] = [
   { v: 'official_letter', label: '기관·조직 공문' }, { v: 'employment', label: '재직증명·담당자 지정' },
   { v: 'domain_email', label: '공식 도메인 메일' },
 ];
-// 조직이 "실재한다"는 증빙 — 서버 check 와 같은 규칙(서버가 최종 판정)
-const EXISTENCE_PROOFS: OrgProof[] = ['biz_reg', 'corp_registry', 'unique_no', 'official_letter'];
 const label = (list: { v: string; label: string }[], v: string) => list.find(o => o.v === v)?.label ?? v;
 
 type User = { id: string; nickname: string; email: string | null; host_tier: string };
@@ -64,8 +62,9 @@ export function OrgVerifyForm({ user, onActiveChange }: { user: User; onActiveCh
   const save = useCallback(async () => {
     if (busy) return;
     if (!draft.legalName.trim()) { Alert.alert('법적 명칭을 적어 주세요'); return; }
-    if (!proofs.some(p => EXISTENCE_PROOFS.includes(p))) {
-      Alert.alert('조직 실재 증빙이 필요해요', '사업자등록증·법인등기부·고유번호증·공문 중 하나 이상');
+    // 0087: 서류 없이 메일(domain_email)만으로도 기록 가능 — 확인한 것 1개 이상 (서버 check 와 같은 규칙)
+    if (proofs.length === 0) {
+      Alert.alert('확인한 것을 하나 이상 골라 주세요');
       return;
     }
     setBusy(true);
@@ -149,7 +148,7 @@ export function OrgVerifyForm({ user, onActiveChange }: { user: User; onActiveCh
               로그인 이메일 {domainMatches(user.email, draft.officialDomain) ? '✓ 도메인 일치' : '도메인 불일치'} (계정 소유 확인 ③ 참고)
             </Text>
           )}
-          <Text style={styles.meta}>확인한 증빙 (조직 실재 증빙 1개 이상)</Text>
+          <Text style={styles.meta}>확인한 것 (1개 이상)</Text>
           <View style={styles.chipRow}>
             {PROOFS.map(p => chip(proofs.includes(p.v), p.label, () =>
               setProofs(cur => cur.includes(p.v) ? cur.filter(x => x !== p.v) : [...cur, p.v]), p.v))}

@@ -49,6 +49,13 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   );
 
+  // 🚀 조직 계정은 앱에서 탈퇴하지 않는다 (0087, ORG_HADA_PLAN §10.2 A-2)
+  //   담당자가 퇴사하며 누르면 조직 하다 전부가 "탈퇴한 사람"의 방이 된다. 해지는 운영팀이 한다.
+  const { data: me } = await service.from('users').select('account_type').eq('id', uid).maybeSingle();
+  if (me?.account_type === 'org') {
+    return json(403, { error: 'org_account', message: '조직 계정은 운영팀을 통해 해지해요.' });
+  }
+
   const nowIso = new Date().toISOString();
 
   // 1) 개인정보(PII) 즉시 삭제 — 본인 데이터만

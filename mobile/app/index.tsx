@@ -7,14 +7,16 @@ import { router } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { BrandMark } from '@/components/BrandMark';
 import { useSession } from '@/lib/session';
+import { isOrgAccount } from '@/lib/org';
 import { colors, fontFamily, fontSize, fontWeight } from '@/lib/tokens';
 
 export default function SplashScreen() {
   const session = useSession();
 
-  // 세션 복원되면 (자동 로그인) 스플래시·온보딩 건너뛰고 홈으로
+  // 세션 복원되면 (자동 로그인) 스플래시·온보딩 건너뛰고 홈으로 — 조직 계정은 조직 영역으로 (0087)
   useEffect(() => {
-    if (session?.user) router.replace('/(tabs)/home' as any);
+    if (!session?.user) return;
+    isOrgAccount().then(org => router.replace((org ? '/org' : '/(tabs)/home') as any));
   }, [session]);
 
   return (

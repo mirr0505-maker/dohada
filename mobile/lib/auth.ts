@@ -175,6 +175,27 @@ export async function signOut() {
   await supabase.auth.signOut();
 }
 
+// ─── 조직 로그인 (조직 메일 6자리 코드, 비밀번호 없음) — 0087, ORG_HADA_PLAN §10.2 A-3 ───
+// ⚠️ 기기 provider 잠금(PROVIDER_KEY)은 읽지도 쓰지도 않는다 — 담당자가 같은 폰에서
+//    개인 계정(Google/Apple)과 조직 계정을 번갈아 쓴다. Google↔Apple 끼리의 잠금은 그대로.
+// public.users 행은 여기서 만들지 않는다 — 조직 가입 신청 RPC(submit_org_application)가 만든다.
+export async function requestOrgLoginCode(email: string): Promise<void> {
+  const { error } = await supabase.auth.signInWithOtp({
+    email: email.trim().toLowerCase(),
+    options: { shouldCreateUser: true },
+  });
+  if (error) throw error;
+}
+
+export async function verifyOrgLoginCode(email: string, code: string): Promise<void> {
+  const { error } = await supabase.auth.verifyOtp({
+    email: email.trim().toLowerCase(),
+    token: code.trim(),
+    type: 'email',
+  });
+  if (error) throw new Error('코드가 맞지 않거나 시간이 지났어요. 다시 받아 주세요.');
+}
+
 // 🚀 회원 탈퇴(계정 삭제) — delete-account EF(익명화 + PII 삭제 + auth ban) 호출 후 로컬 세션 정리.
 // 되돌릴 수 없음: 같은 소셜 계정은 재로그인 영구 차단(다른 계정으론 신규 가입 가능).
 // 공유 콘텐츠(인증·기록·댓글 등)는 동료 박제 보호를 위해 "탈퇴한 사람" 으로 익명 보존.

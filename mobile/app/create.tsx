@@ -32,6 +32,7 @@ import {
 } from '@/lib/payments';
 import { targetProofCount, PAUSE_CREDIT_RATIO } from '@/lib/stats';
 import type { ChallengeKind } from '@/lib/types';
+import { OrgModePicker } from '@/components/org/OrgModePicker';   // 🚀 0087: 조직 모드 방 타입
 
 const TOTAL_STEPS = 5;
 
@@ -86,11 +87,13 @@ export default function CreateChallenge() {
   const {
     title: titleParam, kind: kindParam, ref: refParam,
     categoryId: categoryIdParam, goalType: goalTypeParam,
-    frequency: frequencyParam, targetCount: targetCountParam,
+    frequency: frequencyParam, targetCount: targetCountParam, org: orgParam,
   } = useLocalSearchParams<{
     title?: string; kind?: string; ref?: string; categoryId?: string;
     goalType?: string; frequency?: string; targetCount?: string;
+    org?: string;   // 🚀 0087: 조직 홈에서 진입 — 방 타입 대신 누구나 합류/구성원 전용, 내기 없음
   }>();
+  const isOrgMode = orgParam === '1';
   // 숫자 파라미터 안전 파싱 (NaN 방지)
   const parseIntParam = (v?: string): number | null => {
     if (typeof v !== 'string' || v.trim() === '') return null;
@@ -111,7 +114,8 @@ export default function CreateChallenge() {
   const [proofType, setProofType] = useState<CreateChallengeProofType>('photo');   // v2.2
   // 🚀 기본 방타입 = cheered(응원받기). 홈 온램프·빈상태 '선언하기'가 ?kind= 로 넘긴 값이 있으면 그 값 우선.
   const [kind, setKind] = useState<ChallengeKind>(
-    kindParam === 'solo' || kindParam === 'cheered' || kindParam === 'closed' || kindParam === 'open'
+    isOrgMode ? 'open'
+    : kindParam === 'solo' || kindParam === 'cheered' || kindParam === 'closed' || kindParam === 'open'
       ? kindParam
       : 'cheered',
   );
@@ -303,7 +307,9 @@ export default function CreateChallenge() {
           )}
           {step === 3 && (
             <View style={{ gap: 12 }}>
-              <Step6RoomType value={kind} setValue={setKind} durationDays={durationDays} />
+              {isOrgMode
+                ? <OrgModePicker value={kind} setValue={setKind} />
+                : <Step6RoomType value={kind} setValue={setKind} durationDays={durationDays} />}
               {/* 🚀 안내문 — 나홀로 제외. 합류 전 미리보기·방 현황에 보임 (선택 입력) */}
               {kind !== 'solo' && (
                 <IntroEditor
@@ -381,7 +387,7 @@ export default function CreateChallenge() {
             <View style={{ gap: 12 }}>
               <Step5ProofType value={proofType} setValue={setProofType} />
               {/* 🚀 다인 내기 — 다함께·누구나 + 파일럿만 (베타는 mock·실돈 0원) */}
-              {betVisible && (kind === 'closed' || kind === 'open') && goalType !== 'count' ? (
+              {betVisible && !isOrgMode && (kind === 'closed' || kind === 'open') && goalType !== 'count' ? (
                 <BetConfig
                   betTier={betTier} setBetTier={setBetTier}
                   betDonationMode={betDonationMode} setBetDonationMode={setBetDonationMode}

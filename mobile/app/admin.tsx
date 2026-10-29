@@ -9,6 +9,7 @@ import { colors, fontFamily, fontSize, fontWeight } from '@/lib/tokens';
 import { fetchIsAdmin } from '@/lib/db';
 import { ReportQueue } from '@/components/admin/ReportQueue';
 import { PromotionQueue } from '@/components/admin/PromotionQueue';
+import { OrgApplicationQueue } from '@/components/admin/OrgApplicationQueue';
 import { UserTierAssign } from '@/components/admin/UserTierAssign';
 import { HostTierAssign } from '@/components/admin/HostTierAssign';
 import { HiddenRestore } from '@/components/admin/HiddenRestore';
@@ -40,6 +41,10 @@ export default function AdminScreen() {
         <ScrollView contentContainerStyle={styles.body}>
           <Text style={styles.section}>신고 큐</Text>
           <ReportQueue />
+
+          {/* 🚀 0087: 조직 메일로 가입한 조직 — 승인하면 공식 주최자 */}
+          <Text style={styles.section}>조직 가입 신청</Text>
+          <OrgApplicationQueue />
 
           <Text style={styles.section}>승격 심사</Text>
           <PromotionQueue />

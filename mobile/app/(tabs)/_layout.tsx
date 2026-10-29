@@ -13,6 +13,7 @@ import * as SecureStore from 'expo-secure-store';
 import { colors, fontFamily, fontSize, fontWeight, shadow } from '@/lib/tokens';
 import { haptic } from '@/lib/haptics';
 import { fetchLatestPublicStoryAt } from '@/lib/db';
+import { isOrgAccount } from '@/lib/org';
 
 const TAB_ICON_SIZE = 24;
 const DONE_SEEN_KEY = 'done_stories_seen_at';   // 해냈어요 탭 마지막 확인 시각 (디바이스 로컬)
@@ -24,6 +25,11 @@ export default function TabsLayout() {
 
   // 🚀 해냈어요 dot — 마지막 확인 이후 새 공개 완주 이야기가 있을 때만 (가짜 dot 금지)
   const [doneDotVisible, setDoneDotVisible] = useState(false);
+
+  // 🚀 0087 안전망 — 조직 계정은 일반 5탭을 쓰지 않는다. 어떤 경로로 들어와도 조직 영역으로 돌려보낸다.
+  useEffect(() => {
+    isOrgAccount().then(org => { if (org) router.replace('/org' as any); });
+  }, []);
 
   useEffect(() => {
     (async () => {
