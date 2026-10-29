@@ -356,6 +356,14 @@
 - ⚠️ **SMTP**: Workspace `smtp.gmail.com`, Username = 앱 비밀번호를 만든 계정. 불일치 시 535 → "Error sending … email". OTP 길이 = 6
 - 검증 npm test 164/164 · tsc 0 · export ✓ · **운영 반영 완료**(0087~0090 + delete-account EF + OTA 6회)
 
+### 신규 코드 위치 (v2.42 — 응원 한잔 실결제 준비 WP0·WP1: 약관 앱 내 열기 + 감사 로그·운영자 환불·교환권 격리, 0091·0092, 2026-10-29)
+**SoT = [`PHASE2_FINTECH_PLAN.md`](docs/PHASE2_FINTECH_PLAN.md) §9.** 검증 tsc 0 · npm test 173/173 · 운영 반영 완료(0091·0092 + EF 4개 + OTA preview·production).
+- **약관 앱 내 열기 (WP0)**: 가입 화면 '보기'가 글자뿐이고 설정은 "가입 화면에서 보세요"라 서로를 가리키던 순환 안내 해소. [`support.ts`](mobile/lib/support.ts) `TERMS_URL`·`PRIVACY_URL`(Pages) → [`welcome.tsx`](mobile/app/welcome.tsx) '보기'를 체크 토글과 **분리된 터치 영역**으로 · [`settings.tsx`](mobile/app/settings.tsx) 이용약관/개인정보처리방침/버전 정보 3줄. 문서 없는 마케팅 수신은 '보기' 제거. 방침 DI 보존기간을 구현(탈퇴 시까지)과 일치시키고 자문 ⓓ 에 추가
+- **감사 로그 (0091)**: [`0091_gift_order_events.sql`](supabase/migrations/0091_gift_order_events.sql) `gift_order_events`(전이 1건=1행, service role 전용) + admin RPC `admin_search_gift_orders`·`admin_list_gift_events`(🔒 `is_admin()`). [`audit.ts`](supabase/functions/_shared/payments/audit.ts) `recordGiftEvent` 를 create/confirm/claim EF 의 `transition()` 이 호출 — **기록 실패가 결제를 막지 않는다**
+- **운영자 환불**: EF [`refund-gift-order`](supabase/functions/refund-gift-order/index.ts)(JWT ON, `is_admin` RPC) = **약관 10-3 환불의 유일한 경로**(PG 콘솔·SQL 수동 환불 금지). 판정 [`refundPolicy.ts`](supabase/functions/_shared/payments/refundPolicy.ts) — paid→refunded · issue_failed→auto_refund · 발급·기부 완료는 거부. **PG 취소 먼저 → 조건부 전이 → 감사 로그**. 콘솔 [`GiftRefund.tsx`](mobile/components/admin/GiftRefund.tsx). 테스트 [`refund-policy.test.ts`](__tests__/refund-policy.test.ts)
+- **교환권 격리 (0092)**: RLS 가 보낸 사람에게도 행 전체를 열어 `voucher_ref`(바코드)를 읽을 수 있던 구멍. [`0092_gift_voucher_isolation.sql`](supabase/migrations/0092_gift_voucher_isolation.sql) — **이 저장소 첫 SELECT 컬럼 화이트리스트**(13컬럼, voucher_ref·pg_payment_key 제외) + `my_gift_voucher()`(받는 사람·발급 후만). ⚠️ **gift_orders 에 컬럼을 추가하면 클라가 읽을 컬럼은 0092 grant 에 직접 넣어야 보인다** · `select('*')` 금지(42501)
+- **WP2 SDK 정정**: 사장님 계정의 진짜 테스트 키는 'API 개별 연동 키'(`test_ck_`) 뿐 → **기존 결제창 SDK(v1)** 로 연동. 시크릿은 Supabase Secrets `TOSS_SECRET_KEY`(사장님 직접 등록, 채팅·코드에 남기지 않음)
+
 ### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.
 - 인증 완료 Alert / 카톡 초대 / 생성 후 Alert / 챌린지방 헤더 부제 / FAB 라벨 — 모두 분류별 분기 완료

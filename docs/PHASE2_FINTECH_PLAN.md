@@ -403,6 +403,15 @@ proposed → funded(전원 선주문 결제 완료) → active → settled(완�
 | D11 | 기프티콘 B2B 는 WP3 까지 mock 유지 — 테스트키로는 **결제 왕복만** 검증 | B2B 계약 전 |
 | D12 | 응원 한잔 미수령 **30일 → 기부 전환 + 전환 전 1회 알림**을 약관 10-1 에 한 줄 추가하고 cron 으로 구현(WP3) | paid 영구 잔류 차단 |
 
+### 9.2-1 진행 기록
+| WP | 상태 |
+|---|---|
+| WP0 | ✅ 2026-10-29 — 앱 내 약관·개인정보 열기 · 방침 DI 행 · 문구 표 13곳 (커밋 bbbbfb6). **WP0-4 사업자 정보는 통판 신고번호까지 받은 뒤 한 번에** |
+| WP1 | ✅ 2026-10-29 — 0091·0092 운영 적용 · EF 4개 배포(refund-gift-order 신규) · OTA preview·production (커밋 8693109). 검증: authenticated SELECT 13컬럼(voucher_ref·pg_payment_key 제외) · 무권한 환불 호출 401 |
+| WP2 | ⏸ 테스트 키 수령 — 클라이언트 키 `test_ck_24xLea5zVAo0dQe7109l8QAMYNwW`(공개 키). 시크릿은 사장님이 Supabase Secrets `TOSS_SECRET_KEY` 로 직접 등록 |
+
+> **D2 정정 (2026-10-29)**: 토스 개발자센터 확인 결과 "주문서형·결제창형 연동 키"(`test_gck_`)는 **전자결제 신청 전엔 문서 예제 키만** 보인다. 사장님 계정의 진짜 테스트 키는 **"API 개별 연동 키"(`test_ck_`/`test_sk_`, 태그 '기존 결제창')** 뿐이다 → WP2 는 **기존 결제창 SDK(v1, `js.tosspayments.com/v1/payment`)** 로 연동한다. 앱→Pages 결제 페이지→`dohada://pay-result` 복귀 구조와 OTA 가능 여부는 그대로. 승인 API(`/v1/payments/confirm`)·취소 API 는 키 종류와 무관하게 동일.
+
 ### 9.3 작업 묶음 (WP) — 순서대로. 각 WP 끝에 코드 검사 세트(tsc·npm test·diff·필요 시 export) 필수
 
 #### WP0 — 법·고지 (지금 · 블로커 없음 · OTA)
