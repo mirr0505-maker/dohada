@@ -6,6 +6,7 @@ import { User, Heart, Globe, Handshake, Calendar, Lock, Users, BarChart3, Check,
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow } from '@/lib/tokens';
 import { computeStreak, goalStatus, memberPassedDays, isRecruiting, recruitCloseAtMs } from '@/lib/stats';
 import type { MemberPause } from '@/lib/stats';   // 🚀 0078: 잠시 멈춤 구간 (멤버별)
+import { RosterSection } from './RosterSection';   // 🚀 §10.4: 주최자 성공·완주 명단
 import { displayTitle, formatWon } from '@/lib/format';
 import { HostBadge } from '@/components/HostBadge';
 import { HostMark, HostAvatarRing } from '@/components/HostMark';
@@ -111,6 +112,9 @@ export function StatusTab({ challenge, members, proofs, myUserId, pauses = [], c
     return [...(host ? [host] : []), ...ordered];
   }, [rows, myUserId, challenge]);
 
+  // 🚀 §10.4: 조직·모임 주최자(role='host')에게만 성공·완주 명단 — 사은품 대상 확인용
+  const viewerIsHost = !!myUserId && members.some(m => m.id === myUserId && m.role === 'host');
+
   return (
     <FlatList
       data={sorted}
@@ -118,6 +122,7 @@ export function StatusTab({ challenge, members, proofs, myUserId, pauses = [], c
       contentContainerStyle={styles.list}
       ListHeaderComponent={
         <>
+        {viewerIsHost && <RosterSection challenge={challenge} members={members} proofs={proofs} pauses={pauses} />}
         {betSlot}
         {pledgeSlot}
         <View style={styles.infoCard}>

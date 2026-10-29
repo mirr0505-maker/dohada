@@ -309,6 +309,37 @@ export function countSuccessfulMembers(
   return successful;
 }
 
+// 🚀 주최자 명단 (ORG_HADA_PLAN §10.4 묶음 C) — 조직·모임 주최자가 사은품 대상을 확인하는 화면의 묶음.
+//   success     = 성공(임계 달성) — count 형은 종료 전에도 달성하면 여기
+//   finished    = 완주(끝까지 감)했지만 임계 미달
+//   inProgress  = 아직 진행 중 (종료 전, 미달)
+//   notFinished = 포기했거나, 종료됐는데 인증이 한 번도 없음
+//   주최자(role='host')는 도전자가 아니라 빠진다. 각 묶음 안 순서는 입력(가입 순) 그대로 — 인증률 정렬 금지.
+export type RosterGroupKey = 'success' | 'finished' | 'inProgress' | 'notFinished';
+
+export function rosterGroups<M extends { id: string; joined_at: string; gave_up_at: string | null; role?: string | null }>(
+  challenge: DbChallenge,
+  members: M[],
+  proofs: ProofWithRelations[],
+  pauses: MemberPause[] = [],
+): Record<RosterGroupKey, { member: M; proofCount: number }[]> {
+  const groups: Record<RosterGroupKey, { member: M; proofCount: number }[]> = {
+    success: [], finished: [], inProgress: [], notFinished: [],
+  };
+  for (const m of members) {
+    if (m.role === 'host') continue;
+    const myProofs = proofs.filter(p => p.user_id === m.id);
+    const myPauses = pauses.filter(p => p.user_id === m.id);
+    const row = { member: m, proofCount: myProofs.length };
+    if (m.gave_up_at) groups.notFinished.push(row);
+    else if (goalStatus(challenge, myProofs, m.joined_at, myPauses).isSuccess) groups.success.push(row);
+    else if (didFinishThrough(challenge, myProofs, m.joined_at, m.gave_up_at)) groups.finished.push(row);
+    else if (isFinished(challenge)) groups.notFinished.push(row);
+    else groups.inProgress.push(row);
+  }
+  return groups;
+}
+
 // 🚀 목표 미달 여부: 종료일이 지났는데 임계 목표를 못 채운 경우 true (= isSuccess 의 보완).
 //   ⚠️ '실패'가 아니다 — 끝까지 갔다면 완주(didFinishThrough)는 그대로다.
 //   UI 문구로 '실패'를 쓰지 않는다. '실패'는 내기 정산 맥락에서만 허용.

@@ -57,12 +57,18 @@ export function OrgHome({ userId, isGroup, onMenu }: Props) {
         <Users size={14} color={colors.sub} />
         <Text style={styles.metaText}>참여 {formatCheerCount(c.member_count)}명 · 오늘 인증 {formatCheerCount(c.today_check_count)}명</Text>
       </View>
-      {/* 🚀 0089: 구성원 전용 — 코드는 다시 볼 수 없어 '새로 정하기'만 (끝난 하다는 합류가 없으니 숨김) */}
-      {c.kind === 'closed' && c.end_date >= today && (
-        <Pressable onPress={() => setCodeTarget(c)} hitSlop={6}>
-          <Text style={styles.codeLink}>참여 코드 새로 정하기</Text>
+      <View style={styles.cardLinks}>
+        {/* 🚀 §10.4: 성공·완주 명단 — 방 현황 탭 상단(주최자에게만 보임) */}
+        <Pressable onPress={() => router.push(`/room/${c.id}?tab=status` as any)} hitSlop={6}>
+          <Text style={styles.codeLink}>성공·완주 명단</Text>
         </Pressable>
-      )}
+        {/* 🚀 0089: 구성원 전용 — 코드는 다시 볼 수 없어 '새로 정하기'만 (끝난 하다는 합류가 없으니 숨김) */}
+        {c.kind === 'closed' && c.end_date >= today && (
+          <Pressable onPress={() => setCodeTarget(c)} hitSlop={6}>
+            <Text style={styles.codeLink}>참여 코드 새로 정하기</Text>
+          </Pressable>
+        )}
+      </View>
     </Pressable>
   );
 
@@ -111,6 +117,7 @@ const styles = StyleSheet.create({
   period: { fontSize: fontSize.xs, color: colors.faint, fontFamily: fontFamily.regular },
   cardTitle: { fontSize: fontSize.lg, color: colors.ink, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
   cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  codeLink: { fontSize: fontSize.sm, color: colors.brandInk, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold, marginTop: 2 },
+  cardLinks: { flexDirection: 'row', gap: 16, marginTop: 2 },
+  codeLink: { fontSize: fontSize.sm, color: colors.brandInk, fontFamily: fontFamily.bold, fontWeight: fontWeight.bold },
   metaText: { fontSize: fontSize.sm, color: colors.sub, fontFamily: fontFamily.regular },
 });
