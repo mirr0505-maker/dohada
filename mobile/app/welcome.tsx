@@ -2,10 +2,12 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { PartyPopper, Check } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
 import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
+import { TERMS_URL, PRIVACY_URL } from '@/lib/support';
 
 type Term = 'age' | 'service' | 'privacy' | 'marketing';
 const REQUIRED: Term[] = ['age', 'service', 'privacy'];
@@ -59,20 +61,19 @@ export default function WelcomeScreen() {
             checked={agreed.service}
             label="서비스 이용약관"
             required
-            link
+            docUrl={TERMS_URL}
             onPress={() => toggle('service')}
           />
           <TermRow
             checked={agreed.privacy}
             label="개인정보 처리방침"
             required
-            link
+            docUrl={PRIVACY_URL}
             onPress={() => toggle('privacy')}
           />
           <TermRow
             checked={agreed.marketing}
             label="마케팅 정보 수신"
-            link
             onPress={() => toggle('marketing')}
           />
         </View>
@@ -94,28 +95,34 @@ function TermRow({
   checked,
   label,
   required = false,
-  link = false,
+  docUrl,
   bold = false,
   onPress,
 }: {
   checked: boolean;
   label: string;
   required?: boolean;
-  link?: boolean;
+  docUrl?: string;   // 있으면 '보기' 로 전문을 연다 — 체크 토글과 분리된 별도 터치 영역
   bold?: boolean;
   onPress: () => void;
 }) {
   return (
-    <Pressable style={styles.termRow} onPress={onPress}>
-      <View style={[styles.checkbox, checked && styles.checkboxOn]}>
-        {checked && <Check size={14} color={colors.surface} strokeWidth={3} />}
-      </View>
-      <Text style={[styles.termText, bold && styles.termTextBold]}>
-        {required ? <Text style={styles.required}>[필수] </Text> : <Text style={styles.optional}>[선택] </Text>}
-        {label}
-        {link && <Text style={styles.link}>  보기</Text>}
-      </Text>
-    </Pressable>
+    <View style={styles.termRow}>
+      <Pressable style={styles.termToggle} onPress={onPress}>
+        <View style={[styles.checkbox, checked && styles.checkboxOn]}>
+          {checked && <Check size={14} color={colors.surface} strokeWidth={3} />}
+        </View>
+        <Text style={[styles.termText, bold && styles.termTextBold]}>
+          {required ? <Text style={styles.required}>[필수] </Text> : <Text style={styles.optional}>[선택] </Text>}
+          {label}
+        </Text>
+      </Pressable>
+      {docUrl && (
+        <Pressable onPress={() => WebBrowser.openBrowserAsync(docUrl)} hitSlop={10} accessibilityRole="link">
+          <Text style={styles.link}>보기</Text>
+        </Pressable>
+      )}
+    </View>
   );
 }
 
@@ -174,6 +181,12 @@ const styles = StyleSheet.create({
     borderColor: colors.primary100,
   },
   termRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  termToggle: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,

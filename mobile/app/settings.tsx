@@ -1,5 +1,5 @@
 // 🚀 설정 — 햄버거(≡) 진입 (리디자인 v2)
-// profile.tsx 에서 "설정" 관심사를 분리: 알림 토글 + 베타 안내 + 계정(문의·약관/버전·로그아웃) + 계정 삭제.
+// profile.tsx 에서 "설정" 관심사를 분리: 알림 토글 + 베타 안내 + 계정(문의·약관·개인정보·버전·로그아웃) + 계정 삭제.
 // 알림 토글 로직, 시간 선택 모달, 계정 삭제 모달은 여기로 이전(프로필은 내 정보/내역만).
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -11,11 +11,12 @@ import { router } from 'expo-router';
 import {
   ArrowLeft, MessageCircle, MessageSquareText, Heart, Camera, Bell, Moon,
   MessageSquareWarning, FileText, LogOut, Coins, Users, BookOpen, Coffee, HeartHandshake,
-  Check, type LucideIcon,
+  Check, ShieldCheck, Info, type LucideIcon,
 } from 'lucide-react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { Screen } from '@/components/Screen';
 import { ListRow } from '@/components/ListRow';
-import { SUPPORT_EMAIL } from '@/lib/support';
+import { SUPPORT_EMAIL, TERMS_URL, PRIVACY_URL } from '@/lib/support';
 import { colors, fontFamily, fontSize, fontWeight, radius, textStyle } from '@/lib/tokens';
 import { useSession } from '@/lib/session';
 import { signOut, deleteAccount } from '@/lib/auth';
@@ -96,13 +97,19 @@ export default function SettingsScreen() {
       .catch(() => Alert.alert('문의', `메일 앱을 열 수 없어요. ${SUPPORT_EMAIL} 로 보내주세요.`));
   };
 
-  // 약관·버전 — 외부 약관 페이지가 아직 없어 버전/OTA 정보를 안내 (베타 테스터 소통용)
-  const onTermsVersion = () => {
+  // 약관·개인정보처리방침 전문 — 웹(GitHub Pages)에서 연다. 유료 기능(한잔)이 있는 앱의 심사 요건
+  const openDoc = (url: string) => {
+    haptic.tap();
+    WebBrowser.openBrowserAsync(url);
+  };
+
+  // 버전 — 베타 테스터 소통용 OTA 정보
+  const onVersion = () => {
     haptic.tap();
     const ota = Updates.updateId
       ? `업데이트 ${Updates.updateId.slice(0, 8)} · ${formatUpdateTime(Updates.createdAt)} 적용`
       : '업데이트: 빌드 내장 버전';
-    Alert.alert('약관·버전 정보', `Do : 하다 v${appVersion}\n${ota}\n\n약관은 가입 시 동의 화면에서 확인할 수 있어요.`);
+    Alert.alert('버전 정보', `Do : 하다 v${appVersion}\n${ota}`);
   };
 
   const onLogout = () => {
@@ -197,7 +204,11 @@ export default function SettingsScreen() {
           <View style={styles.setgroup}>
             <ListRow icon={MessageSquareWarning} label="문의·신고 (운영팀)" onPress={onContact} />
             <Divider />
-            <ListRow icon={FileText} label="약관·버전 정보" rightText={`v${appVersion}`} onPress={onTermsVersion} />
+            <ListRow icon={FileText} label="이용약관" onPress={() => openDoc(TERMS_URL)} />
+            <Divider />
+            <ListRow icon={ShieldCheck} label="개인정보처리방침" onPress={() => openDoc(PRIVACY_URL)} />
+            <Divider />
+            <ListRow icon={Info} label="버전 정보" rightText={`v${appVersion}`} onPress={onVersion} />
             <Divider />
             <ListRow icon={LogOut} label="로그아웃" onPress={onLogout} />
           </View>
