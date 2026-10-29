@@ -340,9 +340,20 @@
 **SoT = [`ORG_HADA_PLAN.md`](docs/ORG_HADA_PLAN.md) §9.** 조직 하다 = 조직 계정(실무자는 그 계정을 맡은 사람). 증명 3가지 = 조직 실재 · 실무자 권한 · 계정 소유(공식 도메인), **원본 서류는 앱에 저장 안 함**.
 - DB [`0085_org_verifications.sql`](supabase/migrations/0085_org_verifications.sql): `org_verifications`(authenticated 권한 없음, admin RPC 3종 — 🔒 첫 줄 `is_admin()`) + `admin_set_user_host_tier(org)` 는 **유효 검증 기록 없으면 거부**. 재기록 = 이전 행 해지 이력 보존. UI = [`OrgVerifyForm`](mobile/components/admin/OrgVerifyForm.tsx)(사람 계층 지정 카드)
 - [`0086_transfer_seed_stage.sql`](supabase/migrations/0086_transfer_seed_stage.sql): 「매일 8천보 걷기」를 **같은 id 로** 법인 계정(`kidoo.kim@doinno.co.kr`) 소유 이전 — 1회성 운영 SQL(앱 경로 이전 불가 0022 는 유지). 한잔 주문은 결제자 이름 보존
-- 문의처 `SUPPORT_EMAIL`·법적 문서 → `kidoo.kim@doinno.co.kr`. admin 권한은 개인 계정(mirr0505)에만 유지
+- admin 권한은 개인 계정(mirr0505)에만 유지. (문의처는 v2.41 에서 역할 주소로 교체)
 - **운영 반영 완료** (0085·0086 적용 + OTA preview·production)
-- **다음 실행 (기획 완료 2026-10-28, 미착수)**: [`ORG_HADA_PLAN.md`](docs/ORG_HADA_PLAN.md) **§10** — 조직 메일 OTP 로그인(`users.account_type`) + 조직 전용 영역 + 누구나 합류/구성원 전용(참여 코드) + 고정 공지 + 주최자 명단. 묶음 A(0087)→B(0088)→C. §9.1 도메인 계정 모델은 폐기
+
+### 신규 코드 위치 (v2.41 — 조직·모임 로그인 + 조직 전용 영역 + 구성원 전용 + 주최자 명단, 0087~0090, 2026-10-28~29)
+**SoT = [`ORG_HADA_PLAN.md`](docs/ORG_HADA_PLAN.md) §10** (결정 12건 · 구현 표 · 대시보드 설정 · 런북). §9.1 "조직 = Google/Apple 도메인 계정" 모델은 폐기.
+- **로그인**: 가입한 메일로 6자리 코드, 비밀번호 없음([`auth.ts`](mobile/lib/auth.ts) `requestOrgLoginCode`/`verifyOrgLoginCode` — 기기 provider 잠금 미적용). 로그인 화면 하단 "조직으로 시작 · 모임으로 시작" → [`app/org/`](mobile/app/org/) signup·login·verify·find-email(번호→가려진 메일, 0088)
+- **계정 구분** `users.account_type`('personal'|'org', 클라 쓰기 불가) → 조직·모임은 5탭 대신 `/org`(대기 화면 / 조직 홈). 라우팅 = 스플래시·로그인·푸시·`(tabs)/_layout` 안전망의 `isOrgAccount()`([`lib/org.ts`](mobile/lib/org.ts))
+- **유형**: 기업·비영리·공공(조직 메일) / **개인사업자**(개인 메일 허용·번호 10자리 필수) → 🏛️ 공식 · **모임**(밴드·카페·오픈톡, 개인 메일·활동 링크) → 👥 모임 배지(`host_tier='group'`, 구성원 전용만 개설 — 서버 강제). 개인 메일 판정 [`orgEmail.ts`](mobile/lib/orgEmail.ts) = SQL 목록과 테스트로 동기
+- **승인**: 운영자 콘솔 [`OrgApplicationQueue`](mobile/components/admin/OrgApplicationQueue.tsx)(🔒 `is_admin()`, 서류 없음 — 메일·번호·링크 확인, 메일 보내기). 승인 = 검증 기록 + 계층 부여 한 트랜잭션
+- **구성원 전용** (0089): closed + 참여 코드(bcrypt, 평문 미보관). 광장 쇼윈도 = `stage_challenges()` RPC(카드만). 코드 방 직접 insert 는 RLS 차단(SECURITY DEFINER 헬퍼). 합류 = `join_member_only`
+- **명단** (묶음 C): 현황 탭 상단 [`RosterSection`](mobile/components/challenge/RosterSection.tsx) — 주최자(`role='host'`)에게만 성공·완주·진행·못 감, 판정 `stats.rosterGroups`(goalStatus 단일 소스, 가입 순). 공지는 기존 "발송메시지"(0019)
+- 문의처 `SUPPORT_EMAIL` = `doinnovation@doinno.co.kr`. 조직 계정은 앱 탈퇴 불가(`delete-account` 403)
+- ⚠️ **SMTP**: Workspace `smtp.gmail.com`, Username = 앱 비밀번호를 만든 계정. 불일치 시 535 → "Error sending … email". OTP 길이 = 6
+- 검증 npm test 164/164 · tsc 0 · export ✓ · **운영 반영 완료**(0087~0090 + delete-account EF + OTA 6회)
 
 ### 분류별 SNS 톤 + 홈 SNS-first (v2.3 + v2.5 정체성)
 4가지 챌린지 종류 (`solo` / `cheered` / `closed` / `open`) = 4가지 다른 SNS 경험. 카피·UI·알림·박제·인연이 분류 키워드 하나로 매핑. 변경 시 4가지 모두 일관성 검토.
