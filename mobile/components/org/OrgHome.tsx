@@ -13,6 +13,14 @@ import { colors, fontFamily, fontSize, fontWeight, radius } from '@/lib/tokens';
 
 type Props = { userId: string; onMenu: () => void };
 
+// 기간 표시 — 같은 해면 월.일만, 해가 바뀌면 연도까지 (09.12 ~ 09.11 처럼 거꾸로 보이는 것 방지)
+const formatPeriod = (start: string, end: string): string => {
+  const dot = (d: string) => d.replace(/-/g, '.');
+  return start.slice(0, 4) === end.slice(0, 4)
+    ? `${dot(start.slice(5))} ~ ${dot(end.slice(5))}`
+    : `${dot(start)} ~ ${dot(end)}`;
+};
+
 export function OrgHome({ userId, onMenu }: Props) {
   const [items, setItems] = useState<MyChallengeDetail[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,7 +48,7 @@ export function OrgHome({ userId, onMenu }: Props) {
           {c.kind === 'closed' ? <Lock size={12} color={colors.sub} /> : <Globe size={12} color={colors.sub} />}
           <Text style={styles.modeText}>{c.kind === 'closed' ? '구성원 전용' : '누구나 합류'}</Text>
         </View>
-        <Text style={styles.period}>{c.start_date.slice(5).replace('-', '.')} ~ {c.end_date.slice(5).replace('-', '.')}</Text>
+        <Text style={styles.period}>{formatPeriod(c.start_date, c.end_date)}</Text>
       </View>
       <Text style={styles.cardTitle} numberOfLines={2}>{c.title}</Text>
       <View style={styles.cardMeta}>
