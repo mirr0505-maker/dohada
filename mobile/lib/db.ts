@@ -1129,6 +1129,16 @@ export async function deleteLog(logId: string): Promise<void> {
   if (error) throw error;
 }
 
+// 🚀 인증 본인 삭제 (0093) — 본인 + 10분 이내 + 응원 한잔 없음 (RLS). comments·cheers cascade.
+// RLS 에 막힌 delete 는 에러가 아니라 0행이라, 지워진 행 수로 판정한다.
+export async function deleteProof(proofId: string): Promise<void> {
+  const { data, error } = await supabase.from('proofs').delete().eq('id', proofId).select('id');
+  if (error) throw error;
+  if (!data || data.length === 0) {
+    throw new Error('삭제할 수 없어요. 인증 후 10분이 지났거나 응원 한잔이 연결된 인증이에요.');
+  }
+}
+
 // 기록 댓글 수정 (v2.2)
 export async function updateLogComment(args: {
   commentId: string;
