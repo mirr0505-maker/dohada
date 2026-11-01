@@ -11,8 +11,9 @@ import { useSession } from '@/lib/session';
 import {
   fetchRoomData, toggleCheer, pauseMembership, resumeMembership, giveUpMembership, setRecruitLock,
   fetchChallengePledges, togglePledgeFulfilled, deletePledge, type ChallengePledge,
-  blockUser, type ReportTargetType,
+  blockUser, deleteProof, type ReportTargetType,
 } from '@/lib/db';
+import { canSelfDeleteProof } from '@/lib/proofDelete';
 import { supabase } from '@/lib/supabase';
 import { ErrorState } from '@/components/ErrorState';
 import { ProofCardSkeleton } from '@/components/Skeleton';
@@ -927,6 +928,29 @@ export default function ChallengeRoom() {
       { text: '취소', style: 'cancel' },
     ]);
   };
+  // 🚀 0093 인증 본인 삭제 — 잘못 올린 인증을 10분 안에 지운다 (수정 없음: 지우고 다시 올리기)
+  const openMyProofActions = (proof: ProofWithRelations) => {
+    const confirmDelete = () => {
+      Alert.alert('인증을 삭제할까요?', '사진·응원·댓글이 함께 사라지고 되돌릴 수 없어요.\n삭제 후 오늘 인증을 다시 올릴 수 있어요.', [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '삭제', style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteProof(proof.id);
+              await load();
+            } catch (e: any) {
+              Alert.alert('삭제하지 못했어요', e?.message ?? String(e));
+            }
+          },
+        },
+      ]);
+    };
+    Alert.alert('이 인증', undefined, [
+      { text: '인증 삭제', style: 'destructive', onPress: confirmDelete },
+      { text: '취소', style: 'cancel' },
+    ]);
+  };
 
   return (
     <Screen
@@ -1167,7 +1191,12 @@ export default function ChallengeRoom() {
                 const gifts = receivedGifts.filter(g => g.proof_id === item.id);
                 return gifts.length > 0 ? () => onGiftArrivedPress(gifts) : null;
               })()}
-              onMore={isMember && item.user_id !== myUserId ? () => openProofActions(item) : null}
+              onMore={
+                !isMember ? null
+                : item.user_id !== myUserId ? () => openProofActions(item)
+                : !writeLocked && canSelfDeleteProof({ createdAt: item.created_at, nowMs: Date.now() }) ? () => openMyProofActions(item)
+                : null
+              }
             />
           )}
           ListEmptyComponent={
@@ -1538,7 +1567,7 @@ function ProofCard({
   onGift?: (() => void) | null;          // ☕ 응원 한잔 보내기 — 동료 카드 (파일럿)
   onGiftArrived?: (() => void) | null;   // ☕ 한잔 도착 — 본인 카드, 받은 적 있으면 표시 (카운팅 없음)
   mine?: boolean;                        // 본인 카드 — 🎁 선물 자리표시 제거
-  onMore?: (() => void) | null;          // 🚀 3b: ⋯ 신고·차단 (비본인)
+  onMore?: (() => void) | null;          // 🚀 3b: ⋯ 신고·차단 (비본인) / 0093: 본인 10분 내 삭제
 }) {
   return (
     <View style={styles.proofCard}>
@@ -1559,8 +1588,8 @@ function ProofCard({
           </View>
           <Text style={styles.proofTime}>{formatTime(proof.created_at)}</Text>
         </View>
-        {!mine && onMore && (
-          <Pressable onPress={onMore} hitSlop={8} accessibilityRole="button" accessibilityLabel="더보기 (신고·차단)">
+        {onMore && (
+          <Pressable onPress={onMore} hitSlop={8} accessibilityRole="button" accessibilityLabel={mine ? '더보기 (인증 삭제)' : '더보기 (신고·차단)'}>
             <Text style={{ fontSize: fontSize.xl, color: colors.primary300, paddingHorizontal: 4 }}>⋯</Text>
           </Pressable>
         )}
