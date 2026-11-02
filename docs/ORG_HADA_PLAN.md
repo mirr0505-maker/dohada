@@ -377,7 +377,7 @@ TO-BE 6항 중 6항 구현 완료 (전부 운영 적용 + OTA):
 **운영 반영 완료**: 0087~0090 운영 DB 적용 · `delete-account` EF 배포 · OTA 6회(preview·production) · 커밋 5d68184 → 06a8c09 → 2426027 → f1efd2b → 82c255a.
 
 ### 10.2 운영 설정 (대시보드 — 코드 아님)
-- Supabase Auth: Email provider ON · **Email OTP Length = 6** · Expiration 600 권장 · 템플릿 "Magic link or OTP" 본문에 `{{ .Token }}`(한국어)
+- Supabase Auth: Email provider ON · **Email OTP Length = 6** · **Expiration 600**(앱 [`org/verify.tsx`](../mobile/app/org/verify.tsx) `CODE_VALID_SECONDS` 와 같은 값 — 바꾸면 둘 다, 2026-11-02 대시보드 600 확인) · 템플릿 "Magic link or OTP" 본문에 `{{ .Token }}`(한국어)
 - **SMTP** = Google Workspace `smtp.gmail.com:587`, Username = **앱 비밀번호를 만든 계정**(`kidoo.kim@doinno.co.kr`). ⚠️ Username 과 앱 비밀번호의 계정이 다르면 `535 BadCredentials` → 메일 발송 실패("Error sending … email"). 진단 = Management API logs 조회
 - 발신 주소를 `doinnovation@` 으로 바꾸려면 kidoo.kim Gmail 의 "다른 주소에서 메일 보내기"에 등록 후 Sender 변경
 

@@ -15,6 +15,13 @@ import { colors, fontFamily, fontSize, fontWeight } from '@/lib/tokens';
 
 const CODE_LENGTH = 6;
 const RESEND_WAIT_SECONDS = 60;   // Supabase 기본 재발송 간격과 맞춘다
+// 코드 유효 시간 — Supabase 대시보드 Auth > Email "Email OTP Expiration"(초) 과 반드시 같은 값.
+// 재발송 대기(60초)를 마감으로 오해한 피드백(2026-11-02) → 실제 유효 시간을 따로 보여준다.
+// 기업 메일은 보안 검사로 수신이 늦어 10분을 유지한다.
+const CODE_VALID_SECONDS = 600;
+
+// 180 → "3:00"
+const formatMinSec = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 export default function OrgVerifyScreen() {
   const p = useLocalSearchParams<{
@@ -25,12 +32,16 @@ export default function OrgVerifyScreen() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [wait, setWait] = useState(RESEND_WAIT_SECONDS);
+  const [validLeft, setValidLeft] = useState(CODE_VALID_SECONDS);
 
   useEffect(() => {
-    if (wait <= 0) return;
-    const t = setTimeout(() => setWait(w => w - 1), 1000);
+    if (wait <= 0 && validLeft <= 0) return;
+    const t = setTimeout(() => {
+      setWait(w => Math.max(0, w - 1));
+      setValidLeft(v => Math.max(0, v - 1));
+    }, 1000);
     return () => clearTimeout(t);
-  }, [wait]);
+  }, [wait, validLeft]);
 
   // 실패하면 세션을 남기지 않는다 — 조직이 아닌 계정으로 앱에 들어가 있으면 안 된다
   const failAndSignOut = async (title: string, message: string) => {
@@ -80,6 +91,7 @@ export default function OrgVerifyScreen() {
     try {
       await requestOrgLoginCode(p.email);
       setWait(RESEND_WAIT_SECONDS);
+      setValidLeft(CODE_VALID_SECONDS);
     } catch (e: any) {
       Alert.alert('다시 보내지 못했어요', e?.message ?? String(e));
     }
@@ -95,6 +107,11 @@ export default function OrgVerifyScreen() {
         </View>
         <View style={styles.body}>
           <Text style={styles.lead}>{p.email} 으로 보낸 {CODE_LENGTH}자리 코드를 입력해 주세요.</Text>
+          <Text style={[styles.lead, validLeft <= 0 && { color: colors.brandInk }]}>
+            {validLeft > 0
+              ? `코드 유효 시간 ${formatMinSec(validLeft)}`
+              : '코드 유효 시간이 지났어요. 아래에서 코드를 다시 받아 주세요.'}
+          </Text>
           <OrgField label="코드" value={code} onChangeText={t => setCode(t.replace(/\D/g, '').slice(0, CODE_LENGTH))}
             keyboardType="number-pad" autoFocus maxLength={CODE_LENGTH} style={styles.codeInput}
             hint="메일이 안 보이면 스팸함도 확인해 주세요." />
